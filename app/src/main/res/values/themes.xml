@@ -1,0 +1,16 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Tema base: identidad roja Metrobús CDMX -->
+    <style name="Base.Theme.GeoMB" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/mb_red</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/mb_red_container</item>
+        <item name="colorOnPrimaryContainer">@color/mb_red_dark</item>
+        <item name="colorSecondary">@color/mb_gray</item>
+        <item name="colorSurface">@color/mb_surface</item>
+        <item name="colorOutline">@color/mb_outline</item>
+        <item name="android:statusBarColor">@color/mb_red_dark</item>
+        <item name="android:navigationBarColor">@color/mb_surface</item>
+    </style>
+
+    <style name="Theme.GeoMB" parent="Base.Theme.GeoMB" />
+</resources>

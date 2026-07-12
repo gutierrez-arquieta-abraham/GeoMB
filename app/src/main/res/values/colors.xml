@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Identidad Metrobús CDMX -->
+    <color name="mb_red">#C10230</color>
+    <color name="mb_red_dark">#8E0123</color>
+    <color name="mb_red_light">#E8496B</color>
+    <color name="mb_red_container">#FFD9DE</color>
+
+    <!-- Neutros -->
+    <color name="mb_surface">#FFFBFB</color>
+    <color name="mb_surface_dark">#1C1B1B</color>
+    <color name="mb_gray">#6F6768</color>
+    <color name="mb_gray_light">#F3EDEE</color>
+    <color name="mb_outline">#D8CDCE</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Colores oficiales de líneas (del GTFS Metrobús) -->
+    <color name="linea_1">#D40D0D</color>
+    <color name="linea_2">#8D1A96</color>
+    <color name="linea_3">#7A9A01</color>
+    <color name="linea_4">#FF9A03</color>
+    <color name="linea_5">#141982</color>
+    <color name="linea_6">#E44599</color>
+    <color name="linea_7">#116633</color>
+
+    <!-- Estados de unidad -->
+    <color name="unidad_en_ruta">#2E7D32</color>
+    <color name="unidad_detenida">#F9A825</color>
+    <color name="unidad_sin_senal">#9E9E9E</color>
+</resources>

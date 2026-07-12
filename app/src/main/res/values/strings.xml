@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">GeoMB</string>
+
+    <!-- Navegación -->
+    <string name="nav_mapa">Mapa</string>
+    <string name="nav_buscar">Buscar</string>
+    <string name="nav_lineas">Líneas</string>
+
+    <!-- Mapa -->
+    <string name="buscar_hint">Buscar unidad o estación…</string>
+    <string name="mi_ubicacion">Mi ubicación</string>
+    <string name="mapa_placeholder">Aquí se mostrará el mapa con las unidades</string>
+
+    <!-- Buscador de unidad -->
+    <string name="buscar_unidad_titulo">Buscar unidad</string>
+    <string name="buscar_unidad_hint">Número de unidad (ej. 1101)</string>
+    <string name="unidad_no_encontrada">No se encontró la unidad %1$s</string>
+    <string name="buscar_boton">Buscar</string>
+    <string name="unidad_numero">Unidad %1$s</string>
+    <string name="ver_en_mapa">Ver en mapa</string>
+    <string name="estado_en_ruta">En ruta</string>
+    <string name="ultima_actualizacion">Actualizado hace %1$s</string>
+
+    <!-- Líneas -->
+    <string name="lineas_titulo">Líneas del Metrobús</string>
+    <string name="linea_formato">Línea %1$d</string>
+    <string name="estaciones_formato">%1$d estaciones</string>
+</resources>

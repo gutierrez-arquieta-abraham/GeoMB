@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Contenedor del mapa de Google -->
+    <FrameLayout
+        android:id="@+id/map_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/mb_gray_light"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Barra de búsqueda flotante -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/search_bar"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="26dp"
+        app:cardElevation="4dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@string/nav_buscar"
+                android:src="@drawable/ic_search"
+                app:tint="@color/mb_gray" />
+
+            <TextView
+                android:id="@+id/search_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="@string/buscar_hint"
+                android:textColor="@color/mb_gray"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Botón mi ubicación -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_ubicacion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/mi_ubicacion"
+        android:src="@drawable/ic_my_location"
+        app:backgroundTint="?attr/colorPrimary"
+        app:tint="@color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
