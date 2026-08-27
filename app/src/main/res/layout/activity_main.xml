@@ -16,16 +16,53 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
+    <!-- Barra inferior propia (LinearLayout) para no toparse con el límite de 5 -->
+    <LinearLayout
         android:id="@+id/bottom_nav"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="?attr/colorSurface"
-        app:menu="@menu/bottom_nav_menu"
-        app:itemIconTint="@color/bottom_nav_color"
-        app:itemTextColor="@color/bottom_nav_color"
+        android:orientation="horizontal"
+        android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout android:id="@+id/nav_mapa" style="@style/NavItem">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_map" android:contentDescription="@string/nav_mapa" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_mapa" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/nav_buscar" style="@style/NavItem">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_search" android:contentDescription="@string/nav_buscar" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_buscar" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/nav_lineas" style="@style/NavItem">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_bus" android:contentDescription="@string/nav_lineas" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_lineas" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/nav_ruta" style="@style/NavItem">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_route" android:contentDescription="@string/nav_ruta" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_ruta" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/nav_llegadas" style="@style/NavItem">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_bell" android:contentDescription="@string/nav_llegadas" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_llegadas" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/nav_reporte" style="@style/NavItem">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_report" android:contentDescription="@string/nav_reporte" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_reporte" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/nav_acerca" style="@style/NavItem">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_info" android:contentDescription="@string/nav_acerca" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_acerca" />
+        </LinearLayout>
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

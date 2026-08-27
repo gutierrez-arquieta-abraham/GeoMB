@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Identidad Metrobús CDMX -->
-    <color name="mb_red">#C10230</color>
-    <color name="mb_red_dark">#8E0123</color>
-    <color name="mb_red_light">#E8496B</color>
+    <color name="mb_red">#C8103E</color>
+    <color name="mb_red_dark">#C8103E</color>
+    <color name="mb_red_light">#C8103E</color>
     <color name="mb_red_container">#FFD9DE</color>
 
     <!-- Neutros -->

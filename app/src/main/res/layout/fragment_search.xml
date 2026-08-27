@@ -113,22 +113,87 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/txt_ficha"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Empresa · Marca Modelo"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/txt_tagline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="13sp"
+                android:textStyle="italic"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/txt_ruta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Ruta"
+                android:textColor="@color/mb_gray"
+                android:textSize="13sp" />
+
+            <TextView
                 android:id="@+id/txt_actualizacion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:text="Actualizado hace 15 s"
                 android:textColor="@color/mb_gray"
                 android:textSize="12sp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_ver_mapa"
+            <ImageView
+                android:id="@+id/img_unidad"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="@string/ver_en_mapa"
-                app:icon="@drawable/ic_map"
-                style="@style/Widget.Material3.Button.TonalButton" />
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/foto_unidad"
+                android:maxHeight="260dp"
+                android:scaleType="fitCenter"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/txt_credito"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/mb_gray"
+                android:textSize="11sp"
+                android:textStyle="italic"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_ver_mapa"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/ver_en_mapa"
+                    app:icon="@drawable/ic_map" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_seguir"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/seguir"
+                    app:icon="@drawable/ic_my_location" />
+            </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

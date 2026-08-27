@@ -7,7 +7,9 @@
         <item name="colorOnPrimaryContainer">@color/mb_red_container</item>
         <item name="colorSecondary">@color/mb_gray_light</item>
         <item name="colorSurface">@color/mb_surface_dark</item>
-        <item name="android:statusBarColor">@color/black</item>
-        <item name="android:navigationBarColor">@color/mb_surface_dark</item>
+        <!-- Sin statusBarColor/navigationBarColor (deprecados en Android 15). Borde a borde
+             + insets. Iconos claros sobre barras oscuras. -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

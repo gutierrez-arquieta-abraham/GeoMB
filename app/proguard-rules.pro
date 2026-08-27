@@ -12,10 +12,13 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Conserva números de línea para que los stack traces de Play Console sean legibles,
+# ocultando el nombre real del archivo fuente.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- GeoMB (release) ---
+# Firestore se usa con Map + merge() (sin POJOs), así que no hacen falta reglas de modelo.
+# Firebase, ML Kit y Play Services incluyen sus propias reglas de consumidor.
+# Se conservan las anotaciones de Firebase por si a futuro se leen objetos con toObject().
+-keepattributes *Annotation*,Signature

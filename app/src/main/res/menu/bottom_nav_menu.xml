@@ -12,4 +12,12 @@
         android:id="@+id/nav_lineas"
         android:icon="@drawable/ic_bus"
         android:title="@string/nav_lineas" />
+    <item
+        android:id="@+id/nav_llegadas"
+        android:icon="@drawable/ic_bell"
+        android:title="@string/nav_llegadas" />
+    <item
+        android:id="@+id/nav_acerca"
+        android:icon="@drawable/ic_info"
+        android:title="@string/nav_acerca" />
 </menu>

@@ -8,9 +8,43 @@
         <item name="colorSecondary">@color/mb_gray</item>
         <item name="colorSurface">@color/mb_surface</item>
         <item name="colorOutline">@color/mb_outline</item>
-        <item name="android:statusBarColor">@color/mb_red_dark</item>
-        <item name="android:navigationBarColor">@color/mb_surface</item>
+        <!-- Sin statusBarColor/navigationBarColor: deprecados en Android 15; se maneja
+             con borde a borde (EdgeToEdge) e insets. Iconos oscuros sobre barras claras. -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 
     <style name="Theme.GeoMB" parent="Base.Theme.GeoMB" />
+
+    <!-- Ítem de la barra inferior propia -->
+    <style name="NavItem">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+    </style>
+
+    <style name="NavItemText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!-- Etiqueta de campo en el formulario de reporte -->
+    <style name="ReporteLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">14dp</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

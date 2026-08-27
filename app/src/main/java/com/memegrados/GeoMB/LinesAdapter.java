@@ -1,6 +1,5 @@
 package com.memegrados.GeoMB;
 
-import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,11 +36,19 @@ public class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineaViewHol
     public void onBindViewHolder(@NonNull LineaViewHolder holder, int position) {
         Linea linea = lineas.get(position);
         holder.txtNumero.setText(String.valueOf(linea.numero));
-        holder.txtNumero.setBackgroundTintList(ColorStateList.valueOf(linea.color));
+        // Badge circular con color de línea y contorno negro.
+        float dens = holder.itemView.getResources().getDisplayMetrics().density;
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        bg.setColor(linea.color);
+        bg.setStroke(Math.round(2 * dens), 0xFF000000);
+        holder.txtNumero.setBackground(bg);
         holder.txtNombre.setText(holder.itemView.getContext()
                 .getString(R.string.linea_formato, linea.numero) + " · " + linea.nombre);
+        // Pestaña Líneas: solo estaciones (sin conteo de unidades).
         holder.txtEstaciones.setText(holder.itemView.getContext()
                 .getString(R.string.estaciones_formato, linea.estaciones.size()));
+        Tipografia.aplicar(holder.txtNumero, holder.txtNombre, holder.txtEstaciones);
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onClick(linea);
         });
