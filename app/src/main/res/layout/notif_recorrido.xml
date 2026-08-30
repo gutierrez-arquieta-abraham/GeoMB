@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_notif_recorrido"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/nr_kicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/notif_proxima"
+        android:textColor="#8A8A8A"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <!-- Próxima estación en tipografía Tipo Metro (bitmap sobre fondo blanco) -->
+    <ImageView
+        android:id="@+id/nr_estacion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/notif_proxima"
+        android:maxHeight="26dp"
+        android:scaleType="fitStart" />
+
+    <!-- 3 estaciones cercanas: anterior · próxima · posterior -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/nr_ic_ant"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@string/notif_anterior" />
+
+            <TextView
+                android:id="@+id/nr_nom_ant"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="#8A8A8A"
+                android:textSize="9sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/nr_ic_prox"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:contentDescription="@string/notif_proxima" />
+
+            <TextView
+                android:id="@+id/nr_nom_prox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/notif_proxima_corto"
+                android:textColor="#C8103E"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/nr_ic_post"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@string/notif_posterior" />
+
+            <TextView
+                android:id="@+id/nr_nom_post"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="#8A8A8A"
+                android:textSize="9sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- origen y destino del recorrido -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/nr_origen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#116633"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/nr_destino"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#116633"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/nr_estado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="#222222"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+</LinearLayout>

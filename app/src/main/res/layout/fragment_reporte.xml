@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/reporte_titulo"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:tag="largo"
+            android:text="@string/reporte_desc"
+            android:textColor="@color/mb_gray"
+            android:textSize="13sp"
+            android:lineSpacingExtra="2dp" />
+
+        <TextView
+            android:id="@+id/txt_verificado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/reporte_verificado_ok"
+            android:textColor="#116633"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView style="@style/ReporteLabel" android:text="@string/reporte_tipo" />
+
+        <Spinner
+            android:id="@+id/sp_tipo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp" />
+
+        <!-- Grupo UNIDAD / PERSONAL (unidad y personal · personal ajeno) -->
+        <LinearLayout
+            android:id="@+id/grp_unidad"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView style="@style/ReporteLabel" android:text="@string/reporte_eco" />
+
+            <EditText
+                android:id="@+id/in_eco"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/reporte_eco_hint"
+                android:inputType="number"
+                android:maxLines="1" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_unidades_cerca"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:icon="@drawable/ic_bus"
+                android:text="@string/reporte_unidades_cerca" />
+        </LinearLayout>
+
+        <!-- Grupo PERSONAL (nombre + cargo) -->
+        <LinearLayout
+            android:id="@+id/grp_personal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView style="@style/ReporteLabel" android:text="@string/reporte_involucrado" />
+
+            <EditText
+                android:id="@+id/in_involucrado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/reporte_involucrado_hint"
+                android:inputType="textPersonName|textCapWords"
+                android:maxLines="1" />
+
+            <TextView style="@style/ReporteLabel" android:text="@string/reporte_cargo" />
+
+            <Spinner
+                android:id="@+id/sp_cargo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp" />
+        </LinearLayout>
+
+        <!-- Grupo ESTACIÓN -->
+        <LinearLayout
+            android:id="@+id/grp_estacion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView style="@style/ReporteLabel" android:text="@string/reporte_estacion" />
+
+            <EditText
+                android:id="@+id/in_estacion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/reporte_estacion_hint"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <TextView style="@style/ReporteLabel" android:text="@string/reporte_descripcion" />
+
+        <EditText
+            android:id="@+id/in_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top"
+            android:hint="@string/reporte_descripcion_hint"
+            android:inputType="textMultiLine|textCapSentences"
+            android:minLines="3"
+            android:tag="largo" />
+
+        <TextView style="@style/ReporteLabel" android:text="@string/reporte_contacto" />
+
+        <EditText
+            android:id="@+id/in_tel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/reporte_tel_hint"
+            android:inputType="phone"
+            android:maxLines="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_foto"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:icon="@drawable/ic_report"
+            android:text="@string/reporte_adjuntar" />
+
+        <TextView
+            android:id="@+id/txt_foto"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:tag="largo"
+            android:textColor="@color/mb_gray"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_enviar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"
+            app:icon="@drawable/ic_route"
+            android:text="@string/reporte_enviar" />
+    </LinearLayout>
+</ScrollView>

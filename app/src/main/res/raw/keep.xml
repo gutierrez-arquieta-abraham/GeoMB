@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Recursos cargados dinámicamente por nombre (getIdentifier), que R8/shrinkResources
+  podría eliminar por no verlos referenciados en código. Se conservan explícitamente.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_est_*,@raw/splash,@raw/claves,@raw/map_style_dark,@font/tipo_metro"
+    tools:shrinkMode="safe" />

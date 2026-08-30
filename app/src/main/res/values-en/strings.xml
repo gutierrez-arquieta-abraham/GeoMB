@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  English (en) — foreign-language translation.
+  Autoglotónimos (idioma_es/idioma_en/idioma_nah) and the neutral idioma_menu are intentionally
+  NOT overridden here: they stay constant across the UI (defined in res/values/).
+  Anything missing here falls back to Spanish (res/values/).
+-->
+<resources>
+
+    <!-- Navigation -->
+    <string name="nav_mapa">Map</string>
+    <string name="nav_buscar">Search</string>
+    <string name="nav_lineas">Lines</string>
+    <string name="nav_ruta">Route</string>
+    <string name="seleccionar">Select</string>
+
+    <!-- Map -->
+    <string name="buscar_hint">Search unit or station…</string>
+    <string name="mi_ubicacion">My location</string>
+    <string name="foto_unidad">Unit photo</string>
+    <string name="modo_titulo">Custom mode</string>
+    <string name="modo_desc">Enter a phrase to activate a mode. Everything can be turned off below.</string>
+    <string name="modo_frase_hint">Secret phrase</string>
+    <string name="modo_activar">Activate phrase</string>
+    <string name="modo_frase_ok">Mode activated</string>
+    <string name="modo_frase_no">That phrase doesn\'t activate anything</string>
+    <string name="modo_desbloqueado">Custom mode unlocked</string>
+    <string name="modo_sw_cachondo">Flirty notifications (search)</string>
+    <string name="modo_sw_pbs">Operation codes (PBS)</string>
+    <string name="modo_ver_claves">View operation codes</string>
+    <string name="modo_claves_no">Place Claves.png in res/raw to view them</string>
+    <string name="modo_salir">Exit custom mode</string>
+    <string name="cachondo_tagline">Single, no strings attached and heading to %1$s… want a ride?</string>
+    <string name="cachondo_tagline_off">Out of service, but still in the mood</string>
+    <string name="creditos_imagen_formato">Image credits: %1$s</string>
+    <string name="creditos_imagen_sin">Reference image · rights of its author</string>
+    <string name="mapa_trafico">Traffic level</string>
+    <string name="mapa_tipo">Map type</string>
+    <string name="mapa_centrar">Center on the network</string>
+    <string name="mapa_tipo_normal">Normal map</string>
+    <string name="mapa_tipo_satelite">Satellite</string>
+    <string name="mapa_tipo_hibrido">Hybrid</string>
+    <string name="mapa_acercar">Zoom in</string>
+    <string name="mapa_alejar">Zoom out</string>
+    <string name="mapa_norte">Orient to north</string>
+    <string name="mapa_estaciones">Station icons</string>
+    <string name="mapa_estaciones_on">Station icons enabled</string>
+    <string name="mapa_estaciones_off">Station icons hidden</string>
+    <string name="mapa_refresco_valor">Map refresh: %1$d s</string>
+    <string name="mapa_refresco_desc">How often vehicles refresh on the map. The server (SONDA) updates every 30–60 s.</string>
+    <string name="mapa_unidades">Show or hide vehicles</string>
+    <string name="mapa_unidades_on">Vehicles visible</string>
+    <string name="mapa_unidades_off">Vehicles hidden</string>
+    <string name="mapa_mexibus">Mexibús</string>
+    <string name="mapa_mexibus_on">Mexibús shown on map</string>
+    <string name="mapa_mexibus_off">Mexibús hidden</string>
+    <string name="mapa_iconos">Icon style</string>
+    <string name="mapa_iconos_nuevos">New icons (pictograms)</string>
+    <string name="mapa_iconos_antiguos">Old icons (dots)</string>
+    <string name="mapa_3d">3D view</string>
+    <string name="estacion_no_encontrada">Station not found</string>
+    <string name="ruta_resumen">%1$d stops · %2$d transfers · ~%3$d min</string>
+    <string name="ruta_sin_ruta">No route found to %1$s</string>
+    <string name="ruta_estacion_cerrada">%1$s is out of service (%2$s)</string>
+    <string name="ruta_corte_bloqueo">No route: the line is split by a service disruption</string>
+    <string name="ruta_motivo_bloqueo">blockage or protest</string>
+    <string name="ruta_motivo_mantenimiento">maintenance</string>
+    <string name="ruta_motivo_afectacion">service disruption</string>
+    <string name="notif_lineas_titulo">Alerts by line (master control)</string>
+    <string name="notif_lineas_desc">Choose which lines you want service alerts from. Lines turned off won\'t notify you.</string>
+    <string name="notif_lineas_desactivar">Turn all off</string>
+    <string name="notif_lineas_seleccionar">Select lines</string>
+    <string name="notif_recibir_lineas">Receive by line</string>
+
+    <!-- Irregularity report -->
+    <string name="nav_reporte">Report</string>
+    <string name="reporte_titulo">Report an issue</string>
+    <string name="reporte_desc">Send a formal report to Metrobús User Support. An email is drafted from your account with the details; you review and send it.</string>
+    <string name="reporte_tipo">Type of issue</string>
+    <string name="reporte_linea">Line</string>
+    <string name="reporte_eco">Vehicle (fleet number)</string>
+    <string name="reporte_eco_hint">e.g. 9507 (optional)</string>
+    <string name="reporte_estacion">Station / location</string>
+    <string name="reporte_estacion_hint">Station or point (optional)</string>
+    <string name="reporte_descripcion">Description</string>
+    <string name="reporte_descripcion_hint">Describe what happened…</string>
+    <string name="reporte_contacto">Contact for follow-up</string>
+    <string name="reporte_nombre_hint">Name (optional)</string>
+    <string name="reporte_tel_hint">Phone (optional)</string>
+    <string name="reporte_adjuntar">Attach evidence (photo, video or audio) *</string>
+    <string name="reporte_foto_adjunta">Evidence: %1$s</string>
+    <string name="reporte_enviar">Prepare email</string>
+    <string name="reporte_falta_desc">Briefly describe the issue</string>
+    <string name="reporte_falta_evidencia">Evidence is required: attach a photo, video or audio</string>
+    <string name="reporte_evidencia_tipo">Evidence must be a photo, video or audio</string>
+    <string name="reporte_requiere_login">Sign in to submit the report</string>
+    <string name="reporte_evidencia_nota">Evidence is required and must show or describe the issue.</string>
+    <string name="reporte_ev_foto">Take photo</string>
+    <string name="reporte_ev_video">Record video</string>
+    <string name="reporte_ev_audio">Record audio</string>
+    <string name="reporte_sin_camara">Couldn\'t open the camera</string>
+    <string name="reporte_sin_grabadora">No audio recorder app available</string>
+    <string name="reporte_requiere_verificacion">Verify your identity to submit reports</string>
+    <string name="verif_titulo">Identity verification</string>
+    <string name="verif_pendiente">To report, Metrobús requires verifying your identity with your official ID and a facial photo (only your name is stored). The KYC provider isn\'t configured yet; you can continue in test mode.</string>
+    <string name="verif_pruebas">Continue (test)</string>
+    <string name="verif_ok">Identity verified (test mode)</string>
+    <string name="verif_continuar">Continue</string>
+    <string name="verif_error">Couldn\'t start verification. Try again later.</string>
+    <string name="verif_consent_texto">To verify your identity, a third-party provider (Didit) will process your official ID and a live facial photo under its privacy policy. GeoMB will store ONLY your name and a device-linked \"verified\" flag; it does not store your ID or your face. Biometric data is sensitive personal data.</string>
+    <string name="verif_consent_check">I authorize the processing of my data to verify my identity.</string>
+    <string name="verif_listo">Identity verified</string>
+    <string name="reporte_tipo_unidad">Vehicle</string>
+    <string name="reporte_tipo_personal">Personnel</string>
+    <string name="reporte_tipo_estacion">Station (Metrobús)</string>
+    <string name="reporte_sin_linea">No line</string>
+    <string name="reporte_unidades_cerca">Nearby vehicles</string>
+    <string name="reporte_unidades_ninguna">No vehicles near that location</string>
+    <string name="reporte_elige_estacion">Pick the station first (or enable location)</string>
+    <string name="reporte_verificado_ok">Identity verified ✓</string>
+    <string name="reporte_involucrado">Personnel name (if known)</string>
+    <string name="reporte_involucrado_hint">Name or badge (optional)</string>
+    <string name="reporte_cargo">Role / type of personnel</string>
+    <string name="reporte_cargo_policia">Police</string>
+    <string name="reporte_cargo_chaleco">Vest-wearing staff</string>
+    <string name="reporte_cargo_operador">Operator / driver</string>
+    <string name="reporte_cargo_otro">Other</string>
+    <string name="ruta_toma">Take L%1$d toward %2$s</string>
+    <string name="ruta_luego">Then %1$s to L%2$d toward %3$s</string>
+    <string name="ruta_toma2">Take a unit heading to %1$s</string>
+    <string name="ruta_luego2">Then %1$s and take direction %2$s</string>
+    <string name="transf_transbordo">transfer</string>
+    <string name="transf_correspondencia">transfer</string>
+    <string name="transf_conexion">connect</string>
+    <string name="ruta_camina">Walk until you reach %1$s</string>
+    <string name="ruta_toma3">Take %1$s toward %2$s</string>
+    <string name="ruta_luego3">Then %1$s to %2$s toward %3$s</string>
+    <string name="desamb_sistema_titulo">%1$s: which system?</string>
+    <string name="desamb_metrobus">Metrobús L%1$s</string>
+    <string name="desamb_mexibus">Mexibús L%1$s</string>
+    <string name="desamb_falta_linea">Please specify the line</string>
+    <string name="desamb_sist_metrobus">Metrobús</string>
+    <string name="desamb_sist_mexibus">Mexibús</string>
+    <string name="desamb_sist_mexicable">Mexicable</string>
+    <string name="desamb_elige_linea">Which line?</string>
+    <string name="desamb_linea_n">Line %1$s</string>
+    <string name="servicio_titulo">Which service will you take?</string>
+    <string name="servicio_voz">You are on the %1$s service.</string>
+    <string name="servicio_voz_rosa">You are on the %1$s service, in a pink vehicle reserved for women and children.</string>
+    <string name="canal_recorrido">Trip in progress</string>
+    <string name="notif_proxima">NEXT STATION</string>
+    <string name="notif_anterior">Previous</string>
+    <string name="notif_posterior">After</string>
+    <string name="notif_proxima_corto">Next</string>
+    <string name="notif_origen_fmt">Origin: %1$s</string>
+    <string name="notif_destino_fmt">Destination: %1$s</string>
+    <string name="voz_llegando">Arriving at %1$s</string>
+    <string name="voz_proxima">Next station: %1$s</string>
+    <string name="voz_transborda">You are arriving at %1$s. Get off and transfer to Line %2$d.</string>
+    <string name="voz_llegaste">You arrived at %1$s. End of trip.</string>
+    <string name="voz_afectacion">Attention: there are service disruptions. Check your route.</string>
+    <string name="voz_transbordo_prep">Attention: you are arriving at the station where you will transfer. Please get ready.</string>
+    <string name="ruta_inicio">Start</string>
+    <string name="ruta_final">Destination</string>
+    <string name="voz_llegando_est">Arriving at station: %1$s</string>
+    <string name="voz_llegando_terminal">Arriving at terminal: %1$s</string>
+    <string name="voz_transbordo_linea">. Transfer to Line %1$d</string>
+    <string name="voz_transbordo_varias">. Transfer to Lines %1$s</string>
+    <string name="voz_transbordo">. Transfer to %1$s</string>
+    <string name="voz_linea_n">Line %1$d</string>
+    <string name="voz_linea_l4">Line 4 %1$s</string>
+    <string name="voz_linea_mxb">Mexibús Line %1$d</string>
+    <string name="voz_linea_mxc">Mexicable Line %1$d</string>
+    <string name="voz_palabra_correspondencia">transfer</string>
+    <string name="voz_palabra_conexion">connection</string>
+    <string name="voz_palabra_transbordo">transfer</string>
+    <string name="voz_prep_corresp">Attention, you are approaching the station where you will make your %1$s. Please get ready. Station %2$s. %1$s with %3$s.</string>
+    <string name="voz_ruta_norte">North Route</string>
+    <string name="voz_ruta_sur">South Route</string>
+    <string name="voz_terminal">Last stop of the route. No one may remain on board the vehicle</string>
+    <string name="voz_tip_espacios">Respect the vehicle\'s exclusive spaces</string>
+    <string name="voz_tip_objetos">Keep your valuables in a safe place</string>
+    <string name="voz_tip_correr">Do not run in the station to board the vehicle</string>
+    <string name="voz_tip_rosa">Remember that pink vehicles are reserved for women and children</string>
+    <string name="ruta_alterna">⚠ Alternate route due to service disruptions</string>
+    <string name="ruta_unidad_cerca">Your L%1$d unit toward %2$s is about to reach %3$s</string>
+    <string name="planificador_titulo">Route planner \n(the drawn route is approximate)</string>
+    <string name="planificador_origen">From (origin station)</string>
+    <string name="planificador_destino">To (destination station)</string>
+    <string name="planificador_trazar">Plan route</string>
+    <string name="intercambiar">Swap origin and destination</string>
+    <string name="recorrido_iniciar">Start trip</string>
+    <string name="recorrido_detener">Stop trip</string>
+    <string name="recorrido_vas">You\'re on %1$s · Next: %2$s</string>
+    <string name="recorrido_transborda">At %1$s transfer to L%2$d</string>
+    <string name="recorrido_llegaste">You arrived at %1$s</string>
+    <string name="recorrido_ubicando">Locating you…</string>
+    <string name="recorrido_sin_permiso">Enable location permission for the trip</string>
+    <string name="canal_manifestaciones">Service disruptions</string>
+    <string name="manifest_ongoing">Monitoring service disruptions</string>
+    <string name="manifest_alerta_titulo">Metrobús disruptions</string>
+    <string name="manifest_generico">Service disruption</string>
+    <string name="canal_manifestaciones_avisos">Disruption alerts</string>
+    <string name="manifest_linea_fmt">Line %1$s</string>
+    <string name="direccion_fmt">Direction %1$s</string>
+    <string name="afect_elevador">Elevator out of service</string>
+    <string name="afect_mantenimiento_est">Station under maintenance</string>
+    <string name="afect_restablecido">Service restored</string>
+    <string name="canal_actualizaciones">App updates</string>
+    <string name="push_actualizar_titulo">Update available</string>
+    <string name="push_actualizar_texto">A new version of GeoMB is available. Tap to update.</string>
+    <string name="afect_lbl_direccion">Direction</string>
+    <string name="afect_lbl_estaciones">Affected stations</string>
+    <string name="afect_lbl_info">Additional information</string>
+    <string name="perfil_titulo">Personalize your experience</string>
+    <string name="perfil_tipo_label">What type of user are you?</string>
+    <string name="perfil_normal">Regular user</string>
+    <string name="perfil_aficionado">Enthusiast</string>
+    <string name="perfil_movilidad">I have reduced mobility</string>
+    <string name="perfil_movilidad_ayuda">If you enable this, you\'ll see alerts for affected elevators.</string>
+    <string name="perfil_genero_label">Gender</string>
+    <string name="perfil_mujer">Woman</string>
+    <string name="perfil_hombre">Man</string>
+    <string name="perfil_genero_ayuda">If you are a woman, pink services (vehicles reserved for women and children) are enabled.</string>
+    <string name="perfil_continuar">Continue</string>
+    <string name="idioma_boton">Language · Tlahtolli</string>
+    <string name="idioma_dialogo">Choose language</string>
+    <string name="perfil_editar">Edit profile / user type</string>
+    <string name="perfil_guardado">Profile updated</string>
+    <string name="traduccion_auto_titulo">Automatic translation</string>
+    <string name="traduccion_auto_aviso">This language is translated automatically by Google\'s engine. The translation may be incomplete or contain errors, and a language pack is downloaded the first time. You can switch back to Spanish or change language whenever you want.</string>
+
+    <!-- Unit search -->
+    <string name="buscar_unidad_titulo">Search unit</string>
+    <string name="buscar_unidad_hint">Unit number (e.g. 1101)</string>
+    <string name="buscar_boton">Search</string>
+    <string name="unidad_numero">Unit %1$s</string>
+    <string name="ver_en_mapa">View on map</string>
+    <string name="estado_en_ruta">On route</string>
+
+    <!-- Lines -->
+    <string name="lineas_titulo">Metrobús lines</string>
+    <string name="linea_formato">Line %1$d</string>
+    <string name="estaciones_formato">%1$d stations</string>
+
+    <!-- Filters -->
+    <string name="filtros">Filters</string>
+    <string name="filtros_titulo">Filter units</string>
+    <string name="filtros_activos">Active filters</string>
+    <string name="filtros_activos_n">%1$d filter(s) · clear</string>
+    <string name="filtro_linea">Line</string>
+    <string name="filtro_destino">Destination</string>
+    <string name="filtro_ruta">Route</string>
+    <string name="filtro_empresa">Company</string>
+    <string name="filtro_todas">All</string>
+    <string name="filtro_todos">All</string>
+    <string name="filtro_aplicar">Apply</string>
+    <string name="filtro_limpiar">Clear</string>
+    <string name="unidades_en_servicio">Units in service</string>
+    <string name="unidades_conteo">%1$d units</string>
+
+    <!-- Unit list -->
+    <string name="unidades_de_linea">Units · Line %1$d</string>
+    <string name="unidad_sin_empresa">No company assigned</string>
+    <string name="unidad_sin_linea">No line</string>
+    <string name="sin_unidades">No units in service with these filters</string>
+
+    <!-- Following -->
+    <string name="seguir">Follow</string>
+    <string name="dejar_de_seguir">Unfollow</string>
+    <string name="siguiendo_titulo">Following unit %1$s</string>
+    <string name="siguiendo_buscando">Locating unit %1$s…</string>
+    <string name="siguiendo_distancia">Unit %1$s · %2$s from you (%3$d%%)</string>
+    <string name="siguiendo_fuera">Unit %1$s is not in service right now</string>
+    <string name="siguiendo_sin_conexion">No connection (unit %1$s)</string>
+    <string name="siguiendo_sin_permiso">Location permission missing</string>
+    <string name="canal_seguimiento">Unit tracking</string>
+    <string name="canal_alertas">Proximity alerts</string>
+    <string name="canal_sincronizacion">Background sync</string>
+    <string name="sincro_switch">Sync in background</string>
+    <string name="sincro_switch_desc">Keeps unit data updated even when the app is closed. Shows a permanent notice and may use a bit more battery.</string>
+    <string name="mexibus_switch">Show Mexibús and Mexicable</string>
+    <string name="mexibus_switch_desc">Shows Mexibús and Mexicable lines and stations on the map and includes them in the route planner.</string>
+    <string name="notif_titulo">Notifications</string>
+    <string name="notif_afect_switch">Service disruption alerts</string>
+    <string name="notif_act_switch">New app version alerts</string>
+    <string name="notif_desc">Notifications pushed from the server (subscription). You can turn off the ones you don\'t want.</string>
+    <string name="sincro_titulo">GeoMB in background</string>
+    <string name="sincro_texto_inicial">Syncing units…</string>
+    <string name="sincro_texto">%1$d units in service</string>
+    <string name="sincro_sin_conexion">No connection to the server</string>
+    <string name="sincro_detener">Stop</string>
+    <string name="sincro_afectacion">Service disruptions</string>
+    <string name="viene_titulo">Your unit is on the way</string>
+    <string name="viene_texto">The unit %1$s you\'re following is coming: it\'s %2$s from you.</string>
+    <string name="cerca_titulo">Your unit is about to arrive!</string>
+    <string name="cerca_texto">The unit %1$s you\'re following is about to arrive (%2$s away).</string>
+    <string name="seguir_activado">Following unit %1$s. I\'ll alert you at 5 km and 800 m.</string>
+    <string name="seguir_permiso_ubicacion">Enable location permission to follow the unit.</string>
+
+    <!-- Info by unit number -->
+    <string name="estado_fuera_servicio">Out of service</string>
+    <string name="sin_ubicacion_vivo">No live location right now</string>
+    <string name="info_catalogo">Catalog data</string>
+    <string name="ruta_codigo_formato">Route %1$d</string>
+    <string name="destino_formato">Destination: %1$s</string>
+    <string name="placa_formato">Plate: %1$s</string>
+
+    <!-- Routes by code -->
+    <string name="rutas_por_codigo">Routes by code</string>
+    <string name="rutas_titulo">Routes by code</string>
+    <string name="rutas_cargando">Loading routes…</string>
+    <string name="rutas_vacio">Routes could not be loaded</string>
+    <string name="ruta_unidades_formato">%1$d in service</string>
+
+    <!-- Arrival alert by direction -->
+    <string name="nav_llegadas">Arrivals</string>
+    <string name="llegadas_titulo">Arrival alert</string>
+    <string name="llegadas_linea">Line</string>
+    <string name="llegadas_estacion">Station</string>
+    <string name="llegadas_sentido">Direction</string>
+    <string name="llegadas_sin">No units approaching in this direction</string>
+    <string name="llegadas_elige">Choose line, station and direction</string>
+    <string name="llegada_item_formato">Unit %1$s</string>
+    <string name="llegada_eta_formato">%1$d min · %2$s away</string>
+    <string name="llegada_eta_ya">Arriving · %1$s away</string>
+    <string name="llegada_avisar">Notify me</string>
+    <string name="llegada_dejar">Stop notifying</string>
+    <string name="canal_llegadas">Arrival alerts</string>
+    <string name="llegada_ongoing_formato">Monitoring arrivals at %1$s</string>
+    <string name="llegada_notif_titulo">Unit arriving!</string>
+    <string name="llegada_notif_texto">Unit %1$s arrives at %2$s in ~%3$d min</string>
+
+    <!-- Search: upper limit -->
+    <string name="eco_max">The highest registered unit number is %1$d</string>
+
+    <!-- About -->
+    <string name="nav_acerca">About</string>
+    <string name="acerca_version">Version: 1.2 </string>
+    <string name="app_desc">GeoMB shows Mexico City Metrobús units in real time: live map, search by unit number, lines, routes by code and arrival alerts by station.\n\nThis is a project solely for the responsible use of transit enthusiasts and for those who need to catch a unit.</string>
+    <string name="agradecimientos_titulo">Acknowledgements</string>
+    <string name="agradecimientos_texto">Thanks to Mexico City Metrobús and to SONDA for the GTFS-Realtime system that makes the live information possible. And to the community of users who help by identifying the units, their companies and models.\n\nProject developed by Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCo-author: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nSpecial thanks:\n\n●Minami Aguilar. (Ideas to improve the map).\n●Manuel Lozano. (To whom I dedicate this project).\n●Augusto Neri. (Proposals for the Metrobús route system).\n●Dante Sifuentes. (Logo designer).\n●To all the operators I know who have supported me since before I was a known figure in the community.\n\nProject dedicated to everyone who has supported me since my beginnings in the public-transit enthusiast community, and dedicated to a figure who inspired me to keep going even when I didn\'t believe in myself, thank you, father.</string>
+    <string name="acerca_datos">Arrival times are estimates. Data comes from the Metrobús feed and may vary. GeoMB is not officially affiliated with Mexico City Metrobús.</string>
+
+    <!-- Ethical notice (gate) -->
+    <string name="aviso_titulo">Responsible-use notice</string>
+    <string name="aviso_texto">To use GeoMB you must accept these terms:\n\n• I will use the information only for mobility and informational purposes.\n• I will not use the data to track, harass or surveil people (operators or other users).\n• I understand that locations and arrival times are estimates and may not be exact.\n• I will not use the app for unauthorized commercial purposes or to harm the service.\n• I will respect privacy and applicable law.\n\nIf you do not accept, the app will close.</string>
+    <string name="aviso_aceptar">I accept</string>
+    <string name="aviso_rechazar">I don\'t accept</string>
+    <string name="aviso_sec_uso">Responsible use</string>
+    <string name="aviso_sec_privacidad">Privacy notice</string>
+    <string name="aviso_sec_terminos">Terms of use</string>
+    <string name="aviso_privacidad_texto">GeoMB handles your data as follows:\n\n• Google account (email, name and an identifier) to sign in, via Google Firebase.\n• Location: used on the device for the map, planner and arrival/trip alerts. Google Maps processes it to display the map. It is not shared with third parties for other purposes.\n• Push notifications via Firebase Cloud Messaging.\n• Issue reporting: to report, your identity is verified with a third-party provider (KYC) that processes your official ID and a facial photo under that provider\'s policy. The app stores ONLY your name and a device-linked \"verified\" flag; it does NOT store your ID or your face. Any evidence (photo, video or audio) you attach is sent from your own email to Metrobús.\n• We do not sell your data or show ads.\n\nYou can revoke permissions in system settings. Biometric data is sensitive personal data; by continuing you give your explicit consent for its processing by the verification provider for the sole purpose of enabling reporting.</string>
+    <string name="aviso_terminos_texto">By using GeoMB you agree that:\n\n• It is an independent, informational app, with no official relationship to Metrobús or the Mexico City government.\n• Real-time data comes from public sources and are estimates; it may be inaccurate or unavailable. Provided \"as is\", without warranty.\n• You are responsible for the truthfulness of the reports you submit; false reports or misuse may have legal consequences and lead to access suspension.\n• You will not use the app to track, harass or surveil people, nor for unauthorized commercial purposes or to harm the service.\n• To the maximum extent permitted by law, the developers are not liable for damages arising from use of the app or the accuracy of the information.\n\nIf you do not accept, the app will close.</string>
+    <string name="aviso_acepto_check">I have read and accept the responsible use, privacy notice and terms of use.</string>
+
+    <!-- Login -->
+    <string name="login_sub">Sign in with Google to continue.\n\nThis data will be used solely for our users\' security purposes and will not be used for anything else.</string>
+    <string name="login_error">Could not sign in. Try again.</string>
+
+    <!-- Idioma / Language -->
+    <string name="app_name">GeoMB</string>
+    <string name="idioma_menu">🌐 Language / Idioma</string>
+    <string name="idioma_es">Español</string>
+    <string name="idioma_en">English</string>
+    <string name="idioma_nah">Náhuatl</string>
+</resources>

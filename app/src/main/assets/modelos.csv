@@ -1,0 +1,30 @@
+# GeoMB — catálogo de MODELOS por unidad
+# Formato:  economico,marca,modelo      (UNA línea por unidad)
+# Las líneas vacías o que empiezan con # se ignoran.
+# Llénalo poco a poco; lo que no esté aquí sale como "Desconocido".
+#
+# ------------------------------------------------------------------
+# MENÚ DE MODELOS (copia tal cual "marca,modelo"):
+#   Volvo,7300 Articulado
+#   Volvo,7300 Biarticulado
+#   Volvo,7700 B9L
+#   Volvo,7700 Hybrid
+#   Volvo,CAIO Access
+#   DINA,BRighTer
+#   Mercedes-Benz,Marcopolo Gran Viale
+#   Mercedes-Benz,Busscar Urbanuss Pluss S5
+#   Mercedes-Benz,Marcopolo MP60 (O500MA)
+#   Scania,Neobus Mega BRT
+#   Scania,Neobus Mega BRT Biarticulado
+#   MASA,C8R
+#   MASA,C11R (CE4 05A)
+#   Yutong,ZK6990HGQ
+#   Yutong,ZK6180BEVG
+#   Alexander Dennis,Enviro500
+#   BYD,B15E01
+# ------------------------------------------------------------------
+#
+# ---- TUS UNIDADES (borra el # y llena; agrega las que quieras) ----
+# 9517,Mercedes-Benz,Marcopolo Gran Viale
+# 9518,Mercedes-Benz,Marcopolo Gran Viale
+# 9507,Volvo,7300 Articulado

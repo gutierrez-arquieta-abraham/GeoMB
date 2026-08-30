@@ -83,16 +83,20 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Datos de todas las estaciones; sus marcadores se crean por demanda (radio). */
     private static final class EstMapa {
         final Estacion e; final int linea; final int color; Marker marker;
-        EstMapa(Estacion e, int linea, int color) { this.e = e; this.linea = linea; this.color = color; }
+        LatLng pos; String titulo;   // posición/título propios (p. ej. andenes sur/norte de Indios Verdes)
+        EstMapa(Estacion e, int linea, int color) {
+            this.e = e; this.linea = linea; this.color = color;
+            this.pos = e.posicion; this.titulo = e.nombre;
+        }
     }
     private final List<EstMapa> estaciones = new ArrayList<>();
-    // Capa Mexibús (líneas + estaciones), oculta hasta que el usuario la activa con btn_mexibus.
+    // Capa Mexibús (líneas + estaciones); su visibilidad la controla "Mostrar Mexibús" (Acerca de).
     private final List<Polyline> mexibusLineas = new ArrayList<>();
-    private final List<Marker> mexibusEstaciones = new ArrayList<>();
-    private boolean mostrarMexibus = false;
+    private final List<EstMapa> mexibusEst = new ArrayList<>();
     private LatLng centroCarga = null;   // centro del área cargada (null = aún sin ubicar)
     private boolean trafico = false;
     private boolean mostrarEstaciones = true;
+    private boolean mostrarUnidades = true;
     private boolean vista3d = false;
     private int tipoMapa = GoogleMap.MAP_TYPE_NORMAL;
     private final Map<String, Long> animToken = new HashMap<>();
@@ -108,6 +112,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
                 @Override
                 public void onData(List<UnidadReal> unidades) {
+                    avisoError = false;   // servidor OK de nuevo: permite reactivar el respaldo si vuelve a fallar
                     if (mapa != null) actualizarUnidades(unidades);
                 }
 
@@ -117,10 +122,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                         avisoError = true;
                         Toast.makeText(requireContext(),
                                 "Sin conexión con el servidor de unidades", Toast.LENGTH_SHORT).show();
+                        // El servidor (EC2/SONDA) falló: activa el sondeo de respaldo automáticamente
+                        // (si el usuario no lo tenía en manual). Se apagará solo cuando el servidor vuelva.
+                        if (!Modos.sincronizacionFondo(requireContext()) && !SincronizacionService.activo)
+                            SincronizacionService.iniciar(requireContext());
                     }
                 }
             });
-            handler.postDelayed(this, Red.intervalo(getContext(), Config.POLL_MS));
+            handler.postDelayed(this, Red.intervalo(getContext(), Modos.mapaRefrescoMs(getContext())));
         }
     };
 
@@ -145,6 +154,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
+        // Precalienta el parseo de los JSON (segmentos/sublíneas/mexibús) en 2º plano ANTES de que el
+        // mapa esté listo, para que dibujarRed no bloquee el hilo principal (causa de ANR al arrancar).
+        final Context appCtx = requireContext().getApplicationContext();
+        new Thread(() -> {
+            try { GtfsRepository.getLineas(appCtx); GtfsRepository.getMexibus(appCtx); } catch (Throwable ignore) {}
+        }, "gtfs-warmup").start();
 
         locationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
 
@@ -191,7 +207,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         });
         view.findViewById(R.id.btn_norte).setOnClickListener(v -> orientarNorte());
         view.findViewById(R.id.btn_estaciones).setOnClickListener(v -> alternarEstaciones());
-        view.findViewById(R.id.btn_mexibus).setOnClickListener(v -> alternarMexibus());
+        view.findViewById(R.id.btn_unidades).setOnClickListener(v -> alternarUnidades());
+        view.findViewById(R.id.btn_iconos).setOnClickListener(v -> alternarIconos());
+        actualizarLogoIconos(Modos.iconosNuevos(requireContext()));   // logo inicial del botón según el modo guardado
         view.findViewById(R.id.btn_3d).setOnClickListener(v -> alternar3d());
     }
 
@@ -202,6 +220,30 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         Toast.makeText(requireContext(),
                 getString(mostrarEstaciones ? R.string.mapa_estaciones_on
                                             : R.string.mapa_estaciones_off),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    /** Logo del botón de iconos: Movimex "B" en modo nuevo, "M" verde (CDMX/Mexibús) en modo antiguo. */
+    private void actualizarLogoIconos(boolean nuevos) {
+        android.view.View v = getView();
+        if (v == null) return;
+        android.widget.ImageButton b = v.findViewById(R.id.btn_iconos);
+        if (b == null) return;
+        b.setImageTintList(null);   // logos a color: sin tinte
+        b.setImageResource(nuevos ? R.drawable.ic_mexibus_nuevo : R.drawable.ic_mexibus_ant);
+    }
+
+    /** Muestra u oculta las unidades (vehículos) en tiempo real del mapa. */
+    private void alternarUnidades() {
+        mostrarUnidades = !mostrarUnidades;
+        if (!mostrarUnidades) {
+            for (Marker m : marcadoresUnidad.values()) m.remove();
+            marcadoresUnidad.clear();
+        } else if (mapa != null) {
+            actualizarUnidades(RealtimeRepository.get().getUltimo());
+        }
+        Toast.makeText(requireContext(),
+                getString(mostrarUnidades ? R.string.mapa_unidades_on : R.string.mapa_unidades_off),
                 Toast.LENGTH_SHORT).show();
     }
 
@@ -343,6 +385,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.setOnCameraIdleListener(() -> {
             crearEstacionesVisibles();                 // carga estaciones al explorar
             aplicarVisibilidadEstaciones();
+            crearMexibusVisibles();                    // crea marcadores Mexibús por demanda (no todos al inicio)
+            aplicarMexibus();                          // oculta/mostrar estaciones Mexibús por zoom
             List<UnidadReal> ultimo = RealtimeRepository.get().getUltimo();
             if (ultimo != null) actualizarUnidades(ultimo);   // carga unidades del rango visible
         });
@@ -421,6 +465,15 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             double d = Linea.distancia(em.e.posicion, p);
             if (d < best) { best = d; mejor = em.e; }
         }
+        // Si "Mostrar Mexibús" está activo, también considera sus estaciones para la más cercana.
+        if (Modos.mostrarMexibus(requireContext())) {
+            for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+                for (Estacion e : l.estaciones) {
+                    double d = Linea.distancia(e.posicion, p);
+                    if (d < best) { best = d; mejor = e; }
+                }
+            }
+        }
         return mejor;
     }
 
@@ -434,6 +487,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (!tienePermisoUbicacion()) { aplicarCentro(CDMX); return; }
         locationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                 .addOnSuccessListener(loc -> {
+                    if (!isAdded() || mapa == null) return;   // el fragment ya se desmontó: evita requireContext()
                     LatLng centro = CDMX;
                     if (loc != null) {
                         Estacion cerca = estacionMasCercana(new LatLng(loc.getLatitude(), loc.getLongitude()));
@@ -441,13 +495,20 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     }
                     aplicarCentro(centro);
                 })
-                .addOnFailureListener(e -> aplicarCentro(CDMX));
+                .addOnFailureListener(e -> { if (isAdded() && mapa != null) aplicarCentro(CDMX); });
     }
 
     private void aplicarCentro(LatLng centro) {
         if (mapa == null || !isAdded()) return;
         centroCarga = centro;
-        mapa.moveCamera(CameraUpdateFactory.newLatLngZoom(centro, ZOOM_CERCANO));
+        // Visibilidad de ~500 m: encuadra un recuadro de ±500 m alrededor del punto (no un zoom fijo).
+        double dLat = 500.0 / 111320.0;
+        double dLon = 500.0 / (111320.0 * Math.cos(Math.toRadians(centro.latitude)));
+        LatLngBounds caja = new LatLngBounds(
+                new LatLng(centro.latitude - dLat, centro.longitude - dLon),
+                new LatLng(centro.latitude + dLat, centro.longitude + dLon));
+        try { mapa.moveCamera(CameraUpdateFactory.newLatLngBounds(caja, 0)); }
+        catch (Exception e) { mapa.moveCamera(CameraUpdateFactory.newLatLngZoom(centro, ZOOM_CERCANO)); }
         crearEstacionesVisibles();
         aplicarVisibilidadEstaciones();
         List<UnidadReal> ultimo = RealtimeRepository.get().getUltimo();
@@ -461,30 +522,64 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     /**
-     * Capa del Mexibús (servicio ordinario): dibuja sus líneas y estaciones, ocultas por defecto.
-     * Se activa/oculta con {@link #alternarMexibus()} (botón btn_mexibus).
+     * Capa del Mexibús (servicio ordinario): dibuja sus líneas y estaciones. Su visibilidad la
+     * controla el ajuste "Mostrar Mexibús" (Acerca de), aplicado con {@link #aplicarMexibus()}.
      */
     private void dibujarMexibus() {
+        boolean vis = Modos.mostrarMexibus(requireContext());
+        List<PatternItem> punteado = java.util.Arrays.asList(new Dash(24f), new Gap(18f));
         for (Linea l : GtfsRepository.getMexibus(requireContext())) {
             coloresLinea.put(l.numero, l.color);
-            Polyline pl = mapa.addPolyline(new PolylineOptions()
-                    .addAll(l.ruta).color(l.color).width(9f).geodesic(false).zIndex(3f).visible(false));
-            mexibusLineas.add(pl);
-            BitmapDescriptor anillo = iconoEstacionMexibus(l.color);   // respaldo por línea (si no hay pictograma)
+            boolean expres = l.numero >= 121 && l.numero <= 124;   // exprés Mexibús: punteado (Mexicable 201+ va sólido)
+            PolylineOptions po = new PolylineOptions()
+                    .addAll(l.ruta).color(l.color).geodesic(false).visible(vis)
+                    .width(expres ? 7f : 9f).zIndex(expres ? 5f : 3f);
+            if (expres) po.pattern(punteado);
+            mexibusLineas.add(mapa.addPolyline(po));
+            // Los MARCADORES NO se crean aquí (eran cientos de golpe → congelaba el arranque). Solo se
+            // registran; se crean por demanda al acercar, en crearMexibusVisibles() (igual que el Metrobús).
             for (Estacion e : l.estaciones) {
-                // Si la estación tiene pictograma (drawable) se usa; si no, el anillo del color de la línea.
-                BitmapDescriptor ic = e.icono != null && !e.icono.isEmpty()
-                        ? iconoEstacion(e, l.color) : anillo;
-                Marker m = mapa.addMarker(new MarkerOptions()
-                        .position(e.posicion).title(e.nombre).snippet(l.nombre)
-                        .icon(ic).anchor(0.5f, 0.5f).visible(false).zIndex(4f));
-                if (m != null) mexibusEstaciones.add(m);
+                if (l.numero == 104 && e.nombre.startsWith("Indios Verdes")) {
+                    // Indios Verdes L4: 2 andenes separados (sur/norte).
+                    EstMapa a = new EstMapa(e, l.numero, l.color);
+                    a.pos = new LatLng(19.493912, -99.119961); a.titulo = "Indios Verdes · andén sur (dir. La Raza)";
+                    EstMapa b = new EstMapa(e, l.numero, l.color);
+                    b.pos = new LatLng(19.496143, -99.119133); b.titulo = "Indios Verdes · andén norte (dir. UMB Tecámac)";
+                    mexibusEst.add(a); mexibusEst.add(b);
+                    continue;
+                }
+                EstMapa em = new EstMapa(e, l.numero, l.color);
+                em.titulo = Planificador.nombreMostrar(requireContext(), e.nombre, l.numero);
+                mexibusEst.add(em);
             }
         }
     }
 
+    /** Crea los marcadores Mexibús visibles por demanda (zoom + región), como el Metrobús. */
+    private void crearMexibusVisibles() {
+        if (mapa == null || !Modos.mostrarMexibus(requireContext())) return;
+        if (mapa.getCameraPosition().zoom < ZOOM_ESTACIONES) return;
+        LatLngBounds vista = rangoVisible();
+        for (EstMapa em : mexibusEst) {
+            if (em.marker != null || !vista.contains(em.pos)) continue;
+            Marker m = mapa.addMarker(new MarkerOptions()
+                    .position(em.pos).title(em.titulo).snippet("Mexibús")
+                    .icon(iconoMexibus(em)).anchor(0.5f, 0.5f).zIndex(4f));
+            if (m != null) em.marker = m;
+        }
+    }
+
+    /** Icono de un marcador Mexibús: pictograma si lo hay y el modo es "nuevos"; si no, punto/anillo. */
+    private BitmapDescriptor iconoMexibus(EstMapa em) {
+        return (em.e.icono != null && !em.e.icono.isEmpty())
+                ? iconoEstacion(em.e, em.color) : iconoEstacionMexibus(em.color);
+    }
+
     /** Icono de estación del Mexibús: anillo del color de la línea (los KML no traen pictogramas). */
     private BitmapDescriptor iconoEstacionMexibus(int color) {
+        String key = "MXdot|" + color;
+        BitmapDescriptor cached = cacheIco.get(key);
+        if (cached != null) return cached;
         int px = Math.round(20 * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
@@ -495,16 +590,39 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         c.drawCircle(px / 2f, px / 2f, px * 0.30f, p);        // centro blanco
         p.setColor(color);
         c.drawCircle(px / 2f, px / 2f, px * 0.16f, p);        // punto interno (estilo estación)
-        return BitmapDescriptorFactory.fromBitmap(bmp);
+        BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
+        cacheIco.put(key, bd);
+        return bd;
     }
 
-    /** Muestra u oculta la capa del Mexibús. */
-    private void alternarMexibus() {
-        mostrarMexibus = !mostrarMexibus;
-        for (Polyline p : mexibusLineas) p.setVisible(mostrarMexibus);
-        for (Marker m : mexibusEstaciones) m.setVisible(mostrarMexibus);
+    /** Aplica la visibilidad del Mexibús según el ajuste "Mostrar Mexibús" (Acerca de). */
+    private void aplicarMexibus() {
+        if (mapa == null) return;
+        boolean vis = Modos.mostrarMexibus(requireContext());
+        boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;   // igual que el Metrobús
+        boolean mostrar = vis && porZoom;
+        for (Polyline p : mexibusLineas) p.setVisible(vis);                    // las líneas siempre (si el toggle está on)
+        for (EstMapa em : mexibusEst) if (em.marker != null) {
+            if (mostrar && !em.marker.isVisible()) em.marker.setIcon(iconoMexibus(em));  // refresca al reaparecer (modo actual)
+            em.marker.setVisible(mostrar);   // estaciones por zoom
+        }
+    }
+
+    /** Alterna estilo de iconos (pictogramas nuevos ↔ puntos antiguos), lo guarda y refresca el mapa. */
+    private void alternarIconos() {
+        boolean nuevos = !Modos.iconosNuevos(requireContext());
+        Modos.setIconosNuevos(requireContext(), nuevos);
+        actualizarLogoIconos(nuevos);
+        // Solo se refrescan los marcadores VISIBLES (los ocultos por zoom se actualizan al reaparecer):
+        // así el cambio es liviano y no se reconstruyen cientos de bitmaps de golpe (evita OOM/ANR).
+        try {
+            for (EstMapa em : estaciones) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoEstacion(em.e, em.color));
+            for (EstMapa em : mexibusEst) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoMexibus(em));
+        } catch (Throwable t) {
+            android.util.Log.e("MapFragment", "Error al alternar iconos", t);
+        }
         Toast.makeText(requireContext(),
-                getString(mostrarMexibus ? R.string.mapa_mexibus_on : R.string.mapa_mexibus_off),
+                getString(nuevos ? R.string.mapa_iconos_nuevos : R.string.mapa_iconos_antiguos),
                 Toast.LENGTH_SHORT).show();
     }
 
@@ -533,6 +651,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      * {@code centroForzado} si se indica, p. ej. al buscar una unidad concreta).
      */
     private void actualizarUnidades(List<UnidadReal> unidades, LatLng centroForzado) {
+        // Unidades ocultas por el botón: no se dibujan (salvo búsqueda explícita de una unidad).
+        if (!mostrarUnidades && centroForzado == null) {
+            if (!marcadoresUnidad.isEmpty()) {
+                for (Marker m : marcadoresUnidad.values()) m.remove();
+                marcadoresUnidad.clear();
+            }
+            return;
+        }
         Set<String> vistos = new HashSet<>();
         int total = 0;
         // Normal: se muestran las unidades dentro de la región visible del mapa (progresivo
@@ -647,7 +773,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      * Marcador de estación: si existe el pictograma en drawable (ic_est_{nombre}),
      * lo usa; si no, un punto del color de la línea.
      */
+    // Caché de descriptores de icono: evita recrear cientos de bitmaps (y presionar la memoria nativa
+    // de Google Maps → OOM) cada vez que se alterna entre iconos nuevos y antiguos.
+    private final java.util.Map<String, BitmapDescriptor> cacheIco = new java.util.HashMap<>();
+
     private BitmapDescriptor iconoEstacion(Estacion e, int color) {
+        boolean nuevos = Modos.iconosNuevos(requireContext());
+        String key = "E|" + (e.icono == null ? "" : e.icono) + "|" + color + "|" + (nuevos ? 1 : 0);
+        BitmapDescriptor cached = cacheIco.get(key);
+        if (cached != null) return cached;
+
         int px = Math.round(28 * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
@@ -662,7 +797,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             p.setColor(color);
             c.drawCircle(px / 2f, px / 2f, px * 0.26f, p);
         }
-        return BitmapDescriptorFactory.fromBitmap(bmp);
+        BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
+        cacheIco.put(key, bd);
+        return bd;
     }
 
 
@@ -856,6 +993,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         for (EstMapa em : estaciones) {
             if (Planificador.norm(em.e.nombre).equals(nn)) { lat += em.e.posicion.latitude; lon += em.e.posicion.longitude; c++; }
         }
+        if (c == 0 && Modos.mostrarMexibus(requireContext())) {   // estación del Mexibús
+            for (Linea l : GtfsRepository.getMexibus(requireContext()))
+                for (Estacion e : l.estaciones)
+                    if (Planificador.norm(e.nombre).equals(nn)) { lat += e.posicion.latitude; lon += e.posicion.longitude; c++; }
+        }
         if (c == 0) return;
         LatLng centro = new LatLng(lat / c, lon / c);   // zona intermedia si es correspondencia
         centroCarga = centro;
@@ -871,11 +1013,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        aplicarMexibus();   // refleja el ajuste "Mostrar Mexibús" al volver al mapa
+    }
+
+    @Override
     public void onDestroyView() {
         handler.removeCallbacks(poll);
         marcadoresEstacion.clear();
         marcadoresUnidad.clear();
         estaciones.clear();
+        mexibusEst.clear();
+        mexibusLineas.clear();
         centroCarga = null;
         coloresLinea.clear();
         animToken.clear();

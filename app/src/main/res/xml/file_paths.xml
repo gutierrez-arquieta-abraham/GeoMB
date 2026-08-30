@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Evidencia capturada en vivo (se guarda en el almacenamiento privado de la app). -->
+    <cache-path name="evidencia_cache" path="evidencia/" />
+    <!-- Hoja membretada en PDF generada por ReportePdf. -->
+    <cache-path name="reportes_cache" path="reportes/" />
+    <files-path name="evidencia_files" path="evidencia/" />
+    <external-cache-path name="evidencia_ext" path="evidencia/" />
+    <external-files-path name="evidencia_ext_files" path="evidencia/" />
+</paths>

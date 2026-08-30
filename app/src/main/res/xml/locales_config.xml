@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Idiomas soportados por la app (idioma por app, Android 13+ y retrocompat con AppCompat).
+     Para agregar uno, declara aquí su <locale> y crea res/values-b+<tag>/strings.xml.
+     Fuente única de la lista en código: Idiomas.java -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="es" />      <!-- Español (predeterminado) -->
+    <locale android:name="en" />      <!-- Inglés / English -->
+    <locale android:name="nah" />     <!-- Náhuatl -->
+</locale-config>

@@ -39,8 +39,13 @@ public final class GtfsRepository {
         return mexibus;
     }
 
-    /** Todas las líneas ruteables por el planificador: Metrobús + Mexibús (cacheado). */
+    /**
+     * Líneas ruteables por el planificador. Incluye el Mexibús SOLO si el usuario activó
+     * "Mostrar Mexibús" (Acerca de); si no, solo Metrobús. Así el planificador ignora esas
+     * estaciones cuando la capa está apagada.
+     */
     public static synchronized List<Linea> getRuteables(Context context) {
+        if (!Modos.mostrarMexibus(context)) return getLineas(context);
         if (ruteables == null) {
             List<Linea> t = new ArrayList<>(getLineas(context));
             t.addAll(getMexibus(context));

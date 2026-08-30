@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Náhuatl (nah) — TRADUCCIÓN SEMILLA / PROVISIONAL.
+  ================================================
+  Estas cadenas son un punto de partida y DEBEN validarse con hablantes nativos o con
+  el INALI (Instituto Nacional de Lenguas Indígenas) antes de publicar. El náhuatl tiene
+  varias variantes; conviene fijar una (p. ej. náhuatl central) y una ortografía.
+  Cualquier cadena que NO esté aquí usa automáticamente el español (values/strings.xml).
+-->
+<resources>
+
+    <!-- Navegación -->
+    <string name="nav_mapa">Mapa</string>
+    <string name="nav_buscar">Tlatemoa</string>
+    <string name="nav_lineas">Ohtin</string>
+    <string name="nav_ruta">Ohtli</string>
+    <string name="seleccionar">Xikpehpena</string>
+
+    <!-- Idioma -->
+    <string name="idioma_boton">Tlahtolli</string>
+    <string name="idioma_dialogo">Xikpehpena motlahtol</string>
+    <string name="idioma_es">Caxtillantlahtolli</string>
+    <string name="idioma_nah">Nahuatlahtolli</string>
+
+</resources>

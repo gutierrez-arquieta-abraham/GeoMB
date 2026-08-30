@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- placa verde Mexibús -->
+    <path android:fillColor="#009D57"
+        android:pathData="M4,3 h16 a1.5,1.5 0 0 1 1.5,1.5 v15 a1.5,1.5 0 0 1 -1.5,1.5 h-16 a1.5,1.5 0 0 1 -1.5,-1.5 v-15 a1.5,1.5 0 0 1 1.5,-1.5 z"/>
+    <!-- autobús blanco -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M7,6 h10 a1.5,1.5 0 0 1 1.5,1.5 v7 a1.5,1.5 0 0 1 -1.5,1.5 v1 a0.8,0.8 0 0 1 -1.6,0 v-1 h-6.8 v1 a0.8,0.8 0 0 1 -1.6,0 v-1 a1.5,1.5 0 0 1 -1.5,-1.5 v-7 a1.5,1.5 0 0 1 1.5,-1.5 z"/>
+    <!-- ventanas -->
+    <path android:fillColor="#009D57"
+        android:pathData="M7.5,8 h3.4 v2.6 h-3.4 z M12.1,8 h4.4 v2.6 h-4.4 z"/>
+    <!-- ruedas -->
+    <path android:fillColor="#009D57"
+        android:pathData="M9,14.4 a0.9,0.9 0 1 1 0.01,0 z M15,14.4 a0.9,0.9 0 1 1 0.01,0 z"/>
+</vector>
