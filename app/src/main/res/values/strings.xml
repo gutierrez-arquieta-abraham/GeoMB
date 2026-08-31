@@ -313,7 +313,13 @@
 
     <!-- Aviso de llegada por dirección -->
     <string name="nav_llegadas">Llegadas</string>
-    <string name="llegadas_titulo">Aviso de llegada</string>
+    <string name="llegadas_titulo">Llegadas</string>
+    <string name="estado_servicio_titulo">Estado del servicio</string>
+    <string name="estado_metrobus">METROBÚS</string>
+    <string name="estado_mexibus">MEXIBÚS</string>
+    <string name="estado_regular">Servicio regular</string>
+    <string name="afect_elevadores_titulo">Elevadores y otras afectaciones</string>
+    <string name="llegadas_aviso_titulo">Aviso de llegada</string>
     <string name="llegadas_linea">Línea</string>
     <string name="llegadas_estacion">Estación</string>
     <string name="llegadas_sentido">Dirección</string>
@@ -337,7 +343,7 @@
     <string name="acerca_version">Versión: 1.3 </string>
     <string name="app_desc">GeoMB muestra las unidades del Metrobús de la Ciudad de México en tiempo real: mapa en vivo, búsqueda por número económico, líneas, rutas por código y avisos de llegada por estación.\n\nEste es un proyecto unicamente para el uso responsable de las personas aficionadas y para aquellos que necesiten llegar a ocuparla.</string>
     <string name="agradecimientos_titulo">Agradecimientos</string>
-    <string name="agradecimientos_texto">Gracias al Metrobús de la Ciudad de México y a SONDA por el sistema GTFS-Realtime que hace posible la información en vivo. Y a la comunidad de usuarios que colabora identificando las unidades, sus empresas y modelos.\n\nProyecto desarrollado por Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCoautor: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nAgradecimientos especiales:\n\n●Minami Aguilar. (Ideas de mejora para el mapa).\n●Manuel Lozano. (A quien dedico este proyecto).\n●Augusto Neri. (Propuestas en el sistema de rutas de metrobús).\n●Dante Sifuentes. (Diseñador del logo).\n●Toda la banda de operadores que conozco y que me han apoyado desde antes de ser una figura presente en la comunidad.\n\nProyecto dedicado a todos los que me han apoyado desde mis inicios dentro de la comunidad aficionada al transporte publico y dedicado para una figura que me inspiro a seguir adelante incluso cuando no creia en mi mismo, gracias padre.</string>
+    <string name="agradecimientos_texto">Gracias al Metrobús de la Ciudad de México y a SONDA por el sistema GTFS-Realtime que hace posible la información en vivo. Y a la comunidad de usuarios que colabora identificando las unidades, sus empresas y modelos.\n\nProyecto desarrollado por Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCoautor: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nAgradecimientos especiales:\n\n●Minami Aguilar. (Ideas de mejora para el mapa).\n●Manuel Lozano. (A quien dedico este proyecto).\n●Augusto Neri. (Propuestas en el sistema de rutas de metrobús).\n●Dante Sifuentes. (Diseñador del logo).\n●Equipo Movidram. (Por los logos de las estaciones de Metrobús y Mexibús).\n●Toda la banda de operadores que conozco y que me han apoyado desde antes de ser una figura presente en la comunidad.\n\nProyecto dedicado a todos los que me han apoyado desde mis inicios dentro de la comunidad aficionada al transporte publico y dedicado para una figura que me inspiro a seguir adelante incluso cuando no creia en mi mismo, gracias padre.</string>
     <string name="acerca_datos">Los tiempos de llegada son estimaciones. Los datos provienen del feed del Metrobús y pueden variar. GeoMB no está afiliada oficialmente al Metrobús de la Ciudad de México.</string>
 
     <!-- Aviso ético (gate) -->

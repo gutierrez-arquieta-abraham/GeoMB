@@ -315,7 +315,13 @@
 
     <!-- Arrival alert by direction -->
     <string name="nav_llegadas">Arrivals</string>
-    <string name="llegadas_titulo">Arrival alert</string>
+    <string name="llegadas_titulo">Arrivals</string>
+    <string name="estado_servicio_titulo">Service status</string>
+    <string name="estado_metrobus">METROBÚS</string>
+    <string name="estado_mexibus">MEXIBÚS</string>
+    <string name="estado_regular">Normal service</string>
+    <string name="afect_elevadores_titulo">Elevators and other issues</string>
+    <string name="llegadas_aviso_titulo">Arrival alert</string>
     <string name="llegadas_linea">Line</string>
     <string name="llegadas_estacion">Station</string>
     <string name="llegadas_sentido">Direction</string>

@@ -107,8 +107,10 @@ public class PlanificadorFragment extends Fragment {
         }
     };
 
-    // Refresca el trazo de progreso y el puntero cada segundo durante el recorrido (sin red).
-    private static final long TICK_RECORRIDO_MS = 1000L;
+    // Refresca el trazo de progreso y el puntero durante el recorrido (sin red). Se refresca cada
+    // 400 ms para que el puntero siga la ubicación de forma fluida (como Google Maps); el servicio
+    // ya recibe fixes de GPS continuos (~0.5 s) y publica RecorridoService.ultimaPos.
+    private static final long TICK_RECORRIDO_MS = 400L;
     private final Runnable tickRecorrido = new Runnable() {
         @Override public void run() {
             if (recorrido) refrescarRecorridoUI();
@@ -383,22 +385,39 @@ public class PlanificadorFragment extends Fragment {
         Opcion(int res, Bitmap bmp, String t, Runnable a) { iconoRes = res; iconoBmp = bmp; titulo = t; accion = a; }
     }
 
-    /** Muestra una carta flotante con diseño propio: cada fila lleva su logo y título. */
+    /** Muestra una carta flotante HORIZONTAL: cada opción es una celda (logo arriba, título abajo). */
     private void mostrarCarta(String titulo, java.util.List<Opcion> ops) {
-        android.widget.LinearLayout cont = new android.widget.LinearLayout(requireContext());
-        cont.setOrientation(android.widget.LinearLayout.VERTICAL);
-        int pad = Math.round(6 * getResources().getDisplayMetrics().density);
-        cont.setPadding(0, pad, 0, pad);
+        float d = getResources().getDisplayMetrics().density;
+        android.widget.LinearLayout fila = new android.widget.LinearLayout(requireContext());
+        fila.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        fila.setGravity(android.view.Gravity.CENTER);
+        int pad = Math.round(12 * d);
+        fila.setPadding(pad, pad, pad, pad);
         AlertDialog dlg = new AlertDialog.Builder(requireContext())
-                .setTitle(titulo).setView(cont).setCancelable(true).create();
+                .setTitle(titulo).setView(fila).setCancelable(true).create();
+        android.util.TypedValue tv = new android.util.TypedValue();
+        requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true);
         for (Opcion o : ops) {
-            View row = getLayoutInflater().inflate(R.layout.dialog_opcion_row, cont, false);
-            android.widget.ImageView iv = row.findViewById(R.id.op_icono);
+            android.widget.LinearLayout celda = new android.widget.LinearLayout(requireContext());
+            celda.setOrientation(android.widget.LinearLayout.VERTICAL);
+            celda.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+            int cp = Math.round(10 * d);
+            celda.setPadding(cp, cp, cp, cp);
+            if (tv.resourceId != 0) celda.setBackgroundResource(tv.resourceId);
+            android.widget.ImageView iv = new android.widget.ImageView(requireContext());
+            int sz = Math.round(48 * d);
+            iv.setLayoutParams(new android.widget.LinearLayout.LayoutParams(sz, sz));
+            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
             if (o.iconoBmp != null) iv.setImageBitmap(o.iconoBmp);
             else if (o.iconoRes != 0) iv.setImageResource(o.iconoRes);
-            ((TextView) row.findViewById(R.id.op_titulo)).setText(o.titulo);
-            row.setOnClickListener(v -> { dlg.dismiss(); o.accion.run(); });
-            cont.addView(row);
+            TextView t = new TextView(requireContext());
+            t.setText(o.titulo);
+            t.setGravity(android.view.Gravity.CENTER);
+            t.setPadding(0, Math.round(6 * d), 0, 0);
+            t.setTextSize(13f);
+            celda.addView(iv); celda.addView(t);
+            celda.setOnClickListener(v -> { dlg.dismiss(); o.accion.run(); });
+            fila.addView(celda);
         }
         dlg.show();
     }
@@ -762,11 +781,6 @@ public class PlanificadorFragment extends Fragment {
     }
 
     /**
-    private int colorLinea(int n) {
-        Linea l = GtfsRepository.porNumero(requireContext(), n);
-        return l != null ? l.color : 0xFF757575;
-    }
-
      * Bus idéntico al del mapa en tiempo real: halo blanco, color(es) de línea (degradado
      * diagonal si va en ruta mixta) y el económico dibujado en el parabrisas.
      */

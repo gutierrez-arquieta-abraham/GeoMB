@@ -1,0 +1,7 @@
+<resources>
+    <!-- windowLightNavigationBar sólo existe desde API 27 (Android 8.1). En día: iconos oscuros
+         sobre barra de navegación clara. -->
+    <style name="Theme.GeoMB" parent="Base.Theme.GeoMB">
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

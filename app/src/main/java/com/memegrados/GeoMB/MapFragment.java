@@ -155,12 +155,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Precalienta el parseo de los JSON (segmentos/sublíneas/mexibús) en 2º plano ANTES de que el
-        // mapa esté listo, para que dibujarRed no bloquee el hilo principal (causa de ANR al arrancar).
-        final Context appCtx = requireContext().getApplicationContext();
-        new Thread(() -> {
-            try { GtfsRepository.getLineas(appCtx); GtfsRepository.getMexibus(appCtx); } catch (Throwable ignore) {}
-        }, "gtfs-warmup").start();
+        // Precarga los JSON (líneas/segmentos/sublíneas/mexibús) en el hilo de E/S del repositorio ANTES
+        // de que el mapa esté listo. El parseo en streaming publica las listas inmutables sin bloquear;
+        // al terminar, dibujarRed() encuentra todo cacheado y no parsea nada en el hilo principal.
+        GtfsRepository.precargar(requireContext(), null);
 
         locationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
 
@@ -369,9 +367,18 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             }
         });
 
-        dibujarRed();
-        dibujarMexibus();
-        aplicarSeleccionLinea();
+        // El trazado se hace SOLO cuando la red ya está en memoria (precarga en 2º plano). Así el hilo
+        // principal nunca parsea JSON: getLineas()/getMexibus() dentro de dibujarRed() son lecturas
+        // lock-free de una referencia ya publicada.
+        GtfsRepository.precargar(requireContext(), () -> {
+            if (mapa == null || !isAdded()) return;
+            dibujarRed();
+            dibujarMexibus();
+            aplicarSeleccionLinea();
+            crearEstacionesVisibles();
+            crearMexibusVisibles();
+            aplicarVisibilidadEstaciones();
+        });
         if (RealtimeRepository.unidadSeleccionada != null) {
             // Viene una unidad del buscador: se centra en ELLA, NO en la estación cercana. Así el
             // callback asíncrono de ubicación de centrarEnCercana no sobrescribe la cámara dejándote

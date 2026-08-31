@@ -11,7 +11,7 @@
         <!-- Sin statusBarColor/navigationBarColor: deprecados en Android 15; se maneja
              con borde a borde (EdgeToEdge) e insets. Iconos oscuros sobre barras claras. -->
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <!-- windowLightNavigationBar requiere API 27: se define en values-v27 -->
     </style>
 
     <style name="Theme.GeoMB" parent="Base.Theme.GeoMB" />

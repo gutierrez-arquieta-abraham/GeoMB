@@ -1,0 +1,6 @@
+<resources>
+    <!-- En noche (API 27+): iconos claros sobre barra de navegación oscura. -->
+    <style name="Theme.GeoMB" parent="Base.Theme.GeoMB">
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

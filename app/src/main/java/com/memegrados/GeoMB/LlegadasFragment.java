@@ -48,6 +48,11 @@ public class LlegadasFragment extends Fragment {
     private final AfectacionesAdapter afectAdapter = new AfectacionesAdapter();
     private long afectVer = -1;
 
+    // Tabla de estado del servicio (Metrobús + Mexibús), alimentada por las afectaciones de AWS.
+    private android.widget.LinearLayout llEstadoMetrobus, llEstadoMexibus;
+    private View txtMexibusTitulo;
+    private static final int VERDE_OK = 0xFF2E7D32;   // "Servicio regular"
+
     private final List<Estacion> estaciones = new ArrayList<>();
     private final List<String> sentidos = new ArrayList<>();
     private final List<Ruta> rutasLinea = new ArrayList<>();
@@ -91,7 +96,10 @@ public class LlegadasFragment extends Fragment {
         adapter = new LlegadasAdapter();
         rv.setAdapter(adapter);
 
-        // Panel de afectaciones (tarjetas horizontales)
+        // Tabla de estado del servicio (arriba) + panel de elevadores/otras afectaciones (abajo)
+        llEstadoMetrobus = view.findViewById(R.id.ll_estado_metrobus);
+        llEstadoMexibus = view.findViewById(R.id.ll_estado_mexibus);
+        txtMexibusTitulo = view.findViewById(R.id.txt_estado_mexibus_titulo);
         afectTitulo = view.findViewById(R.id.txt_afect_titulo);
         rvAfect = view.findViewById(R.id.recycler_afectaciones);
         rvAfect.setLayoutManager(new LinearLayoutManager(requireContext(),
@@ -231,14 +239,22 @@ public class LlegadasFragment extends Fragment {
         adapter.set(new ArrayList<>());
     }
 
-    /** Muestra las tarjetas de afectación (filtrando elevadores según el perfil). */
+    /**
+     * Refresca AMBAS secciones cuando cambian las afectaciones de AWS:
+     * la tabla de estado por línea (arriba) y el panel de elevadores/otras (abajo).
+     */
     private void refrescarAfectaciones() {
         if (!isAdded() || rvAfect == null) return;
         if (Manifestaciones.actualizado() == afectVer) return;   // sin cambios
         afectVer = Manifestaciones.actualizado();
+
+        refrescarEstado();   // tabla de estado del servicio
+
+        // Panel inferior: SOLO elevadores y mantenimiento/otras (el estado por línea va en la tabla).
         boolean elevadores = Perfil.muestraElevadores(requireContext());
         List<Manifestaciones.Afectacion> vis = new ArrayList<>();
         for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
+            if (a.categoria == Manifestaciones.C_ESTADO) continue;   // estado → tabla de arriba
             if (a.elevador && !elevadores) continue;
             vis.add(a);
         }
@@ -246,6 +262,91 @@ public class LlegadasFragment extends Fragment {
         int v = vis.isEmpty() ? View.GONE : View.VISIBLE;
         afectTitulo.setVisibility(v);
         rvAfect.setVisibility(v);
+    }
+
+    /** Construye la tabla de estado: una fila por línea (Metrobús 1..7 y Mexibús ordinarias) con su situación. */
+    private void refrescarEstado() {
+        if (!isAdded() || llEstadoMetrobus == null) return;
+        // Agrupa las afectaciones de ESTADO por número de línea (concatena si hay varias).
+        java.util.Map<Integer, String> estado = new java.util.HashMap<>();
+        for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
+            if (a.categoria != Manifestaciones.C_ESTADO || a.lineaNum <= 0) continue;
+            String txt = !a.estado.isEmpty() ? a.estado : a.lugar;
+            String prev = estado.get(a.lineaNum);
+            estado.put(a.lineaNum, prev == null ? txt : prev + " · " + txt);
+        }
+        // Metrobús L1..L7
+        llEstadoMetrobus.removeAllViews();
+        for (int i = 1; i <= 7; i++) {
+            Linea l = GtfsRepository.porNumero(requireContext(), i);
+            int color = l != null ? l.color : 0xFFC8103E;
+            String nombre = l != null ? l.nombre : getString(R.string.linea_formato, i);
+            llEstadoMetrobus.addView(filaEstado(String.valueOf(i), color, nombre, estado.get(i)));
+        }
+        // Mexibús: solo las ordinarias (numero 101..110), no exprés (12x) ni Mexicable (20x).
+        llEstadoMexibus.removeAllViews();
+        int mostradas = 0;
+        for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+            if (l.numero < 101 || l.numero > 110) continue;
+            String et = estado.get(l.numero);
+            llEstadoMexibus.addView(filaEstado(String.valueOf(l.numero - 100), l.color, l.nombre, et));
+            mostradas++;
+        }
+        int vis = mostradas > 0 ? View.VISIBLE : View.GONE;
+        if (txtMexibusTitulo != null) txtMexibusTitulo.setVisibility(vis);
+        llEstadoMexibus.setVisibility(vis);
+    }
+
+    /** Una fila de la tabla: badge de color con el número, nombre de la línea y su estado a la derecha. */
+    private View filaEstado(String num, int color, String nombre, String afectacion) {
+        float d = getResources().getDisplayMetrics().density;
+        android.util.TypedValue tvp = new android.util.TypedValue();
+        requireContext().getTheme().resolveAttribute(android.R.attr.textColorPrimary, tvp, true);
+        int colTxt = ContextCompat.getColor(requireContext(), tvp.resourceId);
+
+        android.widget.LinearLayout row = new android.widget.LinearLayout(requireContext());
+        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        int pv = Math.round(6 * d);
+        row.setPadding(0, pv, 0, pv);
+
+        TextView badge = new TextView(requireContext());
+        int sz = Math.round(26 * d);
+        badge.setLayoutParams(new android.widget.LinearLayout.LayoutParams(sz, sz));
+        badge.setText(num);
+        badge.setGravity(android.view.Gravity.CENTER);
+        badge.setTextColor(0xFFFFFFFF);
+        badge.setTextSize(13f);
+        badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        g.setColor(color);
+        badge.setBackground(g);
+        row.addView(badge);
+
+        TextView nom = new TextView(requireContext());
+        android.widget.LinearLayout.LayoutParams np = new android.widget.LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        np.leftMargin = Math.round(10 * d);
+        nom.setLayoutParams(np);
+        nom.setText(nombre);
+        nom.setTextSize(14f);
+        nom.setTextColor(colTxt);
+        row.addView(nom);
+
+        TextView est = new TextView(requireContext());
+        boolean afect = afectacion != null && !afectacion.trim().isEmpty();
+        est.setText(afect ? afectacion : getString(R.string.estado_regular));
+        est.setTextSize(13f);
+        est.setTextColor(afect ? 0xFFC8103E : VERDE_OK);
+        est.setGravity(android.view.Gravity.END);
+        est.setMaxLines(2);
+        android.widget.LinearLayout.LayoutParams ep = new android.widget.LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.3f);
+        ep.leftMargin = Math.round(8 * d);
+        est.setLayoutParams(ep);
+        row.addView(est);
+        return row;
     }
 
     // ---- aviso (notificación) ----

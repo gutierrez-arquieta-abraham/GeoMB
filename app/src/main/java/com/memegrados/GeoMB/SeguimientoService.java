@@ -28,7 +28,7 @@ import java.util.List;
 /**
  * Servicio en primer plano que sigue una unidad por su número económico:
  * compara la ubicación del usuario con la posición en vivo de la unidad y,
- * cuando entra al radio de {@link Config#SEGUIR_RADIO_M} metros, lanza una
+ * cuando entra al radio de {@link Config#SEGUIR_CERCA_M} metros, lanza una
  * notificación "ya está cerca de ti". Funciona con la app en segundo plano.
  */
 public class SeguimientoService extends Service {

@@ -23,6 +23,9 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
@@ -81,7 +84,17 @@ public class RecorridoService extends Service {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private FusedLocationProviderClient loc;
     private boolean ciclando = false;
+    private boolean recibiendo = false;   // ya se pidió el stream continuo de ubicación
     private final Runnable tick = this::ciclo;
+
+    /** Stream continuo de ubicación (como Google Maps): entrega en cuanto el GPS tiene un fix. */
+    private final LocationCallback locCb = new LocationCallback() {
+        @Override public void onLocationResult(LocationResult r) {
+            if (r == null) return;
+            android.location.Location l = r.getLastLocation();
+            if (l != null) procesar(l);
+        }
+    };
 
     private TextToSpeech tts;
     private boolean ttsListo = false;
@@ -134,17 +147,31 @@ public class RecorridoService extends Service {
         } else {
             startForeground(ID, n);
         }
-        handler.removeCallbacks(tick);
-        handler.post(tick);
+        pedirUbicacion();
         return START_STICKY;
     }
 
     /** Al cerrar/deslizar la app de recientes, el recorrido sigue en segundo plano (no se detiene). */
     @Override public void onTaskRemoved(Intent rootIntent) {
         if (activo && !finalizado) {
-            handler.removeCallbacks(tick);
-            handler.post(tick);   // reasegura el ciclo de ubicación aunque la UI ya no exista
+            pedirUbicacion();   // reasegura el stream de ubicación aunque la UI ya no exista
         }
+    }
+
+    /**
+     * Pide actualizaciones de ubicación CONTINUAS (alta precisión, ~1 s / mín 500 ms), en vez de
+     * un fix por ciclo. El GPS entrega en cuanto tiene una lectura, igual que Google Maps, así el
+     * puntero y la detección Haversine de la estación se refrescan sin retraso.
+     */
+    @SuppressLint("MissingPermission")
+    private void pedirUbicacion() {
+        if (recibiendo || !tienePermiso()) return;
+        recibiendo = true;
+        LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, INTERVALO_MS)
+                .setMinUpdateIntervalMillis(500L)   // acepta lecturas tan rápido como cada 0.5 s
+                .setMaxUpdateDelayMillis(INTERVALO_MS)
+                .build();
+        loc.requestLocationUpdates(req, locCb, Looper.getMainLooper());
     }
 
     @SuppressLint("MissingPermission")
@@ -220,6 +247,7 @@ public class RecorridoService extends Service {
             if (!finalizado) {
                 finalizado = true;
                 handler.removeCallbacks(tick);
+                detenerUbicacion();   // ya llegaste: corta el GPS para ahorrar batería
                 handler.postDelayed(this::stopSelf, 12000);
             }
         } else if (ultLlegando == best && ultProxima != proxIdx && bd >= distMin + radioPaso(seq.get(best))) {
@@ -652,8 +680,16 @@ public class RecorridoService extends Service {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    /** Corta el stream continuo de ubicación (batería). */
+    private void detenerUbicacion() {
+        if (!recibiendo) return;
+        recibiendo = false;
+        if (loc != null) loc.removeLocationUpdates(locCb);
+    }
+
     @Override public void onDestroy() {
         activo = false; actualIdx = -1; ultimaPos = null;
+        detenerUbicacion();
         handler.removeCallbacksAndMessages(null);   // cancela tick y el stopSelf diferido
         vozSeq++;                                    // invalida cualquier voz pendiente
         soltarActual();
