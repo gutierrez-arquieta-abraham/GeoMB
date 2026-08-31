@@ -30,6 +30,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -72,6 +73,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private static final double RADIO_MAPA_M = 2000.0;    // radio máx. de carga (estaciones/unidades)
 
     private GoogleMap mapa;
+    private RedViewModel red;   // capa de datos de la red (Metrobús + Mexibús) vía LiveData
     private FusedLocationProviderClient locationClient;
     private TextView chipFiltros;
     private TextView txtConteo;
@@ -155,10 +157,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Precarga los JSON (líneas/segmentos/sublíneas/mexibús) en el hilo de E/S del repositorio ANTES
-        // de que el mapa esté listo. El parseo en streaming publica las listas inmutables sin bloquear;
-        // al terminar, dibujarRed() encuentra todo cacheado y no parsea nada en el hilo principal.
-        GtfsRepository.precargar(requireContext(), null);
+        // La red (Metrobús + Mexibús) se carga a través de un ViewModel: el parseo en streaming corre en
+        // el executor del RedViewModel (2º plano) y se publica por LiveData. Al observar con
+        // getViewLifecycleOwner(), la suscripción se cancela sola si el usuario cierra el fragment antes
+        // de que termine la carga → sin fugas de memoria ni dibujos sobre vistas destruidas.
+        red = new ViewModelProvider(this).get(RedViewModel.class);
+        red.getMetrobus();   // dispara la carga en 2º plano ya (aunque el mapa aún no esté listo)
+        red.getMexibus();
 
         locationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
 
@@ -367,15 +372,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             }
         });
 
-        // El trazado se hace SOLO cuando la red ya está en memoria (precarga en 2º plano). Así el hilo
-        // principal nunca parsea JSON: getLineas()/getMexibus() dentro de dibujarRed() son lecturas
-        // lock-free de una referencia ya publicada.
-        GtfsRepository.precargar(requireContext(), () -> {
-            if (mapa == null || !isAdded()) return;
+        // El trazado se hace cuando la red ya está en memoria, observando el LiveData del ViewModel.
+        // getViewLifecycleOwner() garantiza que estos callbacks NO se ejecutan tras destruir la vista
+        // (sin fugas). getLineas()/getMexibus() dentro de dibujar* son lecturas lock-free ya publicadas.
+        red.getMetrobus().observe(getViewLifecycleOwner(), lineas -> {
+            if (mapa == null) return;
             dibujarRed();
-            dibujarMexibus();
             aplicarSeleccionLinea();
             crearEstacionesVisibles();
+            aplicarVisibilidadEstaciones();
+        });
+        red.getMexibus().observe(getViewLifecycleOwner(), lineas -> {
+            if (mapa == null) return;
+            dibujarMexibus();
             crearMexibusVisibles();
             aplicarVisibilidadEstaciones();
         });

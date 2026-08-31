@@ -230,6 +230,8 @@ public final class Planificador {
         if (q.equals("ipn") || q.equals("i p n") || q.equals("poli") || q.equals("politecnico")
                 || q.contains("politecnico") || q.contains("instituto politecnico"))
             return "instituto politecnico nacional";
+        // CEDA = Central de Abastos (varias líneas: L1/L4). El usuario puede teclear su abreviatura.
+        if (q.equals("ceda") || q.equals("c e d a")) return "central de abastos";
         return q;
     }
 
@@ -273,6 +275,16 @@ public final class Planificador {
             }
         }
         return res;
+    }
+
+    /** ¿La estación (por nombre limpio) existe en la línea {@code numero}? (para ofrecer Ordinario/Express). */
+    public static boolean estacionEnLinea(Context ctx, String nombre, int numero) {
+        Linea l = GtfsRepository.porNumero(ctx, numero);
+        if (l == null) return false;
+        String cn = norm(sinMxb(nombre));
+        for (Estacion e : l.estaciones)
+            if (!e.soloMapa && norm(sinMxb(e.nombre)).equals(cn)) return true;
+        return false;
     }
 
     private static int puntaje(String nn, String q) {

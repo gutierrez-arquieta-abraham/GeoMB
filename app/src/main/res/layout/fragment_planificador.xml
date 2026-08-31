@@ -192,16 +192,24 @@
                 android:textStyle="bold"
                 tools:text="8 paradas · 0 transbordos · ~13 min" />
 
-            <TextView
-                android:id="@+id/res_pasos"
+            <!-- Descripción de ruta: lista scrolleable con logos de estación (nuevo/antiguo)
+                 e íconos de transferencia (caminata/transbordo) entre sistemas, líneas o servicio. -->
+            <ScrollView
+                android:id="@+id/res_pasos_scroll"
                 android:tag="largo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:lineSpacingExtra="3dp"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                tools:text="Toma L1 dirección Buenavista (8 paradas)" />
+                android:scrollbars="vertical"
+                android:fadeScrollbars="false"
+                android:overScrollMode="ifContentScrolls">
+
+                <LinearLayout
+                    android:id="@+id/res_pasos_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
 
             <TextView
                 android:id="@+id/res_aviso"
@@ -224,6 +232,17 @@
                 android:textStyle="bold"
                 android:visibility="gone"
                 tools:text="Vas en Deportivo 18 de Marzo · Siguiente: La Raza" />
+
+            <!-- Servicio Ordinario/Express (solo si el viaje va por una sola línea Mexibús con ambos). -->
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/sw_express"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/servicio_express_switch"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_recorrido"

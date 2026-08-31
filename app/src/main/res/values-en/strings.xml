@@ -145,6 +145,9 @@
     <string name="desamb_elige_linea">Which line?</string>
     <string name="desamb_linea_n">Line %1$s</string>
     <string name="servicio_titulo">Which service will you take?</string>
+    <string name="servicio_express_switch">Express service (skips stations)</string>
+    <string name="servicio_ordinario">Ordinary</string>
+    <string name="servicio_express">Express</string>
     <string name="servicio_voz">You are on the %1$s service.</string>
     <string name="servicio_voz_rosa">You are on the %1$s service, in a pink vehicle reserved for women and children.</string>
     <string name="canal_recorrido">Trip in progress</string>

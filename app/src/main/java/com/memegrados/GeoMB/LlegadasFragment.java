@@ -284,13 +284,16 @@ public class LlegadasFragment extends Fragment {
             llEstadoMetrobus.addView(filaEstado(String.valueOf(i), color, nombre, estado.get(i)));
         }
         // Mexibús: solo las ordinarias (numero 101..110), no exprés (12x) ni Mexicable (20x).
+        // Respeta el ajuste "mostrar Mexibús": si está apagado, no se muestra su estado de servicio.
         llEstadoMexibus.removeAllViews();
         int mostradas = 0;
-        for (Linea l : GtfsRepository.getMexibus(requireContext())) {
-            if (l.numero < 101 || l.numero > 110) continue;
-            String et = estado.get(l.numero);
-            llEstadoMexibus.addView(filaEstado(String.valueOf(l.numero - 100), l.color, l.nombre, et));
-            mostradas++;
+        if (Modos.mostrarMexibus(requireContext())) {
+            for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+                if (l.numero < 101 || l.numero > 110) continue;
+                String et = estado.get(l.numero);
+                llEstadoMexibus.addView(filaEstado(String.valueOf(l.numero - 100), l.color, l.nombre, et));
+                mostradas++;
+            }
         }
         int vis = mostradas > 0 ? View.VISIBLE : View.GONE;
         if (txtMexibusTitulo != null) txtMexibusTitulo.setVisibility(vis);

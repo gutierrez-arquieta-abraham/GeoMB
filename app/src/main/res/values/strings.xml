@@ -139,6 +139,9 @@
     <string name="desamb_elige_linea">¿Qué línea?</string>
     <string name="desamb_linea_n">Línea %1$s</string>
     <string name="servicio_titulo">¿Qué servicio vas a tomar?</string>
+    <string name="servicio_express_switch">Servicio exprés (salta estaciones)</string>
+    <string name="servicio_ordinario">Ordinario</string>
+    <string name="servicio_express">Express</string>
     <string name="servicio_voz">Vas en el servicio %1$s.</string>
     <string name="servicio_voz_rosa">Vas en el servicio %1$s, en unidad rosa exclusiva para mujeres, niñas y niños.</string>
     <string name="canal_recorrido">Recorrido en curso</string>

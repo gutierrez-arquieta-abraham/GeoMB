@@ -16,6 +16,20 @@ public final class Iconos {
 
     private Iconos() {}
 
+    // Cachés para evitar rehacer trabajo caro en el hilo principal (getIdentifier + decodeResource):
+    // el mismo pictograma se pide para el marcador del mapa Y para la lista de la descripción de ruta,
+    // y en cada redibujo. Sin caché, una ruta larga (~40 estaciones) bloqueaba el hilo → ANR.
+    private static final java.util.Map<String, Integer> IDS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<String, Bitmap> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static int resId(Context ctx, String nombre) {
+        Integer c = IDS.get(nombre);
+        if (c != null) return c;
+        int id = ctx.getResources().getIdentifier(nombre, "drawable", ctx.getPackageName());
+        IDS.put(nombre, id);
+        return id;
+    }
+
     /** Decodifica el drawable REDUCIDO (evita OOM) y lo escala a un bitmap px×px, o null. */
     public static Bitmap escalado(Resources res, int id, int px) {
         try {
@@ -39,21 +53,27 @@ public final class Iconos {
         }
     }
 
-    /** Pictograma de estación por nombre de drawable, escalado a px×px, o null si no existe. */
+    /** Pictograma de estación por nombre de drawable, escalado a px×px, o null si no existe. Cacheado. */
     public static Bitmap pictograma(Context ctx, String nombre, int px) {
         if (nombre == null || nombre.isEmpty()) return null;
+        boolean nuevos = Modos.iconosNuevos(ctx);
+        String key = nombre + "|" + px + "|" + (nuevos ? 1 : 0);
+        Bitmap cached = CACHE.get(key);
+        if (cached != null) return cached;
+        String dw = nombre;
         // Modo "iconos antiguos": Mexibús usa su iconografía antigua (mexibus_ant_*); Mexicable = punto.
-        if (!Modos.iconosNuevos(ctx)) {
-            if (nombre.startsWith("mexicable_")) return null;   // Mexicable antiguo: punto
-            if (nombre.startsWith("mexibus_") && !nombre.startsWith("mexibus_ant_")) {
-                String ant = "mexibus_ant_" + nombre.substring("mexibus_".length());
-                int aid = ctx.getResources().getIdentifier(ant, "drawable", ctx.getPackageName());
-                if (aid == 0) return null;   // sin icono antiguo -> punto
-                nombre = ant;
+        if (!nuevos) {
+            if (dw.startsWith("mexicable_")) return null;   // Mexicable antiguo: punto
+            if (dw.startsWith("mexibus_") && !dw.startsWith("mexibus_ant_")) {
+                String ant = "mexibus_ant_" + dw.substring("mexibus_".length());
+                if (resId(ctx, ant) == 0) return null;   // sin icono antiguo -> punto
+                dw = ant;
             }
             // Metrobús (ic_est_*) conserva su pictograma en ambos modos.
         }
-        int id = ctx.getResources().getIdentifier(nombre, "drawable", ctx.getPackageName());
-        return id != 0 ? escalado(ctx.getResources(), id, px) : null;
+        int id = resId(ctx, dw);
+        Bitmap bmp = id != 0 ? escalado(ctx.getResources(), id, px) : null;
+        if (bmp != null) CACHE.put(key, bmp);
+        return bmp;
     }
 }
