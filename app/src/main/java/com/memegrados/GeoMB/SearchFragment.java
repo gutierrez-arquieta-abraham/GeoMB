@@ -43,6 +43,8 @@ public class SearchFragment extends Fragment {
     private MaterialButton btnSeguir;
     private MaterialButton btnVerMapa;
     private MaterialButton btnBuscar;
+    private MaterialButton btnAnadir, btnDetenerTodos;
+    private View filaSeguirMulti;
     private TextInputEditText inputUnidad;
     private MaterialCardView cardResultado;
     private TextView txtUnidad, txtLinea, txtFicha, txtRuta, txtActualizacion, badgeEstado, txtCredito, txtTagline;
@@ -85,6 +87,11 @@ public class SearchFragment extends Fragment {
         txtTagline = view.findViewById(R.id.txt_tagline);
         btnVerMapa = view.findViewById(R.id.btn_ver_mapa);
         btnSeguir = view.findViewById(R.id.btn_seguir);
+        filaSeguirMulti = view.findViewById(R.id.fila_seguir_multi);
+        btnAnadir = view.findViewById(R.id.btn_anadir_seguir);
+        btnDetenerTodos = view.findViewById(R.id.btn_detener_todos);
+        btnAnadir.setOnClickListener(v -> { if (ecoActual != null && !SeguimientoService.sigue(ecoActual)) intentarSeguir(); });
+        btnDetenerTodos.setOnClickListener(v -> detenerTodos());
 
         cardResultado.setVisibility(View.GONE);
 
@@ -93,10 +100,10 @@ public class SearchFragment extends Fragment {
 
         btnSeguir.setOnClickListener(v -> {
             if (ecoActual == null) return;
-            if (ecoActual.equals(SeguimientoService.ecoSeguido)) {
+            if (SeguimientoService.sigue(ecoActual)) {
                 detenerSeguimiento();
             } else {
-                intentarSeguir();
+                intentarSeguir();   // añade esta unidad (sin quitar las que ya se siguen)
             }
         });
     }
@@ -169,24 +176,41 @@ public class SearchFragment extends Fragment {
         Intent i = new Intent(requireContext(), SeguimientoService.class)
                 .putExtra(SeguimientoService.EXTRA_ECO, ecoActual);
         ContextCompat.startForegroundService(requireContext(), i);
-        SeguimientoService.ecoSeguido = ecoActual;   // reflejo inmediato en la UI
+        SeguimientoService.ecosSeguidos.add(ecoActual);   // reflejo inmediato en la UI
         actualizarBotonSeguir();
         Toast.makeText(requireContext(),
                 getString(R.string.seguir_activado, ecoActual), Toast.LENGTH_LONG).show();
     }
 
     private void detenerSeguimiento() {
+        if (ecoActual == null) return;
         Intent i = new Intent(requireContext(), SeguimientoService.class)
-                .setAction(SeguimientoService.ACCION_DETENER);
+                .setAction(SeguimientoService.ACCION_DETENER)
+                .putExtra(SeguimientoService.EXTRA_ECO, ecoActual);   // detiene SOLO esta unidad
         requireContext().startService(i);
-        SeguimientoService.ecoSeguido = null;
+        SeguimientoService.ecosSeguidos.remove(ecoActual);
+        actualizarBotonSeguir();
+    }
+
+    /** Detiene el seguimiento de TODAS las unidades. */
+    private void detenerTodos() {
+        Intent i = new Intent(requireContext(), SeguimientoService.class)
+                .setAction(SeguimientoService.ACCION_DETENER);   // sin económico = todas
+        requireContext().startService(i);
+        SeguimientoService.ecosSeguidos.clear();
         actualizarBotonSeguir();
     }
 
     private void actualizarBotonSeguir() {
         if (btnSeguir == null) return;
-        boolean siguiendo = ecoActual != null && ecoActual.equals(SeguimientoService.ecoSeguido);
-        btnSeguir.setText(siguiendo ? R.string.dejar_de_seguir : R.string.seguir);
+        boolean sigueEsta = ecoActual != null && SeguimientoService.sigue(ecoActual);
+        btnSeguir.setText(sigueEsta ? R.string.dejar_de_seguir : R.string.seguir);
+        // Fila de acciones múltiples: solo cuando ya hay unidad(es) en seguimiento en curso.
+        if (filaSeguirMulti != null) {
+            boolean hay = !SeguimientoService.ecosSeguidos.isEmpty();
+            filaSeguirMulti.setVisibility(hay ? View.VISIBLE : View.GONE);
+            if (btnAnadir != null) btnAnadir.setEnabled(ecoActual != null && !sigueEsta);   // añadir la actual
+        }
     }
 
     /**

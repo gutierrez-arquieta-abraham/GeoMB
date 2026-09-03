@@ -70,10 +70,12 @@ public class PlanificadorFragment extends Fragment {
     private Planificador.Ruta rutaActiva;
     // Ruta recordada entre módulos: al volver al planificador se re-traza sola.
     private static String ultOrigen, ultDestino;
+    // Preferencias de la última ruta trazada (para re-trazarla igual al volver si el recorrido sigue activo).
+    private static int ultLineaO, ultLineaD;
+    private static java.util.Map<Integer, Boolean> ultPref;
     // Nombre CANÓNICO (con "MXB " si es Mexibús) de cada campo; el campo MUESTRA el nombre sin prefijo.
     private String origenCanon, destinoCanon;
     private int origenLinea, destinoLinea;   // línea FIJADA por desambiguación (0 = cualquiera)
-    private Boolean svcExpressTrace = null;   // servicio elegido en el trazo actual (null=preguntar, false=ordinario, true=exprés)
     private LatLng origenPos;
     private boolean avisoUnidad = false;
     private boolean autoTrazar = false;
@@ -84,12 +86,29 @@ public class PlanificadorFragment extends Fragment {
     private static final double RADIO_ESTACION_M = 50;   // metros a la redonda del trazo para mostrar unidades
     private static final double PASO_TRAZO_M = 12;       // separación de los puntos finos del trazo (progreso suave)
     private com.google.android.gms.maps.model.Marker mkUsuario;   // puntero de ubicación (icono norte, pegado al trazo)
+    private boolean seguirCamara;                  // durante el recorrido, la cámara sigue al usuario (como Maps)
     private Polyline progresoLine;                 // overlay que opaca lo ya recorrido
     private java.util.List<LatLng> rutaPuntos;     // todos los puntos del trazo en orden (para el progreso)
     private java.util.List<LatLng> anclasZona;     // puntos densificados del trazo (filtro de unidades + puntero)
     private long ultimaManifest = 0;   // versión de afectaciones aplicada a la ruta mostrada
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    // El cálculo de ruta (Dijkstra + grafo de correspondencias) tardaba >5 s en el hilo principal
+    // y disparaba ANR ("GeoMB no responde"). Se corre en un hilo aparte y el resultado se publica en UI.
+    private final java.util.concurrent.ExecutorService calcExec = java.util.concurrent.Executors.newSingleThreadExecutor();
+
+    /** Ejecuta Planificador.calcular en segundo plano y entrega la ruta en el hilo principal. */
+    private void calcularAsync(java.util.concurrent.Callable<Planificador.Ruta> tarea,
+                               androidx.core.util.Consumer<Planificador.Ruta> alTerminar) {
+        calcExec.execute(() -> {
+            Planificador.Ruta r;
+            try { r = tarea.call(); } catch (Exception e) { r = null; }
+            final Planificador.Ruta res = r;
+            if (!isAdded()) return;
+            handler.post(() -> { if (isAdded()) alTerminar.accept(res); });
+        });
+    }
+
     private final Runnable poll = new Runnable() {
         @Override public void run() {
             RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
@@ -219,6 +238,10 @@ public class PlanificadorFragment extends Fragment {
             final View bn = getView() != null ? getView().findViewById(R.id.btn_norte) : null;
             if (bn != null) mapa.setOnCameraMoveListener(() ->
                     bn.setRotation(-mapa.getCameraPosition().bearing));
+            // Si el usuario mueve el mapa con el dedo durante el recorrido, deja de seguirlo (como Maps).
+            mapa.setOnCameraMoveStartedListener(reason -> {
+                if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) seguirCamara = false;
+            });
             // Ventana de información con la misma tipografía que el mapa general.
             mapa.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
                 @Override public View getInfoWindow(com.google.android.gms.maps.model.Marker m) { return null; }
@@ -239,6 +262,7 @@ public class PlanificadorFragment extends Fragment {
             }
             mapa.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(19.41, -99.14), 11f));
             rellenarOrigen();
+            retrazarSiRecorrido();   // si el recorrido sigue activo, vuelve a trazar la ruta guardada
         });
     }
 
@@ -313,7 +337,6 @@ public class PlanificadorFragment extends Fragment {
 
     private void trazar() {
         if (mapa == null) return;
-        svcExpressTrace = null;   // nuevo trazo: se vuelve a preguntar el servicio (Ordinario/Express) si aplica
         // Desambigua origen y luego destino (puede mostrar carta/toast) antes de calcular la ruta.
         desambiguar(inOrigen, origenCanon, origenLinea, (o, lo) ->
                 desambiguar(inDestino, destinoCanon, destinoLinea, (d, ld) ->
@@ -328,21 +351,85 @@ public class PlanificadorFragment extends Fragment {
         if (origen == null) { origen = destino; lineaO = lineaD; }   // sin origen válido: se marcará "ya estás cerca"
 
         ultimaManifest = Manifestaciones.actualizado();
-        Planificador.Ruta r = Planificador.calcular(requireContext(), origen, destino, lineaO, lineaD);
-        if (r == null) {
-            Toast.makeText(requireContext(), mensajeFallo(destino), Toast.LENGTH_LONG).show();
-            return;
-        }
-        // nombres canónicos ya resueltos (el campo se muestra con nº de línea si estaba fijada)
-        origenCanon = origen; origenLinea = lineaO;
-        inOrigen.setText(lineaO == 0 ? Planificador.sinMxb(origen) : Planificador.nombreMostrar(requireContext(), origen, lineaO));
-        destinoCanon = destino; destinoLinea = lineaD;
-        inDestino.setText(lineaD == 0 ? Planificador.sinMxb(destino) : Planificador.nombreMostrar(requireContext(), destino, lineaD));
-        ultOrigen = origen; ultDestino = destino;   // recuerda la ruta entre módulos
+        final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
+        calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld), r -> {
+            if (r == null) {
+                Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show();
+                return;
+            }
+            // nombres canónicos ya resueltos (el campo se muestra con nº de línea si estaba fijada)
+            origenCanon = fo; origenLinea = flo;
+            inOrigen.setText(flo == 0 ? Planificador.sinMxb(fo) : Planificador.nombreMostrar(requireContext(), fo, flo));
+            destinoCanon = fd; destinoLinea = fld;
+            inDestino.setText(fld == 0 ? Planificador.sinMxb(fd) : Planificador.nombreMostrar(requireContext(), fd, fld));
+            ultOrigen = fo; ultDestino = fd; ultLineaO = flo; ultLineaD = fld; ultPref = new java.util.HashMap<>();
+            // Preferencia de servicio por CADA línea troncal Mexibús (10X) con exprés que use la ruta.
+            java.util.List<Integer> bases = basesTroncalesConExpress(r);
+            if (bases.isEmpty()) { finalizarTraza(r, fd); return; }
+            preguntarServicioPorLinea(fo, flo, fd, fld, bases, new java.util.HashMap<>(), 0);
+        });
+    }
+
+    /** Si hay un recorrido activo y volvemos al planificador, re-traza la MISMA ruta (con su preferencia
+     *  Ordinario/Express) sin volver a preguntar, para poder verla y reengancharse al seguimiento. */
+    private void retrazarSiRecorrido() {
+        if (mapa == null || rutaActiva != null || ultDestino == null || !RecorridoService.activo) return;
+        final String o = ultOrigen, d = ultDestino;
+        final int lo = ultLineaO, ld = ultLineaD;
+        final java.util.Map<Integer, Boolean> pref = ultPref != null ? ultPref : new java.util.HashMap<>();
+        if (o != null) setOrigen(o);
+        setDestino(d);
+        calcularAsync(() -> Planificador.calcular(requireContext(), o, d, lo, ld, pref), r -> {
+            if (r != null) finalizarTraza(r, d);
+        });
+    }
+
+    /** Fija la ruta calculada y la dibuja (cola común del trazado). */
+    private void finalizarTraza(Planificador.Ruta r, String destino) {
         rutaActiva = r;
         avisoUnidad = false;
         origenPos = r.pasos.isEmpty() ? null : r.pasos.get(0).puntos.get(0);
         dibujar(r, destino);
+    }
+
+    /** Bases troncales Mexibús (101..104) con servicio exprés que aparecen en la ruta, en orden. */
+    private java.util.List<Integer> basesTroncalesConExpress(Planificador.Ruta r) {
+        java.util.LinkedHashSet<Integer> bases = new java.util.LinkedHashSet<>();
+        for (Planificador.Parada p : r.secuencia) {
+            if (p.linea >= 111 && p.linea <= 119) continue;   // ramales 1A/2A/3A: sin exprés
+            int base = Servicios.base(p.linea);
+            if (base >= 101 && base <= 104) bases.add(base);
+        }
+        return new java.util.ArrayList<>(bases);
+    }
+
+    /** Pregunta el servicio (Ordinario/Express) por cada base troncal, en secuencia; al terminar,
+     *  recalcula con la preferencia global (con fallback donde el exprés no llegue) y dibuja. */
+    private void preguntarServicioPorLinea(String origen, int lineaO, String destino, int lineaD,
+                                           java.util.List<Integer> bases,
+                                           java.util.Map<Integer, Boolean> pref, int idx) {
+        if (idx >= bases.size()) {
+            final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
+            final java.util.Map<Integer, Boolean> fpref = pref;
+            ultLineaO = flo; ultLineaD = fld; ultPref = new java.util.HashMap<>(fpref);   // recuerda la preferencia
+            calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, fpref), r -> {
+                if (r == null) { Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show(); return; }
+                finalizarTraza(r, fd);
+            });
+            return;
+        }
+        int base = bases.get(idx), exp = base + 20;
+        String et = Planificador.etiquetaLineaCortaPub(base);
+        java.util.List<Opcion> op = new java.util.ArrayList<>();
+        op.add(new Opcion(0, badgeLinea(colorLinea(base), et), getString(R.string.servicio_ordinario), () -> {
+            pref.put(base, false);
+            preguntarServicioPorLinea(origen, lineaO, destino, lineaD, bases, pref, idx + 1);
+        }));
+        op.add(new Opcion(0, badgeLinea(colorLinea(exp), et), getString(R.string.servicio_express), () -> {
+            pref.put(base, true);
+            preguntarServicioPorLinea(origen, lineaO, destino, lineaD, bases, pref, idx + 1);
+        }));
+        mostrarCarta(getString(R.string.servicio_titulo_linea, "L" + et), op);
     }
 
     /**
@@ -371,62 +458,130 @@ public class PlanificadorFragment extends Fragment {
         if (lineaRec != 0 && canon.equals(canonRec)) { cb.run(canon, lineaRec); return; }   // ya fijada y sin cambios
 
         java.util.List<Planificador.Match> cs = Planificador.candidatos(requireContext(), canon);
-        java.util.List<Planificador.Match> metro = porLineaBase(cs, 0);
-        java.util.List<Planificador.Match> mxb = porLineaBase(cs, 1);
-        java.util.List<Planificador.Match> mxc = porLineaBase(cs, 2);
-        if (!Modos.mostrarMexibus(requireContext())) { mxb.clear(); mxc.clear(); }   // sin Mexibús visible no se ofrecen
-
-        int sistemas = (metro.isEmpty() ? 0 : 1) + (mxb.isEmpty() ? 0 : 1) + (mxc.isEmpty() ? 0 : 1);
-        if (sistemas == 0) { cb.run(canon, 0); return; }
-        if (sistemas == 1) {                       // un solo sistema
-            java.util.List<Planificador.Match> uni = !metro.isEmpty() ? metro : (!mxb.isEmpty() ? mxb : mxc);
-            // Central de Abastos la sirven L1 y L4 (a ~37 m) pero van a lados OPUESTOS: siempre se ofrece
-            // el cuadro de línea. El resto de estaciones co-ubicadas sí se colapsan en una sola opción.
-            boolean cedaMultilinea = Planificador.norm(Planificador.sinMxb(canon)).equals("central de abastos");
-            if (!cedaMultilinea) uni = colapsarCoubicadas(uni);
-            if (uni.size() <= 1) {
-                Planificador.Match sel = uni.get(0);
-                // ¿Estación Mexibús servida por Ordinario (10X) Y Express (12X)? → el usuario decide el
-                // servicio en el trazado (antes se colapsaba a ordinario y nunca iba por exprés).
-                int base = Servicios.base(sel.linea);
-                // Ramales 1A/2A/3A (111–113) NO tienen exprés ni Rosa; no se pregunta servicio para ellos.
-                boolean esRamal = sel.linea >= 111 && sel.linea <= 119;
-                int exp = (!esRamal && base >= 101 && base <= 104) ? base + 20 : 0;
-                if (exp != 0 && Modos.mostrarMexibus(requireContext())
-                        && Planificador.estacionEnLinea(requireContext(), sel.nombre, exp)) {
-                    if (svcExpressTrace != null) {   // ya se eligió en este trazo: aplícalo sin volver a preguntar
-                        int ln = svcExpressTrace ? exp : base;
-                        fijar(campo, new Planificador.Match(sel.nombre, ln, sel.pos), cb); return;
-                    }
-                    elegirServicioTrazado(campo, sel, base, exp, cb); return;
-                }
-                fijar(campo, sel, cb); return;
-            }
-            elegirLinea(campo, uni, cb); return;   // varias líneas del mismo sistema en sitios distintos (p. ej. Mexibús L1/L2)
+        if (!Modos.mostrarMexibus(requireContext())) {   // sin Mexibús visible, solo Metrobús
+            java.util.List<Planificador.Match> f = new java.util.ArrayList<>();
+            for (Planificador.Match m : cs) if (sistema(m.linea) == 0) f.add(m);
+            cs = f;
         }
-        cartaSistema(campo, canon, metro, mxb, mxc, cb);   // varios sistemas: elegir sistema (y línea si Mexibús)
+        if (cs.isEmpty()) { cb.run(canon, 0); return; }
+        // Agrupa por estación física (misma base + co-ubicadas). Si queda una sola, la fija; si hay varias
+        // (Las Américas de Metrobús L2, Mexibús L1, Mexibús L2 y L2A…) pregunta "¿A qué estación te refieres?".
+        java.util.List<java.util.List<Planificador.Match>> grupos = agruparCandidatos(cs);
+        if (grupos.size() == 1) { fijar(campo, grupos.get(0).get(0), cb); return; }
+        elegirEstacion(campo, grupos, cb);
     }
 
-    /** Carta para elegir el SERVICIO (Ordinario/Express) de un extremo Mexibús; fija la línea 10X o 12X. */
-    private void elegirServicioTrazado(EditText campo, Planificador.Match sel, int base, int exp, ResueltoCb cb) {
-        java.util.List<Opcion> op = new java.util.ArrayList<>();
-        op.add(new Opcion(0, badgeLinea(colorLinea(base), Planificador.etiquetaLineaCortaPub(base)),
-                getString(R.string.servicio_ordinario), () -> {
-                    svcExpressTrace = false;
-                    fijar(campo, new Planificador.Match(sel.nombre, base, sel.pos), cb);
-                }));
-        op.add(new Opcion(0, badgeLinea(colorLinea(exp), Planificador.etiquetaLineaCortaPub(exp)),
-                getString(R.string.servicio_express), () -> {
-                    svcExpressTrace = true;
-                    fijar(campo, new Planificador.Match(sel.nombre, exp, sel.pos), cb);
-                }));
-        mostrarCarta(getString(R.string.servicio_titulo), op);
+    /** Agrupa candidatos por estación física: misma línea base y mismo sistema, co-ubicados (≤400 m).
+     *  Así L2 y L2A (co-ubicadas) son UNA opción, pero L1 y L4 (bases distintas) quedan separadas. */
+    private java.util.List<java.util.List<Planificador.Match>> agruparCandidatos(java.util.List<Planificador.Match> cs) {
+        java.util.List<java.util.List<Planificador.Match>> grupos = new java.util.ArrayList<>();
+        for (Planificador.Match m : cs) {
+            java.util.List<Planificador.Match> g = null;
+            for (java.util.List<Planificador.Match> gr : grupos) {
+                Planificador.Match r = gr.get(0);
+                if (Servicios.base(r.linea) == Servicios.base(m.linea)
+                        && sistema(r.linea) == sistema(m.linea)
+                        && Linea.distancia(r.pos, m.pos) <= 400) { g = gr; break; }
+            }
+            if (g == null) { g = new java.util.ArrayList<>(); grupos.add(g); }
+            g.add(m);
+        }
+        return grupos;
     }
 
-    /** Opción de una carta flotante: logo (recurso o bitmap) + título + acción. */
+    /** Carta "¿A qué estación te refieres?": una celda por estación física, con badge de línea y etiqueta
+     *  "Nombre (Sistema Lx y Ly)". Al elegir, fija esa estación (su línea representante más baja). */
+    private void elegirEstacion(EditText campo, java.util.List<java.util.List<Planificador.Match>> grupos, ResueltoCb cb) {
+        // Ordena PRIMERO por sistema (Metrobús, Mexibús, Mexicable), LUEGO por línea (representante más bajo).
+        java.util.Collections.sort(grupos, (g1, g2) -> {
+            Planificador.Match r1 = repGrupo(g1), r2 = repGrupo(g2);
+            int s = Integer.compare(sistema(r1.linea), sistema(r2.linea));
+            return s != 0 ? s : Integer.compare(r1.linea, r2.linea);
+        });
+        int px = Math.round(40 * getResources().getDisplayMetrics().density);
+        java.util.List<Opcion> ops = new java.util.ArrayList<>();
+        for (java.util.List<Planificador.Match> g : grupos) {
+            final Planificador.Match sel = repGrupo(g);
+            Bitmap est = Iconos.pictograma(requireContext(), sel.icono, px);   // ícono de estación
+            if (est == null) est = badgeLinea(colorLinea(sel.linea), Planificador.etiquetaLineaCortaPub(sel.linea));
+            Bitmap linea = bmpLinea(sel.linea);   // drawable de línea (izquierda)
+            ops.add(new Opcion(0, est, linea, etiquetaEstacion(g), () -> fijar(campo, sel, cb)));
+        }
+        mostrarCarta(getString(R.string.desamb_cual_estacion), ops);
+    }
+
+    /** Representante de un grupo: el match de línea más baja. */
+    private Planificador.Match repGrupo(java.util.List<Planificador.Match> g) {
+        Planificador.Match rep = g.get(0);
+        for (Planificador.Match m : g) if (m.linea < rep.linea) rep = m;
+        return rep;
+    }
+
+    /** Ícono de línea para la card: Metrobús = {@code linea_1..7}; Mexibús = logo de línea
+     *  ({@code mexibus_0N} nuevo / {@code mexibus_ant_0N} antiguo, troncales I–IV); si no hay, badge de color. */
+    private Bitmap bmpLinea(int linea) {
+        int id = 0;
+        if (linea < 100) {                       // Metrobús
+            id = drawableId("linea_" + linea);
+        } else if (linea < 200) {                // Mexibús
+            String suf = sufijoMxb(linea);
+            if (suf != null) {
+                if (!Modos.iconosNuevos(requireContext())) id = drawableId("mexibus_ant_" + suf);  // antiguo (SVG troncales)
+                if (id == 0) id = drawableId("mexibus_" + suf);                                     // nuevo / respaldo
+            }
+        }
+        if (id != 0) {
+            Bitmap b = android.graphics.BitmapFactory.decodeResource(getResources(), id);
+            if (b != null) return b;
+        }
+        return badgeLinea(colorLinea(linea), Planificador.etiquetaLineaCortaPub(linea));
+    }
+
+    private int drawableId(String nombre) {
+        return getResources().getIdentifier(nombre, "drawable", requireContext().getPackageName());
+    }
+
+    /** Sufijo del drawable de logo Mexibús: troncal 101→"01", ramal 111→"01a", exprés 124→"04" (logo troncal). */
+    private String sufijoMxb(int n) {
+        if (n >= 121 && n <= 124) return "0" + (n - 120);
+        if (n >= 111 && n <= 113) return "0" + (n - 110) + "a";
+        if (n >= 101 && n <= 104) return "0" + (n - 100);
+        return null;
+    }
+
+    /** Etiqueta de una estación física: "Nombre (Sistema Lx y Ly)" con sus líneas distintas. */
+    private String etiquetaEstacion(java.util.List<Planificador.Match> g) {
+        Planificador.Match rep = g.get(0);
+        for (Planificador.Match m : g) if (m.linea < rep.linea) rep = m;
+        java.util.TreeSet<Integer> orden = new java.util.TreeSet<>();
+        for (Planificador.Match m : g) orden.add(m.linea);
+        java.util.LinkedHashSet<String> ets = new java.util.LinkedHashSet<>();
+        for (int ln : orden) ets.add("L" + Planificador.etiquetaLineaCortaPub(ln));   // "L2", "L2A" (exprés colapsa con su troncal)
+        java.util.List<String> ls = new java.util.ArrayList<>(ets);
+        StringBuilder lin = new StringBuilder();
+        for (int i = 0; i < ls.size(); i++) {
+            if (i == 0) lin.append(ls.get(i));
+            else if (i == ls.size() - 1) lin.append(" y ").append(ls.get(i));
+            else lin.append(", ").append(ls.get(i));
+        }
+        return Planificador.sinMxb(rep.nombre) + " (" + nombreSistema(rep.linea) + " " + lin + ")";
+    }
+
+    /** Nombre del sistema por número de línea. */
+    private String nombreSistema(int n) {
+        if (n >= 200) return getString(R.string.desamb_sist_mexicable);
+        if (n >= 100) return getString(R.string.desamb_sist_mexibus);
+        return getString(R.string.desamb_sist_metrobus);
+    }
+
+    /** Opción de una carta flotante: logo (recurso o bitmap) + título + acción. {@code iconoLinea} es un
+     *  ícono opcional a la IZQUIERDA (drawable de línea) que se muestra antes del ícono principal. */
     private static final class Opcion {
-        final int iconoRes; final Bitmap iconoBmp; final String titulo; final Runnable accion;
-        Opcion(int res, Bitmap bmp, String t, Runnable a) { iconoRes = res; iconoBmp = bmp; titulo = t; accion = a; }
+        final int iconoRes; final Bitmap iconoBmp; final Bitmap iconoLinea; final String titulo; final Runnable accion;
+        Opcion(int res, Bitmap bmp, String t, Runnable a) { this(res, bmp, null, t, a); }
+        Opcion(int res, Bitmap bmp, Bitmap lineaBmp, String t, Runnable a) {
+            iconoRes = res; iconoBmp = bmp; iconoLinea = lineaBmp; titulo = t; accion = a;
+        }
     }
 
     /** Muestra una carta flotante HORIZONTAL: cada opción es una celda (logo arriba, título abajo). */
@@ -437,8 +592,13 @@ public class PlanificadorFragment extends Fragment {
         fila.setGravity(android.view.Gravity.CENTER);
         int pad = Math.round(12 * d);
         fila.setPadding(pad, pad, pad, pad);
+        // Scroll horizontal: si hay muchas opciones (o con logo de línea + ícono de estación) no caben,
+        // el usuario desliza en vez de que se corten.
+        android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(requireContext());
+        scroll.setHorizontalScrollBarEnabled(false);
+        scroll.addView(fila);
         AlertDialog dlg = new AlertDialog.Builder(requireContext())
-                .setTitle(titulo).setView(fila).setCancelable(true).create();
+                .setTitle(titulo).setView(scroll).setCancelable(true).create();
         android.util.TypedValue tv = new android.util.TypedValue();
         requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true);
         for (Opcion o : ops) {
@@ -448,18 +608,36 @@ public class PlanificadorFragment extends Fragment {
             int cp = Math.round(10 * d);
             celda.setPadding(cp, cp, cp, cp);
             if (tv.resourceId != 0) celda.setBackgroundResource(tv.resourceId);
-            android.widget.ImageView iv = new android.widget.ImageView(requireContext());
             int sz = Math.round(48 * d);
+            android.widget.ImageView iv = new android.widget.ImageView(requireContext());
             iv.setLayoutParams(new android.widget.LinearLayout.LayoutParams(sz, sz));
             iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
             if (o.iconoBmp != null) iv.setImageBitmap(o.iconoBmp);
             else if (o.iconoRes != 0) iv.setImageResource(o.iconoRes);
+            if (o.iconoLinea != null) {
+                // Fila horizontal: [drawable de línea] [ícono de estación]
+                android.widget.LinearLayout iconos = new android.widget.LinearLayout(requireContext());
+                iconos.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+                iconos.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                android.widget.ImageView ivL = new android.widget.ImageView(requireContext());
+                int szl = Math.round(30 * d);
+                android.widget.LinearLayout.LayoutParams lpL = new android.widget.LinearLayout.LayoutParams(szl, szl);
+                lpL.rightMargin = Math.round(6 * d);
+                ivL.setLayoutParams(lpL);
+                ivL.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                ivL.setImageBitmap(o.iconoLinea);
+                iconos.addView(ivL);
+                iconos.addView(iv);
+                celda.addView(iconos);
+            } else {
+                celda.addView(iv);
+            }
             TextView t = new TextView(requireContext());
             t.setText(o.titulo);
             t.setGravity(android.view.Gravity.CENTER);
             t.setPadding(0, Math.round(6 * d), 0, 0);
             t.setTextSize(13f);
-            celda.addView(iv); celda.addView(t);
+            celda.addView(t);   // el/los ícono(s) ya se agregaron arriba
             celda.setOnClickListener(v -> { dlg.dismiss(); o.accion.run(); });
             fila.addView(celda);
         }
@@ -596,15 +774,9 @@ public class PlanificadorFragment extends Fragment {
             Planificador.Parada p = r.secuencia.get(i);
             BitmapDescriptor ic = bitmapEstacion(p.icono, p.color);
             if (ic == null) continue;
+            // p.pos ya trae la plataforma direccional de Indios Verdes (la fija el planificador).
             LatLng pos = p.pos;
             String titulo = Planificador.nombreMostrar(requireContext(), p.nombre, p.linea);
-            // Indios Verdes de Mexibús L4: el ASCENSO (donde cae el icono del L4 Express) es el mismo
-            // andén para ordinario y exprés en ambos sentidos. Se marca ahí (andén central), no en la
-            // plataforma sur; La Raza queda solo para descenso exprés / ascenso ordinario.
-            if (p.linea == 104 && p.nombre.startsWith("Indios Verdes")) {
-                pos = new LatLng(19.495027, -99.119547);
-                titulo += " · andén de ascenso";
-            }
             mapa.addMarker(new MarkerOptions().position(pos).title(titulo)
                     .icon(ic).anchor(0.5f, 0.5f).zIndex(6f));
         }
@@ -617,7 +789,6 @@ public class PlanificadorFragment extends Fragment {
         resAviso.setVisibility(afect ? View.VISIBLE : View.GONE);
         if (afect) resAviso.setText(getString(R.string.ruta_alterna));
         panelResultado.setVisibility(View.VISIBLE);
-        configurarSwitchServicio(r);   // switch Ordinario/Express si aplica
 
         // deslizador de estaciones (arriba)
         sliderAdapter.set(r.secuencia);
@@ -630,6 +801,7 @@ public class PlanificadorFragment extends Fragment {
         // Si al volver al módulo hay un recorrido en curso, reengancha su seguimiento (sin reiniciar el servicio).
         if (!veniaRecorrido && RecorridoService.activo && rutaActiva != null) {
             recorrido = true;
+            seguirCamara = true;   // al reengancharse, vuelve a seguir al usuario
             btnRecorrido.setText(R.string.recorrido_detener);
             resEstado.setVisibility(View.VISIBLE);
             resEstado.setText(R.string.recorrido_ubicando);
@@ -648,8 +820,10 @@ public class PlanificadorFragment extends Fragment {
         int prevLinea = 0; String prevNombre = null;
         for (int j = 0; j < r.secuencia.size(); j++) {
             Planificador.Parada p = r.secuencia.get(j);
-            if (j > 0 && p.linea != prevLinea) {
-                // Cambio de línea/servicio/sistema → transferencia. Nombres distintos = caminata.
+            // Fila de transferencia SOLO en correspondencias reales (p.transbordo). Ordinario↔exprés de la
+            // misma línea ya no marca transbordo, así que no genera fila.
+            if (j > 0 && p.transbordo) {
+                // Cambio de línea/sistema → transferencia. Nombres distintos = caminata.
                 boolean camina = prevNombre != null
                         && !Planificador.norm(prevNombre).equals(Planificador.norm(p.nombre));
                 String texto;
@@ -663,16 +837,24 @@ public class PlanificadorFragment extends Fragment {
                 }
                 resPasosList.addView(filaTransfer(camina, texto));
             }
-            resPasosList.addView(filaEstacion(p));
+            android.view.View fe = filaEstacion(p);
+            fe.setTag("est");   // marca de fila-estación (para contar 4 visibles)
+            resPasosList.addView(fe);
             prevLinea = p.linea; prevNombre = p.nombre;
         }
-        // Limita la altura para que la lista sea scrolleable en rutas largas (~240dp).
-        final int maxPx = Math.round(240 * getResources().getDisplayMetrics().density);
+        // Limita la altura a 4 estaciones visibles (más las transferencias intercaladas antes de la 4ª);
+        // el resto queda con scroll. Mantiene la separación previa respecto a los controles del mapa.
         resPasosScroll.post(() -> {
             if (resPasosScroll == null) return;
+            int acumulado = 0, estaciones = 0;
+            for (int k = 0; k < resPasosList.getChildCount(); k++) {
+                android.view.View c = resPasosList.getChildAt(k);
+                acumulado += c.getHeight();
+                if ("est".equals(c.getTag()) && ++estaciones == 4) break;
+            }
             android.view.ViewGroup.LayoutParams lp = resPasosScroll.getLayoutParams();
-            lp.height = resPasosList.getHeight() > maxPx
-                    ? maxPx : android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
+            lp.height = (estaciones >= 4 && resPasosList.getHeight() > acumulado)
+                    ? acumulado : android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
             resPasosScroll.setLayoutParams(lp);
         });
     }
@@ -995,6 +1177,26 @@ public class PlanificadorFragment extends Fragment {
     private void encuadrar(LatLngBounds limites) {
         View root = getView();
         if (root == null || mapa == null) return;
+        // En el PRIMER trazo el panel de resultado se acaba de mostrar y aún no está medido:
+        // getTop() sería 0 y el padding inferior saldría enorme (la cámara quedaba muy arriba).
+        // Se espera a que el panel tenga layout antes de encuadrar.
+        if (panelResultado.getVisibility() == View.VISIBLE
+                && (panelResultado.getHeight() == 0 || !panelResultado.isLaidOut())) {
+            panelResultado.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+                @Override public void onLayoutChange(View v, int l, int t, int r, int b,
+                                                     int ol, int ot, int or, int ob) {
+                    panelResultado.removeOnLayoutChangeListener(this);
+                    encuadrarAhora(limites);
+                }
+            });
+            return;
+        }
+        encuadrarAhora(limites);
+    }
+
+    private void encuadrarAhora(LatLngBounds limites) {
+        View root = getView();
+        if (root == null || mapa == null) return;
         root.post(() -> {
             if (!isAdded() || mapa == null) return;
             int arriba = (panelEstaciones.getVisibility() == View.VISIBLE
@@ -1007,6 +1209,30 @@ public class PlanificadorFragment extends Fragment {
                 mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(limites, m));
             } catch (Exception ignore) {}
         });
+    }
+
+    /** Centra la cámara en el usuario durante el recorrido (respeta el padding de las tarjetas y el zoom
+     *  actual). Solo re-centra si se movió apreciablemente, para no dar tirones cada segundo. */
+    private void centrarRecorrido(LatLng pos) {
+        if (!seguirCamara || pos == null || mapa == null) return;
+        View root = getView();
+        if (root == null) return;
+        // Padding = paneles visibles (arriba la tarjeta/estaciones, abajo el resultado), para que el
+        // puntero quede centrado en el ÁREA VISIBLE del mapa y no "más arriba" por padding desfasado.
+        int m = (int) (16 * getResources().getDisplayMetrics().density);
+        int arriba = (panelEstaciones.getVisibility() == View.VISIBLE
+                ? panelEstaciones.getBottom() : panelOrigen.getBottom());
+        int abajoReal = panelResultado.getVisibility() == View.VISIBLE
+                ? root.getHeight() - panelResultado.getTop() : 0;
+        // El panel de resultados (con la lista de estaciones) es MUY alto y empujaría el puntero hacia
+        // arriba. Lo topamos al ~18% de la pantalla para que el puntero quede más abajo (estilo navegación),
+        // justo por encima del panel.
+        int abajo = Math.min(abajoReal, Math.round(root.getHeight() * 0.18f));
+        mapa.setPadding(m, arriba + m, m, abajo + m);
+        LatLng centro = mapa.getCameraPosition().target;
+        if (centro != null && Linea.distancia(centro, pos) < 25) return;   // ya está centrado
+        float z = Math.max(16f, mapa.getCameraPosition().zoom);            // zoom de navegación
+        mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, z));
     }
 
     private void alternarRecorrido() {
@@ -1022,15 +1248,8 @@ public class PlanificadorFragment extends Fragment {
             Toast.makeText(requireContext(), getString(R.string.recorrido_sin_permiso), Toast.LENGTH_LONG).show();
             return;
         }
-        // El servicio (Ordinario/Express) ya está elegido con el switch del panel: la ruta activa
-        // corresponde a esa elección. Aquí solo se arma el aviso de voz del servicio.
-        Servicios.Servicio s = null;
-        if (svcBase != 0 && swExpress != null && swExpress.getVisibility() == View.VISIBLE) {
-            boolean exp = swExpress.isChecked();
-            s = new Servicios.Servicio(getString(exp ? R.string.servicio_express : R.string.servicio_ordinario),
-                    exp ? svcBase + 20 : svcBase, false);
-        }
-        arrancarRecorrido(s);
+        // El servicio (Ordinario/Express) por línea ya se eligió en el trazado; la ruta activa lo refleja.
+        arrancarRecorrido(null);
     }
 
     /**
@@ -1056,8 +1275,10 @@ public class PlanificadorFragment extends Fragment {
         swExpress.setVisibility(View.VISIBLE);
         swExpress.setOnCheckedChangeListener((btn, isChecked) -> {
             int linea = isChecked ? svcBase + 20 : svcBase;
-            Planificador.Ruta nr = Planificador.calcular(requireContext(), origenCanon, destinoCanon, linea, linea);
-            if (nr != null && !nr.secuencia.isEmpty()) { rutaActiva = nr; dibujar(nr, destinoCanon); }
+            final String o = origenCanon, d = destinoCanon;
+            calcularAsync(() -> Planificador.calcular(requireContext(), o, d, linea, linea), nr -> {
+                if (nr != null && !nr.secuencia.isEmpty()) { rutaActiva = nr; dibujar(nr, d); }
+            });
         });
     }
 
@@ -1075,6 +1296,7 @@ public class PlanificadorFragment extends Fragment {
     @SuppressLint("MissingPermission")
     private void arrancarRecorrido(Servicios.Servicio s) {
         recorrido = true;
+        seguirCamara = true;   // la cámara empieza a seguir al usuario
         btnRecorrido.setText(R.string.recorrido_detener);
         resEstado.setVisibility(View.VISIBLE);
         resEstado.setText(R.string.recorrido_ubicando);
@@ -1088,6 +1310,7 @@ public class PlanificadorFragment extends Fragment {
     @SuppressLint("MissingPermission")
     private void detenerRecorrido() {
         recorrido = false;
+        seguirCamara = false;
         btnRecorrido.setText(R.string.recorrido_iniciar);
         resEstado.setVisibility(View.GONE);
         sliderAdapter.setActual(-1);
@@ -1109,13 +1332,14 @@ public class PlanificadorFragment extends Fragment {
         LatLng posReal = RecorridoService.ultimaPos != null ? RecorridoService.ultimaPos : act.pos;
         pintarProgreso(posReal);   // opaca la parte de la ruta ya recorrida
         pintarPuntero(RecorridoService.ultimaPos);   // puntero de ubicación pegado al trazo
+        centrarRecorrido(RecorridoService.ultimaPos);   // sigue al usuario (si no ha movido el mapa a mano)
         java.util.function.Function<Planificador.Parada, String> vis =
                 p -> Planificador.nombreMostrar(requireContext(), p.nombre, p.linea);
         if (idx >= seq.size() - 1) {
             resEstado.setText(getString(R.string.recorrido_llegaste, vis.apply(act)));
         } else {
             Planificador.Parada sig = seq.get(idx + 1);
-            if (sig.transbordo) resEstado.setText(getString(R.string.recorrido_transborda, vis.apply(sig), sig.linea));
+            if (sig.transbordo) resEstado.setText(getString(R.string.recorrido_transborda, vis.apply(sig), Planificador.etiquetaLineaCortaPub(sig.linea)));
             else resEstado.setText(getString(R.string.recorrido_vas, vis.apply(act), vis.apply(sig)));
         }
     }
@@ -1162,5 +1386,10 @@ public class PlanificadorFragment extends Fragment {
         rutaActiva = null;
         mapa = null;
         super.onDestroyView();
+    }
+
+    @Override public void onDestroy() {
+        calcExec.shutdownNow();   // el hilo de cálculo solo se cierra al destruir el fragmento
+        super.onDestroy();
     }
 }

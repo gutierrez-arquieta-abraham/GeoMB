@@ -137,9 +137,11 @@
     <string name="desamb_sist_mexibus">Mexibús</string>
     <string name="desamb_sist_mexicable">Mexicable</string>
     <string name="desamb_elige_linea">¿Qué línea?</string>
+    <string name="desamb_cual_estacion">¿A qué estación te refieres?</string>
     <string name="desamb_linea_n">Línea %1$s</string>
     <string name="servicio_titulo">¿Qué servicio vas a tomar?</string>
     <string name="servicio_express_switch">Servicio exprés (salta estaciones)</string>
+    <string name="servicio_titulo_linea">¿Qué servicio en %1$s?</string>
     <string name="servicio_ordinario">Ordinario</string>
     <string name="servicio_express">Express</string>
     <string name="servicio_voz">Vas en el servicio %1$s.</string>
@@ -153,7 +155,7 @@
     <string name="notif_destino_fmt">Destino: %1$s</string>
     <string name="voz_llegando">Llegando a %1$s</string>
     <string name="voz_proxima">Próxima estación: %1$s</string>
-    <string name="voz_transborda">Estás llegando a %1$s. Baja y haz tu correspondencia a la Línea %2$d.</string>
+    <string name="voz_transborda">Estás llegando a %1$s. Baja y haz tu correspondencia a la Línea %2$s.</string>
     <string name="voz_llegaste">Llegaste a %1$s. Fin del recorrido.</string>
     <string name="voz_afectacion">Atención: hay afectaciones en el servicio. Verifica tu ruta.</string>
     <string name="voz_transbordo_prep">Atención: estás llegando a la estación donde vas a realizar tu correspondencia. Favor de irte preparando.</string>
@@ -166,12 +168,34 @@
     <string name="voz_transbordo">. Correspondencia con %1$s</string>
     <string name="voz_linea_n">Línea %1$d</string>
     <string name="voz_linea_l4">Línea 4 %1$s</string>
-    <string name="voz_linea_mxb">Mexibús Línea %1$d</string>
-    <string name="voz_linea_mxc">Mexicable Línea %1$d</string>
+    <!-- Escritura FONÉTICA para el TTS (que lee "Mexi" como "meji"): se pronuncia "meksibús"/"meksicable". -->
+    <string name="voz_linea_mxb">Meksibús Línea %1$d</string>
+    <string name="voz_linea_mxc">Meksicable Línea %1$d</string>
     <string name="voz_palabra_correspondencia">correspondencia</string>
     <string name="voz_palabra_conexion">conexión</string>
     <string name="voz_palabra_transbordo">transbordo</string>
     <string name="voz_prep_corresp">Atención, estás llegando a la estación donde realizarás tu %1$s. Favor de irte preparando. Estación %2$s. %1$s con %3$s.</string>
+    <!-- Avisos de correspondencia (%1$s=estación, %2$s=palabra correspondencia/transbordo/conexión, %3$s=líneas) -->
+    <string name="voz_prox_transf">Próxima estación %1$s, %2$s con %3$s</string>
+    <string name="voz_prox_transf_prep">Próxima estación %1$s, %2$s con %3$s. Atención, estás próximo a llegar a realizar una %2$s, favor de irte preparando</string>
+    <string name="voz_lleg_transf_hace">Llegando a estación %1$s, realiza tu %2$s con %3$s</string>
+    <string name="voz_lleg_transf_paso">Llegando a estación %1$s, %2$s con %3$s</string>
+    <!-- Estación TERMINAL de línea: "estación terminal, X, transbordo con {Metrobús}. conexión con {Mexibús/Mexicable}".
+         El bloque de conexión solo aparece si el usuario tiene habilitada la capa Mexibús/Mexicable. -->
+    <string name="voz_term_lleg">Llegando a estación terminal, %1$s</string>
+    <string name="voz_term_prox">Próxima estación terminal, %1$s</string>
+    <string name="voz_lleg_base">Llegando a estación, %1$s</string>
+    <string name="voz_prox_base">Próxima estación, %1$s</string>
+    <!-- Cláusulas de transferencia: %1$s = lista de líneas/sistemas -->
+    <string name="voz_tf_primera">, %1$s con %2$s</string>
+    <string name="voz_tf_sig">. %1$s con %2$s</string>
+    <string name="voz_sis_mb">Metrobús</string>
+    <string name="voz_sis_mxb">Meksibús</string>
+    <string name="voz_sis_mxc">Meksicable</string>
+    <string name="voz_linea_num">Línea %1$s</string>
+    <string name="voz_lineas_num">Líneas %1$s</string>
+    <string name="voz_sis_linea">%1$s Línea %2$s</string>
+    <string name="voz_sis_lineas">%1$s Líneas %2$s</string>
     <string name="voz_ruta_norte">Ruta Norte</string>
     <string name="voz_ruta_sur">Ruta Sur</string>
     <string name="voz_terminal">Última estación del recorrido. Ninguna persona deberá permanecer a bordo de la unidad</string>
@@ -189,7 +213,7 @@
     <string name="recorrido_iniciar">Iniciar recorrido</string>
     <string name="recorrido_detener">Detener recorrido</string>
     <string name="recorrido_vas">Vas en %1$s · Siguiente: %2$s</string>
-    <string name="recorrido_transborda">En %1$s haz correspondencia a L%2$d</string>
+    <string name="recorrido_transborda">En %1$s haz correspondencia a L%2$s</string>
     <string name="recorrido_llegaste">Llegaste a %1$s</string>
     <string name="recorrido_ubicando">Ubicándote…</string>
     <string name="recorrido_sin_permiso">Activa el permiso de ubicación para el recorrido</string>
@@ -268,8 +292,12 @@
 
     <!-- Seguimiento -->
     <string name="seguir">Seguir</string>
+    <string name="seguir_tambien">Seguir también</string>
     <string name="dejar_de_seguir">Dejar de seguir</string>
+    <string name="dejar_todo">Detener todo</string>
     <string name="siguiendo_titulo">Siguiendo unidad %1$s</string>
+    <string name="siguiendo_varias_titulo">Seguimiento de unidades</string>
+    <string name="siguiendo_resumen">%1$d unidad(es) en seguimiento</string>
     <string name="siguiendo_buscando">Localizando la unidad %1$s…</string>
     <string name="siguiendo_distancia">Unidad %1$s · a %2$s de ti (%3$d%%)</string>
     <string name="siguiendo_fuera">La unidad %1$s no está en servicio ahora</string>
@@ -321,6 +349,11 @@
     <string name="estado_metrobus">METROBÚS</string>
     <string name="estado_mexibus">MEXIBÚS</string>
     <string name="estado_regular">Servicio regular</string>
+    <string name="estado_lbl_tipo">Afectación: %1$s</string>
+    <string name="estado_lbl_info">Info: %1$s</string>
+    <string name="estado_lbl_estaciones">Estaciones: %1$s</string>
+    <string name="info_adicional_titulo">Información adicional</string>
+    <string name="info_adicional_l4exp">Mexibús L4 Exprés: 3 terminales — UMB Tecámac y La Raza (La Raza solo descenso). Indios Verdes es terminal de ascenso dirección UMB y estación de paso dirección La Raza.</string>
     <string name="afect_elevadores_titulo">Elevadores y otras afectaciones</string>
     <string name="llegadas_aviso_titulo">Aviso de llegada</string>
     <string name="llegadas_linea">Línea</string>
@@ -343,7 +376,7 @@
 
     <!-- Acerca -->
     <string name="nav_acerca">Acerca</string>
-    <string name="acerca_version">Versión: 1.3 </string>
+    <string name="acerca_version">Versión: 1.5 </string>
     <string name="app_desc">GeoMB muestra las unidades del Metrobús de la Ciudad de México en tiempo real: mapa en vivo, búsqueda por número económico, líneas, rutas por código y avisos de llegada por estación.\n\nEste es un proyecto unicamente para el uso responsable de las personas aficionadas y para aquellos que necesiten llegar a ocuparla.</string>
     <string name="agradecimientos_titulo">Agradecimientos</string>
     <string name="agradecimientos_texto">Gracias al Metrobús de la Ciudad de México y a SONDA por el sistema GTFS-Realtime que hace posible la información en vivo. Y a la comunidad de usuarios que colabora identificando las unidades, sus empresas y modelos.\n\nProyecto desarrollado por Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCoautor: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nAgradecimientos especiales:\n\n●Minami Aguilar. (Ideas de mejora para el mapa).\n●Manuel Lozano. (A quien dedico este proyecto).\n●Augusto Neri. (Propuestas en el sistema de rutas de metrobús).\n●Dante Sifuentes. (Diseñador del logo).\n●Equipo Movidram. (Por los logos de las estaciones de Metrobús y Mexibús).\n●Toda la banda de operadores que conozco y que me han apoyado desde antes de ser una figura presente en la comunidad.\n\nProyecto dedicado a todos los que me han apoyado desde mis inicios dentro de la comunidad aficionada al transporte publico y dedicado para una figura que me inspiro a seguir adelante incluso cuando no creia en mi mismo, gracias padre.</string>

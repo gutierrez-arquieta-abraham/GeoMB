@@ -26,31 +26,41 @@ import com.google.android.gms.location.Priority;
 import java.util.List;
 
 /**
- * Servicio en primer plano que sigue una unidad por su número económico:
- * compara la ubicación del usuario con la posición en vivo de la unidad y,
- * cuando entra al radio de {@link Config#SEGUIR_CERCA_M} metros, lanza una
- * notificación "ya está cerca de ti". Funciona con la app en segundo plano.
+ * Servicio en primer plano que sigue VARIAS unidades a la vez por su número económico: compara la
+ * ubicación del usuario con la posición en vivo de cada unidad y avisa cuando entra al radio de
+ * {@link Config#SEGUIR_CERCA_M} metros ("está por llegar") o al de {@link Config#SEGUIR_LEJOS_M}
+ * ("ya viene"). Cada unidad tiene su propia notificación (con su barra de progreso y su botón de
+ * "dejar de seguir"); además hay una notificación-resumen en primer plano. Funciona en segundo plano.
  */
 public class SeguimientoService extends Service {
 
     public static final String EXTRA_ECO = "eco";
-    public static final String ACCION_DETENER = "detener";
+    public static final String ACCION_DETENER = "detener";   // con EXTRA_ECO = quita esa unidad; sin él = todas
 
     private static final String CH_ONGOING = "seguimiento";
     private static final String CH_ALERTA = "alertas";
-    private static final int ID_ONGOING = 4101;
-    private static final int ID_ALERTA = 4102;
+    private static final int ID_RESUMEN = 4100;              // notificación de primer plano (resumen)
+    private static final int BASE_ONGOING = 41000;           // + hash(eco): notificación por unidad
+    private static final int BASE_ALERTA = 42000;            // + hash(eco): alerta por unidad
 
-    /** Económico que se está siguiendo (null si nada). Lo lee el buscador. */
-    public static volatile String ecoSeguido = null;
+    /** Económicos en seguimiento (los lee el buscador para reflejar el estado del botón). */
+    public static final java.util.Set<String> ecosSeguidos =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /** ¿Se está siguiendo esta unidad? */
+    public static boolean sigue(String eco) { return eco != null && ecosSeguidos.contains(eco); }
+
+    /** Estado de aviso por unidad. */
+    private static final class Est {
+        boolean avisadoLejos = false;   // "ya viene" (5 km)
+        boolean avisadoCerca = false;   // "está por llegar" (800 m)
+    }
+
+    private final java.util.Map<String, Est> estados = new java.util.concurrent.ConcurrentHashMap<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private FusedLocationProviderClient locationClient;
-    private String eco;
-    private boolean avisadoLejos = false;   // "ya viene" (5 km)
-    private boolean avisadoCerca = false;   // "está por llegar" (800 m)
     private boolean ciclando = false;
-    private int distanciaInicial = -1;   // baseline para la barra de progreso (m)
+    private boolean primerPlano = false;
 
     private final Runnable tick = this::ciclo;
 
@@ -63,104 +73,105 @@ public class SeguimientoService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACCION_DETENER.equals(intent.getAction())) {
-            detener();
-            return START_NOT_STICKY;
+        String accion = intent != null ? intent.getAction() : null;
+        String eco = intent != null ? intent.getStringExtra(EXTRA_ECO) : null;
+
+        if (ACCION_DETENER.equals(accion)) {
+            if (eco != null && !eco.isEmpty()) quitar(eco);   // quita solo esa unidad
+            else detenerTodo();                                // sin económico: detiene todo
+            return ecosSeguidos.isEmpty() ? START_NOT_STICKY : START_STICKY;
         }
-        eco = intent != null ? intent.getStringExtra(EXTRA_ECO) : null;
+
         if (eco == null || eco.isEmpty()) {
-            stopSelf();
+            if (ecosSeguidos.isEmpty()) stopSelf();
             return START_NOT_STICKY;
         }
-        ecoSeguido = eco;
-        avisadoLejos = false;
-        avisadoCerca = false;
-        distanciaInicial = -1;
-        arrancarPrimerPlano(getString(R.string.siguiendo_buscando, eco));
+        ecosSeguidos.add(eco);
+        estados.put(eco, new Est());
+        arrancarPrimerPlano();                 // asegura la notificación de primer plano (resumen)
+        actualizarOngoing(eco, getString(R.string.siguiendo_buscando, eco), -1);
         handler.removeCallbacks(tick);
         handler.post(tick);
         return START_STICKY;
     }
 
+    // ---- ciclo de sondeo (una sola consulta al feed y una sola ubicación para TODAS las unidades) ----
+
     private void ciclo() {
         if (ciclando) return;
+        if (ecosSeguidos.isEmpty()) { detenerTodo(); return; }
         ciclando = true;
         RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
-            @Override
-            public void onData(List<UnidadReal> unidades) {
-                UnidadReal u = RealtimeRepository.get().buscar(eco);
-                if (u == null) {
-                    actualizarOngoing(getString(R.string.siguiendo_fuera, eco), -1);
-                    reprogramar();
-                    return;
-                }
-                compararConUbicacion(u);
-            }
-
-            @Override
-            public void onError(String mensaje) {
-                actualizarOngoing(getString(R.string.siguiendo_sin_conexion, eco), -1);
+            @Override public void onData(List<UnidadReal> unidades) { procesarTodas(); }
+            @Override public void onError(String mensaje) {
+                for (String e : ecosSeguidos) actualizarOngoing(e, getString(R.string.siguiendo_sin_conexion, e), -1);
                 reprogramar();
             }
         });
     }
 
     @SuppressLint("MissingPermission")
-    private void compararConUbicacion(UnidadReal u) {
+    private void procesarTodas() {
         if (!tienePermisoUbicacion()) {
-            actualizarOngoing(getString(R.string.siguiendo_sin_permiso), -1);
+            for (String e : ecosSeguidos) actualizarOngoing(e, getString(R.string.siguiendo_sin_permiso), -1);
             reprogramar();
             return;
         }
         locationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                 .addOnSuccessListener(loc -> {
-                    if (loc != null) manejarDistancia(u, loc);
+                    if (loc != null) {
+                        for (String e : ecosSeguidos) {
+                            UnidadReal u = RealtimeRepository.get().buscar(e);
+                            if (u == null) actualizarOngoing(e, getString(R.string.siguiendo_fuera, e), -1);
+                            else manejarDistancia(e, u, loc);
+                        }
+                        actualizarResumen();
+                    }
                     reprogramar();
                 })
                 .addOnFailureListener(e -> reprogramar());
     }
 
-    private void manejarDistancia(UnidadReal u, Location loc) {
+    private void manejarDistancia(String eco, UnidadReal u, Location loc) {
+        Est st = estados.get(eco);
+        if (st == null) return;   // se dejó de seguir mientras se consultaba
         float[] res = new float[1];
         Location.distanceBetween(loc.getLatitude(), loc.getLongitude(),
                 u.posicion.latitude, u.posicion.longitude, res);
         int metros = Math.round(res[0]);
 
-        // Barra de progreso de llegada sobre un tope fijo (5 km): 0% a 5 km o más, 100% al llegar.
         float tope = Config.SEGUIR_LEJOS_M;
         int progreso = (int) Math.round(100.0 * (tope - metros) / tope);
         if (progreso < 0) progreso = 0;
         if (progreso > 100) progreso = 100;
+        actualizarOngoing(eco, getString(R.string.siguiendo_distancia, eco, distTxt(metros), progreso), progreso);
 
-        actualizarOngoing(getString(R.string.siguiendo_distancia, eco, distTxt(metros), progreso), progreso);
-
-        // Dos niveles de aviso: "ya viene" (5 km) y "está por llegar" (800 m).
         if (metros <= Config.SEGUIR_CERCA_M) {
-            if (!avisadoCerca) {
-                avisadoCerca = true;
-                avisadoLejos = true;   // ya rebasó el de lejos
-                lanzarAlerta(getString(R.string.cerca_titulo),
-                        getString(R.string.cerca_texto, eco, distTxt(metros)));
+            if (!st.avisadoCerca) {
+                st.avisadoCerca = true; st.avisadoLejos = true;
+                lanzarAlerta(eco, getString(R.string.cerca_titulo), getString(R.string.cerca_texto, eco, distTxt(metros)));
             }
         } else if (metros <= Config.SEGUIR_LEJOS_M) {
-            if (!avisadoLejos) {
-                avisadoLejos = true;
-                lanzarAlerta(getString(R.string.viene_titulo),
-                        getString(R.string.viene_texto, eco, distTxt(metros)));
+            if (!st.avisadoLejos) {
+                st.avisadoLejos = true;
+                lanzarAlerta(eco, getString(R.string.viene_titulo), getString(R.string.viene_texto, eco, distTxt(metros)));
             }
         }
-        // Re-arma cada aviso cuando la unidad se aleja lo suficiente.
-        if (metros > Config.SEGUIR_REARME_CERCA_M) avisadoCerca = false;
-        if (metros > Config.SEGUIR_REARME_LEJOS_M) avisadoLejos = false;
+        if (metros > Config.SEGUIR_REARME_CERCA_M) st.avisadoCerca = false;
+        if (metros > Config.SEGUIR_REARME_LEJOS_M) st.avisadoLejos = false;
     }
 
     private void reprogramar() {
         ciclando = false;
+        if (ecosSeguidos.isEmpty()) { detenerTodo(); return; }
         handler.removeCallbacks(tick);
         handler.postDelayed(tick, Red.intervalo(this, Config.SEGUIR_POLL_MS));
     }
 
     // ---- notificaciones ----
+
+    private static int idOngoing(String eco) { return BASE_ONGOING + Math.abs(eco.hashCode() % 10000); }
+    private static int idAlerta(String eco) { return BASE_ALERTA + Math.abs(eco.hashCode() % 10000); }
 
     private void crearCanales() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -182,13 +193,20 @@ public class SeguimientoService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    private PendingIntent piDetener() {
-        Intent i = new Intent(this, SeguimientoService.class).setAction(ACCION_DETENER);
-        return PendingIntent.getService(this, 1, i,
+    /** "Dejar de seguir" de UNA unidad (código de solicitud único por económico). */
+    private PendingIntent piDetener(String eco) {
+        Intent i = new Intent(this, SeguimientoService.class).setAction(ACCION_DETENER).putExtra(EXTRA_ECO, eco);
+        return PendingIntent.getService(this, idOngoing(eco), i,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    private Notification construirOngoing(String texto, int progreso) {
+    private PendingIntent piDetenerTodo() {
+        Intent i = new Intent(this, SeguimientoService.class).setAction(ACCION_DETENER);
+        return PendingIntent.getService(this, ID_RESUMEN, i,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    private Notification construirOngoing(String eco, String texto, int progreso) {
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CH_ONGOING)
                 .setSmallIcon(R.drawable.ic_bus)
                 .setContentTitle(getString(R.string.siguiendo_titulo, eco))
@@ -196,31 +214,49 @@ public class SeguimientoService extends Service {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(piAbrir())
-                .addAction(0, getString(R.string.dejar_de_seguir), piDetener())
+                .addAction(0, getString(R.string.dejar_de_seguir), piDetener(eco))
                 .setPriority(NotificationCompat.PRIORITY_LOW);
-        if (progreso >= 0) {
-            b.setProgress(100, progreso, false);          // barra de llegada
-        } else {
-            b.setProgress(0, 0, true);                    // indeterminada (localizando)
-        }
+        if (progreso >= 0) b.setProgress(100, progreso, false);
+        else b.setProgress(0, 0, true);
         return b.build();
     }
 
-    private void arrancarPrimerPlano(String texto) {
-        Notification n = construirOngoing(texto, -1);
+    private Notification construirResumen() {
+        return new NotificationCompat.Builder(this, CH_ONGOING)
+                .setSmallIcon(R.drawable.ic_bus)
+                .setContentTitle(getString(R.string.siguiendo_varias_titulo))
+                .setContentText(getString(R.string.siguiendo_resumen, ecosSeguidos.size()))
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setContentIntent(piAbrir())
+                .addAction(0, getString(R.string.dejar_todo), piDetenerTodo())
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .build();
+    }
+
+    private void arrancarPrimerPlano() {
+        if (primerPlano) { actualizarResumen(); return; }
+        primerPlano = true;
+        Notification n = construirResumen();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            startForeground(ID_RESUMEN, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
         } else {
-            startForeground(ID_ONGOING, n);
+            startForeground(ID_RESUMEN, n);
         }
     }
 
-    private void actualizarOngoing(String texto, int progreso) {
+    private void actualizarResumen() {
         NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) nm.notify(ID_ONGOING, construirOngoing(texto, progreso));
+        if (nm != null && primerPlano) nm.notify(ID_RESUMEN, construirResumen());
     }
 
-    private void lanzarAlerta(String titulo, String texto) {
+    private void actualizarOngoing(String eco, String texto, int progreso) {
+        if (!ecosSeguidos.contains(eco)) return;
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm != null) nm.notify(idOngoing(eco), construirOngoing(eco, texto, progreso));
+    }
+
+    private void lanzarAlerta(String eco, String titulo, String texto) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -237,7 +273,7 @@ public class SeguimientoService extends Service {
                 .setContentIntent(piAbrir())
                 .build();
         NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) nm.notify(ID_ALERTA, n);
+        if (nm != null) nm.notify(idAlerta(eco), n);
     }
 
     /** Distancia legible: "820 m" o "3.4 km". */
@@ -251,16 +287,39 @@ public class SeguimientoService extends Service {
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void detener() {
-        ecoSeguido = null;
+    /** Quita UNA unidad del seguimiento; si no queda ninguna, detiene el servicio. */
+    private void quitar(String eco) {
+        ecosSeguidos.remove(eco);
+        estados.remove(eco);
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm != null) { nm.cancel(idOngoing(eco)); nm.cancel(idAlerta(eco)); }
+        if (ecosSeguidos.isEmpty()) detenerTodo();
+        else actualizarResumen();
+    }
+
+    private void detenerTodo() {
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm != null) for (String e : ecosSeguidos) { nm.cancel(idOngoing(e)); nm.cancel(idAlerta(e)); }
+        ecosSeguidos.clear();
+        estados.clear();
         handler.removeCallbacks(tick);
         stopForeground(true);
+        primerPlano = false;
         stopSelf();
+    }
+
+    /** Android 14+: límite de tiempo del FGS location. Detener limpio para no crashear. */
+    @Override
+    public void onTimeout(int startId) {
+        handler.removeCallbacksAndMessages(null);
+        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignore) {}
+        detenerTodo();
     }
 
     @Override
     public void onDestroy() {
-        ecoSeguido = null;
+        ecosSeguidos.clear();
+        estados.clear();
         handler.removeCallbacks(tick);
         super.onDestroy();
     }

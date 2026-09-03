@@ -793,6 +793,16 @@ public class ManifestacionesService extends Service {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT).build());
     }
 
+    /** Android 14+ (API 34): el FGS dataSync alcanzó su límite de tiempo. HAY que detenerlo aquí o el
+     *  sistema lanza ForegroundServiceDidNotStopInTimeException y mata la app. Se detiene limpio; la app
+     *  vuelve a arrancar el servicio al pasar a primer plano. */
+    @Override
+    public void onTimeout(int startId) {
+        handler.removeCallbacksAndMessages(null);
+        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignore) {}
+        stopSelf();
+    }
+
     @Override
     public void onDestroy() {
         handler.removeCallbacks(tick);

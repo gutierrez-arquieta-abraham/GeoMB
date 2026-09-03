@@ -62,6 +62,24 @@
             android:layout_marginTop="4dp"
             android:orientation="vertical" />
 
+        <!-- ===== Información adicional (direcciones / terminales por línea) ===== -->
+        <TextView
+            android:id="@+id/txt_info_adicional_titulo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/info_adicional_titulo"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/ll_info_adicional"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical" />
+
         <!-- ===== Elevadores y otras afectaciones ===== -->
         <TextView
             android:id="@+id/txt_afect_titulo"

@@ -1,0 +1,20 @@
+# systemd unit para el EC2. Copiar a /etc/systemd/system/ y:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now mexibus-afectaciones
+# Ajusta User y WorkingDirectory a tu ruta real en el EC2.
+[Unit]
+Description=Mexibus Afectaciones (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/mexibus_afectaciones
+EnvironmentFile=/home/ubuntu/mexibus_afectaciones/.env
+ExecStart=/home/ubuntu/mexibus_afectaciones/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

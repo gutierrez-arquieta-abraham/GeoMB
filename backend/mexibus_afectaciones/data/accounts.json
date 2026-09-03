@@ -1,0 +1,68 @@
+{
+  "_comment": "Cuentas oficiales Mexibus por linea. 'linea' es una PISTA (numero troncal 101-104) para asignar la afectacion cuando el post no menciona la linea explicitamente; null = general (se detecta por texto). 'enabled' permite apagar una fuente sin borrarla.",
+  "accounts": [
+    {
+      "platform": "x",
+      "ref": "MexibusInforma",
+      "url": "https://x.com/MexibusInforma",
+      "linea": null,
+      "nombre": "Mexibus Informa (oficial general)",
+      "confiable": true,
+      "enabled": true
+    },
+    {
+      "platform": "x",
+      "ref": "mexibusl2",
+      "url": "https://x.com/mexibusl2",
+      "linea": 102,
+      "nombre": "Mexibus Linea 2 (X)",
+      "confiable": true,
+      "enabled": true
+    },
+    {
+      "platform": "x",
+      "ref": "MexiBus_4",
+      "url": "https://x.com/MexiBus_4",
+      "linea": 104,
+      "nombre": "Mexibus Linea 4 (X)",
+      "confiable": true,
+      "enabled": true
+    },
+    {
+      "platform": "facebook",
+      "ref": "Mexibus3",
+      "url": "https://www.facebook.com/Mexibus3",
+      "linea": 103,
+      "nombre": "Mexibus Linea 3 (Facebook)",
+      "confiable": true,
+      "enabled": true
+    },
+    {
+      "platform": "facebook",
+      "ref": "100064783413610",
+      "url": "https://www.facebook.com/p/Mexibus-4-100064783413610/",
+      "linea": 104,
+      "nombre": "Mexibus Linea 4 (Facebook)",
+      "confiable": true,
+      "enabled": true
+    },
+    {
+      "platform": "facebook",
+      "ref": "100091378421530",
+      "url": "https://www.facebook.com/profile.php?id=100091378421530",
+      "linea": null,
+      "nombre": "Mexibus (Facebook) - linea por confirmar",
+      "confiable": true,
+      "enabled": true
+    },
+    {
+      "platform": "facebook",
+      "ref": "100064553537358",
+      "url": "https://www.facebook.com/profile.php?id=100064553537358",
+      "linea": null,
+      "nombre": "Mexibus (Facebook) - linea por confirmar",
+      "confiable": true,
+      "enabled": true
+    }
+  ]
+}

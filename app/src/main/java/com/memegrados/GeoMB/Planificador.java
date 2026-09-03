@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Ruta óptima (menor tiempo estimado) sobre una red de RUTAS: las 7 líneas físicas
@@ -37,7 +38,7 @@ public final class Planificador {
     private static double esperaExtra(int linea) {
         if (linea >= 200) return 60.0;                    // Mexicable (cablebús): pasa muy seguido
         if (linea >= 121 && linea <= 129) return 240.0;   // exprés Mexibús (menos frecuente, pero salta paradas)
-        if (linea >= 111) return 420.0;   // ramales Mexibús (baja frecuencia): +7 min aprox
+        if (linea >= 111) return 1800.0;  // ramales Mexibús 1A/2A/3A: paso de unidades ~30 min (muy baja frecuencia)
         if (linea >= 100) return 120.0;   // troncales Mexibús: +2 min aprox
         return 0.0;                        // Metrobús: sin penalización
     }
@@ -129,6 +130,44 @@ public final class Planificador {
             {"101", "mxb 1 de mayo",       "112", "mxb las americas"},   // transbordo real Mexibús L1 (1° de Mayo) – L2A (Las Américas)
     };
 
+    /** Pares que NUNCA forman correspondencia/transbordo aunque queden cerca (nombres normalizados con
+     *  prefijo "mxb "). P. ej. Casa de Morelos (L2) y Puente de Fierro (L2/L4) están próximas pero no
+     *  son transbordo real. */
+    private static final String[][] EXCL_CORRESP = {
+            {"mxb casa de morelos", "mxb puente de fierro"},
+    };
+
+    private static int sistemaLinea(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }
+
+    private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(
+            "mxb", "mxc", "mb", "conexion", "mexibus", "meksibus", "mexicable", "meksicable",
+            "metrobus", "linea", "y", "e"));
+
+    /** Núcleo del nombre (sin prefijos de sistema, "conexión" ni tokens de línea l1/l4/l1a). */
+    private static String nucleoNombre(String nombre) {
+        StringBuilder sb = new StringBuilder();
+        for (String w : norm(nombre).split(" ")) {
+            if (w.isEmpty() || STOP_NUCLEO.contains(w) || w.matches("l[0-9]+a?")) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(w);
+        }
+        return sb.toString();
+    }
+
+    /** ¿Coinciden los núcleos (igual o uno contiene al otro)? Para correspondencias reales entre sistemas. */
+    private static boolean nucleoCoincide(String a, String b) {
+        String na = nucleoNombre(a), nb = nucleoNombre(b);
+        if (na.isEmpty() || nb.isEmpty()) return false;
+        return na.equals(nb) || na.contains(nb) || nb.contains(na);
+    }
+
+    /** ¿El par de nombres está excluido explícitamente de correspondencia (en cualquier orden)? */
+    private static boolean excluidoCorresp(String na, String nb) {
+        for (String[] p : EXCL_CORRESP)
+            if ((na.equals(p[0]) && nb.equals(p[1])) || (na.equals(p[1]) && nb.equals(p[0]))) return true;
+        return false;
+    }
+
     /** ¿El par (línea, nombre) forma una correspondencia manual declarada (en cualquier orden)? */
     private static boolean corrManual(int la, String na, int lb, String nb) {
         for (String[] p : CORRESP_MANUAL) {
@@ -215,10 +254,23 @@ public final class Planificador {
         }
     }
 
+    // Patrones precompilados: compilar el regex en cada llamada a norm() disparaba ANR
+    // (norm se invoca miles de veces al construir el grafo de correspondencias).
+    private static final Pattern P_ACENTOS = Pattern.compile("\\p{Mn}");
+    private static final Pattern P_NO_ALNUM = Pattern.compile("[^a-z0-9 ]");
+    private static final Pattern P_ESPACIOS = Pattern.compile("\\s+");
+    // Cache de resultados: los mismos nombres se normalizan una y otra vez.
+    private static final Map<String, String> CACHE_NORM = new HashMap<>();
+
     public static String norm(String s) {
         if (s == null) return "";
-        String n = Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{Mn}", "");
-        return n.toLowerCase().replaceAll("[^a-z0-9 ]", " ").replaceAll("\\s+", " ").trim();
+        String cached = CACHE_NORM.get(s);
+        if (cached != null) return cached;
+        String n = P_ACENTOS.matcher(Normalizer.normalize(s, Normalizer.Form.NFD)).replaceAll("");
+        n = P_NO_ALNUM.matcher(n.toLowerCase()).replaceAll(" ");
+        n = P_ESPACIOS.matcher(n).replaceAll(" ").trim();
+        if (CACHE_NORM.size() < 4000) CACHE_NORM.put(s, n);
+        return n;
     }
 
     /**
@@ -252,8 +304,8 @@ public final class Planificador {
 
     /** Un andén candidato: nombre canónico + su línea + posición, para desambiguar estaciones homónimas. */
     public static final class Match {
-        public final String nombre; public final int linea; public final LatLng pos;
-        Match(String n, int l, LatLng p) { nombre = n; linea = l; pos = p; }
+        public final String nombre; public final int linea; public final LatLng pos; public final String icono;
+        Match(String n, int l, LatLng p, String ic) { nombre = n; linea = l; pos = p; icono = ic; }
     }
 
     /**
@@ -271,7 +323,10 @@ public final class Planificador {
             if (vistas.contains(l.numero)) continue;
             for (Estacion e : l.estaciones) {
                 if (e.soloMapa) continue;
-                if (norm(sinMxb(e.nombre)).equals(cn)) { res.add(new Match(e.nombre, l.numero, e.posicion)); vistas.add(l.numero); break; }
+                String ne = norm(sinMxb(e.nombre));
+                // Mismo nombre, o una variante que EXTIENDE el nombre con más palabras (p. ej. "Central de
+                // Abastos" ↔ "Central de Abastos Chicoloapan" de L3A). Así CEDA también ofrece la de L3A.
+                if (ne.equals(cn) || ne.startsWith(cn + " ")) { res.add(new Match(e.nombre, l.numero, e.posicion, e.icono)); vistas.add(l.numero); break; }
             }
         }
         return res;
@@ -402,7 +457,12 @@ public final class Planificador {
     /** Terminales canónicas {inicio, final} de las líneas direccionales (L2/L6/L7). */
     public static String[] terminales(int linea) {
         switch (linea) {
+            // Metrobús: nombres exactos según lineas.json (primera / última estación de cada línea).
+            case 1: return new String[]{"Indios Verdes", "El Caminero"};
             case 2: return new String[]{"Tacubaya", "Tepalcates"};
+            case 3: return new String[]{"Pueblo Sta. Cruz Atoyac", "Tenayuca"};
+            case 4: return new String[]{"Terminal 1 AICM", "Buenavista"};
+            case 5: return new String[]{"Preparatoria 1", "Río de los Remedios"};
             case 6: return new String[]{"El Rosario", "Villa de Aragón"};
             case 7: return new String[]{"Indios Verdes", "Campo Marte"};
             // Mexibús (ordinarios y ramales)
@@ -422,6 +482,45 @@ public final class Planificador {
     }
 
     /**
+     * Terminales POR SERVICIO (además de las dos del eje principal). Algunas líneas Metrobús operan
+     * varias rutas cortas con terminales distintas (L4: circuito San Lázaro / Aeropuerto / Alameda /
+     * Buenavista; L7: Indios Verdes / Campo Marte / La Diana / Garibaldi / Tacubaya / París). Aquí se
+     * listan TODAS para que el aviso de "estación terminal" se dispare en cualquiera de ellas.
+     */
+    private static final java.util.Map<Integer, String[]> TERMINALES_EXTRA = new java.util.HashMap<>();
+    static {
+        // Nombres EXACTOS de las variantes de servicio en RutasMixtas / lineas.json (incluye ambas
+        // convenciones para las terminales del aeropuerto: "Terminal 1" y "Terminal 1 AICM").
+        TERMINALES_EXTRA.put(4, new String[]{"Buenavista", "San Lázaro", "Hidalgo", "Amajac",
+                "Pantitlán", "Alameda Oriente", "Terminal 1", "Terminal 2",
+                "Terminal 1 AICM", "Terminal 2 AICM"});
+        TERMINALES_EXTRA.put(7, new String[]{"Indios Verdes", "Campo Marte", "Hospital Infantil La Villa",
+                "La Diana", "Garibaldi", "Glorieta Cuitláhuac", "París"});
+        // L3 llega a Pueblo Santa Cruz Atoyac por la mixta A31 (dos grafías: "Santa" y "Sta.").
+        TERMINALES_EXTRA.put(3, new String[]{"Pueblo Santa Cruz Atoyac", "Pueblo Sta. Cruz Atoyac", "Tenayuca"});
+        TERMINALES_EXTRA.put(112, new String[]{"Las Américas", "Río de los Remedios", "Libertadores de América"});   // L2A
+        TERMINALES_EXTRA.put(113, new String[]{"Acuitlapilco", "Central de Abastos Chicoloapan",
+                "CEDA Chicoloapan", "Prol. Peñón"});   // L3A
+    }
+
+    /** ¿La estación es terminal de la línea (incluye terminales por servicio)? Coincidencia por
+     *  igualdad o prefijo del nombre normalizado, para tolerar sufijos ("San Lázaro L4 Pte"). */
+    public static boolean esTerminalDe(int linea, String nombre) {
+        String nn = norm(sinMxb(nombre));
+        String[] t = terminales(linea);
+        if (t != null) for (String x : t) if (x != null && coincideTerm(nn, norm(sinMxb(x)))) return true;
+        String[] ex = TERMINALES_EXTRA.get(linea);
+        if (ex != null) for (String x : ex) if (coincideTerm(nn, norm(x))) return true;
+        return false;
+    }
+
+    private static boolean coincideTerm(String est, String term) {
+        if (term.isEmpty()) return false;
+        if (est.equals(term)) return true;
+        return est.length() > term.length() && est.startsWith(term) && est.charAt(term.length()) == ' ';
+    }
+
+    /**
      * Estaciones (nombre normalizado) que NO se sirven en un sentido de una línea direccional.
      * haciaFinal=true → sentido hacia la terminal final (ida); false → hacia el inicio (vuelta).
      */
@@ -432,6 +531,109 @@ public final class Planificador {
     }
 
     /** Terminal canónica hacia donde va cada ruta dirigida (por su id), o null. */
+    /** Terminales OFICIALES por línea Mexibús troncal/ramal (base 101..104, 111..113), en orden de
+     *  visualización. Fuente única para el planificador (dirección) y la tabla de estado de servicio.
+     *  Se usan estos nombres aunque la exprés recorte su lista de paradas (p. ej. L4 exprés "termina"
+     *  en Indios Verdes, pero como línea la dirección sur es La Raza). */
+    private static final java.util.Map<Integer, String[]> TERMINALES_MXB = new java.util.HashMap<>();
+    static {
+        TERMINALES_MXB.put(101, new String[]{"Ojo de Agua", "Ciudad Azteca"});
+        TERMINALES_MXB.put(102, new String[]{"La Quebrada", "Las Américas"});
+        TERMINALES_MXB.put(103, new String[]{"Pantitlán", "Chimalhuacán"});
+        TERMINALES_MXB.put(104, new String[]{"UMB Tecámac", "La Raza"});
+        TERMINALES_MXB.put(111, new String[]{"AIFA", "Ojo de Agua"});
+        TERMINALES_MXB.put(112, new String[]{"Las Américas", "Río de los Remedios"});
+        TERMINALES_MXB.put(113, new String[]{"Acuitlapilco", "CEDA Chicoloapan"});
+    }
+
+    /** Clave de terminales de una línea Mexibús: la exprés (12X) usa la de su troncal; ramales (11X) y
+     *  troncales (10X) usan su propio número (¡NO {@code Servicios.base}, que mapea 111→101!). */
+    private static int claveTerminal(int linea) {
+        return (linea >= 121 && linea <= 129) ? (100 + linea % 10) : linea;
+    }
+
+    /** Par de terminales "A – B" de una línea Mexibús (para la tabla de estado); null si no aplica. */
+    public static String terminalesMexibusPar(int linea) {
+        String[] t = TERMINALES_MXB.get(claveTerminal(linea));
+        return t == null ? null : t[0] + " – " + t[1];
+    }
+
+    /** ¿La cadena {@code oficial} corresponde (por subcadena normalizada, en cualquier dirección) al
+     *  nombre de estación {@code est}? */
+    private static boolean coincideTerminal(String oficial, String est) {
+        String a = norm(sinMxb(oficial)), b = norm(sinMxb(est));
+        return a.contains(b) || b.contains(a);
+    }
+
+    /** Terminal OFICIAL de una línea Mexibús (base) en el sentido cuyo extremo de línea está en
+     *  {@code finPos}. Ancla los nombres oficiales a los extremos reales de la línea ORDINARIA y
+     *  devuelve el que corresponde al sentido de viaje (sirve igual para ordinario y exprés). */
+    private static String terminalMexibus(Context ctx, int lineaNum, LatLng finPos) {
+        int base = claveTerminal(lineaNum);
+        String[] par = TERMINALES_MXB.get(base);
+        if (par == null || finPos == null) return null;
+        Linea ord = GtfsRepository.porNumero(ctx, base);
+        if (ord == null) return null;
+        Estacion prim = null, ult = null;
+        for (Estacion e : ord.estaciones) {
+            if (e.soloMapa) continue;
+            if (prim == null) prim = e;
+            ult = e;
+        }
+        if (prim == null || ult == null) return null;
+        // Asigna cada terminal oficial al extremo (primera/última estación) que le corresponde por nombre.
+        String oFirst, oLast;
+        if (coincideTerminal(par[0], prim.nombre) || coincideTerminal(par[1], ult.nombre)) {
+            oFirst = par[0]; oLast = par[1];
+        } else {
+            oFirst = par[1]; oLast = par[0];
+        }
+        double dPrim = Linea.distancia(finPos, prim.posicion);
+        double dUlt = Linea.distancia(finPos, ult.posicion);
+        return dPrim <= dUlt ? oFirst : oLast;
+    }
+
+    // --- Correspondencias forzadas a la misma estación (parada exprés) ---
+    private static volatile java.util.Map<Integer, List<LatLng>> expresPosCache;
+
+    /** Posiciones de las paradas EXPRÉS por base troncal (101..104), desde las líneas 12X. */
+    private static java.util.Map<Integer, List<LatLng>> expresPos(Context ctx) {
+        java.util.Map<Integer, List<LatLng>> m = expresPosCache;
+        if (m != null) return m;
+        m = new java.util.HashMap<>();
+        try {
+            for (Linea l : GtfsRepository.getMexibus(ctx)) {
+                if (l.numero < 121 || l.numero > 124) continue;
+                int base = 100 + l.numero % 10;
+                List<LatLng> ps = m.get(base);
+                if (ps == null) { ps = new ArrayList<>(); m.put(base, ps); }
+                for (Estacion e : l.estaciones) if (!e.soloMapa) ps.add(e.posicion);
+            }
+        } catch (Exception ignore) {}
+        expresPosCache = m;
+        return m;
+    }
+
+    private static boolean tieneExpres(int linea) { int b = baseLinea(linea); return b >= 101 && b <= 104; }
+
+    /** ¿El andén {@code s} es (o está a ≤60 m de) una parada EXPRÉS de su línea? */
+    private static boolean esParadaExpres(Context ctx, Stop s) {
+        List<LatLng> ps = expresPos(ctx).get(baseLinea(s.linea));
+        if (ps == null) return true;   // esa base no tiene exprés: no restringe
+        for (LatLng p : ps) if (Linea.distancia(p, s.pos) <= 60.0) return true;
+        return false;
+    }
+
+    /** ¿La correspondencia sa↔sb es válida bajo la restricción? Si un lado es troncal con exprés y la
+     *  correspondencia es a OTRA base, ese andén debe ser parada EXPRÉS — así el servicio ordinario y el
+     *  exprés transbordan en la MISMA estación. */
+    private static boolean corrMismaEstacion(Context ctx, Stop sa, Stop sb) {
+        if (baseLinea(sa.linea) == baseLinea(sb.linea)) return true;   // mismo grupo (incl. ordinario↔exprés)
+        if (tieneExpres(sa.linea) && !esParadaExpres(ctx, sa)) return false;
+        if (tieneExpres(sb.linea) && !esParadaExpres(ctx, sb)) return false;
+        return true;
+    }
+
     private static String terminalCanonico(String id) {
         if (id == null) return null;
         switch (id) {
@@ -511,6 +713,54 @@ public final class Planificador {
      * de la línea elegida son origen/destino válidos.
      */
     public static Ruta calcular(Context ctx, String origen, String destino, int lineaO, int lineaD) {
+        return calcular(ctx, origen, destino, lineaO, lineaD, null);
+    }
+
+    /** Segundos de sesgo por usar el servicio NO preferido de una línea troncal (soft: permite fallback). */
+    private static final double PENAL_SERVICIO = 500.0;       // fija, al abordar/transbordar (desempate en origen)
+    private static final double PENAL_SERVICIO_TRAMO = 350.0; // por CADA tramo viajado en el servicio no preferido
+
+    /** Penalización al ABORDAR/transbordar una línea Mexibús troncal cuyo servicio (10X ordinario / 12X
+     *  exprés) NO es el preferido por el usuario para esa base. Suave: si el preferido no conecta, se usa el otro. */
+    private static double penalServicio(int linea, java.util.Map<Integer, Boolean> pref) {
+        return noPreferido(linea, pref) ? PENAL_SERVICIO : 0;
+    }
+
+    /** Penalización por VIAJAR un tramo (arista de viaje) en el servicio no preferido. Acumulativa: mientras
+     *  más se avanza en ordinario cuando se pidió exprés (o viceversa), más conviene el otro donde exista. */
+    private static double penalTramo(int linea, java.util.Map<Integer, Boolean> pref) {
+        return noPreferido(linea, pref) ? PENAL_SERVICIO_TRAMO : 0;
+    }
+
+    /** ¿La línea es una troncal Mexibús cuyo servicio NO coincide con el preferido para su base? */
+    private static boolean noPreferido(int linea, java.util.Map<Integer, Boolean> pref) {
+        if (pref == null || pref.isEmpty()) return false;
+        if (linea < 100 || linea >= 200) return false;   // solo Mexibús
+        if (linea >= 111 && linea <= 119) return false;   // ramales 1A/2A/3A: sin exprés
+        Boolean wantExp = pref.get(100 + linea % 10);
+        if (wantExp == null) return false;
+        boolean isExp = linea >= 121 && linea <= 124;
+        return wantExp != isExp;
+    }
+
+    /** ¿El andén (línea {@code lineaNodo}) sirve como origen/destino fijado a {@code lineaFijada}? Acepta la
+     *  línea exacta y —si hay preferencia de servicio para esa base— también el otro servicio (10X↔12X),
+     *  para que la penalización elija ordinario/exprés en vez de quedar clavado en la base. */
+    private static boolean okLineaPref(int lineaFijada, int lineaNodo, java.util.Map<Integer, Boolean> pref) {
+        if (lineaFijada == 0 || lineaNodo == lineaFijada) return true;
+        if (pref == null) return false;
+        int b = baseLinea(lineaFijada);
+        return pref.containsKey(b) && baseLinea(lineaNodo) == b;
+    }
+
+    /**
+     * Como {@link #calcular(Context, String, String, int, int)}, pero con una PREFERENCIA de servicio por
+     * línea troncal Mexibús: {@code svcPref} mapea base (101..104) → true (exprés) / false (ordinario).
+     * Se aplica como sesgo suave al abordar/transbordar; donde el servicio elegido no llega, cae al otro
+     * (p. ej. exprés L2 solo hasta Ecatepec → ordinario el resto).
+     */
+    public static Ruta calcular(Context ctx, String origen, String destino, int lineaO, int lineaD,
+                                java.util.Map<Integer, Boolean> svcPref) {
         // El servicio AICM (Aeropuerto–Amajac, ~$30) solo se usa si el viaje toca T1/T2;
         // si no, la troncal (~$6). Como T1/T2 solo existen en ese servicio, basta con
         // incluirlo únicamente cuando origen o destino sea una Terminal.
@@ -544,6 +794,12 @@ public final class Planificador {
             }
             if (l.numero == 112 || l.numero == 113) {   // L2A/L3A: CIRCUITO de una sola vía (datos en orden del bucle)
                 rutas.add(dirRoute(l, "L" + l.numero + "o", true, java.util.Collections.<String>emptySet()));
+                continue;
+            }
+            if (l.numero == 124) {   // L4 Exprés: La Raza es terminal SUR (solo descenso); el ascenso hacia
+                // UMB es únicamente en Indios Verdes → se excluye La Raza del sentido NORTE (L124>).
+                rutas.add(dirRoute(l, "L124>", true, set("mxb la raza")));   // norte: sin La Raza (no se aborda)
+                rutas.add(dirRoute(l, "L124<", false, java.util.Collections.<String>emptySet())); // sur: con La Raza (descenso)
                 continue;
             }
             // L1/L3/L5: dos rutas DIRIGIDAS (ida/vuelta) para poder bloquear y desviar por sentido.
@@ -609,7 +865,25 @@ public final class Planificador {
                 // Correspondencia por CERCANÍA: dos andenes de distinta ruta a <= 800 m se caminan
                 // (o una correspondencia manual declarada más lejana).
                 double dpar = Linea.distancia(sa.pos, sb.pos);
-                boolean liga = dpar <= RADIO_CORRESP || corrManual(sa.linea, sa.nn, sb.linea, sb.nn);
+                if (excluidoCorresp(sa.nn, sb.nn)) continue;   // par excluido (p. ej. Casa de Morelos ↔ Puente de Fierro)
+                // En Metrobús (líneas <100) NO vale la correspondencia por cercanía: solo transbordan
+                // andenes del MISMO nombre (misma estación/interconexión) o un transbordo sistemático
+                // declarado. Así no aparecen transbordos falsos entre estaciones vecinas de distinto
+                // nombre (p. ej. "Río Bamba" con una estación de L1 a <800 m). Mexibús y los cruces entre
+                // sistemas sí caminan hasta 800 m.
+                boolean mismoSis = sistemaLinea(sa.linea) == sistemaLinea(sb.linea);
+                boolean liga;
+                if (mismoSis) {
+                    // MISMO sistema (Metrobús, Mexibús o Mexicable): solo MISMO nombre o transbordo declarado.
+                    // Así L2↔L4 transbordan en Puente de Fierro (mismo nombre) y NO en San Cristóbal/Casa de
+                    // Morelos, que solo están cerca de la otra línea con distinto nombre.
+                    liga = sa.nn.equals(sb.nn) || corrManual(sa.linea, sa.nn, sb.linea, sb.nn);
+                } else {
+                    // Entre sistemas (Mexibús↔Mexicable/Metrobús): cercanía Y núcleo del nombre coincidente,
+                    // para no inventar transbordos falsos (p. ej. Cerro Gordo ↔ Santa Clara Mexicable a 500 m).
+                    liga = (dpar <= RADIO_CORRESP && nucleoCoincide(sa.nn, sb.nn))
+                            || corrManual(sa.linea, sa.nn, sb.linea, sb.nn);
+                }
                 if (!liga) continue;
                 // Vuelta (ida↔vuelta de la MISMA línea): GRATIS solo en estaciones de una sola
                 // plataforma (bidireccionales), donde tomas el otro sentido sin salir. En las de
@@ -639,15 +913,16 @@ public final class Planificador {
         boolean[] esDest = new boolean[n];
         boolean hayDest = false, haySrc = false;
         // Un destino cerrado EN SU SENTIDO no es válido (no puedes bajar ahí); pasar de largo sí.
-        for (int i = 0; i < n; i++) { dist[i] = Double.MAX_VALUE; prev[i] = -1; Stop sd = stopDe(rutas, node.get(i)); if (sd.nn.equals(dn) && (lineaD == 0 || sd.linea == lineaD) && !nodoBloqueado(ctx, rutas, node.get(i))) { esDest[i] = true; hayDest = true; } }
-        PriorityQueue<double[]> pq = new PriorityQueue<>((p, q) -> Double.compare(p[0], q[0]));
+        // Destinos válidos (una sola vez; no depende de la restricción).
+        for (int i = 0; i < n; i++) {
+            Stop sd = stopDe(rutas, node.get(i));
+            if (sd.nn.equals(dn) && okLineaPref(lineaD, sd.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i))) {
+                esDest[i] = true; hayDest = true;
+            }
+        }
         for (int i = 0; i < n; i++) {
             Stop s = stopDe(rutas, node.get(i));
-            // Espera inicial por abordar en origen: 0 para Metrobús, más para líneas de baja frecuencia.
-            if (s.nn.equals(on) && (lineaO == 0 || s.linea == lineaO) && !nodoBloqueado(ctx, rutas, node.get(i))) {
-                double e0 = esperaExtra(s.linea);
-                dist[i] = e0; pq.add(new double[]{e0, i}); haySrc = true;
-            }
+            if (s.nn.equals(on) && okLineaPref(lineaO, s.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i))) { haySrc = true; break; }
         }
         if (!haySrc || !hayDest) {
             // El origen o el destino no tienen ningún andén abierto: la estación está fuera de servicio.
@@ -656,23 +931,46 @@ public final class Planificador {
             return null;
         }
 
+        // Dijkstra. 1ª pasada RESTRINGIENDO las correspondencias de troncales con exprés a sus paradas
+        // exprés (ordinario y exprés transbordan en la MISMA estación). Si no hay ruta, 2ª pasada sin
+        // restricción (respaldo, para no dejar sin ruta trayectos cuyo único transbordo es ordinario).
         int fin = -1;
-        while (!pq.isEmpty()) {
-            double[] top = pq.poll();
-            int u = (int) top[1];
-            if (top[0] > dist[u]) continue;
-            if (esDest[u]) { fin = u; break; }
-            for (double[] ar : adj.get(u)) {
-                int v = (int) ar[0];
-                boolean transbordo = ar.length > 2 && ar[2] == 1;
-                // Estación cerrada: NO se puede transbordar ahí (ni de entrada ni de salida),
-                // pero SÍ se puede pasar de largo en un viaje (tipo 0). Así una estación
-                // sin servicio no te desvía salvo que sea destino o punto de transbordo.
-                if (transbordo && (nodoBloqueado(ctx, rutas, node.get(u))
-                        || nodoBloqueado(ctx, rutas, node.get(v)))) continue;
-                double nd = dist[u] + ar[1];
-                if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd, v}); }
+        for (boolean restringir : new boolean[]{true, false}) {
+            for (int i = 0; i < n; i++) { dist[i] = Double.MAX_VALUE; prev[i] = -1; }
+            PriorityQueue<double[]> pq = new PriorityQueue<>((p, q) -> Double.compare(p[0], q[0]));
+            for (int i = 0; i < n; i++) {
+                Stop s = stopDe(rutas, node.get(i));
+                // Espera inicial por abordar en origen: 0 para Metrobús, más para líneas de baja frecuencia.
+                if (s.nn.equals(on) && okLineaPref(lineaO, s.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i))) {
+                    double e0 = esperaExtra(s.linea) + penalServicio(s.linea, svcPref);   // sesgo por servicio al abordar
+                    dist[i] = e0; pq.add(new double[]{e0, i});
+                }
             }
+            fin = -1;
+            while (!pq.isEmpty()) {
+                double[] top = pq.poll();
+                int u = (int) top[1];
+                if (top[0] > dist[u]) continue;
+                if (esDest[u]) { fin = u; break; }
+                for (double[] ar : adj.get(u)) {
+                    int v = (int) ar[0];
+                    boolean transbordo = ar.length > 2 && ar[2] == 1;
+                    // Estación cerrada: NO se puede transbordar ahí (ni de entrada ni de salida),
+                    // pero SÍ se puede pasar de largo en un viaje (tipo 0).
+                    if (transbordo && (nodoBloqueado(ctx, rutas, node.get(u))
+                            || nodoBloqueado(ctx, rutas, node.get(v)))) continue;
+                    // Correspondencia forzada a la misma estación (parada exprés) en la 1ª pasada.
+                    if (transbordo && restringir
+                            && !corrMismaEstacion(ctx, stopDe(rutas, node.get(u)), stopDe(rutas, node.get(v)))) continue;
+                    double nd = dist[u] + ar[1];
+                    // Al transbordar a una línea, sesga si su servicio no es el preferido (soft; fallback al otro).
+                    if (transbordo) nd += penalServicio(stopDe(rutas, node.get(v)).linea, svcPref);
+                    // Al VIAJAR un tramo, sesga por cada segmento en el servicio no preferido (acumulativo).
+                    else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref);
+                    if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd, v}); }
+                }
+            }
+            if (fin >= 0) break;
         }
         if (fin < 0) {
             // Endpoints válidos pero no hay camino: línea partida por un corte/manifestación.
@@ -695,8 +993,19 @@ public final class Planificador {
         // secuencia (deslizador): ⇄ cuando cambia de ruta
         for (int k = 0; k < camino.size(); k++) {
             Stop s = stopDe(rutas, node.get(camino.get(k)));
-            boolean trans = k > 0 && node.get(camino.get(k))[0] != node.get(camino.get(k - 1))[0];
-            secuencia.add(new Parada(s.nombre, s.linea, s.color, trans, s.pos, s.icono));
+            boolean trans = false;
+            if (k > 0 && node.get(camino.get(k))[0] != node.get(camino.get(k - 1))[0]) {
+                Stop sPrev = stopDe(rutas, node.get(camino.get(k - 1)));
+                // Cambio de ordinario↔exprés de la MISMA línea (claveTerminal: 104↔124) NO es correspondencia.
+                // OJO: claveTerminal NO une ramales (L1↔L1A sí son correspondencia real).
+                trans = claveTerminal(s.linea) != claveTerminal(sPrev.linea);
+            }
+            // Indios Verdes: plataforma según SALIDA (asciendes/board) o LLEGADA (desciendes/alight),
+            // que se decide por si la línea previa/siguiente en el camino es la misma o cambia.
+            int prevLin = (k > 0) ? stopDe(rutas, node.get(camino.get(k - 1))).linea : -1;
+            int nextLin = (k + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(k + 1))).linea : -1;
+            LatLng pos = plataformaIndiosVerdes(s.linea, s.nombre, s.pos, prevLin, nextLin);
+            secuencia.add(new Parada(s.nombre, s.linea, s.color, trans, pos, s.icono));
         }
 
         int i = 0;
@@ -708,11 +1017,21 @@ public final class Planificador {
             Stop a = stopDe(rutas, node.get(camino.get(i))), b = stopDe(rutas, node.get(camino.get(j)));
             int siA = node.get(camino.get(i))[1], siB = node.get(camino.get(j))[1];
 
+            // Extremos del tramo ajustados a la plataforma de Indios Verdes: 'a' es donde ABORDAS (ascenso)
+            // y 'b' donde DESCIENDES (llegada). Así el trazo entra/sale por el andén real (y el tramo de
+            // transbordo queda como el "caminito" entre el andén de descenso y el de ascenso siguiente).
+            int prevLinSeg = (i > 0) ? stopDe(rutas, node.get(camino.get(i - 1))).linea : -1;
+            int nextLinSeg = (j + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(j + 1))).linea : -1;
+            LatLng aPos = plataformaIndiosVerdes(a.linea, a.nombre, a.pos, prevLinSeg, a.linea);
+            LatLng bPos = plataformaIndiosVerdes(b.linea, b.nombre, b.pos, b.linea, nextLinSeg);
+
             List<LatLng> pts;
             // Estaciones del tramo en orden de viaje (respaldo si no hay geometría).
             List<LatLng> paradasPos = new ArrayList<>();
-            if (siA <= siB) for (int k = siA; k <= siB; k++) paradasPos.add(r.stops.get(k).pos);
-            else for (int k = siA; k >= siB; k--) paradasPos.add(r.stops.get(k).pos);
+            if (siA <= siB) for (int k = siA; k <= siB; k++)
+                paradasPos.add(k == siA ? aPos : (k == siB ? bPos : r.stops.get(k).pos));
+            else for (int k = siA; k >= siB; k--)
+                paradasPos.add(k == siA ? aPos : (k == siB ? bPos : r.stops.get(k).pos));
 
             if (r.mixta) {
                 // Recorrido mixto: geometría real de cada línea que atraviesa (L7/L4 por servicio).
@@ -722,25 +1041,41 @@ public final class Planificador {
                 // cobertura se checa contra ESA geometría, NO la ruta base de lineas.json (que puede
                 // estar desfasada: p. ej. L3 llega a Tenayuca solo en la sublínea, no en la ruta base,
                 // y eso hacía caer TODO el tramo a líneas rectas). Si no cubre, va por las estaciones.
-                List<LatLng> geo = geomSentido(ctx, r.linea.numero, a.pos, b.pos);
-                pts = (geo != null && geo.size() >= 2 && cercaDeRuta(geo, a.pos) && cercaDeRuta(geo, b.pos))
-                        ? subRuta(geo, a.pos, b.pos) : paradasPos;
+                List<LatLng> geo = geomSentido(ctx, r.linea.numero, aPos, bPos);
+                pts = (geo != null && geo.size() >= 2 && cercaDeRuta(geo, aPos) && cercaDeRuta(geo, bPos))
+                        ? subRuta(geo, aPos, bPos) : paradasPos;
             } else {
                 pts = paradasPos;                            // sin geometría: por las estaciones
+            }
+            // Asegura que el trazo TOQUE el andén exacto de Indios Verdes en los extremos (el shape del
+            // GTFS pasa a unos metros del andén; se añade el punto de plataforma para cerrar el caminito).
+            if (!pts.isEmpty()) {
+                if (!aPos.equals(a.pos) && !pts.get(0).equals(aPos)) pts.add(0, aPos);
+                if (!bPos.equals(b.pos) && !pts.get(pts.size() - 1).equals(bPos)) pts.add(bPos);
             }
             trazo.addAll(pts);
 
             int paradas = Math.abs(siB - siA);
             paradasTot += paradas;
-            String terminal = (siB >= siA ? r.stops.get(r.stops.size() - 1) : r.stops.get(0)).nombre;
+            Stop finStop = siB >= siA ? r.stops.get(r.stops.size() - 1) : r.stops.get(0);
+            String terminal = finStop.nombre;
             String tc = terminalCanonico(r.id);   // L2/L6/L7: terminal real (p. ej. Tacubaya, no Parque Lira)
             if (tc != null) terminal = tc;
+            // Mexibús (ordinario/exprés): usa la terminal OFICIAL del sentido (p. ej. L4 sur = La Raza,
+            // no "Indios Verdes" donde la exprés recorta su lista de paradas).
+            if (r.linea != null && r.linea.numero >= 100) {
+                String tm = terminalMexibus(ctx, r.linea.numero, finStop.pos);
+                if (tm != null) terminal = tm;
+            }
             pasos.add(new Paso(a.linea, r.color, a.nombre, b.nombre, paradas, pts, r.mixta));
             instrucciones.add(new Instruccion(terminal, r.nombreVisible, a.linea, r.color, paradas, i > 0));
             i = j + 1;
         }
 
-        int transbordos = instrucciones.size() - 1;
+        // Correspondencias reales: cambios de BASE de línea (ordinario↔exprés de la misma línea no cuenta).
+        int transbordos = 0;
+        for (int t = 1; t < instrucciones.size(); t++)
+            if (claveTerminal(instrucciones.get(t).linea) != claveTerminal(instrucciones.get(t - 1).linea)) transbordos++;
         int minutos = (int) Math.round(dist[fin] / 60.0);
         motivoFallo = MOTIVO_OK; estacionCerrada = null;
         return new Ruta(pasos, instrucciones, paradasTot, transbordos, minutos, trazo, secuencia);
@@ -776,6 +1111,27 @@ public final class Planificador {
             if (haciaT) return true;                  // este nodo avanza hacia la terminal bloqueada
         }
         return false;
+    }
+
+    // Plataformas de Indios Verdes por línea y ROL: LLEGADA = andén de descenso (alight); SALIDA = andén
+    // de ascenso (board). El andén de llegada y el de salida son distintos (es terminal de ambas líneas).
+    private static final LatLng IV_L1_LLEGA = new LatLng(19.494040000000000, -99.119630000000000); // L1 sur, descenso
+    private static final LatLng IV_L1_SALE  = new LatLng(19.496411482889120, -99.119465116656490); // L1 norte, ascenso
+    private static final LatLng IV_L4_LLEGA = new LatLng(19.493988000000000, -99.120012000000000); // L4 sur (dir La Raza)
+    private static final LatLng IV_L4_SALE  = new LatLng(19.496370747877478, -99.119083404304850); // L4 norte (dir UMB)
+
+    /** Punto de Indios Verdes ajustado a la plataforma según el ROL en la ruta: si BOARD (la línea previa
+     *  en el camino es otra o es el inicio) usa el andén de ascenso; si ALIGHT usa el de descenso. */
+    private static LatLng plataformaIndiosVerdes(int linea, String nombre, LatLng pos, int prevLin, int nextLin) {
+        if (pos == null || !norm(sinMxb(nombre)).contains("indios verdes")) return pos;
+        boolean l1 = linea == 1;                          // Metrobús L1
+        boolean l4 = linea == 104 || linea == 124;        // Mexibús L4 (ordinario/exprés)
+        if (!l1 && !l4) return pos;
+        boolean inicioSegmento = prevLin < 0 || baseLinea(prevLin) != baseLinea(linea);
+        boolean finSegmento    = nextLin < 0 || baseLinea(nextLin) != baseLinea(linea);
+        boolean sale = inicioSegmento && !finSegmento;    // abordas aquí y sigues en esta línea = ascenso
+        if (l1) return sale ? IV_L1_SALE : IV_L1_LLEGA;
+        return sale ? IV_L4_SALE : IV_L4_LLEGA;
     }
 
     private static Map<String, LatLng> POS_EST;
@@ -928,9 +1284,13 @@ public final class Planificador {
         return "L7-norte";
     }
 
-    /** ¿El trazado pasa a menos de ~350 m del punto? (si no, no sirve para ese tramo). */
+    /** ¿El trazado pasa a menos de ~120 m del punto? Se mide contra el SEGMENTO más cercano (no contra
+     *  los vértices), porque la polilínea puede tener vértices muy espaciados en tramos rectos y aun así
+     *  pasar justo sobre la estación (p. ej. el ramal norte de L4). Medir a vértice descartaba geometría
+     *  válida y caía a líneas rectas. */
     private static boolean cercaDeRuta(List<LatLng> ruta, LatLng p) {
-        for (LatLng v : ruta) if (Linea.distancia(v, p) <= 350.0) return true;
+        for (int i = 0; i + 1 < ruta.size(); i++)
+            if (Linea.distancia(proyecta(ruta.get(i), ruta.get(i + 1), p), p) <= 120.0) return true;
         return false;
     }
 

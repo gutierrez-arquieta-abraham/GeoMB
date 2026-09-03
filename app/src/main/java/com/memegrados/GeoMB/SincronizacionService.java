@@ -157,6 +157,15 @@ public class SincronizacionService extends Service {
         if (nm != null) nm.notify(ID_ONGOING, construir(texto));
     }
 
+    /** Android 14+: límite de tiempo del FGS dataSync. Detener limpio para no crashear. */
+    @Override
+    public void onTimeout(int startId) {
+        activo = false;
+        handler.removeCallbacksAndMessages(null);
+        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignore) {}
+        stopSelf();
+    }
+
     @Override
     public void onDestroy() {
         activo = false;

@@ -49,7 +49,8 @@ public class LlegadasFragment extends Fragment {
     private long afectVer = -1;
 
     // Tabla de estado del servicio (Metrobús + Mexibús), alimentada por las afectaciones de AWS.
-    private android.widget.LinearLayout llEstadoMetrobus, llEstadoMexibus;
+    private android.widget.LinearLayout llEstadoMetrobus, llEstadoMexibus, llInfoAdicional;
+    private TextView txtInfoAdicionalTitulo;
     private View txtMexibusTitulo;
     private static final int VERDE_OK = 0xFF2E7D32;   // "Servicio regular"
 
@@ -99,6 +100,8 @@ public class LlegadasFragment extends Fragment {
         // Tabla de estado del servicio (arriba) + panel de elevadores/otras afectaciones (abajo)
         llEstadoMetrobus = view.findViewById(R.id.ll_estado_metrobus);
         llEstadoMexibus = view.findViewById(R.id.ll_estado_mexibus);
+        llInfoAdicional = view.findViewById(R.id.ll_info_adicional);
+        txtInfoAdicionalTitulo = view.findViewById(R.id.txt_info_adicional_titulo);
         txtMexibusTitulo = view.findViewById(R.id.txt_estado_mexibus_titulo);
         afectTitulo = view.findViewById(R.id.txt_afect_titulo);
         rvAfect = view.findViewById(R.id.recycler_afectaciones);
@@ -267,13 +270,16 @@ public class LlegadasFragment extends Fragment {
     /** Construye la tabla de estado: una fila por línea (Metrobús 1..7 y Mexibús ordinarias) con su situación. */
     private void refrescarEstado() {
         if (!isAdded() || llEstadoMetrobus == null) return;
-        // Agrupa las afectaciones de ESTADO por número de línea (concatena si hay varias).
-        java.util.Map<Integer, String> estado = new java.util.HashMap<>();
+        cancelarAnimEstado();   // corta ciclados de la construcción anterior
+        // Agrupa las afectaciones de ESTADO por línea, conservando los 3 aspectos (tipo, info, estaciones).
+        java.util.Map<Integer, EstadoLinea> estado = new java.util.HashMap<>();
         for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
             if (a.categoria != Manifestaciones.C_ESTADO || a.lineaNum <= 0) continue;
-            String txt = !a.estado.isEmpty() ? a.estado : a.lugar;
-            String prev = estado.get(a.lineaNum);
-            estado.put(a.lineaNum, prev == null ? txt : prev + " · " + txt);
+            EstadoLinea el = estado.get(a.lineaNum);
+            if (el == null) { el = new EstadoLinea(); estado.put(a.lineaNum, el); }
+            el.tipo = juntar(el.tipo, a.estado);
+            el.info = juntar(el.info, a.info);
+            el.estaciones = juntar(el.estaciones, a.lugar);
         }
         // Metrobús L1..L7
         llEstadoMetrobus.removeAllViews();
@@ -283,25 +289,80 @@ public class LlegadasFragment extends Fragment {
             String nombre = l != null ? l.nombre : getString(R.string.linea_formato, i);
             llEstadoMetrobus.addView(filaEstado(String.valueOf(i), color, nombre, estado.get(i)));
         }
-        // Mexibús: solo las ordinarias (numero 101..110), no exprés (12x) ni Mexicable (20x).
-        // Respeta el ajuste "mostrar Mexibús": si está apagado, no se muestra su estado de servicio.
+        // Mexibús: troncales (101..104) y ramales (111..113); no exprés (12x) ni Mexicable (20x).
+        // Cada fila muestra el par de terminales OFICIALES (dirección). Respeta el ajuste "mostrar Mexibús".
         llEstadoMexibus.removeAllViews();
         int mostradas = 0;
         if (Modos.mostrarMexibus(requireContext())) {
             for (Linea l : GtfsRepository.getMexibus(requireContext())) {
-                if (l.numero < 101 || l.numero > 110) continue;
-                String et = estado.get(l.numero);
-                llEstadoMexibus.addView(filaEstado(String.valueOf(l.numero - 100), l.color, l.nombre, et));
+                boolean troncal = l.numero >= 101 && l.numero <= 104;
+                boolean ramal = l.numero >= 111 && l.numero <= 113;
+                if (!troncal && !ramal) continue;
+                String par = Planificador.terminalesMexibusPar(l.numero);
+                String nombre = par != null ? par : l.nombre;
+                llEstadoMexibus.addView(filaEstado(Planificador.etiquetaLineaCortaPub(l.numero), l.color, nombre, estado.get(l.numero)));
                 mostradas++;
             }
         }
         int vis = mostradas > 0 ? View.VISIBLE : View.GONE;
         if (txtMexibusTitulo != null) txtMexibusTitulo.setVisibility(vis);
         llEstadoMexibus.setVisibility(vis);
+        llenarInfoAdicional();
     }
 
-    /** Una fila de la tabla: badge de color con el número, nombre de la línea y su estado a la derecha. */
-    private View filaEstado(String num, int color, String nombre, String afectacion) {
+    /** Sección "Información adicional": notas de servicio que no caben en la tabla de estado
+     *  (p. ej. las 3 terminales de la L4 Exprés). Se oculta si el Mexibús está apagado. */
+    private void llenarInfoAdicional() {
+        if (llInfoAdicional == null) return;
+        llInfoAdicional.removeAllViews();
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        if (mxb) llInfoAdicional.addView(filaInfo(getString(R.string.info_adicional_l4exp)));
+        int vis = llInfoAdicional.getChildCount() > 0 ? View.VISIBLE : View.GONE;
+        llInfoAdicional.setVisibility(vis);
+        if (txtInfoAdicionalTitulo != null) txtInfoAdicionalTitulo.setVisibility(vis);
+    }
+
+    /** Una nota de información adicional: viñeta + texto. */
+    private View filaInfo(String texto) {
+        float d = getResources().getDisplayMetrics().density;
+        TextView t = new TextView(requireContext());
+        t.setText("• " + texto);
+        t.setTextSize(13f);
+        t.setPadding(0, Math.round(3 * d), 0, Math.round(3 * d));
+        t.setTextColor(com.google.android.material.color.MaterialColors.getColor(
+                t, com.google.android.material.R.attr.colorOnSurfaceVariant));
+        return t;
+    }
+
+    /** Aspectos de la afectación de una línea (para ciclar en la celda de estado). */
+    private static final class EstadoLinea {
+        String tipo;        // tipo de afectación (encabezado)
+        String info;        // información adicional
+        String estaciones;  // estaciones afectadas
+    }
+
+    /** Concatena dos textos con " · " omitiendo vacíos/duplicados. */
+    private static String juntar(String a, String b) {
+        if (b == null || b.trim().isEmpty()) return a;
+        b = b.trim();
+        if (a == null || a.isEmpty()) return b;
+        if (a.contains(b)) return a;
+        return a + " · " + b;
+    }
+
+    private final android.os.Handler animHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final java.util.List<Runnable> estadoAnims = new java.util.ArrayList<>();
+
+    /** Detiene todos los ciclados de la tabla de estado (al reconstruirla o salir). */
+    private void cancelarAnimEstado() {
+        for (Runnable r : estadoAnims) animHandler.removeCallbacks(r);
+        estadoAnims.clear();
+    }
+
+    /** Una fila de la tabla: badge de color con el número, nombre de la línea y su estado a la derecha.
+     *  Si hay afectación con varios aspectos (tipo / info / estaciones), la celda cicla entre ellos con
+     *  una animación de desvanecer-aparecer. */
+    private View filaEstado(String num, int color, String nombre, EstadoLinea el) {
         float d = getResources().getDisplayMetrics().density;
         android.util.TypedValue tvp = new android.util.TypedValue();
         requireContext().getTheme().resolveAttribute(android.R.attr.textColorPrimary, tvp, true);
@@ -338,17 +399,45 @@ public class LlegadasFragment extends Fragment {
         row.addView(nom);
 
         TextView est = new TextView(requireContext());
-        boolean afect = afectacion != null && !afectacion.trim().isEmpty();
-        est.setText(afect ? afectacion : getString(R.string.estado_regular));
+        // Aspectos disponibles de la afectación, con etiqueta corta (para ciclar entre ellos).
+        final java.util.List<String> aspectos = new java.util.ArrayList<>();
+        if (el != null) {
+            if (el.tipo != null && !el.tipo.trim().isEmpty())
+                aspectos.add(getString(R.string.estado_lbl_tipo, el.tipo.trim()));
+            if (el.info != null && !el.info.trim().isEmpty())
+                aspectos.add(getString(R.string.estado_lbl_info, el.info.trim()));
+            if (el.estaciones != null && !el.estaciones.trim().isEmpty())
+                aspectos.add(getString(R.string.estado_lbl_estaciones, el.estaciones.trim()));
+        }
+        boolean afect = !aspectos.isEmpty();
+        est.setText(afect ? aspectos.get(0) : getString(R.string.estado_regular));
         est.setTextSize(13f);
         est.setTextColor(afect ? 0xFFC8103E : VERDE_OK);
         est.setGravity(android.view.Gravity.END);
-        est.setMaxLines(2);
+        est.setMaxLines(3);
         android.widget.LinearLayout.LayoutParams ep = new android.widget.LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.3f);
         ep.leftMargin = Math.round(8 * d);
         est.setLayoutParams(ep);
         row.addView(est);
+
+        // Cicla entre los aspectos (tipo → info → estaciones) con desvanecer-aparecer.
+        if (aspectos.size() > 1) {
+            final int[] idx = {0};
+            Runnable ciclo = new Runnable() {
+                @Override public void run() {
+                    if (!isAdded()) return;
+                    est.animate().alpha(0f).setDuration(280).withEndAction(() -> {
+                        idx[0] = (idx[0] + 1) % aspectos.size();
+                        est.setText(aspectos.get(idx[0]));
+                        est.animate().alpha(1f).setDuration(280).start();
+                    }).start();
+                    animHandler.postDelayed(this, 4000);
+                }
+            };
+            estadoAnims.add(ciclo);
+            animHandler.postDelayed(ciclo, 4000);
+        }
         return row;
     }
 
@@ -427,6 +516,7 @@ public class LlegadasFragment extends Fragment {
     @Override
     public void onDestroyView() {
         handler.removeCallbacks(poll);
+        cancelarAnimEstado();   // corta los ciclados de la tabla de estado
         super.onDestroyView();
     }
 

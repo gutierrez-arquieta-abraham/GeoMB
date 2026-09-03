@@ -195,6 +195,14 @@ public class LlegadaService extends Service {
         stopSelf();
     }
 
+    /** Android 14+: límite de tiempo del FGS dataSync. Detener limpio para no crashear. */
+    @Override
+    public void onTimeout(int startId) {
+        handler.removeCallbacksAndMessages(null);
+        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignore) {}
+        stopSelf();
+    }
+
     @Override
     public void onDestroy() {
         paradaSeguida = null;

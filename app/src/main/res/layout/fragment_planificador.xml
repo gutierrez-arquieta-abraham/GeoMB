@@ -261,9 +261,10 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
         app:cardCornerRadius="22dp"
-        app:cardElevation="4dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:cardElevation="8dp"
+        android:translationZ="8dp"
+        app:layout_constraintBottom_toTopOf="@id/panel_resultado"
+        app:layout_goneMarginBottom="12dp"
         app:layout_constraintStart_toStartOf="parent">
 
         <LinearLayout

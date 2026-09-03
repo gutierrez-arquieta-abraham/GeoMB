@@ -143,9 +143,11 @@
     <string name="desamb_sist_mexibus">Mexibús</string>
     <string name="desamb_sist_mexicable">Mexicable</string>
     <string name="desamb_elige_linea">Which line?</string>
+    <string name="desamb_cual_estacion">Which station do you mean?</string>
     <string name="desamb_linea_n">Line %1$s</string>
     <string name="servicio_titulo">Which service will you take?</string>
     <string name="servicio_express_switch">Express service (skips stations)</string>
+    <string name="servicio_titulo_linea">Which service on %1$s?</string>
     <string name="servicio_ordinario">Ordinary</string>
     <string name="servicio_express">Express</string>
     <string name="servicio_voz">You are on the %1$s service.</string>
@@ -159,7 +161,7 @@
     <string name="notif_destino_fmt">Destination: %1$s</string>
     <string name="voz_llegando">Arriving at %1$s</string>
     <string name="voz_proxima">Next station: %1$s</string>
-    <string name="voz_transborda">You are arriving at %1$s. Get off and transfer to Line %2$d.</string>
+    <string name="voz_transborda">You are arriving at %1$s. Get off and transfer to Line %2$s.</string>
     <string name="voz_llegaste">You arrived at %1$s. End of trip.</string>
     <string name="voz_afectacion">Attention: there are service disruptions. Check your route.</string>
     <string name="voz_transbordo_prep">Attention: you are arriving at the station where you will transfer. Please get ready.</string>
@@ -172,12 +174,29 @@
     <string name="voz_transbordo">. Transfer to %1$s</string>
     <string name="voz_linea_n">Line %1$d</string>
     <string name="voz_linea_l4">Line 4 %1$s</string>
-    <string name="voz_linea_mxb">Mexibús Line %1$d</string>
-    <string name="voz_linea_mxc">Mexicable Line %1$d</string>
+    <string name="voz_linea_mxb">Meksibús Line %1$d</string>
+    <string name="voz_linea_mxc">Meksicable Line %1$d</string>
     <string name="voz_palabra_correspondencia">transfer</string>
     <string name="voz_palabra_conexion">connection</string>
     <string name="voz_palabra_transbordo">transfer</string>
     <string name="voz_prep_corresp">Attention, you are approaching the station where you will make your %1$s. Please get ready. Station %2$s. %1$s with %3$s.</string>
+    <string name="voz_prox_transf">Next station %1$s, %2$s with %3$s</string>
+    <string name="voz_prox_transf_prep">Next station %1$s, %2$s with %3$s. Attention, you are about to make a %2$s, please get ready</string>
+    <string name="voz_lleg_transf_hace">Arriving at %1$s, make your %2$s with %3$s</string>
+    <string name="voz_lleg_transf_paso">Arriving at %1$s, %2$s with %3$s</string>
+    <string name="voz_term_lleg">Arriving at terminal station, %1$s</string>
+    <string name="voz_term_prox">Next station, terminal, %1$s</string>
+    <string name="voz_lleg_base">Arriving at station, %1$s</string>
+    <string name="voz_prox_base">Next station, %1$s</string>
+    <string name="voz_tf_primera">, %1$s with %2$s</string>
+    <string name="voz_tf_sig">. %1$s with %2$s</string>
+    <string name="voz_sis_mb">Metrobús</string>
+    <string name="voz_sis_mxb">Meksibús</string>
+    <string name="voz_sis_mxc">Meksicable</string>
+    <string name="voz_linea_num">Line %1$s</string>
+    <string name="voz_lineas_num">Lines %1$s</string>
+    <string name="voz_sis_linea">%1$s Line %2$s</string>
+    <string name="voz_sis_lineas">%1$s Lines %2$s</string>
     <string name="voz_ruta_norte">North Route</string>
     <string name="voz_ruta_sur">South Route</string>
     <string name="voz_terminal">Last stop of the route. No one may remain on board the vehicle</string>
@@ -195,7 +214,7 @@
     <string name="recorrido_iniciar">Start trip</string>
     <string name="recorrido_detener">Stop trip</string>
     <string name="recorrido_vas">You\'re on %1$s · Next: %2$s</string>
-    <string name="recorrido_transborda">At %1$s transfer to L%2$d</string>
+    <string name="recorrido_transborda">At %1$s transfer to L%2$s</string>
     <string name="recorrido_llegaste">You arrived at %1$s</string>
     <string name="recorrido_ubicando">Locating you…</string>
     <string name="recorrido_sin_permiso">Enable location permission for the trip</string>
@@ -270,8 +289,12 @@
 
     <!-- Following -->
     <string name="seguir">Follow</string>
+    <string name="seguir_tambien">Follow another</string>
     <string name="dejar_de_seguir">Unfollow</string>
+    <string name="dejar_todo">Stop all</string>
     <string name="siguiendo_titulo">Following unit %1$s</string>
+    <string name="siguiendo_varias_titulo">Unit tracking</string>
+    <string name="siguiendo_resumen">%1$d unit(s) tracked</string>
     <string name="siguiendo_buscando">Locating unit %1$s…</string>
     <string name="siguiendo_distancia">Unit %1$s · %2$s from you (%3$d%%)</string>
     <string name="siguiendo_fuera">Unit %1$s is not in service right now</string>
@@ -323,6 +346,11 @@
     <string name="estado_metrobus">METROBÚS</string>
     <string name="estado_mexibus">MEXIBÚS</string>
     <string name="estado_regular">Normal service</string>
+    <string name="estado_lbl_tipo">Issue: %1$s</string>
+    <string name="estado_lbl_info">Info: %1$s</string>
+    <string name="estado_lbl_estaciones">Stations: %1$s</string>
+    <string name="info_adicional_titulo">Additional information</string>
+    <string name="info_adicional_l4exp">Mexibús L4 Express: 3 terminals — UMB Tecámac and La Raza (La Raza drop-off only). Indios Verdes is the boarding terminal toward UMB and a pass-through station toward La Raza.</string>
     <string name="afect_elevadores_titulo">Elevators and other issues</string>
     <string name="llegadas_aviso_titulo">Arrival alert</string>
     <string name="llegadas_linea">Line</string>
@@ -345,7 +373,7 @@
 
     <!-- About -->
     <string name="nav_acerca">About</string>
-    <string name="acerca_version">Version: 1.2 </string>
+    <string name="acerca_version">Version: 1.5 </string>
     <string name="app_desc">GeoMB shows Mexico City Metrobús units in real time: live map, search by unit number, lines, routes by code and arrival alerts by station.\n\nThis is a project solely for the responsible use of transit enthusiasts and for those who need to catch a unit.</string>
     <string name="agradecimientos_titulo">Acknowledgements</string>
     <string name="agradecimientos_texto">Thanks to Mexico City Metrobús and to SONDA for the GTFS-Realtime system that makes the live information possible. And to the community of users who help by identifying the units, their companies and models.\n\nProject developed by Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCo-author: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nSpecial thanks:\n\n●Minami Aguilar. (Ideas to improve the map).\n●Manuel Lozano. (To whom I dedicate this project).\n●Augusto Neri. (Proposals for the Metrobús route system).\n●Dante Sifuentes. (Logo designer).\n●To all the operators I know who have supported me since before I was a known figure in the community.\n\nProject dedicated to everyone who has supported me since my beginnings in the public-transit enthusiast community, and dedicated to a figure who inspired me to keep going even when I didn\'t believe in myself, thank you, father.</string>

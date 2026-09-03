@@ -43,12 +43,22 @@ public class RecorridoService extends Service {
     public static final String ACCION_DETENER = "detener_recorrido";
     private static final String CANAL = "recorrido";
     private static final int ID = 4401;
-    private static final float CERCA_M = 60f;   // umbral "llegando a…" para Metrobús (GPS ~10-20 m)
-    private static final float PASO_M = 20f;    // metros a ALEJARSE del punto más cercano para "próxima estación"
-    // Mexibús: estaciones mucho más extensas (L1/L4 tienen 1 andén por sentido unidos por un paso),
-    // así que se usa un radio de cobertura mayor (~500 m) para los avisos.
-    private static final float CERCA_MXB_M = 50f;    // "llegando a estación" cuando estás a ≤50 m del punto (Haversine)
-    private static final float PASO_MXB_M = 100f;     // aproximidad para "próxima" en Mexibús
+    // MISMA fórmula para Metrobús y Mexibús (Haversine): a ≤50 m del punto avisa la LLEGADA; y al
+    // alejarse ~100 m del punto más cercano (cruzando hacia la siguiente) avisa la PRÓXIMA estación.
+    private static final float CERCA_M = 50f;   // "llegando a estación" cuando estás a ≤50 m del punto
+    private static final float PASO_M = 100f;   // metros a ALEJARSE del punto más cercano para "próxima estación"
+    private static final float CERCA_MXB_M = 50f;
+    private static final float PASO_MXB_M = 100f;
+    // Anillo de cobertura extra: dentro de (llegada 50 m + 50 m) NO se anuncia la próxima estación,
+    // solo la llegada. La "próxima" se dispara al SALIR de esos ~100 m del punto más cercano.
+    private static final float COBERTURA_EXTRA_M = 50f;
+    // En una correspondencia, el aviso cambia de línea SOLO cuando estás en el andén de la otra línea.
+    // ~15 m (el usuario pidió <10 m; se deja un poco más por el error típico del GPS para no quedar clavado).
+    private static final float CAMBIO_LINEA_M = 15f;
+    // Fin de recorrido: el "llegaste" debe sonar SOBRE el punto (1–5 m), no al radio de llegada de 50 m.
+    // Excepción: Mexibús L4 (Indios Verdes) son 2 andenes y la unidad avanza hasta el fondo rebasando el
+    // punto, así que ahí se conserva el radio normal.
+    private static final float FIN_M = 5f;
     private static final long INTERVALO_MS = 1000L;   // revisa la ubicación cada 1 s durante el recorrido
     private static final float TURURU_VOL = 0.7f;     // volumen del "tururu" (70% del real)
     private static final long VOZ_TIMEOUT_MS = 4000L; // margen para descargar la voz Mia antes de caer al TTS
@@ -110,11 +120,64 @@ public class RecorridoService extends Service {
 
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
+        persistir(c);   // guarda la ruta: si el SO mata el proceso, el servicio (START_STICKY) la restaura
         ContextCompat.startForegroundService(c, new Intent(c, RecorridoService.class));
     }
 
     public static void detener(android.content.Context c) {
+        limpiarPersistencia(c);
         c.stopService(new Intent(c, RecorridoService.class));
+    }
+
+    private static final String PREFS = "recorrido_estado";
+
+    /** Serializa la ruta activa (paradas + terminal + servicio) para poder resumir tras muerte de proceso. */
+    private static void persistir(android.content.Context c) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("term", terminal == null ? "" : terminal);
+            o.put("svc", servicioTexto == null ? org.json.JSONObject.NULL : servicioTexto);
+            org.json.JSONArray arr = new org.json.JSONArray();
+            if (paradas != null) for (Planificador.Parada p : paradas) {
+                org.json.JSONObject j = new org.json.JSONObject();
+                j.put("n", p.nombre); j.put("l", p.linea); j.put("c", p.color);
+                j.put("t", p.transbordo); j.put("la", p.pos.latitude); j.put("lo", p.pos.longitude);
+                j.put("i", p.icono == null ? org.json.JSONObject.NULL : p.icono);
+                arr.put(j);
+            }
+            o.put("paradas", arr);
+            c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                    .edit().putString("ruta", o.toString()).apply();
+        } catch (Exception ignore) {}
+    }
+
+    /** Reconstruye {@link #paradas} desde disco cuando el proceso revivió sin la ruta en memoria. */
+    private boolean restaurar() {
+        try {
+            String s = getSharedPreferences(PREFS, MODE_PRIVATE).getString("ruta", null);
+            if (s == null) return false;
+            org.json.JSONObject o = new org.json.JSONObject(s);
+            terminal = o.optString("term", "");
+            servicioTexto = o.isNull("svc") ? null : o.optString("svc", null);
+            org.json.JSONArray arr = o.getJSONArray("paradas");
+            java.util.List<Planificador.Parada> seq = new java.util.ArrayList<>();
+            for (int k = 0; k < arr.length(); k++) {
+                org.json.JSONObject j = arr.getJSONObject(k);
+                seq.add(new Planificador.Parada(j.getString("n"), j.getInt("l"), j.getInt("c"),
+                        j.getBoolean("t"),
+                        new com.google.android.gms.maps.model.LatLng(j.getDouble("la"), j.getDouble("lo")),
+                        j.isNull("i") ? null : j.getString("i")));
+            }
+            if (seq.isEmpty()) return false;
+            paradas = seq; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
+            return true;
+        } catch (Exception e) { return false; }
+    }
+
+    private void limpiarPersistencia() { limpiarPersistencia(this); }
+    private static void limpiarPersistencia(android.content.Context c) {
+        try { c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                .edit().remove("ruta").apply(); } catch (Exception ignore) {}
     }
 
     @Override public void onCreate() {
@@ -137,7 +200,9 @@ public class RecorridoService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACCION_DETENER.equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
+        if (intent != null && ACCION_DETENER.equals(intent.getAction())) { limpiarPersistencia(); stopSelf(); return START_NOT_STICKY; }
+        // Proceso revivido por el SO (intent null) sin la ruta en memoria: recárgala del disco.
+        if (paradas == null && !restaurar()) { limpiarPersistencia(); stopSelf(); return START_NOT_STICKY; }
         activo = true;
         ultVoz = -99; ultLlegando = -99; ultProxima = -99; afectacionAvisada = false;
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
@@ -185,6 +250,53 @@ public class RecorridoService extends Service {
         handler.postDelayed(tick, INTERVALO_MS);
     }
 
+    private java.util.List<com.google.android.gms.maps.model.LatLng> ivPlataformas;
+
+    /** Las 4 plataformas de Indios Verdes (Metrobús L1/L7, Mexibús L4, Mexicable L2), cacheadas. */
+    private java.util.List<com.google.android.gms.maps.model.LatLng> plataformasIV() {
+        if (ivPlataformas != null) return ivPlataformas;
+        java.util.List<com.google.android.gms.maps.model.LatLng> ls = new java.util.ArrayList<>();
+        try {
+            java.util.List<Linea> todas = new java.util.ArrayList<>(GtfsRepository.getLineas(this));
+            todas.addAll(GtfsRepository.getMexibus(this));
+            for (Linea li : todas)
+                for (Estacion e : li.estaciones)
+                    if (Planificador.norm(e.nombre).contains("indios verdes")) ls.add(e.posicion);
+        } catch (Exception ignore) {}
+        ivPlataformas = ls;
+        return ls;
+    }
+
+    /** Distancia al PUNTO de la parada. El punto de Indios Verdes ya es la plataforma direccional
+     *  (lo ajusta el planificador), así que basta medir contra p.pos: a ≤50 m avisa la llegada. */
+    private double distParada(android.location.Location l, Planificador.Parada p) {
+        return haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
+    }
+
+    /** Nº mínimo de estaciones dentro de una línea (tras la correspondencia) para dar por hecho que ya
+     *  vas en ella y saltar el aviso a esa línea. */
+    private static final int SALTO_MIN_ESTACIONES = 3;
+
+    /**
+     * Si la ubicación está sobre una parada de OTRA línea de la ruta, situada al menos
+     * {@link #SALTO_MIN_ESTACIONES} estaciones dentro de esa línea (después de la correspondencia),
+     * devuelve su índice para reanclar ahí. Si no, devuelve {@code best}.
+     */
+    private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
+        int mejor = best;
+        int baseBest = baseLinea(seq.get(best).linea);
+        for (int j = best + 1; j < seq.size(); j++) {
+            Planificador.Parada pj = seq.get(j);
+            if (baseLinea(pj.linea) == baseBest) continue;             // misma línea que la actual: no aplica
+            if (distParada(l, pj) > radioCerca(pj)) continue;          // no estás sobre esa parada
+            // ¿Cuántas estaciones consecutivas de ESA línea terminan en j? (profundidad tras el cambio)
+            int dentro = 0;
+            for (int k = j; k >= 0 && baseLinea(seq.get(k).linea) == baseLinea(pj.linea); k--) dentro++;
+            if (dentro >= SALTO_MIN_ESTACIONES) mejor = j;             // toma la más adelantada válida
+        }
+        return mejor;
+    }
+
     private void procesar(android.location.Location l) {
         ciclando = false;
         List<Planificador.Parada> seq = paradas;
@@ -195,12 +307,30 @@ public class RecorridoService extends Service {
         // alcanzado, no desde el inicio. Así el recorrido no salta hacia atrás ni se "pega" a una estación
         // co-ubicada de otra línea antes del transbordo (se queda en su línea hasta hacer la correspondencia).
         int best = avanceMin;
-        double bd = Double.MAX_VALUE;
-        for (int i = avanceMin; i < seq.size(); i++) {
-            double d = haversine(l.getLatitude(), l.getLongitude(),
-                    seq.get(i).pos.latitude, seq.get(i).pos.longitude);   // Haversine
-            if (d < bd) { bd = d; best = i; }
+        double bd = distParada(l, seq.get(avanceMin));
+        for (int i = avanceMin + 1; i < seq.size(); i++) {
+            Planificador.Parada pi = seq.get(i);
+            double d = distParada(l, pi);   // Haversine (Indios Verdes: la más cercana de sus 4 plataformas)
+            if (pi.linea != seq.get(best).linea) {
+                // Correspondencia (cambio de línea): el aviso NO cambia a la nueva línea hasta que estás
+                // físicamente en su andén. Te aferras a la línea actual mientras caminas la correspondencia.
+                // Si es la MISMA estación (mismo nombre, p. ej. Puente de Fierro L2↔L4, u ordinario↔exprés
+                // de la misma base), el cambio se permite dentro del radio de LLEGADA (~50 m), porque estar
+                // en ese andén ya cuenta como haber hecho la correspondencia. Para andenes co-ubicados de
+                // DISTINTO nombre se mantiene el umbral estricto (CAMBIO_LINEA_M) para no saltar antes.
+                float umbral = mismaEstacion(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
+                if (d <= umbral) { bd = d; best = i; }
+                else break;
+            } else if (d < bd) {
+                bd = d; best = i;
+            }
         }
+        // Reanclaje a OTRA línea: si la ubicación ya está claramente sobre una parada MUY adentro de otra
+        // línea de la ruta (≥3 estaciones después de la correspondencia), el aviso salta a esa línea. Así,
+        // si te subiste directo o la línea previa cerró, el recorrido no queda clavado en la anterior.
+        int salto = reanclarOtraLinea(l, seq, best);
+        if (salto > best) best = salto;
+
         avanceMin = best;   // nunca retrocede
         actualIdx = best;
 
@@ -216,7 +346,9 @@ public class RecorridoService extends Service {
         else if (bd < distMin) distMin = (float) bd;
 
         int last = seq.size() - 1;
-        boolean fin = best >= last;
+        // Fin sobre el punto (≤5 m); Mexibús L4 conserva el radio normal (2 andenes, la unidad rebasa el punto).
+        boolean finL4 = seq.get(last).linea == 104 || seq.get(last).linea == 124;
+        boolean fin = best >= last && bd <= (finL4 ? radioCerca(seq.get(last)) : FIN_M);
         int proxIdx = Math.min(best + 1, last);
         int antIdx = Math.max(0, proxIdx - 1);     // estación anterior a la próxima
         int postIdx = Math.min(last, proxIdx + 1); // estación posterior a la próxima
@@ -226,7 +358,7 @@ public class RecorridoService extends Service {
         if (fin) {
             estado = getString(R.string.recorrido_llegaste, vis(seq.get(best)));
         } else if (prox.transbordo) {
-            estado = getString(R.string.recorrido_transborda, vis(prox), prox.linea);
+            estado = getString(R.string.recorrido_transborda, vis(prox), Planificador.etiquetaLineaCortaPub(prox.linea));
         } else {
             estado = getString(R.string.recorrido_vas, vis(seq.get(best)), vis(prox));
         }
@@ -246,33 +378,20 @@ public class RecorridoService extends Service {
             // onDestroy) tras dar tiempo a que se escuche el aviso final.
             if (!finalizado) {
                 finalizado = true;
+                limpiarPersistencia();   // llegaste: no debe resumir tras muerte de proceso
                 handler.removeCallbacks(tick);
                 detenerUbicacion();   // ya llegaste: corta el GPS para ahorrar batería
                 handler.postDelayed(this::stopSelf, 12000);
             }
-        } else if (ultLlegando == best && ultProxima != proxIdx && bd >= distMin + radioPaso(seq.get(best))) {
+        } else if (ultLlegando == best && ultProxima != proxIdx && bd > radioCerca(seq.get(best)) + COBERTURA_EXTRA_M) {
             ultProxima = proxIdx;
-            // Próxima estación + correspondencias de esa estación (líneas con las que conecta).
-            String voz = getString(R.string.voz_proxima, nom(prox));
-            String tb = transbordoTexto(prox);
-            if (tb != null) voz += tb;
-            sonarYHablar(voz, prox.linea);
+            // Te acercas a la estación de BAJADA si la parada siguiente a "prox" es un transbordo.
+            boolean prepararse = proxIdx + 1 <= last && seq.get(proxIdx + 1).transbordo;
+            sonarYHablar(vozProxima(prox, prepararse), prox.linea);   // "Próxima estación X" (+ correspondencia / prep)
         } else if (bd <= radioCerca(seq.get(best)) && ultLlegando != best) {
             ultLlegando = best;
             ultProxima = -99;
-            // Si la próxima parada es el transbordo del usuario, avísale que se prepare (con sus
-            // correspondencias); si no, el aviso normal de llegada (con transbordo/terminal/consejo).
-            if (prox.transbordo) {
-                String voz = avisoCorrespondencia(prox);
-                if (voz == null) {   // sin correspondencia detectada: aviso genérico
-                    voz = getString(R.string.voz_transbordo_prep);
-                    String tb = transbordoTexto(prox);
-                    if (tb != null) voz += tb;
-                }
-                sonarYHablar(voz, prox.linea);
-            } else {
-                sonarYHablar(avisoLlegada(seq, best), seq.get(best).linea);
-            }
+            sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);   // "Llegando a X" (+ correspondencia / terminal / consejo)
         }
         // voz de afectación (una vez, si aparece durante el recorrido), con voz Mia.
         if (Manifestaciones.hay() && !afectacionAvisada) {
@@ -417,14 +536,174 @@ public class RecorridoService extends Service {
         }
     }
 
-    /** Nombre para HABLAR: sin el prefijo interno "MXB " (limpio, sin número de línea). */
+    /** Nombre para HABLAR: sin el prefijo interno "MXB " ni el paréntesis de conexión
+     *  ("Pantitlán (conexión Metrobús L4)" → "Pantitlán"). */
     private static String nom(Planificador.Parada p) {
-        return p != null ? Planificador.sinMxb(p.nombre) : null;
+        if (p == null) return null;
+        String s = Planificador.sinMxb(p.nombre);
+        int par = s.indexOf('(');
+        return par >= 0 ? s.substring(0, par).trim() : s;
     }
 
     /** Nombre para MOSTRAR (notificación): sin MXB y con nº de línea si el nombre se repite. */
     private String vis(Planificador.Parada p) {
         return p != null ? Planificador.nombreMostrar(this, p.nombre, p.linea) : null;
+    }
+
+    /** Aviso de PRÓXIMA estación. Si tiene correspondencia (líneas cercanas) la nombra; y si el usuario
+     *  transbordará ahí, añade la preparación ("atención… favor de irte preparando"). */
+    private String vozProxima(Planificador.Parada prox, boolean prepararse) {
+        if (esTerminal(prox)) return vozTerminal(prox, false);   // terminal de línea
+        String tf = transferenciaTexto(prox.linea, basesCorresp(prox));
+        StringBuilder v = tf.isEmpty()
+                ? new StringBuilder(getString(R.string.voz_proxima, nom(prox)))
+                : new StringBuilder(getString(R.string.voz_prox_base, nom(prox))).append(tf);
+        // "Favor de irte preparando" cuando te ACERCAS a la estación donde bajarás a hacer la
+        // correspondencia (no cuando ya llegaste al andén de la otra línea).
+        if (prepararse) v.append(". ").append(getString(R.string.voz_transbordo_prep));
+        return v.toString();
+    }
+
+    /** Aviso de LLEGADA a la estación best. Terminal → mensaje de terminal; con correspondencia → nombra
+     *  las líneas con su palabra (transbordo/correspondencia/conexión); si no, aviso simple + consejo. */
+    private String vozLlegada(List<Planificador.Parada> seq, int best) {
+        Planificador.Parada p = seq.get(best);
+        if (esTerminal(p)) return vozTerminal(p, true);
+        String tf = transferenciaTexto(p.linea, basesCorresp(p));
+        if (tf.isEmpty()) {
+            StringBuilder v = new StringBuilder(getString(R.string.voz_llegando_est, nom(p)));
+            String tip = tipAleatorio(p.linea);
+            if (tip != null) v.append(". ").append(tip);
+            return v.toString();
+        }
+        return getString(R.string.voz_lleg_base, nom(p)) + tf;
+    }
+
+    /**
+     * Aviso de estación TERMINAL de línea (llegada o próxima). Ej.:
+     *  · Metrobús L1 Indios Verdes: "…estación terminal, Indios Verdes, transbordo con Línea 7.
+     *    Conexión con Meksibús Línea 4 y Meksicable Línea 2".
+     *  · Mexibús L4 La Raza: "…estación terminal, La Raza, conexión con Metrobús Líneas 1 y 3".
+     */
+    private String vozTerminal(Planificador.Parada p, boolean llegada) {
+        StringBuilder v = new StringBuilder(getString(
+                llegada ? R.string.voz_term_lleg : R.string.voz_term_prox, nom(p)));
+        return v.append(transferenciaTexto(p.linea, basesCorresp(p))).toString();
+    }
+
+    /** Bases de correspondencia de la parada, respetando la visibilidad de la capa Mexibús/Mexicable. */
+    private java.util.TreeSet<Integer> basesCorresp(Planificador.Parada p) {
+        java.util.TreeSet<Integer> bases = lineasEnEstacion(p);
+        correspManuales(p, bases);   // enlaces que no tienen estación física del otro sistema en los datos
+        if (!Modos.mostrarMexibus(this)) {   // capa Mexibús/Mexicable apagada: no anunciar esos sistemas
+            java.util.Iterator<Integer> it = bases.iterator();
+            while (it.hasNext()) if (it.next() >= 100) it.remove();
+        }
+        return bases;
+    }
+
+    /** Correspondencias declaradas en el propio nombre de la estación (p. ej. Pantitlán / Calle 6 de
+     *  Mexibús L3 → "(conexión Metrobús L4)"): se leen del texto y se añaden a las bases. */
+    private void correspManuales(Planificador.Parada p, java.util.TreeSet<Integer> bases) {
+        String nn = Planificador.norm(p.nombre);
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("(metrobus|mexibus|mexicable)\\s+l\\s*([0-9]+)").matcher(nn);
+        while (m.find()) {
+            int off = m.group(1).equals("metrobus") ? 0 : (m.group(1).equals("mexibus") ? 100 : 200);
+            try { bases.add(off + Integer.parseInt(m.group(2))); } catch (NumberFormatException ignore) {}
+        }
+        bases.remove(baseLinea(p.linea));
+    }
+
+    /**
+     * Texto de transferencia de una estación: agrupa las líneas por PALABRA (transbordo Metrobús↔Metrobús,
+     * correspondencia Mexibús/Mexicable entre sí, conexión entre Metrobús y Edomex) y, dentro de cada palabra,
+     * por sistema, anteponiendo el nombre del sistema cuando difiere del que se viaja. Ej. desde Mexibús:
+     * ", conexión con Metrobús Líneas 1 y 3".
+     */
+    private String transferenciaTexto(int lineaActual, java.util.TreeSet<Integer> bases) {
+        bases.remove(baseLinea(lineaActual));
+        if (bases.isEmpty()) return "";
+        int[] orden = {R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia, R.string.voz_palabra_conexion};
+        java.util.Map<Integer, java.util.TreeSet<Integer>> porPalabra = new java.util.HashMap<>();
+        for (int r : orden) porPalabra.put(r, new java.util.TreeSet<>());
+        for (int n : bases) porPalabra.get(palabraTransferencia(lineaActual, n)).add(n);
+        StringBuilder v = new StringBuilder();
+        boolean primero = true;
+        for (int r : orden) {
+            java.util.TreeSet<Integer> g = porPalabra.get(r);
+            if (g.isEmpty()) continue;
+            String lista = listaLineas(lineaActual, g);
+            String palabra = getString(r);
+            if (primero) { v.append(getString(R.string.voz_tf_primera, palabra, lista)); primero = false; }
+            else { v.append(getString(R.string.voz_tf_sig, cap(palabra), lista)); }
+        }
+        return v.toString();
+    }
+
+    /** Lista de líneas agrupadas por sistema: "Líneas 1 y 3" (mismo sistema) o "Metrobús Líneas 1 y 3"
+     *  / "Meksibús Línea 4 y Meksicable Línea 2" (otro sistema, con su nombre). */
+    private String listaLineas(int lineaActual, java.util.TreeSet<Integer> bases) {
+        int sisAct = sistemaDe(lineaActual);
+        java.util.LinkedHashMap<Integer, java.util.List<String>> porSis = new java.util.LinkedHashMap<>();
+        for (int n : bases) porSis.computeIfAbsent(sistemaDe(n), k -> new java.util.ArrayList<>()).add(numLinea(n));
+        java.util.List<String> partes = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<Integer, java.util.List<String>> e : porSis.entrySet()) {
+            java.util.List<String> nums = e.getValue();
+            boolean varias = nums.size() > 1;
+            if (e.getKey() == sisAct) {
+                partes.add(getString(varias ? R.string.voz_lineas_num : R.string.voz_linea_num, unir(nums)));
+            } else {
+                String sis = getString(e.getKey() == 0 ? R.string.voz_sis_mb
+                        : e.getKey() == 1 ? R.string.voz_sis_mxb : R.string.voz_sis_mxc);
+                partes.add(getString(varias ? R.string.voz_sis_lineas : R.string.voz_sis_linea, sis, unir(nums)));
+            }
+        }
+        return unir(partes);
+    }
+
+    /** Número visible de una base de línea: Metrobús 1..7, Mexibús 10X→X, Mexicable 20X→X. */
+    private static String numLinea(int base) {
+        return String.valueOf(base >= 200 ? base - 200 : (base >= 100 ? base - 100 : base));
+    }
+
+    /** Capitaliza la primera letra (para iniciar frase tras un punto). */
+    private static String cap(String s) {
+        return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    /** Une una lista en "a", "a y b" o "a, b y c". */
+    private static String unir(java.util.List<String> ls) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ls.size(); i++) {
+            if (i == 0) sb.append(ls.get(i));
+            else if (i == ls.size() - 1) sb.append(" y ").append(ls.get(i));
+            else sb.append(", ").append(ls.get(i));
+        }
+        return sb.toString();
+    }
+
+    /** Lista de líneas de correspondencia (por cercanía) de la estación, en orden; null si ninguna. */
+    private String lineasCorrespLista(Planificador.Parada p) {
+        java.util.TreeSet<Integer> lineas = lineasEnEstacion(p);
+        lineas.remove(baseLinea(p.linea));
+        if (lineas.isEmpty()) return null;
+        java.util.List<String> ls = new java.util.ArrayList<>();
+        for (int n : lineas) ls.add(etiquetaLinea(n, p.nombre));
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ls.size(); i++) {
+            if (i == 0) sb.append(ls.get(i));
+            else if (i == ls.size() - 1) sb.append(" y ").append(ls.get(i));
+            else sb.append(", ").append(ls.get(i));
+        }
+        return sb.toString();
+    }
+
+    /** Primera línea (base) cercana, para decidir la palabra (correspondencia/transbordo/conexión). */
+    private int primeraLineaCercana(Planificador.Parada p) {
+        java.util.TreeSet<Integer> lineas = lineasEnEstacion(p);
+        lineas.remove(baseLinea(p.linea));
+        return lineas.isEmpty() ? p.linea : lineas.first();
     }
 
     /** Arma el aviso de llegada: "Llegando a estación: X" (+ correspondencia / terminal / consejo). */
@@ -512,20 +791,71 @@ public class RecorridoService extends Service {
         return n;
     }
 
+    private static int sistemaDe(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }   // 0 Metrobús, 1 Mexibús, 2 Mexicable
+
+    // Palabras a ignorar al extraer el NÚCLEO de un nombre de estación (prefijos de sistema, "conexión", etc.).
+    private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(
+            "mxb", "mxc", "mb", "conexion", "mexibus", "meksibus", "mexicable", "meksicable",
+            "metrobus", "linea", "y", "e"));
+
+    /** Núcleo del nombre: sin prefijos de sistema, "conexión", ni tokens de línea (l1, l4, l1a). */
+    private static String nucleo(String nombre) {
+        StringBuilder sb = new StringBuilder();
+        for (String w : Planificador.norm(nombre).split(" ")) {
+            if (w.isEmpty() || STOP_NUCLEO.contains(w) || w.matches("l[0-9]+a?")) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(w);
+        }
+        return sb.toString();
+    }
+
+    /** ¿Coinciden los núcleos de dos nombres (igual o uno contiene al otro)? */
+    private static boolean nucleoCoincide(String a, String b) {
+        String na = nucleo(a), nb = nucleo(b);
+        if (na.isEmpty() || nb.isEmpty()) return false;
+        return na.equals(nb) || na.contains(nb) || nb.contains(na);
+    }
+
+    /** Clave de servicio: une ordinario↔exprés de la misma línea (104↔124), pero NO los ramales. */
+    private static int claveServicio(int n) { return (n >= 121 && n <= 124) ? (100 + n % 10) : n; }
+
+    /** ¿Dos paradas son la MISMA estación física? Ordinario↔exprés de la misma línea, o mismo nombre
+     *  normalizado (correspondencia con el mismo nombre, p. ej. Puente de Fierro L2↔L4). */
+    private static boolean mismaEstacion(Planificador.Parada a, Planificador.Parada b) {
+        if (a == null || b == null) return false;
+        if (claveServicio(a.linea) == claveServicio(b.linea)) return true;
+        return Planificador.norm(Planificador.sinMxb(a.nombre))
+                .equals(Planificador.norm(Planificador.sinMxb(b.nombre)));
+    }
+
     /**
-     * Líneas con las que ESTA estación tiene correspondencia, POR CERCANÍA física (≤ CORRESP_VOZ_M),
-     * no por nombre: así se anuncian aunque el nombre difiera (p. ej. Santa Clara/Periférico/Indios
-     * Verdes ↔ Mexicable). Se excluyen los servicios de la MISMA línea base (ordinario/exprés no son
-     * transbordo entre sí) y las homónimas lejanas (que no están cerca) nunca se enlazan.
+     * Líneas con las que ESTA estación tiene correspondencia. Recorre TODAS las líneas (Metrobús +
+     * Mexibús + Mexicable). Las correspondencias se aferran a estaciones reales: DENTRO del mismo
+     * sistema (Metrobús↔Metrobús o Mexibús↔Mexibús) exige MISMO NOMBRE (así Puente de Fierro L2↔L4 sí,
+     * pero Casa de Morelos —única de L2— no inventa correspondencia con L4 a 500 m). ENTRE sistemas se
+     * enlaza por cercanía (≤ CORRESP_VOZ_M) aunque el nombre difiera (Santa Clara/Periférico ↔ Mexicable).
      */
     private java.util.TreeSet<Integer> lineasEnEstacion(Planificador.Parada p) {
         java.util.TreeSet<Integer> s = new java.util.TreeSet<>();
         if (p == null || p.pos == null) return s;
         int bp = baseLinea(p.linea);
+        int sisP = sistemaDe(p.linea);
         try {
-            for (Linea l : GtfsRepository.getLineas(this)) {
+            String pn = Planificador.norm(Planificador.sinMxb(p.nombre));
+            java.util.List<Linea> todas = new java.util.ArrayList<>(GtfsRepository.getLineas(this));
+            todas.addAll(GtfsRepository.getMexibus(this));
+            for (Linea l : todas) {
                 if (baseLinea(l.numero) == bp) continue;   // misma línea/servicio: no es transbordo
+                boolean mismoSistema = sistemaDe(l.numero) == sisP;
                 for (Estacion e : l.estaciones) {
+                    if (e.soloMapa) continue;
+                    // Mismo sistema: exige MISMO nombre. Entre sistemas (Mexibús↔Mexicable/Metrobús): exige que
+                    // el NÚCLEO del nombre coincida (Santa Clara↔Santa Clara, Periférico↔Periférico), NO solo
+                    // cercanía — así Cerro Gordo ya no inventa correspondencia con un Mexicable a 500 m.
+                    boolean nombreOk = mismoSistema
+                            ? Planificador.norm(Planificador.sinMxb(e.nombre)).equals(pn)
+                            : nucleoCoincide(p.nombre, e.nombre);
+                    if (!nombreOk) continue;
                     double d = haversine(p.pos.latitude, p.pos.longitude,
                             e.posicion.latitude, e.posicion.longitude);
                     if (d <= CORRESP_VOZ_M) { s.add(baseLinea(l.numero)); break; }
@@ -535,13 +865,9 @@ public class RecorridoService extends Service {
         return s;
     }
 
-    /** ¿La parada es terminal de su línea? */
+    /** ¿La parada es terminal de su línea? (incluye terminales por servicio de L4/L7). */
     private boolean esTerminal(Planificador.Parada p) {
-        String[] t = Planificador.terminales(p.linea);
-        if (t == null) return false;
-        String nn = Planificador.norm(p.nombre);
-        return (t[0] != null && Planificador.norm(t[0]).equals(nn))
-                || (t[1] != null && Planificador.norm(t[1]).equals(nn));
+        return Planificador.esTerminalDe(p.linea, p.nombre);
     }
 
     /** Consejo de seguridad aleatorio (o null, para que no salga siempre). */

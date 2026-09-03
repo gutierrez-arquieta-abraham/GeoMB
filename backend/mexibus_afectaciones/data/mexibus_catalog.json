@@ -1,0 +1,1061 @@
+{
+  "generado_de": "mexibus.json",
+  "lineas": [
+    {
+      "numero": 101,
+      "etiqueta": "1",
+      "nombre": "Mexibús L1",
+      "sistema": "troncal",
+      "estaciones": [
+        {
+          "nombre": "Ciudad Azteca",
+          "norm": "ciudad azteca"
+        },
+        {
+          "nombre": "Quinto Sol",
+          "norm": "quinto sol"
+        },
+        {
+          "nombre": "Josefa Ortíz",
+          "norm": "josefa ortiz"
+        },
+        {
+          "nombre": "Industrial",
+          "norm": "industrial"
+        },
+        {
+          "nombre": "UNITEC",
+          "norm": "unitec"
+        },
+        {
+          "nombre": "Alfredo Torres",
+          "norm": "alfredo torres"
+        },
+        {
+          "nombre": "Zodiaco",
+          "norm": "zodiaco"
+        },
+        {
+          "nombre": "Adolfo López Mateos",
+          "norm": "adolfo lopez mateos"
+        },
+        {
+          "nombre": "Vocacional 3",
+          "norm": "vocacional 3"
+        },
+        {
+          "nombre": "Valle de Ecatepec",
+          "norm": "valle de ecatepec"
+        },
+        {
+          "nombre": "Las Américas",
+          "norm": "las americas"
+        },
+        {
+          "nombre": "1° de Mayo",
+          "norm": "1 de mayo"
+        },
+        {
+          "nombre": "Hospital",
+          "norm": "hospital"
+        },
+        {
+          "nombre": "Aquiles Serdán",
+          "norm": "aquiles serdan"
+        },
+        {
+          "nombre": "Jardines de Morelos",
+          "norm": "jardines de morelos"
+        },
+        {
+          "nombre": "Palomas",
+          "norm": "palomas"
+        },
+        {
+          "nombre": "19 de Septiembre",
+          "norm": "19 de septiembre"
+        },
+        {
+          "nombre": "Central de Abastos",
+          "norm": "central de abastos"
+        },
+        {
+          "nombre": "Insurgentes",
+          "norm": "insurgentes"
+        },
+        {
+          "nombre": "Hidalgo",
+          "norm": "hidalgo"
+        },
+        {
+          "nombre": "Cuauhtémoc Sur",
+          "norm": "cuauhtemoc sur"
+        },
+        {
+          "nombre": "Cuahutémoc Norte",
+          "norm": "cuahutemoc norte"
+        },
+        {
+          "nombre": "Esmeralda",
+          "norm": "esmeralda"
+        },
+        {
+          "nombre": "Ojo de Agua",
+          "norm": "ojo de agua"
+        }
+      ]
+    },
+    {
+      "numero": 102,
+      "etiqueta": "2",
+      "nombre": "Mexibús L2",
+      "sistema": "troncal",
+      "estaciones": [
+        {
+          "nombre": "Las Américas",
+          "norm": "las americas"
+        },
+        {
+          "nombre": "1o de Mayo",
+          "norm": "1o de mayo"
+        },
+        {
+          "nombre": "San Martín",
+          "norm": "san martin"
+        },
+        {
+          "nombre": "Puente de Fierro",
+          "norm": "puente de fierro"
+        },
+        {
+          "nombre": "Casa de Morelos",
+          "norm": "casa de morelos"
+        },
+        {
+          "nombre": "UPE",
+          "norm": "upe"
+        },
+        {
+          "nombre": "San Cristóbal",
+          "norm": "san cristobal"
+        },
+        {
+          "nombre": "Agricultura",
+          "norm": "agricultura"
+        },
+        {
+          "nombre": "ISSEMYM",
+          "norm": "issemym"
+        },
+        {
+          "nombre": "El Carmen",
+          "norm": "el carmen"
+        },
+        {
+          "nombre": "Ecatepec",
+          "norm": "ecatepec"
+        },
+        {
+          "nombre": "DIF",
+          "norm": "dif"
+        },
+        {
+          "nombre": "Guadalupe Victoria",
+          "norm": "guadalupe victoria"
+        },
+        {
+          "nombre": "Venustiano Carranza",
+          "norm": "venustiano carranza"
+        },
+        {
+          "nombre": "FOVISSTE",
+          "norm": "fovisste"
+        },
+        {
+          "nombre": "San Carlos",
+          "norm": "san carlos"
+        },
+        {
+          "nombre": "La Laguna",
+          "norm": "la laguna"
+        },
+        {
+          "nombre": "Parque Residencial",
+          "norm": "parque residencial"
+        },
+        {
+          "nombre": "Eje 8",
+          "norm": "eje 8"
+        },
+        {
+          "nombre": "1a de Villa",
+          "norm": "1a de villa"
+        },
+        {
+          "nombre": "Las Flores / Zacuautitla",
+          "norm": "las flores zacuautitla"
+        },
+        {
+          "nombre": "San Francisco",
+          "norm": "san francisco"
+        },
+        {
+          "nombre": "Héroes - Canosas",
+          "norm": "heroes canosas"
+        },
+        {
+          "nombre": "Coacalco Tultepec",
+          "norm": "coacalco tultepec"
+        },
+        {
+          "nombre": "Ex- Hacienda San Felipe",
+          "norm": "ex hacienda san felipe"
+        },
+        {
+          "nombre": "Bosques del Valle",
+          "norm": "bosques del valle"
+        },
+        {
+          "nombre": "Coacalco Berriozábal",
+          "norm": "coacalco berriozabal"
+        },
+        {
+          "nombre": "Santa María",
+          "norm": "santa maria"
+        },
+        {
+          "nombre": "Villas de San José",
+          "norm": "villas de san jose"
+        },
+        {
+          "nombre": "Mariscala Real del bosque",
+          "norm": "mariscala real del bosque"
+        },
+        {
+          "nombre": "Fuentes del Valle",
+          "norm": "fuentes del valle"
+        },
+        {
+          "nombre": "De la Cruz San Mateo",
+          "norm": "de la cruz san mateo"
+        },
+        {
+          "nombre": "Cartagena",
+          "norm": "cartagena"
+        },
+        {
+          "nombre": "Bello Horizonte",
+          "norm": "bello horizonte"
+        },
+        {
+          "nombre": "Bandera - Tultitlán",
+          "norm": "bandera tultitlan"
+        },
+        {
+          "nombre": "Buenavista",
+          "norm": "buenavista"
+        },
+        {
+          "nombre": "COCEM",
+          "norm": "cocem"
+        },
+        {
+          "nombre": "Recursos Hidráulicos",
+          "norm": "recursos hidraulicos"
+        },
+        {
+          "nombre": "Chilpan",
+          "norm": "chilpan"
+        },
+        {
+          "nombre": "Ciudad Labor",
+          "norm": "ciudad labor"
+        },
+        {
+          "nombre": "Vidreria",
+          "norm": "vidreria"
+        },
+        {
+          "nombre": "Lechería",
+          "norm": "lecheria"
+        },
+        {
+          "nombre": "La Quebrada",
+          "norm": "la quebrada"
+        }
+      ]
+    },
+    {
+      "numero": 103,
+      "etiqueta": "3",
+      "nombre": "Mexibús L3",
+      "sistema": "troncal",
+      "estaciones": [
+        {
+          "nombre": "Pantitlán (conexión Metrobús L4)",
+          "norm": "pantitlan conexion metrobus l4"
+        },
+        {
+          "nombre": "Calle 6 (conexión Metrobús L4)",
+          "norm": "calle 6 conexion metrobus l4"
+        },
+        {
+          "nombre": "El Barquito",
+          "norm": "el barquito"
+        },
+        {
+          "nombre": "Maravillas",
+          "norm": "maravillas"
+        },
+        {
+          "nombre": "Vicente Riva Palacio",
+          "norm": "vicente riva palacio"
+        },
+        {
+          "nombre": "Virgencitas",
+          "norm": "virgencitas"
+        },
+        {
+          "nombre": "Nezahualcóyotl",
+          "norm": "nezahualcoyotl"
+        },
+        {
+          "nombre": "Lago de Chapala",
+          "norm": "lago de chapala"
+        },
+        {
+          "nombre": "Adolfo López Mateos",
+          "norm": "adolfo lopez mateos"
+        },
+        {
+          "nombre": "Palacio Municipal",
+          "norm": "palacio municipal"
+        },
+        {
+          "nombre": "Sor Juana Inés de La Cruz",
+          "norm": "sor juana ines de la cruz"
+        },
+        {
+          "nombre": "El Castillito",
+          "norm": "el castillito"
+        },
+        {
+          "nombre": "General Vicente Villada",
+          "norm": "general vicente villada"
+        },
+        {
+          "nombre": "Rayito de Sol",
+          "norm": "rayito de sol"
+        },
+        {
+          "nombre": "Las Mañanitas",
+          "norm": "las mananitas"
+        },
+        {
+          "nombre": "Rancho Grande",
+          "norm": "rancho grande"
+        },
+        {
+          "nombre": "Bordo de Xochiaca",
+          "norm": "bordo de xochiaca"
+        },
+        {
+          "nombre": "Las Torres",
+          "norm": "las torres"
+        },
+        {
+          "nombre": "Guerrero Chimalli",
+          "norm": "guerrero chimalli"
+        },
+        {
+          "nombre": "Las Flores",
+          "norm": "las flores"
+        },
+        {
+          "nombre": "Canteros",
+          "norm": "canteros"
+        },
+        {
+          "nombre": "La Presa",
+          "norm": "la presa"
+        },
+        {
+          "nombre": "Embarcadero",
+          "norm": "embarcadero"
+        },
+        {
+          "nombre": "Santa Elena",
+          "norm": "santa elena"
+        },
+        {
+          "nombre": "Ignacio Manuel Altamirano",
+          "norm": "ignacio manuel altamirano"
+        },
+        {
+          "nombre": "San Pablo",
+          "norm": "san pablo"
+        },
+        {
+          "nombre": "Los patos",
+          "norm": "los patos"
+        },
+        {
+          "nombre": "Refugio",
+          "norm": "refugio"
+        },
+        {
+          "nombre": "Acuitlapilco",
+          "norm": "acuitlapilco"
+        },
+        {
+          "nombre": "Chimalhuacán",
+          "norm": "chimalhuacan"
+        }
+      ]
+    },
+    {
+      "numero": 104,
+      "etiqueta": "4",
+      "nombre": "Mexibús L4",
+      "sistema": "troncal",
+      "estaciones": [
+        {
+          "nombre": "La Raza",
+          "norm": "la raza"
+        },
+        {
+          "nombre": "Indios Verdes (conexión Metrobús L1 y L7)",
+          "norm": "indios verdes conexion metrobus l1 y l7"
+        },
+        {
+          "nombre": "Periférico",
+          "norm": "periferico"
+        },
+        {
+          "nombre": "Martín Carrera",
+          "norm": "martin carrera"
+        },
+        {
+          "nombre": "Clínica 76",
+          "norm": "clinica 76"
+        },
+        {
+          "nombre": "Vía Morelos",
+          "norm": "via morelos"
+        },
+        {
+          "nombre": "Monumento a Morelos",
+          "norm": "monumento a morelos"
+        },
+        {
+          "nombre": "5 de Febrero",
+          "norm": "5 de febrero"
+        },
+        {
+          "nombre": "Santa Clara",
+          "norm": "santa clara"
+        },
+        {
+          "nombre": "Cerro Gordo",
+          "norm": "cerro gordo"
+        },
+        {
+          "nombre": "Servicios Administrativos",
+          "norm": "servicios administrativos"
+        },
+        {
+          "nombre": "Clínica 63",
+          "norm": "clinica 63"
+        },
+        {
+          "nombre": "Industrial",
+          "norm": "industrial"
+        },
+        {
+          "nombre": "Quinta Aparición",
+          "norm": "quinta aparicion"
+        },
+        {
+          "nombre": "Tulpetlac",
+          "norm": "tulpetlac"
+        },
+        {
+          "nombre": "Siervo de la Nación",
+          "norm": "siervo de la nacion"
+        },
+        {
+          "nombre": "Nuevo Laredo",
+          "norm": "nuevo laredo"
+        },
+        {
+          "nombre": "Laureles",
+          "norm": "laureles"
+        },
+        {
+          "nombre": "La Viga",
+          "norm": "la viga"
+        },
+        {
+          "nombre": "San Cristóbal",
+          "norm": "san cristobal"
+        },
+        {
+          "nombre": "Puente de Fierro",
+          "norm": "puente de fierro"
+        },
+        {
+          "nombre": "Izcalli Palomas",
+          "norm": "izcalli palomas"
+        },
+        {
+          "nombre": "Central de Abastos",
+          "norm": "central de abastos"
+        },
+        {
+          "nombre": "Santo Tomás Chiconautla",
+          "norm": "santo tomas chiconautla"
+        },
+        {
+          "nombre": "Ejido Santo Tomás",
+          "norm": "ejido santo tomas"
+        },
+        {
+          "nombre": "Revolución",
+          "norm": "revolucion"
+        },
+        {
+          "nombre": "Margarito F. Ayala",
+          "norm": "margarito f ayala"
+        },
+        {
+          "nombre": "Flores",
+          "norm": "flores"
+        },
+        {
+          "nombre": "Bosques",
+          "norm": "bosques"
+        },
+        {
+          "nombre": "Universidad Mexiquense del Bicentenario",
+          "norm": "universidad mexiquense del bicentenario"
+        }
+      ]
+    },
+    {
+      "numero": 111,
+      "etiqueta": "1A",
+      "nombre": "Mexibús L1A",
+      "sistema": "ramal",
+      "estaciones": [
+        {
+          "nombre": "Ojo de Agua",
+          "norm": "ojo de agua"
+        },
+        {
+          "nombre": "Loma Bonita",
+          "norm": "loma bonita"
+        },
+        {
+          "nombre": "Ozumbilla",
+          "norm": "ozumbilla"
+        },
+        {
+          "nombre": "San Francisco",
+          "norm": "san francisco"
+        },
+        {
+          "nombre": "Quetzalcóatl",
+          "norm": "quetzalcoatl"
+        },
+        {
+          "nombre": "Tecámac",
+          "norm": "tecamac"
+        },
+        {
+          "nombre": "La Redonda",
+          "norm": "la redonda"
+        },
+        {
+          "nombre": "Glorieta Militar",
+          "norm": "glorieta militar"
+        },
+        {
+          "nombre": "Combustibles",
+          "norm": "combustibles"
+        },
+        {
+          "nombre": "Hacienda",
+          "norm": "hacienda"
+        },
+        {
+          "nombre": "Torre de Control",
+          "norm": "torre de control"
+        },
+        {
+          "nombre": "Terminal de Pasajeros",
+          "norm": "terminal de pasajeros"
+        }
+      ]
+    },
+    {
+      "numero": 112,
+      "etiqueta": "2A",
+      "nombre": "Mexibús L2A",
+      "sistema": "ramal",
+      "estaciones": [
+        {
+          "nombre": "Las Américas",
+          "norm": "las americas"
+        },
+        {
+          "nombre": "Veracruz",
+          "norm": "veracruz"
+        },
+        {
+          "nombre": "Matamoros",
+          "norm": "matamoros"
+        },
+        {
+          "nombre": "Jardines de Morelos",
+          "norm": "jardines de morelos"
+        },
+        {
+          "nombre": "Monumento a la Familia",
+          "norm": "monumento a la familia"
+        },
+        {
+          "nombre": "Río de los Remedios",
+          "norm": "rio de los remedios"
+        },
+        {
+          "nombre": "León de los Aldama",
+          "norm": "leon de los aldama"
+        },
+        {
+          "nombre": "Centro Cultural",
+          "norm": "centro cultural"
+        },
+        {
+          "nombre": "Paseo Ventura",
+          "norm": "paseo ventura"
+        },
+        {
+          "nombre": "Libertadores de América",
+          "norm": "libertadores de america"
+        }
+      ]
+    },
+    {
+      "numero": 113,
+      "etiqueta": "3A",
+      "nombre": "Mexibús L3A",
+      "sistema": "ramal",
+      "estaciones": [
+        {
+          "nombre": "Acuitlapilco",
+          "norm": "acuitlapilco"
+        },
+        {
+          "nombre": "San Miguel",
+          "norm": "san miguel"
+        },
+        {
+          "nombre": "Arca de Noé",
+          "norm": "arca de noe"
+        },
+        {
+          "nombre": "Tláloc",
+          "norm": "tlaloc"
+        },
+        {
+          "nombre": "Las Fuentes",
+          "norm": "las fuentes"
+        },
+        {
+          "nombre": "Sta. María Nativitas",
+          "norm": "sta maria nativitas"
+        },
+        {
+          "nombre": "Lagunilla",
+          "norm": "lagunilla"
+        },
+        {
+          "nombre": "Chicoloapan",
+          "norm": "chicoloapan"
+        },
+        {
+          "nombre": "Central de Abastos Chicoloapan",
+          "norm": "central de abastos chicoloapan"
+        },
+        {
+          "nombre": "Benito Juárez",
+          "norm": "benito juarez"
+        },
+        {
+          "nombre": "Recinto Ferial",
+          "norm": "recinto ferial"
+        },
+        {
+          "nombre": "Camino Viejo",
+          "norm": "camino viejo"
+        },
+        {
+          "nombre": "Tequesquite",
+          "norm": "tequesquite"
+        },
+        {
+          "nombre": "Cuauhtémoc",
+          "norm": "cuauhtemoc"
+        },
+        {
+          "nombre": "Cd. Alegre",
+          "norm": "cd alegre"
+        },
+        {
+          "nombre": "Prol. Peñón",
+          "norm": "prol penon"
+        }
+      ]
+    },
+    {
+      "numero": 121,
+      "etiqueta": "1",
+      "nombre": "Mexibús L1 Exprés",
+      "sistema": "expres",
+      "estaciones": [
+        {
+          "nombre": "Ciudad Azteca",
+          "norm": "ciudad azteca"
+        },
+        {
+          "nombre": "UNITEC",
+          "norm": "unitec"
+        },
+        {
+          "nombre": "Vocacional 3",
+          "norm": "vocacional 3"
+        },
+        {
+          "nombre": "1° de Mayo",
+          "norm": "1 de mayo"
+        },
+        {
+          "nombre": "Hospital",
+          "norm": "hospital"
+        },
+        {
+          "nombre": "Jardines de Morelos",
+          "norm": "jardines de morelos"
+        },
+        {
+          "nombre": "Central de Abastos",
+          "norm": "central de abastos"
+        },
+        {
+          "nombre": "Cuahutémoc Norte",
+          "norm": "cuahutemoc norte"
+        },
+        {
+          "nombre": "Ojo de Agua",
+          "norm": "ojo de agua"
+        }
+      ]
+    },
+    {
+      "numero": 122,
+      "etiqueta": "2",
+      "nombre": "Mexibús L2 Exprés",
+      "sistema": "expres",
+      "estaciones": [
+        {
+          "nombre": "Ecatepec",
+          "norm": "ecatepec"
+        },
+        {
+          "nombre": "DIF",
+          "norm": "dif"
+        },
+        {
+          "nombre": "Guadalupe Victoria",
+          "norm": "guadalupe victoria"
+        },
+        {
+          "nombre": "FOVISSTE",
+          "norm": "fovisste"
+        },
+        {
+          "nombre": "La Laguna",
+          "norm": "la laguna"
+        },
+        {
+          "nombre": "Parque Residencial",
+          "norm": "parque residencial"
+        },
+        {
+          "nombre": "Eje 8",
+          "norm": "eje 8"
+        },
+        {
+          "nombre": "1a de Villa",
+          "norm": "1a de villa"
+        },
+        {
+          "nombre": "Las Flores / Zacuautitla",
+          "norm": "las flores zacuautitla"
+        },
+        {
+          "nombre": "San Francisco",
+          "norm": "san francisco"
+        },
+        {
+          "nombre": "Héroes - Canosas",
+          "norm": "heroes canosas"
+        },
+        {
+          "nombre": "Coacalco Tultepec",
+          "norm": "coacalco tultepec"
+        },
+        {
+          "nombre": "Bosques del Valle",
+          "norm": "bosques del valle"
+        },
+        {
+          "nombre": "Coacalco Berriozábal",
+          "norm": "coacalco berriozabal"
+        },
+        {
+          "nombre": "Villas de San José",
+          "norm": "villas de san jose"
+        },
+        {
+          "nombre": "Mariscala Real del bosque",
+          "norm": "mariscala real del bosque"
+        },
+        {
+          "nombre": "Fuentes del Valle",
+          "norm": "fuentes del valle"
+        },
+        {
+          "nombre": "Cartagena",
+          "norm": "cartagena"
+        },
+        {
+          "nombre": "Bandera - Tultitlán",
+          "norm": "bandera tultitlan"
+        },
+        {
+          "nombre": "Chilpan",
+          "norm": "chilpan"
+        },
+        {
+          "nombre": "Lechería Express",
+          "norm": "lecheria express"
+        }
+      ]
+    },
+    {
+      "numero": 123,
+      "etiqueta": "3",
+      "nombre": "Mexibús L3 Exprés",
+      "sistema": "expres",
+      "estaciones": [
+        {
+          "nombre": "Pantitlán (conexión Metrobús L4)",
+          "norm": "pantitlan conexion metrobus l4"
+        },
+        {
+          "nombre": "Calle 6 (conexión Metrobús L4)",
+          "norm": "calle 6 conexion metrobus l4"
+        },
+        {
+          "nombre": "El Barquito",
+          "norm": "el barquito"
+        },
+        {
+          "nombre": "Vicente Riva Palacio",
+          "norm": "vicente riva palacio"
+        },
+        {
+          "nombre": "Nezahualcóyotl",
+          "norm": "nezahualcoyotl"
+        },
+        {
+          "nombre": "Adolfo López Mateos",
+          "norm": "adolfo lopez mateos"
+        },
+        {
+          "nombre": "Palacio Municipal",
+          "norm": "palacio municipal"
+        },
+        {
+          "nombre": "General Vicente Villada",
+          "norm": "general vicente villada"
+        },
+        {
+          "nombre": "Rayito de Sol",
+          "norm": "rayito de sol"
+        },
+        {
+          "nombre": "Las Torres",
+          "norm": "las torres"
+        },
+        {
+          "nombre": "Las Flores",
+          "norm": "las flores"
+        },
+        {
+          "nombre": "La Presa",
+          "norm": "la presa"
+        },
+        {
+          "nombre": "Santa Elena",
+          "norm": "santa elena"
+        },
+        {
+          "nombre": "Los patos",
+          "norm": "los patos"
+        },
+        {
+          "nombre": "Acuitlapilco",
+          "norm": "acuitlapilco"
+        },
+        {
+          "nombre": "Chimalhuacán",
+          "norm": "chimalhuacan"
+        }
+      ]
+    },
+    {
+      "numero": 124,
+      "etiqueta": "4",
+      "nombre": "Mexibús L4 Exprés",
+      "sistema": "expres",
+      "estaciones": [
+        {
+          "nombre": "La Raza",
+          "norm": "la raza"
+        },
+        {
+          "nombre": "Indios Verdes (conexión Metrobús L1 y L7)",
+          "norm": "indios verdes conexion metrobus l1 y l7"
+        },
+        {
+          "nombre": "Periférico",
+          "norm": "periferico"
+        },
+        {
+          "nombre": "Clínica 76",
+          "norm": "clinica 76"
+        },
+        {
+          "nombre": "Santa Clara",
+          "norm": "santa clara"
+        },
+        {
+          "nombre": "Clínica 63",
+          "norm": "clinica 63"
+        },
+        {
+          "nombre": "Tulpetlac",
+          "norm": "tulpetlac"
+        },
+        {
+          "nombre": "Nuevo Laredo",
+          "norm": "nuevo laredo"
+        },
+        {
+          "nombre": "Puente de Fierro",
+          "norm": "puente de fierro"
+        },
+        {
+          "nombre": "Central de Abastos",
+          "norm": "central de abastos"
+        },
+        {
+          "nombre": "Revolución",
+          "norm": "revolucion"
+        },
+        {
+          "nombre": "Flores",
+          "norm": "flores"
+        },
+        {
+          "nombre": "Universidad Mexiquense del Bicentenario",
+          "norm": "universidad mexiquense del bicentenario"
+        }
+      ]
+    },
+    {
+      "numero": 201,
+      "etiqueta": "1",
+      "nombre": "Mexicable L1",
+      "sistema": "mexicable",
+      "estaciones": [
+        {
+          "nombre": "Santa Clara (conexión Mexibús L4)",
+          "norm": "santa clara conexion mexibus l4"
+        },
+        {
+          "nombre": "MXC Hank González",
+          "norm": "mxc hank gonzalez"
+        },
+        {
+          "nombre": "MXC Fátima",
+          "norm": "mxc fatima"
+        },
+        {
+          "nombre": "MXC Tablas del Pozo",
+          "norm": "mxc tablas del pozo"
+        },
+        {
+          "nombre": "MXC Los Bordos",
+          "norm": "mxc los bordos"
+        },
+        {
+          "nombre": "MXC Deportivo",
+          "norm": "mxc deportivo"
+        },
+        {
+          "nombre": "MXC La Cañada",
+          "norm": "mxc la canada"
+        }
+      ]
+    },
+    {
+      "numero": 202,
+      "etiqueta": "2",
+      "nombre": "Mexicable L2",
+      "sistema": "mexicable",
+      "estaciones": [
+        {
+          "nombre": "Indios Verdes (conexión Metrobús L1 y L7, Mexibús L4)",
+          "norm": "indios verdes conexion metrobus l1 y l7 mexibus l4"
+        },
+        {
+          "nombre": "MXC Tanque de Agua",
+          "norm": "mxc tanque de agua"
+        },
+        {
+          "nombre": "MXC Periférico",
+          "norm": "mxc periferico"
+        },
+        {
+          "nombre": "MXC San Isidro",
+          "norm": "mxc san isidro"
+        },
+        {
+          "nombre": "MXC Dr. Jorge Jiménez Cantú",
+          "norm": "mxc dr jorge jimenez cantu"
+        },
+        {
+          "nombre": "MXC La Mesa",
+          "norm": "mxc la mesa"
+        },
+        {
+          "nombre": "MXC Hank González II",
+          "norm": "mxc hank gonzalez ii"
+        }
+      ]
+    }
+  ]
+}
