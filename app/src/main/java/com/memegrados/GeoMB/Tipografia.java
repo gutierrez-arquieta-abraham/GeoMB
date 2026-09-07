@@ -137,6 +137,34 @@ public final class Tipografia {
         return bmp;
     }
 
+    /**
+     * Ícono PROPIO de la línea para notificaciones: Metrobús {@code linea_N}; Mexibús
+     * {@code mexibus_0N}/{@code mexibus_ant_0N} (troncal/ramal); Mexicable su logo. Respaldo:
+     * el badge de texto {@link #logoLinea}. Usado por MensajesService y ManifestacionesService.
+     */
+    public static Bitmap bitmapLineaLogo(Context c, int linea, int color) {
+        int id = 0;
+        if (linea < 100) {                       // Metrobús
+            id = idDrawable(c, "linea_" + linea);
+        } else if (linea < 200) {                // Mexibús
+            String suf = (linea >= 111 && linea <= 113) ? "0" + (linea - 110) + "a"
+                    : "0" + (linea % 100);
+            if (!Modos.iconosNuevos(c)) id = idDrawable(c, "mexibus_ant_" + suf);   // antiguo
+            if (id == 0) id = idDrawable(c, "mexibus_" + suf);                        // nuevo / respaldo
+        } else {                                 // Mexicable
+            id = Modos.iconosNuevos(c) ? R.drawable.logo_mexicable_nuevo : R.drawable.mexicable_01_0;
+        }
+        if (id != 0) {
+            Bitmap b = android.graphics.BitmapFactory.decodeResource(c.getResources(), id);
+            if (b != null) return b;
+        }
+        return logoLinea(c, color, linea < 100 ? String.valueOf(linea) : "");
+    }
+
+    private static int idDrawable(Context c, String nombre) {
+        return c.getResources().getIdentifier(nombre, "drawable", c.getPackageName());
+    }
+
     /** Etiqueta para excluir un TextView/subárbol (textos largos, descripciones). */
     public static final String TAG_LARGO = "largo";
 

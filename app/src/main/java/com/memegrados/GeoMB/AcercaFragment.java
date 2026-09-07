@@ -39,6 +39,7 @@ public class AcercaFragment extends Fragment {
     private SwitchMaterial swCachondo, swPbs;
     private View btnVerClaves;
     private final CheckBox[] chkLineas = new CheckBox[8];   // 1..7 (índice 0 sin usar)
+    private final java.util.LinkedHashMap<Integer, CheckBox> chkTodas = new java.util.LinkedHashMap<>();  // Metrobús + Mexibús
     private int taps = 0;
     private long ultimoTap = 0;
 
@@ -169,50 +170,63 @@ public class AcercaFragment extends Fragment {
         android.widget.Button maestro = view.findViewById(R.id.btn_lineas_maestro);
         if (cont == null) return;
         cont.removeAllViews();
-        float dp = getResources().getDisplayMetrics().density;
-        int pad = Math.round(8 * dp), ic = Math.round(28 * dp);
-        for (int n = 1; n <= 7; n++) {
-            final int linea = n;
-            CheckBox cb = new CheckBox(requireContext());
-            cb.setText(getString(R.string.linea_formato, n));
-            cb.setChecked(Modos.notifLinea(requireContext(), n));
-            cb.setCompoundDrawablePadding(pad);
-            Tipografia.aplicar(cb);   // tipografía MI (Tipo Metro)
-            // Casillas en fila (scroll horizontal): separación entre una y otra.
-            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.rightMargin = pad;
-            cb.setLayoutParams(lp);
-            // Icono de la línea: se resuelve por nombre ("linea_1".."linea_7") para NO romper el build
-            // si el drawable aún no existe; cuando lo agregues, aparece solo.
-            int idIcon = getResources().getIdentifier("linea_" + n, "drawable", requireContext().getPackageName());
-            if (idIcon != 0) {
-                android.graphics.drawable.Drawable d =
-                        androidx.core.content.ContextCompat.getDrawable(requireContext(), idIcon);
-                if (d != null) { d.setBounds(0, 0, ic, ic); cb.setCompoundDrawables(d, null, null, null); }
+        chkTodas.clear();
+        // Metrobús L1..L7
+        for (int n = 1; n <= 7; n++)
+            agregarChkLinea(cont, maestro, n, getString(R.string.linea_formato, n), "linea_" + n);
+        // Mexibús: troncales (101..104) y ramales (111..113), si la capa está activa.
+        if (Modos.mostrarMexibus(requireContext())) {
+            for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+                int c = l.numero;
+                if (!((c >= 101 && c <= 104) || (c >= 111 && c <= 113))) continue;
+                String dr = "mexibus_0" + (c >= 111 ? (c - 110) + "a" : String.valueOf(c - 100));
+                agregarChkLinea(cont, maestro, c, "MXB L" + Planificador.etiquetaLineaCortaPub(c), dr);
             }
-            cb.setOnCheckedChangeListener((b, v) -> {
-                Modos.setNotifLinea(requireContext(), linea, v);
-                actualizarBotonMaestro(maestro);
-            });
-            chkLineas[n] = cb;
-            cont.addView(cb);
         }
         if (maestro != null) {
             actualizarBotonMaestro(maestro);
             maestro.setOnClickListener(x -> {
-                boolean nuevo = !algunaLineaActiva();   // si todas apagadas -> encender; si hay alguna -> apagar
-                for (int n = 1; n <= 7; n++) {
-                    Modos.setNotifLinea(requireContext(), n, nuevo);
-                    if (chkLineas[n] != null) chkLineas[n].setChecked(nuevo);
+                boolean nuevo = !algunaLineaActiva();   // todas apagadas -> encender; alguna activa -> apagar
+                for (java.util.Map.Entry<Integer, CheckBox> e : chkTodas.entrySet()) {
+                    Modos.setNotifLinea(requireContext(), e.getKey(), nuevo);
+                    e.getValue().setChecked(nuevo);
                 }
                 actualizarBotonMaestro(maestro);
             });
         }
     }
 
+    /** Crea una casilla de notificación para una línea (Metrobús o Mexibús) con su ícono. */
+    private void agregarChkLinea(android.widget.LinearLayout cont, android.widget.Button maestro,
+                                 int codigo, String etiqueta, String drawableNombre) {
+        float dp = getResources().getDisplayMetrics().density;
+        int pad = Math.round(8 * dp), ic = Math.round(28 * dp);
+        CheckBox cb = new CheckBox(requireContext());
+        cb.setText(etiqueta);
+        cb.setChecked(Modos.notifLinea(requireContext(), codigo));
+        cb.setCompoundDrawablePadding(pad);
+        Tipografia.aplicar(cb);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = pad;
+        cb.setLayoutParams(lp);
+        int idIcon = getResources().getIdentifier(drawableNombre, "drawable", requireContext().getPackageName());
+        if (idIcon != 0) {
+            android.graphics.drawable.Drawable d =
+                    androidx.core.content.ContextCompat.getDrawable(requireContext(), idIcon);
+            if (d != null) { d.setBounds(0, 0, ic, ic); cb.setCompoundDrawables(d, null, null, null); }
+        }
+        cb.setOnCheckedChangeListener((b, v) -> {
+            Modos.setNotifLinea(requireContext(), codigo, v);
+            actualizarBotonMaestro(maestro);
+        });
+        if (codigo >= 1 && codigo <= 7) chkLineas[codigo] = cb;
+        chkTodas.put(codigo, cb);
+        cont.addView(cb);
+    }
+
     private boolean algunaLineaActiva() {
-        for (int n = 1; n <= 7; n++) if (Modos.notifLinea(requireContext(), n)) return true;
+        for (int c : chkTodas.keySet()) if (Modos.notifLinea(requireContext(), c)) return true;
         return false;
     }
 

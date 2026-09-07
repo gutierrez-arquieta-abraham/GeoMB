@@ -67,6 +67,26 @@ public final class AfectacionesMexibus {
     }
 
     /**
+     * Igual que {@link #bloqueoLinea} pero recibe los tramos de circuito ya parseados
+     * (List de pares [terminal, estación]) en vez de un JSONArray. Lo usa el respaldo LOCAL
+     * ({@link AfectMexibusFeed}) para bloquear el ruteo con la misma lógica que el panel del EC2.
+     */
+    static void bloqueoLineaLocal(Linea l, String estado, java.util.List<String[]> circ,
+                                  String lugar, Set<String> bloq) {
+        JSONArray arr = null;
+        if (circ != null && !circ.isEmpty()) {
+            arr = new JSONArray();
+            for (String[] par : circ) {
+                JSONArray p = new JSONArray();
+                p.put(par.length > 0 ? par[0] : "");
+                p.put(par.length > 1 ? par[1] : "");
+                arr.put(p);
+            }
+        }
+        bloqueoLinea(l, estado, arr, lugar, bloq);
+    }
+
+    /**
      * Calcula las estaciones a bloquear de una línea según el aviso:
      *  · con {@code circuito} (tramos "A-B") → habilita solo esos tramos y bloquea el resto;
      *  · "sin servicio" (sin circuito) → bloquea TODA la línea;

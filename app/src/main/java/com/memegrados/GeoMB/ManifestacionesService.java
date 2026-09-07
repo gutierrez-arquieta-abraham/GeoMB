@@ -617,9 +617,30 @@ public class ManifestacionesService extends Service {
      * (nueva afectación, cambio de afectación o restablecimiento). Elevadores + mantenimiento:
      * un resumen 2 veces al día (≈05:00 y ≈13:00). Requiere que el Estado del Servicio se haya leído.
      */
+    /** ¿El backend (EC2) sigue activo? Se considera vivo si escribió afectaciones_mexibus.json en los
+     *  últimos 4 min. Si no responde o el dato está viejo, el scraper local toma el relevo. */
+    private boolean ec2Activo() {
+        try {
+            String json = Backend.descargar(Config.PATH_AFECT_MXB);
+            long act = new org.json.JSONObject(json).optLong("actualizado", 0);
+            long ahora = System.currentTimeMillis() / 1000L;
+            return act > 0 && (ahora - act) <= 240;   // ≤ 4 min = EC2 vivo
+        } catch (Exception e) {
+            return false;   // no responde → EC2 inactivo → notifica el local
+        }
+    }
+
     private void notificar() {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm == null) return;
+        // RESPALDO: el scraper local solo NOTIFICA cuando el backend (EC2) está inactivo. Si el EC2
+        // sigue vivo (escribió afectaciones_mexibus.json en los últimos 4 min), él manda las
+        // notificaciones (Metrobús + Mexibús) y aquí NO se notifica para no duplicar. El panel se
+        // sigue alimentando aparte, así que no se pierde información.
+        if (ec2Activo()) return;
+        // EC2 caído: el respaldo local cubre TAMBIÉN Mexibús (mismo parser y feeds RSS que el EC2),
+        // notificando y alimentando el panel; en paralelo, abajo se procesa Metrobús.
+        AfectMexibusFeed.procesar(this);
         cargarNotifEstado();   // restaura qué se avisó ya (para no duplicar tras reiniciar el servicio)
 
         // Separa por categoría. Estado: se guardan TODAS las afectaciones (varias por línea) indexadas
@@ -733,7 +754,7 @@ public class ManifestacionesService extends Service {
                         Linea l = GtfsRepository.porNumero(this, lineaNum);
                         int color = l != null ? l.color : 0xFFD40D0D;
                         b.setColor(color);
-                        android.graphics.Bitmap logo = Tipografia.logoLinea(this, color, String.valueOf(lineaNum));
+                        android.graphics.Bitmap logo = Tipografia.bitmapLineaLogo(this, lineaNum, color);
                         if (logo != null) b.setLargeIcon(logo);
                     }
                     nm.notify(id, b.build());

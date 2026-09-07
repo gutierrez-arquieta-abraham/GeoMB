@@ -123,45 +123,11 @@ public class MensajesService extends FirebaseMessagingService {
             Linea l = GtfsRepository.porNumero(this, lineaNum);
             int color = l != null ? l.color : 0xFFD40D0D;
             b.setColor(color);
-            Bitmap logo = bmpLineaNotif(lineaNum, color);   // ícono PROPIO de la línea
+            Bitmap logo = Tipografia.bitmapLineaLogo(this, lineaNum, color);   // ícono PROPIO de la línea
             if (logo != null) b.setLargeIcon(logo);
         }
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null) nm.notify(id, b.build());
-    }
-
-    /** Ícono PROPIO de la línea para la notificación: Metrobús {@code linea_N}; Mexibús
-     *  {@code mexibus_0N}/{@code mexibus_ant_0N}; Mexicable su logo. Respaldo: badge de texto. */
-    private Bitmap bmpLineaNotif(int linea, int color) {
-        int id = 0;
-        if (linea < 100) {                       // Metrobús
-            id = drawableId("linea_" + linea);
-        } else if (linea < 200) {                // Mexibús (troncal/ramal/exprés → logo troncal)
-            String suf = sufijoMxb(linea);
-            if (suf != null) {
-                if (!Modos.iconosNuevos(this)) id = drawableId("mexibus_ant_" + suf);   // antiguo
-                if (id == 0) id = drawableId("mexibus_" + suf);                          // nuevo / respaldo
-            }
-        } else {                                 // Mexicable
-            id = Modos.iconosNuevos(this) ? R.drawable.logo_mexicable_nuevo : R.drawable.mexicable_01_0;
-        }
-        if (id != 0) {
-            Bitmap b = android.graphics.BitmapFactory.decodeResource(getResources(), id);
-            if (b != null) return b;
-        }
-        return Tipografia.logoLinea(this, color, linea < 100 ? String.valueOf(linea) : "");
-    }
-
-    private int drawableId(String nombre) {
-        return getResources().getIdentifier(nombre, "drawable", getPackageName());
-    }
-
-    /** Sufijo del logo Mexibús: troncal 101→"01", ramal 111→"01a", exprés 124→"04" (logo de su troncal). */
-    private String sufijoMxb(int n) {
-        if (n >= 121 && n <= 124) return "0" + (n - 120);
-        if (n >= 111 && n <= 113) return "0" + (n - 110) + "a";
-        if (n >= 101 && n <= 104) return "0" + (n - 100);
-        return null;
     }
 
     /** Etiqueta de línea para la notificación: "Línea N" (Metrobús), "Mexibús L2"/"Mexibús L2A", "Mexicable L1". */
