@@ -256,6 +256,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;
         boolean visibles = mostrarEstaciones && porZoom;
         for (Marker m : marcadoresEstacion) m.setVisible(visibles);
+        aplicarMexibus();   // el botón "estaciones" (y el zoom) también gobiernan la capa Mexibús
     }
 
     /** Alterna la vista 3D: inclina la cámara y activa edificios. */
@@ -312,6 +313,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         boolean hay = false;
         for (Linea l : GtfsRepository.getLineas(requireContext())) {
             for (LatLng p : l.ruta) { b.include(p); hay = true; }
+        }
+        // Si la capa Mexibús está activa, el botón "centrar" también abarca su red.
+        if (Modos.mostrarMexibus(requireContext())) {
+            for (Polyline p : mexibusLineas)
+                for (LatLng pt : p.getPoints()) { b.include(pt); hay = true; }
         }
         if (hay) mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(b.build(), 80));
         else mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(CDMX, ZOOM_INICIAL));
@@ -616,7 +622,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (mapa == null) return;
         boolean vis = Modos.mostrarMexibus(requireContext());
         boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;   // igual que el Metrobús
-        boolean mostrar = vis && porZoom;
+        boolean mostrar = vis && porZoom && mostrarEstaciones;                 // el botón "estaciones" del mapa también aplica a Mexibús
         for (Polyline p : mexibusLineas) p.setVisible(vis);                    // las líneas siempre (si el toggle está on)
         for (EstMapa em : mexibusEst) if (em.marker != null) {
             if (mostrar && !em.marker.isVisible()) em.marker.setIcon(iconoMexibus(em));  // refresca al reaparecer (modo actual)

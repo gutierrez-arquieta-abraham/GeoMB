@@ -92,11 +92,9 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             if (id != 0) v.ic.setImageResource(id);
             else v.ic.setImageDrawable(null);
 
-            GradientDrawable dot = new GradientDrawable();
-            dot.setShape(GradientDrawable.OVAL);
-            dot.setColor(it.color);
-            v.dot.setBackground(dot);
-            v.dot.setVisibility(View.VISIBLE);
+            // Acento vertical del color de la línea (sustituye al punto lateral).
+            v.barra.setBackgroundTintList(android.content.res.ColorStateList.valueOf(it.color));
+            v.dot.setVisibility(View.GONE);
         }
     }
 
@@ -116,13 +114,14 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
     static final class EstVH extends RecyclerView.ViewHolder {
         final ImageView ic;
         final TextView nombre, sub;
-        final View dot;
+        final View dot, barra;
         EstVH(@NonNull View v) {
             super(v);
             ic = v.findViewById(R.id.est_ic);
             nombre = v.findViewById(R.id.est_nombre);
             sub = v.findViewById(R.id.est_sub);
             dot = v.findViewById(R.id.est_correspondencia);
+            barra = v.findViewById(R.id.est_barra);
         }
     }
 }

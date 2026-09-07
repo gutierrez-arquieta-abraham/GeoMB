@@ -424,11 +424,11 @@ public class PlanificadorFragment extends Fragment {
         op.add(new Opcion(0, badgeLinea(colorLinea(base), et), getString(R.string.servicio_ordinario), () -> {
             pref.put(base, false);
             preguntarServicioPorLinea(origen, lineaO, destino, lineaD, bases, pref, idx + 1);
-        }));
+        }).col(colorLinea(base)));
         op.add(new Opcion(0, badgeLinea(colorLinea(exp), et), getString(R.string.servicio_express), () -> {
             pref.put(base, true);
             preguntarServicioPorLinea(origen, lineaO, destino, lineaD, bases, pref, idx + 1);
-        }));
+        }).col(colorLinea(exp)));
         mostrarCarta(getString(R.string.servicio_titulo_linea, "L" + et), op);
     }
 
@@ -505,7 +505,7 @@ public class PlanificadorFragment extends Fragment {
             Bitmap est = Iconos.pictograma(requireContext(), sel.icono, px);   // ícono de estación
             if (est == null) est = badgeLinea(colorLinea(sel.linea), Planificador.etiquetaLineaCortaPub(sel.linea));
             Bitmap linea = bmpLinea(sel.linea);   // drawable de línea (izquierda)
-            ops.add(new Opcion(0, est, linea, etiquetaEstacion(g), () -> fijar(campo, sel, cb)));
+            ops.add(new Opcion(0, est, linea, etiquetaEstacion(g), () -> fijar(campo, sel, cb)).col(colorLinea(sel.linea)));
         }
         mostrarCarta(getString(R.string.desamb_cual_estacion), ops);
     }
@@ -578,10 +578,12 @@ public class PlanificadorFragment extends Fragment {
      *  ícono opcional a la IZQUIERDA (drawable de línea) que se muestra antes del ícono principal. */
     private static final class Opcion {
         final int iconoRes; final Bitmap iconoBmp; final Bitmap iconoLinea; final String titulo; final Runnable accion;
+        int color = 0;   // acento del color de la línea (0 = sin color específico)
         Opcion(int res, Bitmap bmp, String t, Runnable a) { this(res, bmp, null, t, a); }
         Opcion(int res, Bitmap bmp, Bitmap lineaBmp, String t, Runnable a) {
             iconoRes = res; iconoBmp = bmp; iconoLinea = lineaBmp; titulo = t; accion = a;
         }
+        Opcion col(int c) { color = c; return this; }
     }
 
     /** Muestra una carta flotante HORIZONTAL: cada opción es una celda (logo arriba, título abajo). */
@@ -600,14 +602,41 @@ public class PlanificadorFragment extends Fragment {
         AlertDialog dlg = new AlertDialog.Builder(requireContext())
                 .setTitle(titulo).setView(scroll).setCancelable(true).create();
         android.util.TypedValue tv = new android.util.TypedValue();
-        requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true);
+        requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true);
+        int rojo = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.mb_red);
         for (Opcion o : ops) {
+            int acento = o.color != 0 ? o.color : rojo;   // acento del color de la línea (o rojo por defecto)
+
+            // Tarjeta contenedora con esquinas redondeadas, elevación y franja de acento arriba.
+            com.google.android.material.card.MaterialCardView card =
+                    new com.google.android.material.card.MaterialCardView(requireContext());
+            android.widget.LinearLayout.LayoutParams clp = new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+            clp.setMargins(Math.round(6 * d), Math.round(4 * d), Math.round(6 * d), Math.round(4 * d));
+            card.setLayoutParams(clp);
+            card.setRadius(16 * d);
+            card.setCardElevation(3 * d);
+            card.setStrokeWidth(0);
+            card.setClickable(true);
+            card.setFocusable(true);
+
+            android.widget.LinearLayout envoltura = new android.widget.LinearLayout(requireContext());
+            envoltura.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+            // Franja de acento superior (color de la línea).
+            android.view.View franja = new android.view.View(requireContext());
+            franja.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT, Math.round(5 * d)));
+            franja.setBackgroundColor(acento);
+            envoltura.addView(franja);
+
             android.widget.LinearLayout celda = new android.widget.LinearLayout(requireContext());
             celda.setOrientation(android.widget.LinearLayout.VERTICAL);
             celda.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-            int cp = Math.round(10 * d);
+            int cp = Math.round(12 * d);
             celda.setPadding(cp, cp, cp, cp);
-            if (tv.resourceId != 0) celda.setBackgroundResource(tv.resourceId);
+            celda.setMinimumWidth(Math.round(96 * d));
             int sz = Math.round(48 * d);
             android.widget.ImageView iv = new android.widget.ImageView(requireContext());
             iv.setLayoutParams(new android.widget.LinearLayout.LayoutParams(sz, sz));
@@ -638,8 +667,10 @@ public class PlanificadorFragment extends Fragment {
             t.setPadding(0, Math.round(6 * d), 0, 0);
             t.setTextSize(13f);
             celda.addView(t);   // el/los ícono(s) ya se agregaron arriba
-            celda.setOnClickListener(v -> { dlg.dismiss(); o.accion.run(); });
-            fila.addView(celda);
+            envoltura.addView(celda);
+            card.addView(envoltura);
+            card.setOnClickListener(v -> { dlg.dismiss(); o.accion.run(); });
+            fila.addView(card);
         }
         dlg.show();
     }
@@ -690,7 +721,7 @@ public class PlanificadorFragment extends Fragment {
         for (Planificador.Match m : ops) {
             String et = Planificador.etiquetaLineaCortaPub(m.linea);
             op.add(new Opcion(0, badgeLinea(colorLinea(m.linea), et),
-                    getString(R.string.desamb_linea_n, et), () -> fijar(campo, m, cb)));
+                    getString(R.string.desamb_linea_n, et), () -> fijar(campo, m, cb)).col(colorLinea(m.linea)));
         }
         mostrarCarta(getString(R.string.desamb_elige_linea), op);
     }
@@ -785,9 +816,13 @@ public class PlanificadorFragment extends Fragment {
 
         resResumen.setText(getString(R.string.ruta_resumen, r.paradas, r.transbordos, r.minutos));
         pintarPasos(r);
-        boolean afect = Manifestaciones.hay();
-        resAviso.setVisibility(afect ? View.VISIBLE : View.GONE);
-        if (afect) resAviso.setText(getString(R.string.ruta_alterna));
+        // Aviso combinado: afectaciones (si hay) + ventana de servicio de hoy y "podría no circular".
+        StringBuilder aviso = new StringBuilder();
+        if (Manifestaciones.hay()) aviso.append(getString(R.string.ruta_alterna));
+        String hor = infoHorario(r);
+        if (hor != null) { if (aviso.length() > 0) aviso.append("\n"); aviso.append(hor); }
+        resAviso.setVisibility(aviso.length() > 0 ? View.VISIBLE : View.GONE);
+        if (aviso.length() > 0) resAviso.setText(aviso.toString());
         panelResultado.setVisibility(View.VISIBLE);
 
         // deslizador de estaciones (arriba)
@@ -808,6 +843,44 @@ public class PlanificadorFragment extends Fragment {
         }
 
         encuadrar(limites);   // encuadra la ruta en el espacio visible (sin tapar con las tarjetas)
+    }
+
+    /** Info/aviso de horarios (Metrobús L1..L7): ventana de servicio de hoy por línea y aviso si a
+     *  esta hora alguna línea de la ruta ya no circula. Devuelve null si no hay datos aplicables. */
+    private String infoHorario(Planificador.Ruta r) {
+        java.util.LinkedHashSet<Integer> claves = new java.util.LinkedHashSet<>();
+        for (Planificador.Parada p : r.secuencia) {
+            int k = p.linea;
+            // Exprés Mexibús: usa su horario propio si existe (p. ej. L4=124); si no, hereda su base ordinaria.
+            if (k >= 121 && k <= 124 && !Horarios.tieneLinea(requireContext(), k)) k -= 20;
+            claves.add(k);
+        }
+        if (claves.isEmpty()) return null;
+        java.util.Calendar ahora = java.util.Calendar.getInstance();
+        StringBuilder info = new StringBuilder(), fuera = new StringBuilder();
+        for (int k : claves) {
+            String v = Horarios.ventanaHoy(requireContext(), k, ahora);
+            if (v == null) continue;   // sin horario conocido para esa línea
+            String etq = etiquetaHorario(k);
+            if (info.length() > 0) info.append(" · ");
+            info.append(etq).append(" ").append(v);
+            if (!Horarios.lineaCircula(requireContext(), k, ahora)) {
+                if (fuera.length() > 0) fuera.append(", ");
+                fuera.append(etq);
+            }
+        }
+        if (info.length() == 0) return null;
+        StringBuilder msg = new StringBuilder(getString(R.string.ruta_horario_hoy, info.toString()));
+        if (fuera.length() > 0) msg.append("\n").append(getString(R.string.ruta_fuera_horario, fuera.toString()));
+        return msg.toString();
+    }
+
+    /** Etiqueta corta de línea para el horario: "L1" (Metrobús), "MXB L1"/"MXB L1A", "MXC L1". */
+    private static String etiquetaHorario(int n) {
+        if (n < 100) return "L" + n;
+        if (n >= 121 && n <= 124) return "MXB L" + (n - 120) + " exprés";
+        if (n < 200) return "MXB L" + (n >= 111 && n <= 113 ? (n - 110) + "A" : String.valueOf(n - 100));
+        return "MXC L" + (n - 200);
     }
 
     /**

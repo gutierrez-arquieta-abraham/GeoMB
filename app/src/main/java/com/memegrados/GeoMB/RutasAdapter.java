@@ -88,9 +88,13 @@ public class RutasAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             RutaVH r = (RutaVH) holder;
             r.codigo.setText(String.valueOf(f.codigo));
             r.codigo.setBackgroundTintList(ColorStateList.valueOf(f.color));
+            r.accent.setBackgroundColor(f.color);   // barra de acento del color de la línea
             r.recorrido.setText(f.titulo);
             r.unidades.setText(r.itemView.getContext()
                     .getString(R.string.ruta_unidades_formato, f.unidades));
+            // Pill de conteo: relleno tenue del color de la línea, texto en el color de la línea.
+            r.unidades.setBackgroundTintList(ColorStateList.valueOf((f.color & 0x00FFFFFF) | 0x22000000));
+            r.unidades.setTextColor(f.color);
             Tipografia.aplicar(r.codigo, r.recorrido, r.unidades);
             r.itemView.setOnClickListener(v -> {
                 if (onRuta != null) onRuta.abrir(f.linea, f.codigo, f.titulo);
@@ -115,11 +119,13 @@ public class RutasAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
 
     static class RutaVH extends RecyclerView.ViewHolder {
         final TextView codigo, recorrido, unidades;
+        final View accent;
         RutaVH(@NonNull View v) {
             super(v);
             codigo = v.findViewById(R.id.txt_codigo);
             recorrido = v.findViewById(R.id.txt_recorrido);
             unidades = v.findViewById(R.id.txt_ruta_unidades);
+            accent = v.findViewById(R.id.ruta_accent);
         }
     }
 }

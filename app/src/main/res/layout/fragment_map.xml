@@ -93,7 +93,7 @@
         android:paddingHorizontal="12dp"
         android:paddingVertical="6dp"
         android:text="@string/unidades_en_servicio"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="@color/mb_red"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

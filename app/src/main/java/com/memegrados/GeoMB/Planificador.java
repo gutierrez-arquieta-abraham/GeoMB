@@ -874,10 +874,11 @@ public final class Planificador {
                 boolean mismoSis = sistemaLinea(sa.linea) == sistemaLinea(sb.linea);
                 boolean liga;
                 if (mismoSis) {
-                    // MISMO sistema (Metrobús, Mexibús o Mexicable): solo MISMO nombre o transbordo declarado.
-                    // Así L2↔L4 transbordan en Puente de Fierro (mismo nombre) y NO en San Cristóbal/Casa de
-                    // Morelos, que solo están cerca de la otra línea con distinto nombre.
-                    liga = sa.nn.equals(sb.nn) || corrManual(sa.linea, sa.nn, sb.linea, sb.nn);
+                    // MISMO sistema (Metrobús, Mexibús o Mexicable): MISMO nombre pero además CO-UBICADAS
+                    // (≤ RADIO_CORRESP). Puente de Fierro L2↔L4 está en el mismo punto → transbordo; pero
+                    // "San Cristóbal" existe en L2 y L4 a ~1.2 km con el mismo nombre → NO es correspondencia.
+                    liga = (sa.nn.equals(sb.nn) && dpar <= RADIO_CORRESP)
+                            || corrManual(sa.linea, sa.nn, sb.linea, sb.nn);
                 } else {
                     // Entre sistemas (Mexibús↔Mexicable/Metrobús): cercanía Y núcleo del nombre coincidente,
                     // para no inventar transbordos falsos (p. ej. Cerro Gordo ↔ Santa Clara Mexicable a 500 m).
@@ -1004,7 +1005,9 @@ public final class Planificador {
             // que se decide por si la línea previa/siguiente en el camino es la misma o cambia.
             int prevLin = (k > 0) ? stopDe(rutas, node.get(camino.get(k - 1))).linea : -1;
             int nextLin = (k + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(k + 1))).linea : -1;
-            LatLng pos = plataformaIndiosVerdes(s.linea, s.nombre, s.pos, prevLin, nextLin);
+            LatLng prevPos = (k > 0) ? stopDe(rutas, node.get(camino.get(k - 1))).pos : null;
+            LatLng nextPos = (k + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(k + 1))).pos : null;
+            LatLng pos = plataformaIndiosVerdes(s.linea, s.nombre, s.pos, prevLin, nextLin, prevPos, nextPos);
             secuencia.add(new Parada(s.nombre, s.linea, s.color, trans, pos, s.icono));
         }
 
@@ -1022,8 +1025,12 @@ public final class Planificador {
             // transbordo queda como el "caminito" entre el andén de descenso y el de ascenso siguiente).
             int prevLinSeg = (i > 0) ? stopDe(rutas, node.get(camino.get(i - 1))).linea : -1;
             int nextLinSeg = (j + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(j + 1))).linea : -1;
-            LatLng aPos = plataformaIndiosVerdes(a.linea, a.nombre, a.pos, prevLinSeg, a.linea);
-            LatLng bPos = plataformaIndiosVerdes(b.linea, b.nombre, b.pos, b.linea, nextLinSeg);
+            LatLng aPrev = (i > 0) ? stopDe(rutas, node.get(camino.get(i - 1))).pos : null;
+            LatLng aNext = (i + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(i + 1))).pos : null;
+            LatLng bPrev = (j > 0) ? stopDe(rutas, node.get(camino.get(j - 1))).pos : null;
+            LatLng bNext = (j + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(j + 1))).pos : null;
+            LatLng aPos = plataformaIndiosVerdes(a.linea, a.nombre, a.pos, prevLinSeg, a.linea, aPrev, aNext);
+            LatLng bPos = plataformaIndiosVerdes(b.linea, b.nombre, b.pos, b.linea, nextLinSeg, bPrev, bNext);
 
             List<LatLng> pts;
             // Estaciones del tramo en orden de viaje (respaldo si no hay geometría).
@@ -1120,18 +1127,85 @@ public final class Planificador {
     private static final LatLng IV_L4_LLEGA = new LatLng(19.493988000000000, -99.120012000000000); // L4 sur (dir La Raza)
     private static final LatLng IV_L4_SALE  = new LatLng(19.496370747877478, -99.119083404304850); // L4 norte (dir UMB)
 
+    // Zonas de COBERTURA (corredor A→B) de cada andén de Indios Verdes: el aviso de llegada/cambio se mide
+    // como distancia al SEGMENTO (no al punto), para cubrir toda la longitud del andén (radio ~2 m de ancho).
+    private static final LatLng[] Z_IV_L1_SALE  = {new LatLng(19.496947292303584, -99.119243569356030), new LatLng(19.495489581666096, -99.119647241356560)};
+    private static final LatLng[] Z_IV_L1_LLEGA = {new LatLng(19.493379070441666, -99.119904759918270), new LatLng(19.494207749627176, -99.119649928529500)};
+    private static final LatLng[] Z_IV_L4_LLEGA = {new LatLng(19.494419028286020, -99.119889171399010), new LatLng(19.493412590131070, -99.120054893133240)};
+    private static final LatLng[] Z_IV_L4_SALE  = {new LatLng(19.495363749243566, -99.119336074990000), new LatLng(19.496896376678077, -99.118979084763800)};
+
+    /** Corredor (segmento) del andén al que pertenece la parada, o null si no tiene zona de cobertura. */
+    private static LatLng[] corredorZona(Parada p) {
+        if (p == null || p.pos == null) return null;
+        if (p.pos.equals(IV_L1_SALE))  return Z_IV_L1_SALE;
+        if (p.pos.equals(IV_L1_LLEGA)) return Z_IV_L1_LLEGA;
+        if (p.pos.equals(IV_L4_LLEGA)) return Z_IV_L4_LLEGA;
+        if (p.pos.equals(IV_L4_SALE))  return Z_IV_L4_SALE;
+        return null;
+    }
+
+    /** ¿La parada tiene una ZONA de cobertura (corredor de andén, p. ej. Indios Verdes)? */
+    public static boolean tieneZona(Parada p) { return corredorZona(p) != null; }
+
+    // Estaciones de Mexibús L4 con andén largo (~100 m). Solo se tiene el punto CENTRAL, así que su zona de
+    // cobertura es CIRCULAR (radio mayor) en vez de corredor. La coincidencia es por cercanía al centro.
+    private static final LatLng[] ANDENES_LARGOS = {
+            new LatLng(19.603558838994957, -99.033337377486620),  // Puente de Fierro
+            new LatLng(19.591949711573108, -99.039179995606560),  // La Viga
+            new LatLng(19.582648985866513, -99.041683421323100),  // Laureles
+            new LatLng(19.576648789409800, -99.042500566278850),  // Nuevo Laredo
+            new LatLng(19.567934453237186, -99.044314244072450),  // Tulpetlac
+            new LatLng(19.562224709826860, -99.046812245993980),  // 5ta Aparición
+            new LatLng(19.557130059809854, -99.049387308172480),  // Industrial
+            new LatLng(19.551183746934417, -99.051961377306110),  // Clínica 93
+            new LatLng(19.546968629067063, -99.052960641578550),  // Servicios Administrativos
+            new LatLng(19.543509234315128, -99.055319506424750),  // Cerro Gordo
+            new LatLng(19.539169184410916, -99.058963243584430),  // Santa Clara L4
+            new LatLng(19.534895773843190, -99.065043423050550),  // 5 de Febrero
+            new LatLng(19.532745963096280, -99.071251378907790),  // Monumento a Morelos
+            new LatLng(19.530792149456463, -99.075455040827200),  // Vía Morelos
+            new LatLng(19.527056332415310, -99.082258897174240),  // Clínica 76
+            new LatLng(19.520976690807990, -99.092839154629400),  // Martín Carrera L4 / El Vigilante
+    };
+
+    /** ¿La parada es una estación de andén largo (~100 m, zona circular)? Coincide por cercanía al centro. */
+    public static boolean andenLargo(Parada p) {
+        if (p == null || p.pos == null) return false;
+        for (LatLng c : ANDENES_LARGOS) if (Linea.distancia(p.pos, c) <= 30.0) return true;
+        return false;
+    }
+
+    /** Distancia (m) del usuario a la ZONA de cobertura (corredor) de la parada; -1 si no tiene zona
+     *  (entonces se mide contra el punto). Cubre toda la longitud del andén de Indios Verdes. */
+    public static double distanciaZona(Parada p, double lat, double lon) {
+        LatLng[] seg = corredorZona(p);
+        if (seg == null) return -1;
+        LatLng u = new LatLng(lat, lon);
+        return Linea.distancia(proyecta(seg[0], seg[1], u), u);
+    }
+
     /** Punto de Indios Verdes ajustado a la plataforma según el ROL en la ruta: si BOARD (la línea previa
      *  en el camino es otra o es el inicio) usa el andén de ascenso; si ALIGHT usa el de descenso. */
-    private static LatLng plataformaIndiosVerdes(int linea, String nombre, LatLng pos, int prevLin, int nextLin) {
+    private static LatLng plataformaIndiosVerdes(int linea, String nombre, LatLng pos, int prevLin, int nextLin,
+                                                 LatLng prevPos, LatLng nextPos) {
         if (pos == null || !norm(sinMxb(nombre)).contains("indios verdes")) return pos;
         boolean l1 = linea == 1;                          // Metrobús L1
         boolean l4 = linea == 104 || linea == 124;        // Mexibús L4 (ordinario/exprés)
         if (!l1 && !l4) return pos;
-        boolean inicioSegmento = prevLin < 0 || baseLinea(prevLin) != baseLinea(linea);
-        boolean finSegmento    = nextLin < 0 || baseLinea(nextLin) != baseLinea(linea);
-        boolean sale = inicioSegmento && !finSegmento;    // abordas aquí y sigues en esta línea = ascenso
-        if (l1) return sale ? IV_L1_SALE : IV_L1_LLEGA;
-        return sale ? IV_L4_SALE : IV_L4_LLEGA;
+        if (l1) {
+            // Metrobús L1 TERMINA en Indios Verdes: si abordas aquí = ascenso (norte); si llegas = descenso (sur).
+            boolean inicioSegmento = prevLin < 0 || baseLinea(prevLin) != baseLinea(linea);
+            boolean finSegmento    = nextLin < 0 || baseLinea(nextLin) != baseLinea(linea);
+            boolean sale = inicioSegmento && !finSegmento;
+            return sale ? IV_L1_SALE : IV_L1_LLEGA;
+        }
+        // Mexibús L4: Indios Verdes es estación de PASO; la plataforma depende del SENTIDO de viaje
+        // (hacia el norte / UMB Tecámac = andén norte SALE; hacia el sur / La Raza = andén sur LLEGA).
+        boolean norte;
+        if (nextPos != null)      norte = nextPos.latitude > pos.latitude;   // el siguiente está al norte → vas al norte
+        else if (prevPos != null) norte = pos.latitude > prevPos.latitude;   // vienes del sur → vas al norte
+        else                      norte = false;
+        return norte ? IV_L4_SALE : IV_L4_LLEGA;
     }
 
     private static Map<String, LatLng> POS_EST;

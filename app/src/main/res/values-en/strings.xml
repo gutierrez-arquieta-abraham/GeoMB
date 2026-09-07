@@ -162,7 +162,7 @@
     <string name="voz_llegando">Arriving at %1$s</string>
     <string name="voz_proxima">Next station: %1$s</string>
     <string name="voz_transborda">You are arriving at %1$s. Get off and transfer to Line %2$s.</string>
-    <string name="voz_llegaste">You arrived at %1$s. End of trip.</string>
+    <string name="voz_llegaste">You arrived at %1$s, the last station of your trip.</string>
     <string name="voz_afectacion">Attention: there are service disruptions. Check your route.</string>
     <string name="voz_transbordo_prep">Attention: you are arriving at the station where you will transfer. Please get ready.</string>
     <string name="ruta_inicio">Start</string>
@@ -184,6 +184,8 @@
     <string name="voz_prox_transf_prep">Next station %1$s, %2$s with %3$s. Attention, you are about to make a %2$s, please get ready</string>
     <string name="voz_lleg_transf_hace">Arriving at %1$s, make your %2$s with %3$s</string>
     <string name="voz_lleg_transf_paso">Arriving at %1$s, %2$s with %3$s</string>
+    <string name="voz_baja_realiza">Get off and make your %1$s</string>
+    <string name="voz_ultima_est">Last station of your route</string>
     <string name="voz_term_lleg">Arriving at terminal station, %1$s</string>
     <string name="voz_term_prox">Next station, terminal, %1$s</string>
     <string name="voz_lleg_base">Arriving at station, %1$s</string>
@@ -205,6 +207,8 @@
     <string name="voz_tip_correr">Do not run in the station to board the vehicle</string>
     <string name="voz_tip_rosa">Remember that pink vehicles are reserved for women and children</string>
     <string name="ruta_alterna">⚠ Alternate route due to service disruptions</string>
+    <string name="ruta_horario_hoy">🕓 Service today — %1$s</string>
+    <string name="ruta_fuera_horario">⚠ May not be running at this time: %1$s</string>
     <string name="ruta_unidad_cerca">Your L%1$d unit toward %2$s is about to reach %3$s</string>
     <string name="planificador_titulo">Route planner \n(the drawn route is approximate)</string>
     <string name="planificador_origen">From (origin station)</string>
@@ -373,7 +377,7 @@
 
     <!-- About -->
     <string name="nav_acerca">About</string>
-    <string name="acerca_version">Version: 1.5 </string>
+    <string name="acerca_version">Version: %1$s</string>
     <string name="app_desc">GeoMB shows Mexico City Metrobús units in real time: live map, search by unit number, lines, routes by code and arrival alerts by station.\n\nThis is a project solely for the responsible use of transit enthusiasts and for those who need to catch a unit.</string>
     <string name="agradecimientos_titulo">Acknowledgements</string>
     <string name="agradecimientos_texto">Thanks to Mexico City Metrobús and to SONDA for the GTFS-Realtime system that makes the live information possible. And to the community of users who help by identifying the units, their companies and models.\n\nProject developed by Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCo-author: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nSpecial thanks:\n\n●Minami Aguilar. (Ideas to improve the map).\n●Manuel Lozano. (To whom I dedicate this project).\n●Augusto Neri. (Proposals for the Metrobús route system).\n●Dante Sifuentes. (Logo designer).\n●To all the operators I know who have supported me since before I was a known figure in the community.\n\nProject dedicated to everyone who has supported me since my beginnings in the public-transit enthusiast community, and dedicated to a figure who inspired me to keep going even when I didn\'t believe in myself, thank you, father.</string>

@@ -147,14 +147,18 @@ public class EstacionesLineaFragment extends Fragment {
         return l != null ? l.color : 0xFFFF9A03;
     }
 
-    /** Busca la estación (por nombre) dentro de una línea, para tomar su pictograma. */
+    /** Busca la estación (por nombre) dentro de una línea, para tomar su pictograma.
+     *  1º match EXACTO (normalizado): evita que "Misterios" tome el ícono de "De Los Misterios"
+     *  —o viceversa— por contención de nombres. Solo si no hay exacto se recurre a la contención. */
     private Estacion buscar(int lineaNum, String nombre) {
         Linea l = GtfsRepository.porNumero(requireContext(), lineaNum);
         if (l == null) return null;
         String q = Planificador.norm(nombre);
-        for (Estacion e : l.estaciones) {
+        for (Estacion e : l.estaciones)
+            if (Planificador.norm(e.nombre).equals(q)) return e;   // exacto primero
+        for (Estacion e : l.estaciones) {                          // respaldo: contención
             String nn = Planificador.norm(e.nombre);
-            if (nn.equals(q) || nn.contains(q) || q.contains(nn)) return e;
+            if (nn.contains(q) || q.contains(nn)) return e;
         }
         return null;
     }

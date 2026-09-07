@@ -156,7 +156,7 @@
     <string name="voz_llegando">Llegando a %1$s</string>
     <string name="voz_proxima">Próxima estación: %1$s</string>
     <string name="voz_transborda">Estás llegando a %1$s. Baja y haz tu correspondencia a la Línea %2$s.</string>
-    <string name="voz_llegaste">Llegaste a %1$s. Fin del recorrido.</string>
+    <string name="voz_llegaste">Llegaste a %1$s, última estación de tu recorrido.</string>
     <string name="voz_afectacion">Atención: hay afectaciones en el servicio. Verifica tu ruta.</string>
     <string name="voz_transbordo_prep">Atención: estás llegando a la estación donde vas a realizar tu correspondencia. Favor de irte preparando.</string>
     <string name="ruta_inicio">Inicio</string>
@@ -180,6 +180,9 @@
     <string name="voz_prox_transf_prep">Próxima estación %1$s, %2$s con %3$s. Atención, estás próximo a llegar a realizar una %2$s, favor de irte preparando</string>
     <string name="voz_lleg_transf_hace">Llegando a estación %1$s, realiza tu %2$s con %3$s</string>
     <string name="voz_lleg_transf_paso">Llegando a estación %1$s, %2$s con %3$s</string>
+    <!-- Al llegar a la estación donde bajas a transbordar (%1$s = transbordo/correspondencia/conexión). -->
+    <string name="voz_baja_realiza">Baja y realiza tu %1$s</string>
+    <string name="voz_ultima_est">Última estación de tu recorrido</string>
     <!-- Estación TERMINAL de línea: "estación terminal, X, transbordo con {Metrobús}. conexión con {Mexibús/Mexicable}".
          El bloque de conexión solo aparece si el usuario tiene habilitada la capa Mexibús/Mexicable. -->
     <string name="voz_term_lleg">Llegando a estación terminal, %1$s</string>
@@ -204,6 +207,8 @@
     <string name="voz_tip_correr">Evita correr en la estación para abordar la unidad</string>
     <string name="voz_tip_rosa">Recuerda que las unidades rosas son exclusivas para mujeres, niñas y niños</string>
     <string name="ruta_alterna">⚠ Ruta alterna por afectaciones en el servicio</string>
+    <string name="ruta_horario_hoy">🕓 Servicio hoy — %1$s</string>
+    <string name="ruta_fuera_horario">⚠ A esta hora podría no circular: %1$s</string>
     <string name="ruta_unidad_cerca">Tu unidad de L%1$d hacia %2$s está por llegar a %3$s</string>
     <string name="planificador_titulo">Planificador de ruta</string>
     <string name="planificador_origen">Desde (estación de origen)</string>
@@ -376,7 +381,7 @@
 
     <!-- Acerca -->
     <string name="nav_acerca">Acerca</string>
-    <string name="acerca_version">Versión: 1.5 </string>
+    <string name="acerca_version">Versión: %1$s</string>
     <string name="app_desc">GeoMB muestra las unidades del Metrobús de la Ciudad de México en tiempo real: mapa en vivo, búsqueda por número económico, líneas, rutas por código y avisos de llegada por estación.\n\nEste es un proyecto unicamente para el uso responsable de las personas aficionadas y para aquellos que necesiten llegar a ocuparla.</string>
     <string name="agradecimientos_titulo">Agradecimientos</string>
     <string name="agradecimientos_texto">Gracias al Metrobús de la Ciudad de México y a SONDA por el sistema GTFS-Realtime que hace posible la información en vivo. Y a la comunidad de usuarios que colabora identificando las unidades, sus empresas y modelos.\n\nProyecto desarrollado por Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCoautor: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nAgradecimientos especiales:\n\n●Minami Aguilar. (Ideas de mejora para el mapa).\n●Manuel Lozano. (A quien dedico este proyecto).\n●Augusto Neri. (Propuestas en el sistema de rutas de metrobús).\n●Dante Sifuentes. (Diseñador del logo).\n●Equipo Movidram. (Por los logos de las estaciones de Metrobús y Mexibús).\n●Toda la banda de operadores que conozco y que me han apoyado desde antes de ser una figura presente en la comunidad.\n\nProyecto dedicado a todos los que me han apoyado desde mis inicios dentro de la comunidad aficionada al transporte publico y dedicado para una figura que me inspiro a seguir adelante incluso cuando no creia en mi mismo, gracias padre.</string>

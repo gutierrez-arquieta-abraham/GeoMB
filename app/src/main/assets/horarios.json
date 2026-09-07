@@ -1,0 +1,1843 @@
+{
+ "_formato": "dia: LJ=Lun-Jue, V=Vie, S=Sab, D=Dom, LV=Lun-Vie. ida=origen→destino, vuelta=destino→origen. prim/ult en HH:MM 24h; ult<prim = pasa de medianoche.",
+ "rutas": [
+  {
+   "linea": 1,
+   "lineas": [
+    1
+   ],
+   "origen": "Indios Verdes",
+   "destino": "El Caminero",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:00"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:00"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:59"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "01:02"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "01:01"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "01:02"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:59"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "23:58"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 1,
+   "lineas": [
+    1
+   ],
+   "origen": "Indios Verdes",
+   "destino": "Insurgentes",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:50",
+      "ult": "21:04"
+     },
+     "vuelta": {
+      "prim": "06:01",
+      "ult": "21:32"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:50",
+      "ult": "00:35"
+     },
+     "vuelta": {
+      "prim": "06:01",
+      "ult": "01:00"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:05",
+      "ult": "00:35"
+     },
+     "vuelta": {
+      "prim": "06:26",
+      "ult": "01:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:52",
+      "ult": "21:39"
+     },
+     "vuelta": {
+      "prim": "06:24",
+      "ult": "22:02"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 1,
+   "lineas": [
+    1
+   ],
+   "origen": "Indios Verdes",
+   "destino": "Dr. Gálvez",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:10"
+     },
+     "vuelta": {
+      "prim": "05:30",
+      "ult": "23:23"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "21:56"
+     },
+     "vuelta": {
+      "prim": "05:30",
+      "ult": "23:10"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:31",
+      "ult": "21:13"
+     },
+     "vuelta": {
+      "prim": "05:54",
+      "ult": "22:22"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 1,
+   "lineas": [
+    1
+   ],
+   "origen": "Buenavista",
+   "destino": "El Caminero",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "05:30",
+      "ult": "22:32"
+     },
+     "vuelta": {
+      "prim": "04:59",
+      "ult": "21:17"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "05:30",
+      "ult": "22:32"
+     },
+     "vuelta": {
+      "prim": "04:59",
+      "ult": "21:17"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:45",
+      "ult": "22:17"
+     },
+     "vuelta": {
+      "prim": "05:37",
+      "ult": "21:04"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:30",
+      "ult": "22:02"
+     },
+     "vuelta": {
+      "prim": "06:19",
+      "ult": "20:53"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 1,
+   "lineas": [
+    1,
+    3
+   ],
+   "origen": "Indios Verdes",
+   "destino": "Pueblo Sta. Cruz Atoyac",
+   "mixta": true,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:45",
+      "ult": "23:48"
+     },
+     "vuelta": {
+      "prim": "04:44",
+      "ult": "23:44"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:45",
+      "ult": "23:44"
+     },
+     "vuelta": {
+      "prim": "04:55",
+      "ult": "23:44"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:30",
+      "ult": "23:45"
+     },
+     "vuelta": {
+      "prim": "05:55",
+      "ult": "23:45"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 1,
+   "lineas": [
+    1,
+    2
+   ],
+   "origen": "Tepalcates",
+   "destino": "Colonia del Valle",
+   "mixta": true,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "22:57"
+     },
+     "vuelta": {
+      "prim": "04:40",
+      "ult": "00:02"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "22:57"
+     },
+     "vuelta": {
+      "prim": "04:40",
+      "ult": "00:02"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "23:02"
+     },
+     "vuelta": {
+      "prim": "04:47",
+      "ult": "23:02"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:05",
+      "ult": "23:04"
+     },
+     "vuelta": {
+      "prim": "05:14",
+      "ult": "23:00"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 1,
+   "lineas": [
+    1,
+    2
+   ],
+   "origen": "Rojo Gómez",
+   "destino": "Dr. Gálvez",
+   "mixta": true,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "20:17"
+     },
+     "vuelta": {
+      "prim": "06:15",
+      "ult": "21:35"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "20:20"
+     },
+     "vuelta": {
+      "prim": "06:12",
+      "ult": "21:33"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "20:17"
+     },
+     "vuelta": {
+      "prim": "06:06",
+      "ult": "21:30"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 2,
+   "lineas": [
+    2
+   ],
+   "origen": "Tepalcates",
+   "destino": "Tacubaya",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:00"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:00"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "01:00"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "01:04"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "01:01"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "01:01"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "00:01"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "00:00"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 2,
+   "lineas": [
+    2,
+    3
+   ],
+   "origen": "Tepalcates",
+   "destino": "Etiopía",
+   "mixta": true,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:31",
+      "ult": "22:11"
+     },
+     "vuelta": {
+      "prim": "05:24",
+      "ult": "23:03"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:31",
+      "ult": "22:11"
+     },
+     "vuelta": {
+      "prim": "05:24",
+      "ult": "23:03"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:35",
+      "ult": "21:09"
+     },
+     "vuelta": {
+      "prim": "06:26",
+      "ult": "22:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:30",
+      "ult": "21:00"
+     },
+     "vuelta": {
+      "prim": "06:20",
+      "ult": "21:49"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 2,
+   "lineas": [
+    1,
+    2
+   ],
+   "origen": "Tepalcates",
+   "destino": "Colonia del Valle",
+   "mixta": true,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "22:57"
+     },
+     "vuelta": {
+      "prim": "04:40",
+      "ult": "00:02"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "22:57"
+     },
+     "vuelta": {
+      "prim": "04:40",
+      "ult": "00:02"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "23:02"
+     },
+     "vuelta": {
+      "prim": "04:47",
+      "ult": "23:02"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:05",
+      "ult": "23:04"
+     },
+     "vuelta": {
+      "prim": "05:14",
+      "ult": "23:00"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 2,
+   "lineas": [
+    1,
+    2
+   ],
+   "origen": "Rojo Gómez",
+   "destino": "Dr. Gálvez",
+   "mixta": true,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "20:17"
+     },
+     "vuelta": {
+      "prim": "06:15",
+      "ult": "21:35"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "20:20"
+     },
+     "vuelta": {
+      "prim": "06:12",
+      "ult": "21:33"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "20:17"
+     },
+     "vuelta": {
+      "prim": "06:06",
+      "ult": "21:30"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 3,
+   "lineas": [
+    3
+   ],
+   "origen": "Tenayuca",
+   "destino": "Pueblo Sta. Cruz Atoyac",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "23:23"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:33"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "23:05"
+     },
+     "vuelta": {
+      "prim": "04:31",
+      "ult": "00:17"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:17"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "00:27"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 3,
+   "lineas": [
+    3
+   ],
+   "origen": "Tenayuca",
+   "destino": "Balderas",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:47",
+      "ult": "22:59"
+     },
+     "vuelta": {
+      "prim": "05:36",
+      "ult": "23:46"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:18"
+     },
+     "vuelta": {
+      "prim": "05:48",
+      "ult": "23:07"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 3,
+   "lineas": [
+    3
+   ],
+   "origen": "Tenayuca",
+   "destino": "La Raza",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:14",
+      "ult": "23:16"
+     },
+     "vuelta": {
+      "prim": "05:41",
+      "ult": "23:41"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:02"
+     },
+     "vuelta": {
+      "prim": "05:28",
+      "ult": "22:31"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:43",
+      "ult": "22:28"
+     },
+     "vuelta": {
+      "prim": "06:09",
+      "ult": "22:55"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 3,
+   "lineas": [
+    3
+   ],
+   "origen": "Tenayuca",
+   "destino": "Buenavista",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "23:37"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:14"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "23:32"
+     },
+     "vuelta": {
+      "prim": "04:32",
+      "ult": "00:10"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:37"
+     },
+     "vuelta": {
+      "prim": "05:01",
+      "ult": "00:16"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 3,
+   "lineas": [
+    1,
+    3
+   ],
+   "origen": "Indios Verdes",
+   "destino": "Pueblo Sta. Cruz Atoyac",
+   "mixta": true,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:45",
+      "ult": "23:48"
+     },
+     "vuelta": {
+      "prim": "04:44",
+      "ult": "23:44"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:45",
+      "ult": "23:44"
+     },
+     "vuelta": {
+      "prim": "04:55",
+      "ult": "23:44"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:30",
+      "ult": "23:45"
+     },
+     "vuelta": {
+      "prim": "05:55",
+      "ult": "23:45"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 4,
+   "lineas": [
+    4
+   ],
+   "origen": "Buenavista",
+   "destino": "San Lázaro poniente",
+   "mixta": false,
+   "variante": "Ruta Norte",
+   "nota": "La plataforma de San Lázaro poniente está al lado de la Cámara de Diputados",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:34",
+      "ult": "00:02"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:19"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "00:04"
+     },
+     "vuelta": {
+      "prim": "04:31",
+      "ult": "23:21"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:04",
+      "ult": "00:02"
+     },
+     "vuelta": {
+      "prim": "05:01",
+      "ult": "23:25"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 4,
+   "lineas": [
+    4
+   ],
+   "origen": "Buenavista",
+   "destino": "San Lázaro oriente",
+   "mixta": false,
+   "variante": "Ruta Sur",
+   "nota": "La plataforma de San Lázaro oriente está al lado de la Terminal de autobuses TAPO",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:33",
+      "ult": "00:01"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:32"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:03"
+     },
+     "vuelta": {
+      "prim": "04:31",
+      "ult": "23:28"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "00:03"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "23:34"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 4,
+   "lineas": [
+    4
+   ],
+   "origen": "Hidalgo",
+   "destino": "Pantitlán",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:51",
+      "ult": "23:45"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:10"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:50",
+      "ult": "23:46"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:07"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 4,
+   "lineas": [
+    4
+   ],
+   "origen": "Hidalgo",
+   "destino": "Alameda Oriente",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:28",
+      "ult": "00:01"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:16"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:15",
+      "ult": "00:05"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:15"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:04",
+      "ult": "00:03"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "23:23"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 4,
+   "lineas": [
+    4
+   ],
+   "origen": "Amajac",
+   "destino": "Aeropuerto T1 y T2",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:41",
+      "ult": "23:21"
+     },
+     "vuelta": {
+      "prim": "04:41",
+      "ult": "00:04"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:42",
+      "ult": "23:14"
+     },
+     "vuelta": {
+      "prim": "04:47",
+      "ult": "00:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:35",
+      "ult": "23:23"
+     },
+     "vuelta": {
+      "prim": "04:42",
+      "ult": "00:00"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 4,
+   "lineas": [
+    4
+   ],
+   "origen": "Terminal 2",
+   "destino": "Terminal 1",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:05"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:03"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:05"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:03"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:05"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:03"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 5,
+   "lineas": [
+    5
+   ],
+   "origen": "Río de los Remedios",
+   "destino": "Preparatoria 1",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:01"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:59"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:03"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "00:00"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "23:59"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 5,
+   "lineas": [
+    5
+   ],
+   "origen": "Preparatoria 1",
+   "destino": "San Lázaro Sur",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "22:14"
+     },
+     "vuelta": {
+      "prim": "04:38",
+      "ult": "21:28"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 5,
+   "lineas": [
+    5
+   ],
+   "origen": "Río de los Remedios",
+   "destino": "Las Bombas",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:34",
+      "ult": "22:44"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "22:32"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:01",
+      "ult": "20:51"
+     },
+     "vuelta": {
+      "prim": "04:43",
+      "ult": "20:31"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:12",
+      "ult": "22:23"
+     },
+     "vuelta": {
+      "prim": "05:32",
+      "ult": "22:33"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 6,
+   "lineas": [
+    6
+   ],
+   "origen": "Villa de Aragón",
+   "destino": "El Rosario",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:00"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:01"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "23:57"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "00:03"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:58"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "00:02"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 6,
+   "lineas": [
+    6
+   ],
+   "origen": "Villa de Aragón",
+   "destino": "IPN",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:31",
+      "ult": "23:02"
+     },
+     "vuelta": {
+      "prim": "04:33",
+      "ult": "22:57"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:31",
+      "ult": "22:57"
+     },
+     "vuelta": {
+      "prim": "04:35",
+      "ult": "23:01"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:01",
+      "ult": "21:59"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "22:31"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 6,
+   "lineas": [
+    6
+   ],
+   "origen": "Dep. 18 de marzo",
+   "destino": "El Rosario",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "23:18"
+     },
+     "vuelta": {
+      "prim": "04:30",
+      "ult": "23:05"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "22:28"
+     },
+     "vuelta": {
+      "prim": "04:31",
+      "ult": "22:51"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 7,
+   "lineas": [
+    7
+   ],
+   "origen": "Indios Verdes",
+   "destino": "Campo Marte",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "23:34"
+     },
+     "vuelta": {
+      "prim": "04:44",
+      "ult": "00:25"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:09"
+     },
+     "vuelta": {
+      "prim": "04:44",
+      "ult": "01:00"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:30",
+      "ult": "00:07"
+     },
+     "vuelta": {
+      "prim": "04:45",
+      "ult": "01:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "13:22",
+      "ult": "23:51"
+     },
+     "vuelta": {
+      "prim": "14:27",
+      "ult": "00:44"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 7,
+   "lineas": [
+    7
+   ],
+   "origen": "Hospital Infantil La Villa",
+   "destino": "Campo Marte",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "04:45",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "05:46",
+      "ult": "23:53"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "04:45",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "05:46",
+      "ult": "23:53"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:45",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "05:40",
+      "ult": "23:53"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "13:30",
+      "ult": "22:55"
+     },
+     "vuelta": {
+      "prim": "14:37",
+      "ult": "23:48"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 7,
+   "lineas": [
+    7
+   ],
+   "origen": "Indios Verdes",
+   "destino": "La Diana",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "10:26",
+      "ult": "23:15"
+     },
+     "vuelta": {
+      "prim": "11:20",
+      "ult": "23:58"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "10:26",
+      "ult": "00:15"
+     },
+     "vuelta": {
+      "prim": "11:20",
+      "ult": "01:00"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "07:00",
+      "ult": "20:07"
+     },
+     "vuelta": {
+      "prim": "07:50",
+      "ult": "20:55"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:17"
+     },
+     "vuelta": {
+      "prim": "05:47",
+      "ult": "23:01"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 7,
+   "lineas": [
+    7
+   ],
+   "origen": "Hospital Infantil La Villa",
+   "destino": "La Diana",
+   "mixta": false,
+   "horarios": {
+    "D": {
+     "ida": {
+      "prim": "05:15",
+      "ult": "13:16"
+     },
+     "vuelta": {
+      "prim": "06:02",
+      "ult": "14:21"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 7,
+   "lineas": [
+    7
+   ],
+   "origen": "Garibaldi",
+   "destino": "Campo Marte",
+   "mixta": false,
+   "horarios": {
+    "LJ": {
+     "ida": {
+      "prim": "06:00",
+      "ult": "13:09"
+     },
+     "vuelta": {
+      "prim": "06:40",
+      "ult": "12:30"
+     }
+    },
+    "V": {
+     "ida": {
+      "prim": "06:00",
+      "ult": "13:09"
+     },
+     "vuelta": {
+      "prim": "06:41",
+      "ult": "12:30"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 7,
+   "lineas": [
+    7
+   ],
+   "origen": "Alameda Tacubaya",
+   "destino": "Glorieta Cuitláhuac",
+   "mixta": false,
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:30",
+      "ult": "23:33"
+     },
+     "vuelta": {
+      "prim": "05:32",
+      "ult": "23:35"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 7,
+   "lineas": [
+    7
+   ],
+   "origen": "Alameda Tacubaya",
+   "destino": "París",
+   "mixta": false,
+   "horarios": {
+    "S": {
+     "ida": {
+      "prim": "05:30",
+      "ult": "23:34"
+     },
+     "vuelta": {
+      "prim": "05:33",
+      "ult": "23:33"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "14:00",
+      "ult": "23:36"
+     },
+     "vuelta": {
+      "prim": "14:30",
+      "ult": "23:33"
+     }
+    }
+   },
+   "sistema": "mb"
+  },
+  {
+   "linea": 101,
+   "lineas": [
+    101
+   ],
+   "origen": "Ciudad Azteca",
+   "destino": "Ojo de Agua",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:39",
+      "ult": "00:54"
+     },
+     "vuelta": {
+      "prim": "04:00",
+      "ult": "00:15"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:39",
+      "ult": "00:57"
+     },
+     "vuelta": {
+      "prim": "04:00",
+      "ult": "00:16"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:50",
+      "ult": "00:42"
+     },
+     "vuelta": {
+      "prim": "04:10",
+      "ult": "00:02"
+     }
+    }
+   }
+  },
+  {
+   "linea": 111,
+   "lineas": [
+    111
+   ],
+   "origen": "Ojo de Agua",
+   "destino": "Terminal de Pasajeros",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:50"
+     },
+     "vuelta": {
+      "prim": "04:10",
+      "ult": "23:00"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:50"
+     },
+     "vuelta": {
+      "prim": "04:10",
+      "ult": "23:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:50"
+     },
+     "vuelta": {
+      "prim": "04:10",
+      "ult": "23:00"
+     }
+    }
+   }
+  },
+  {
+   "linea": 102,
+   "lineas": [
+    102
+   ],
+   "origen": "Las Américas",
+   "destino": "La Quebrada",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "00:13"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "01:13"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:56"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "00:55"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:56"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "00:55"
+     }
+    }
+   }
+  },
+  {
+   "linea": 112,
+   "lineas": [
+    112
+   ],
+   "origen": "Las Américas",
+   "destino": "Río de los Remedios",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:32"
+     },
+     "vuelta": {
+      "prim": "05:39",
+      "ult": "23:11"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:32"
+     },
+     "vuelta": {
+      "prim": "05:39",
+      "ult": "23:11"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:33"
+     },
+     "vuelta": {
+      "prim": "05:40",
+      "ult": "23:13"
+     }
+    }
+   }
+  },
+  {
+   "linea": 103,
+   "lineas": [
+    103
+   ],
+   "origen": "Pantitlán",
+   "destino": "Chimalhuacán",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:49",
+      "ult": "00:59"
+     },
+     "vuelta": {
+      "prim": "04:00",
+      "ult": "00:10"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:49",
+      "ult": "01:01"
+     },
+     "vuelta": {
+      "prim": "04:00",
+      "ult": "00:12"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:49",
+      "ult": "00:59"
+     },
+     "vuelta": {
+      "prim": "06:00",
+      "ult": "00:10"
+     }
+    }
+   }
+  },
+  {
+   "linea": 113,
+   "lineas": [
+    113
+   ],
+   "origen": "Acuitlapilco",
+   "destino": "Central de Abasto",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:34"
+     },
+     "vuelta": {
+      "prim": "04:22",
+      "ult": "23:56"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:34"
+     },
+     "vuelta": {
+      "prim": "04:22",
+      "ult": "23:56"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "00:13"
+     },
+     "vuelta": {
+      "prim": "04:22",
+      "ult": "00:35"
+     }
+    }
+   }
+  },
+  {
+   "linea": 104,
+   "lineas": [
+    104
+   ],
+   "origen": "La Raza",
+   "destino": "Universidad Mexiquense del Bicentenario",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:05",
+      "ult": "00:57"
+     },
+     "vuelta": {
+      "prim": "03:45",
+      "ult": "23:40"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:05",
+      "ult": "00:56"
+     },
+     "vuelta": {
+      "prim": "03:45",
+      "ult": "23:36"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:20",
+      "ult": "00:53"
+     },
+     "vuelta": {
+      "prim": "04:00",
+      "ult": "23:35"
+     }
+    }
+   }
+  },
+  {
+   "linea": 201,
+   "lineas": [
+    201
+   ],
+   "origen": "Santa Clara",
+   "destino": "La Cañada",
+   "mixta": false,
+   "sistema": "mxc",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "23:00"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "06:00",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "06:00",
+      "ult": "23:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "07:00",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "07:00",
+      "ult": "23:00"
+     }
+    }
+   }
+  },
+  {
+   "linea": 124,
+   "lineas": [
+    124
+   ],
+   "origen": "Universidad Mexiquense del Bicentenario",
+   "destino": "Indios Verdes",
+   "mixta": false,
+   "variante": "Exprés",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "03:45",
+      "ult": "00:00"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:59",
+      "ult": "23:45"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:00",
+      "ult": "21:45"
+     }
+    }
+   }
+  }
+ ]
+}

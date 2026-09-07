@@ -55,16 +55,24 @@ public class RecorridoService extends Service {
     // En una correspondencia, el aviso cambia de línea SOLO cuando estás en el andén de la otra línea.
     // ~15 m (el usuario pidió <10 m; se deja un poco más por el error típico del GPS para no quedar clavado).
     private static final float CAMBIO_LINEA_M = 15f;
-    // Fin de recorrido: el "llegaste" debe sonar SOBRE el punto (1–5 m), no al radio de llegada de 50 m.
-    // Excepción: Mexibús L4 (Indios Verdes) son 2 andenes y la unidad avanza hasta el fondo rebasando el
-    // punto, así que ahí se conserva el radio normal.
-    private static final float FIN_M = 5f;
+    // Fin de recorrido: el "llegaste" suena al llegar al punto de la estación final. Se usa un radio
+    // ALCANZABLE por GPS (≈30 m; 5 m casi nunca se cumple y el aviso no sonaba). Excepción: Mexibús L4
+    // (Indios Verdes) son 2 andenes y la unidad avanza hasta el fondo rebasando el punto → radio normal.
+    private static final float FIN_M = 30f;
     private static final long INTERVALO_MS = 1000L;   // revisa la ubicación cada 1 s durante el recorrido
     private static final float TURURU_VOL = 0.7f;     // volumen del "tururu" (70% del real)
     private static final long VOZ_TIMEOUT_MS = 4000L; // margen para descargar la voz Mia antes de caer al TTS
 
-    /** Radio de "llegando" según el sistema de la parada (Mexibús = líneas >= 100). */
+    // Andenes con ZONA de cobertura (Indios Verdes) miden ~100 m de largo. Como la distancia se mide al
+    // corredor, el andén ya queda cubierto; además se amplía el radio de llegada para el aproche y, con
+    // ello, el de "próxima estación" (que es radioCerca + COBERTURA_EXTRA_M).
+    private static final float ZONA_CERCA_M = 70f;    // corredor de andén (Indios Verdes): radio amplio
+    private static final float ANDEN_LARGO_M = 55f;   // andén ~100 m (solo centro): ~110 m de cobertura
+
+    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal. */
     private static float radioCerca(Planificador.Parada p) {
+        if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
+        if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
         return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
     }
     /** Metros de alejamiento para disparar "próxima estación", según el sistema. */
@@ -108,6 +116,15 @@ public class RecorridoService extends Service {
 
     private TextToSpeech tts;
     private boolean ttsListo = false;
+    /** Acción a ejecutar cuando TERMINE la voz actual (p. ej. finalizar el recorrido tras el aviso final). */
+    private Runnable alFinVoz = null;
+
+    /** Ejecuta (una sola vez) la acción pendiente para el fin de la voz. */
+    private void dispararFinVoz() {
+        Runnable r = alFinVoz;
+        alFinVoz = null;
+        if (r != null) handler.post(r);
+    }
     private int ultVoz = -99;              // índice ya anunciado por voz (solo "llegaste" al final)
     private int ultLlegando = -99;         // estación cuya llegada ya se anunció ("Llegando a…")
     private int ultProxima = -99;          // próxima estación ya anunciada al salir de la anterior
@@ -194,6 +211,11 @@ public class RecorridoService extends Service {
                 seleccionarVozFemenina();     // mejor aproximación a "Ximena" con el motor instalado
                 tts.setSpeechRate(0.98f);
                 tts.setPitch(1.05f);          // timbre ligeramente más agudo (femenino)
+                tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+                    @Override public void onStart(String id) {}
+                    @Override public void onDone(String id) { dispararFinVoz(); }
+                    @Override public void onError(String id) { dispararFinVoz(); }
+                });
                 ttsListo = true;
             }
         });
@@ -267,9 +289,11 @@ public class RecorridoService extends Service {
         return ls;
     }
 
-    /** Distancia al PUNTO de la parada. El punto de Indios Verdes ya es la plataforma direccional
-     *  (lo ajusta el planificador), así que basta medir contra p.pos: a ≤50 m avisa la llegada. */
+    /** Distancia a la parada. En Indios Verdes cada andén tiene una ZONA de cobertura (corredor A→B): se
+     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). */
     private double distParada(android.location.Location l, Planificador.Parada p) {
+        double dz = Planificador.distanciaZona(p, l.getLatitude(), l.getLongitude());
+        if (dz >= 0) return dz;
         return haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
     }
 
@@ -284,14 +308,16 @@ public class RecorridoService extends Service {
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
-        int baseBest = baseLinea(seq.get(best).linea);
+        int trazoBest = seq.get(best).linea;                          // trazo = servicio (ordinario≠exprés≠ramal)
         for (int j = best + 1; j < seq.size(); j++) {
             Planificador.Parada pj = seq.get(j);
-            if (baseLinea(pj.linea) == baseBest) continue;             // misma línea que la actual: no aplica
+            if (pj.linea == trazoBest) continue;                       // mismo trazo/servicio que el actual: no aplica
             if (distParada(l, pj) > radioCerca(pj)) continue;          // no estás sobre esa parada
-            // ¿Cuántas estaciones consecutivas de ESA línea terminan en j? (profundidad tras el cambio)
+            // ¿Cuántas estaciones consecutivas de ESE trazo terminan en j? (profundidad tras el cambio)
+            // Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS también cuente como
+            // cambio de trazo: si ya avanzaste ≥3 estaciones en el exprés, el aviso salta a ese trazo.
             int dentro = 0;
-            for (int k = j; k >= 0 && baseLinea(seq.get(k).linea) == baseLinea(pj.linea); k--) dentro++;
+            for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) dentro++;
             if (dentro >= SALTO_MIN_ESTACIONES) mejor = j;             // toma la más adelantada válida
         }
         return mejor;
@@ -318,8 +344,14 @@ public class RecorridoService extends Service {
                 // de la misma base), el cambio se permite dentro del radio de LLEGADA (~50 m), porque estar
                 // en ese andén ya cuenta como haber hecho la correspondencia. Para andenes co-ubicados de
                 // DISTINTO nombre se mantiene el umbral estricto (CAMBIO_LINEA_M) para no saltar antes.
+                // No brincar a la otra línea antes de ANUNCIAR la llegada a la parada previa: si el andén de
+                // la otra línea queda en el camino antes de tu terminal (Indios Verdes sur: el andén de
+                // Metrobús L1 está al norte, antes del terminal L4 al sur), el aviso saltaba antes de tiempo.
+                // Se exige que la llegada a la parada anterior YA se haya anunciado (ultLlegando ≥ i-1); así
+                // no basta con que 'best' la roce por cercanía: hay que haber llegado físicamente a ella.
+                boolean alcanzasteAnterior = ultLlegando >= i - 1;
                 float umbral = mismaEstacion(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
-                if (d <= umbral) { bd = d; best = i; }
+                if (alcanzasteAnterior && d <= umbral) { bd = d; best = i; }
                 else break;
             } else if (d < bd) {
                 bd = d; best = i;
@@ -373,24 +405,42 @@ public class RecorridoService extends Service {
         // transbordo añade "Transbordo con Línea #"; si es terminal, "nadie debe permanecer a bordo"; y
         // de forma aleatoria un consejo. Al pasar la estación (ya te alejaste PASO_M), anuncia la próxima.
         if (fin) {
-            if (best != ultVoz) { ultVoz = best; sonarYHablar(getString(R.string.voz_llegaste, nom(seq.get(best))), seq.get(best).linea); }
-            // Ruta terminada: deja de rastrear y detén el servicio (la notificación se elimina en
-            // onDestroy) tras dar tiempo a que se escuche el aviso final.
+            // Ruta terminada: aviso "última estación de tu recorrido" y, al TERMINAR ese audio, se
+            // finaliza el servicio automáticamente (con un tope de respaldo por si la voz fallara).
             if (!finalizado) {
                 finalizado = true;
+                ultVoz = best;
+                ultLlegando = best;
                 limpiarPersistencia();   // llegaste: no debe resumir tras muerte de proceso
                 handler.removeCallbacks(tick);
-                detenerUbicacion();   // ya llegaste: corta el GPS para ahorrar batería
-                handler.postDelayed(this::stopSelf, 12000);
+                detenerUbicacion();      // ya llegaste: corta el GPS para ahorrar batería
+                alFinVoz = this::stopSelf;   // finaliza cuando acabe la voz del aviso final
+                // Mismo aviso combinado de llegada (incluye "última estación de tu recorrido").
+                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);
+                handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
             }
+            return;   // no se anuncian más estaciones tras el final
         } else if (ultLlegando == best && ultProxima != proxIdx && bd > radioCerca(seq.get(best)) + COBERTURA_EXTRA_M) {
             ultProxima = proxIdx;
             // Te acercas a la estación de BAJADA si la parada siguiente a "prox" es un transbordo.
             boolean prepararse = proxIdx + 1 <= last && seq.get(proxIdx + 1).transbordo;
-            sonarYHablar(vozProxima(prox, prepararse), prox.linea);   // "Próxima estación X" (+ correspondencia / prep)
+            sonarYHablar(vozProxima(seq, proxIdx, prepararse), prox.linea);   // "Próxima estación X" (+ correspondencia / prep)
         } else if (bd <= radioCerca(seq.get(best)) && ultLlegando != best) {
             ultLlegando = best;
             ultProxima = -99;
+            if (best >= last && !finalizado) {
+                // Última estación: el propio aviso de llegada ya incluye "última estación de tu
+                // recorrido"; al terminar ese audio se finaliza el servicio automáticamente.
+                finalizado = true;
+                ultVoz = best;
+                limpiarPersistencia();
+                handler.removeCallbacks(tick);
+                detenerUbicacion();
+                alFinVoz = this::stopSelf;
+                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);
+                handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
+                return;
+            }
             sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);   // "Llegando a X" (+ correspondencia / terminal / consejo)
         }
         // voz de afectación (una vez, si aparece durante el recorrido), con voz Mia.
@@ -528,11 +578,12 @@ public class RecorridoService extends Service {
             mp.setOnCompletionListener(m -> {
                 try { m.release(); } catch (Exception ignore) {}
                 if (mpActual == m) mpActual = null;
+                dispararFinVoz();   // terminó la voz: ejecuta la acción pendiente (p. ej. finalizar recorrido)
             });
             mp.prepare();
             mp.start();
         } catch (Exception e) {
-            /* si el mp3 falla, no truena */
+            dispararFinVoz();   // si el mp3 falla, no dejar colgada la acción de fin
         }
     }
 
@@ -552,8 +603,9 @@ public class RecorridoService extends Service {
 
     /** Aviso de PRÓXIMA estación. Si tiene correspondencia (líneas cercanas) la nombra; y si el usuario
      *  transbordará ahí, añade la preparación ("atención… favor de irte preparando"). */
-    private String vozProxima(Planificador.Parada prox, boolean prepararse) {
-        if (esTerminal(prox)) return vozTerminal(prox, false);   // terminal de línea
+    private String vozProxima(List<Planificador.Parada> seq, int idx, boolean prepararse) {
+        Planificador.Parada prox = seq.get(idx);
+        if (esTerminal(prox) && !esAbordaje(seq, idx)) return vozTerminal(prox, false);   // terminal de línea (al llegar)
         String tf = transferenciaTexto(prox.linea, basesCorresp(prox));
         StringBuilder v = tf.isEmpty()
                 ? new StringBuilder(getString(R.string.voz_proxima, nom(prox)))
@@ -564,19 +616,47 @@ public class RecorridoService extends Service {
         return v.toString();
     }
 
+    /** ¿La parada es de ABORDAJE (subes a esta línea aquí y sigues)? Es decir, cambiaste de línea en ella
+     *  y continúas. En ese caso NO debe sonar el aviso de terminal ("no permanezca a bordo"): tú apenas
+     *  abordas. El aviso de terminal solo aplica cuando LLEGAS/bajas en la terminal. */
+    private boolean esAbordaje(List<Planificador.Parada> seq, int idx) {
+        int base = baseLinea(seq.get(idx).linea);
+        boolean previaDistinta = idx == 0 || baseLinea(seq.get(idx - 1).linea) != base;
+        boolean sigueMisma = idx + 1 < seq.size() && baseLinea(seq.get(idx + 1).linea) == base;
+        return previaDistinta && sigueMisma;
+    }
+
     /** Aviso de LLEGADA a la estación best. Terminal → mensaje de terminal; con correspondencia → nombra
      *  las líneas con su palabra (transbordo/correspondencia/conexión); si no, aviso simple + consejo. */
     private String vozLlegada(List<Planificador.Parada> seq, int best) {
         Planificador.Parada p = seq.get(best);
-        if (esTerminal(p)) return vozTerminal(p, true);
+        boolean esFinal = best == seq.size() - 1;   // última estación del recorrido
+        if (esTerminal(p) && !esAbordaje(seq, best)) {
+            String vt = vozTerminal(p, true);
+            if (esFinal) vt += ". " + getString(R.string.voz_ultima_est);
+            return vt;
+        }
+        // ¿Bajas aquí a transbordar? (la parada siguiente es el cambio de línea/servicio).
+        boolean bajas = best + 1 < seq.size() && seq.get(best + 1).transbordo;
         String tf = transferenciaTexto(p.linea, basesCorresp(p));
-        if (tf.isEmpty()) {
+        if (tf.isEmpty() && !bajas) {
             StringBuilder v = new StringBuilder(getString(R.string.voz_llegando_est, nom(p)));
-            String tip = tipAleatorio(p.linea);
-            if (tip != null) v.append(". ").append(tip);
+            if (esFinal) {
+                v.append(". ").append(getString(R.string.voz_ultima_est));   // "última estación de tu recorrido"
+            } else {
+                String tip = tipAleatorio(p.linea);
+                if (tip != null) v.append(". ").append(tip);
+            }
             return v.toString();
         }
-        return getString(R.string.voz_lleg_base, nom(p)) + tf;
+        StringBuilder v = new StringBuilder(getString(R.string.voz_lleg_base, nom(p))).append(tf);
+        if (bajas) {
+            // "Baja y realiza tu {transbordo/correspondencia/conexión}" según los sistemas involucrados.
+            String palabra = getString(palabraTransferencia(p.linea, seq.get(best + 1).linea));
+            v.append(". ").append(getString(R.string.voz_baja_realiza, palabra));
+        }
+        if (esFinal) v.append(". ").append(getString(R.string.voz_ultima_est));
+        return v.toString();
     }
 
     /**
@@ -867,6 +947,10 @@ public class RecorridoService extends Service {
 
     /** ¿La parada es terminal de su línea? (incluye terminales por servicio de L4/L7). */
     private boolean esTerminal(Planificador.Parada p) {
+        // Indios Verdes es estación de PASO para Mexibús L4 (terminal solo nominal del exprés): al llegar
+        // ahí no debe sonar el aviso de "estación terminal", solo la correspondencia/conexión.
+        if ((p.linea == 104 || p.linea == 124) && Planificador.norm(p.nombre).contains("indios verdes"))
+            return false;
         return Planificador.esTerminalDe(p.linea, p.nombre);
     }
 
