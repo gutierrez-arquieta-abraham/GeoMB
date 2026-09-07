@@ -160,6 +160,7 @@ public class PlanificadorFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         loc = LocationServices.getFusedLocationProviderClient(requireContext());
+        AfectacionesMexibus.refrescar(requireContext(), null);   // carga bloqueos Mexibús "sin servicio" para el ruteo
 
         inOrigen = view.findViewById(R.id.input_origen);
         inDestino = view.findViewById(R.id.input_destino);

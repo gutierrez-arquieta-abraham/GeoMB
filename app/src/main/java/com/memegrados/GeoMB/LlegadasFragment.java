@@ -70,6 +70,7 @@ public class LlegadasFragment extends Fragment {
                 @Override public void onData(List<UnidadReal> u) { if (isAdded()) refrescar(); }
                 @Override public void onError(String m) { }
             });
+            AfectacionesMexibus.refrescar(requireContext(), () -> { if (isAdded()) refrescarAfectaciones(); });   // estado Mexibús del backend
             refrescarAfectaciones();
             handler.postDelayed(this, Red.intervalo(getContext(), Config.LLEGADA_POLL_MS));
         }
@@ -414,9 +415,10 @@ public class LlegadasFragment extends Fragment {
         est.setTextSize(13f);
         est.setTextColor(afect ? 0xFFC8103E : VERDE_OK);
         est.setGravity(android.view.Gravity.END);
-        est.setMaxLines(3);
+        est.setMaxLines(8);                                    // deja que se vea completo (antes se cortaba en 3)
+        est.setEllipsize(android.text.TextUtils.TruncateAt.END);
         android.widget.LinearLayout.LayoutParams ep = new android.widget.LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.3f);
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.5f);   // un poco más de ancho para el texto
         ep.leftMargin = Math.round(8 * d);
         est.setLayoutParams(ep);
         row.addView(est);
@@ -438,6 +440,9 @@ public class LlegadasFragment extends Fragment {
             estadoAnims.add(ciclo);
             animHandler.postDelayed(ciclo, 4000);
         }
+        // Tipo Metro SOLO en el badge y el nombre de línea (se aplica aquí para que sobreviva a los
+        // refrescos). El texto de estado que cicla ('est') se deja con la tipografía por defecto.
+        Tipografia.aplicar(badge, nom);
         return row;
     }
 

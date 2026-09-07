@@ -78,6 +78,12 @@ public final class Manifestaciones {
     private static final Set<String> cortes = ConcurrentHashMap.newKeySet();   // "linea|nnA|nnB": corte de tramo (parte la línea) — panel de pruebas
     private static final Set<String> cortesReales = ConcurrentHashMap.newKeySet();   // cortes detectados del feed real (ServicioMB)
     private static final List<Afectacion> lista = new CopyOnWriteArrayList<>();
+    // Afectaciones de MEXIBÚS (del backend, vía afectaciones_mexibus.json). Van aparte porque el
+    // scraper de Metrobús reemplaza 'lista' en cada ciclo; 'lista()' devuelve la UNIÓN de ambas.
+    private static final List<Afectacion> mexibus = new CopyOnWriteArrayList<>();
+    // Estaciones (norm, con prefijo tal cual las indexa el planificador) bloqueadas por Mexibús
+    // "Sin servicio": toda la línea queda inutilizable para el ruteo. Set aparte (no lo pisa Metrobús).
+    private static final Set<String> mexibusBloq = ConcurrentHashMap.newKeySet();
     private static volatile String resumen = "";       // nombres/lugares legibles, separados por coma
     private static volatile long actualizado = 0L;
 
@@ -86,6 +92,7 @@ public final class Manifestaciones {
     /** Nombres de estación (normalizados) bloqueados en AMBOS sentidos (compatibilidad). */
     public static Set<String> bloqueadas() {
         Set<String> s = new HashSet<>(afectadas);
+        s.addAll(mexibusBloq);   // líneas Mexibús "sin servicio" (toda la línea)
         for (Map.Entry<String, Set<String>> e : porSentido.entrySet()) {
             if (e.getValue().contains(AMBOS)) s.add(e.getKey());
         }
@@ -100,6 +107,7 @@ public final class Manifestaciones {
     public static boolean bloqueadoHacia(String estacionNn, String terminalNn, boolean movilidadReducida) {
         if (contiene(simulado, estacionNn, terminalNn)) return true;   // simulación de prueba (panel oculto)
         if (afectadas.contains(estacionNn)) return true;   // estado en tiempo real: ambos sentidos
+        if (mexibusBloq.contains(estacionNn)) return true;   // línea Mexibús suspendida (toda la línea)
         if (contiene(porSentido, estacionNn, terminalNn)) return true;
         return movilidadReducida && contiene(porSentidoMR, estacionNn, terminalNn);
     }
@@ -169,6 +177,7 @@ public final class Manifestaciones {
     public static Set<String> sentidosBloqueados(String estacionNn, boolean movilidadReducida) {
         Set<String> out = new HashSet<>();
         if (afectadas.contains(estacionNn)) out.add(AMBOS);
+        if (mexibusBloq.contains(estacionNn)) out.add(AMBOS);   // línea Mexibús suspendida
         Set<String> a = simulado.get(estacionNn);   if (a != null) out.addAll(a);
         Set<String> b = porSentido.get(estacionNn);  if (b != null) out.addAll(b);
         if (movilidadReducida) { Set<String> c = porSentidoMR.get(estacionNn); if (c != null) out.addAll(c); }
@@ -206,9 +215,35 @@ public final class Manifestaciones {
 
     public static long actualizado() { return actualizado; }
 
-    /** Lista completa de afectaciones (solo lectura). */
+    /** Lista completa de afectaciones (Metrobús + Mexibús), solo lectura. */
     public static List<Afectacion> lista() {
-        return Collections.unmodifiableList(new ArrayList<>(lista));
+        List<Afectacion> todo = new ArrayList<>(lista);
+        todo.addAll(mexibus);
+        return Collections.unmodifiableList(todo);
+    }
+
+    /** Reemplaza las afectaciones de Mexibús (del backend). Devuelve true si cambió. */
+    public static boolean setMexibus(List<Afectacion> nuevas) {
+        if (nuevas == null) nuevas = new ArrayList<>();
+        boolean cambio = mexibus.size() != nuevas.size();
+        if (!cambio) {
+            java.util.Set<String> a = new java.util.HashSet<>();
+            for (Afectacion x : mexibus) a.add(x.clave());
+            for (Afectacion x : nuevas) if (!a.contains(x.clave())) { cambio = true; break; }
+        }
+        mexibus.clear();
+        mexibus.addAll(nuevas);
+        if (cambio) actualizado = System.currentTimeMillis();
+        return cambio;
+    }
+
+    /** Estaciones (norm) bloqueadas para el ruteo por líneas Mexibús "sin servicio" (toda la línea). */
+    public static void setMexibusBloqueadas(Set<String> nuevas) {
+        if (nuevas == null) nuevas = new HashSet<>();
+        boolean cambio = !mexibusBloq.equals(nuevas);
+        mexibusBloq.clear();
+        mexibusBloq.addAll(nuevas);
+        if (cambio) actualizado = System.currentTimeMillis();
     }
 
     /**

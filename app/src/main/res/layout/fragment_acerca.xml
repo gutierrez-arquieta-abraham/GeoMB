@@ -99,6 +99,14 @@
             android:layout_marginTop="8dp"
             android:text="@string/perfil_editar" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_descargar_audios"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/audios_descargar" />
+
         <!-- Sincronización en segundo plano (siempre visible) -->
         <View
             android:layout_width="match_parent"

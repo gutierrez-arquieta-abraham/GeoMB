@@ -69,6 +69,7 @@ public class AcercaFragment extends Fragment {
 
         view.findViewById(R.id.btn_idioma).setOnClickListener(x -> Idiomas.mostrarSelector(requireContext()));
         view.findViewById(R.id.btn_editar_perfil).setOnClickListener(x -> editarPerfil());
+        view.findViewById(R.id.btn_descargar_audios).setOnClickListener(x -> menuAudios());
         configurarSimulador(view);
 
         panel = view.findViewById(R.id.panel_personalizado);
@@ -377,6 +378,68 @@ public class AcercaFragment extends Fragment {
      * Cambio de tipo de usuario y movilidad reducida desde Acerca de. Pensado para quien
      * eligió mal en el mini-formulario de inicio. Reajusta la suscripción de avisos de elevadores.
      */
+    /** Menú de descarga de audios offline: elige línea (o borra todo). */
+    private void menuAudios() {
+        final java.util.List<Integer> cod = new java.util.ArrayList<>();
+        final java.util.List<String> nom = new java.util.ArrayList<>();
+        final java.util.List<Integer> todas = new java.util.ArrayList<>();
+        for (int i = 1; i <= 7; i++) { cod.add(i); nom.add("Metrobús L" + i); todas.add(i); }
+        if (Modos.mostrarMexibus(requireContext())) {
+            for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+                if ((l.numero >= 101 && l.numero <= 104) || (l.numero >= 111 && l.numero <= 113)) {
+                    cod.add(l.numero);
+                    nom.add("Mexibús L" + Planificador.etiquetaLineaCortaPub(l.numero));
+                    todas.add(l.numero);
+                }
+            }
+        }
+        // Opciones extra al inicio (descargar todas) y al final (borrar).
+        cod.add(0, -2); nom.add(0, getString(R.string.audios_todas));
+        cod.add(-1);    nom.add(getString(R.string.audios_borrar));
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.audios_titulo)
+                .setItems(nom.toArray(new String[0]), (d, w) -> {
+                    int c = cod.get(w);
+                    if (c == -1) {
+                        int n = DescargaVoz.borrarTodo(requireContext());
+                        android.widget.Toast.makeText(requireContext(),
+                                getString(R.string.audios_borrados, n), android.widget.Toast.LENGTH_SHORT).show();
+                    } else if (c == -2) {
+                        descargarAudios(todas, getString(R.string.audios_todas));
+                    } else {
+                        descargarAudios(java.util.Collections.singletonList(c), nom.get(w));
+                    }
+                }).show();
+    }
+
+    /** Descarga los audios de una o varias líneas mostrando el progreso. */
+    private void descargarAudios(java.util.List<Integer> lineas, String nombre) {
+        float dp = getResources().getDisplayMetrics().density;
+        final android.widget.TextView tv = new android.widget.TextView(requireContext());
+        int p = Math.round(22 * dp);
+        tv.setPadding(p, p, p, p);
+        java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
+        for (int ln : lineas) set.addAll(DescargaVoz.textosLinea(requireContext(), ln));
+        int total = set.size();
+        tv.setText(getString(R.string.audios_descargando, 0, total));
+        final androidx.appcompat.app.AlertDialog dlg = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(nombre).setView(tv).setCancelable(false)
+                .setNegativeButton(android.R.string.cancel, (d, w) -> DescargaVoz.cancelar())
+                .create();
+        dlg.show();
+        DescargaVoz.descargarVarias(requireContext(), lineas, new DescargaVoz.Progreso() {
+            @Override public void avance(int h, int t) {
+                if (isAdded()) tv.setText(getString(R.string.audios_descargando, h, t));
+            }
+            @Override public void fin(int ok, int t) {
+                if (dlg.isShowing()) dlg.dismiss();
+                if (isAdded()) android.widget.Toast.makeText(requireContext(),
+                        getString(R.string.audios_listo, ok), android.widget.Toast.LENGTH_SHORT).show();
+            }
+            @Override public void error(String m) { if (dlg.isShowing()) dlg.dismiss(); }
+        });
+    }
+
     private void editarPerfil() {
         View v = getLayoutInflater().inflate(R.layout.dialog_perfil, null, false);
         RadioGroup rg = v.findViewById(R.id.rg_tipo);

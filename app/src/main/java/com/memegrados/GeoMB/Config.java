@@ -14,6 +14,8 @@ public final class Config {
     /** Rutas relativas que sirve el backend (se usan con failover, ver Backend). */
     public static final String PATH_VEHICLES = "/data/vehicles.json";
     public static final String PATH_ROUTES = "/data/routes.json";
+    /** Estado actual de afectaciones de Mexibús (lo escribe el módulo mexibus_afectaciones.py). */
+    public static final String PATH_AFECT_MXB = "/data/afectaciones_mexibus.json";
 
     /**
      * Catálogo colaborativo de marca/modelo por económico.

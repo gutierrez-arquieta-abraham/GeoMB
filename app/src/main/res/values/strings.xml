@@ -207,6 +207,13 @@
     <string name="voz_tip_correr">Evita correr en la estación para abordar la unidad</string>
     <string name="voz_tip_rosa">Recuerda que las unidades rosas son exclusivas para mujeres, niñas y niños</string>
     <string name="ruta_alterna">⚠ Ruta alterna por afectaciones en el servicio</string>
+    <string name="audios_descargar">Descargar audios (offline)</string>
+    <string name="audios_titulo">Descargar audios del recorrido</string>
+    <string name="audios_descargando">Descargando %1$d/%2$d…</string>
+    <string name="audios_listo">Audios listos (%1$d)</string>
+    <string name="audios_todas">⬇ Descargar TODAS las líneas</string>
+    <string name="audios_borrar">🗑 Borrar audios descargados</string>
+    <string name="audios_borrados">Audios borrados (%1$d)</string>
     <string name="ruta_horario_hoy">🕓 Servicio hoy — %1$s</string>
     <string name="ruta_fuera_horario">⚠ A esta hora podría no circular: %1$s</string>
     <string name="ruta_unidad_cerca">Tu unidad de L%1$d hacia %2$s está por llegar a %3$s</string>

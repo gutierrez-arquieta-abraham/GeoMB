@@ -207,6 +207,13 @@
     <string name="voz_tip_correr">Do not run in the station to board the vehicle</string>
     <string name="voz_tip_rosa">Remember that pink vehicles are reserved for women and children</string>
     <string name="ruta_alterna">⚠ Alternate route due to service disruptions</string>
+    <string name="audios_descargar">Download audios (offline)</string>
+    <string name="audios_titulo">Download route audios</string>
+    <string name="audios_descargando">Downloading %1$d/%2$d…</string>
+    <string name="audios_listo">Audios ready (%1$d)</string>
+    <string name="audios_todas">⬇ Download ALL lines</string>
+    <string name="audios_borrar">🗑 Delete downloaded audios</string>
+    <string name="audios_borrados">Audios deleted (%1$d)</string>
     <string name="ruta_horario_hoy">🕓 Service today — %1$s</string>
     <string name="ruta_fuera_horario">⚠ May not be running at this time: %1$s</string>
     <string name="ruta_unidad_cerca">Your L%1$d unit toward %2$s is about to reach %3$s</string>
