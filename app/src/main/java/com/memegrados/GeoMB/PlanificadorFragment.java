@@ -1400,7 +1400,7 @@ public class PlanificadorFragment extends Fragment {
         List<Planificador.Parada> seq = rutaActiva.secuencia;
         if (idx < 0 || idx >= seq.size()) return;
         sliderAdapter.setActual(idx);
-        rvEstaciones.smoothScrollToPosition(idx);
+        centrarSlider(idx);   // mantiene la estación actual CENTRADA (se desplaza al avanzar)
         Planificador.Parada act = seq.get(idx);
         // El trazo de progreso avanza con la ubicación real (cada segundo); si aún no hay GPS, usa la estación.
         LatLng posReal = RecorridoService.ultimaPos != null ? RecorridoService.ultimaPos : act.pos;
@@ -1416,6 +1416,24 @@ public class PlanificadorFragment extends Fragment {
             if (sig.transbordo) resEstado.setText(getString(R.string.recorrido_transborda, vis.apply(sig), Planificador.etiquetaLineaCortaPub(sig.linea)));
             else resEstado.setText(getString(R.string.recorrido_vas, vis.apply(act), vis.apply(sig)));
         }
+    }
+
+    /** Desplaza el slider horizontal para dejar la estación {@code idx} CENTRADA (animado), de modo que
+     *  la carta se vaya moviendo conforme avanza el recorrido en vez de solo asomar la estación. */
+    private void centrarSlider(int idx) {
+        RecyclerView.LayoutManager lm = rvEstaciones.getLayoutManager();
+        if (lm == null) return;
+        androidx.recyclerview.widget.LinearSmoothScroller s =
+                new androidx.recyclerview.widget.LinearSmoothScroller(requireContext()) {
+                    @Override public int calculateDtToFit(int vs, int ve, int bs, int be, int sp) {
+                        return (bs + (be - bs) / 2) - (vs + (ve - vs) / 2);   // centra el item en la vista
+                    }
+                    @Override protected float calculateSpeedPerPixel(android.util.DisplayMetrics dm) {
+                        return 60f / dm.densityDpi;   // desplazamiento suave
+                    }
+                };
+        s.setTargetPosition(idx);
+        lm.startSmoothScroll(s);
     }
 
     /** Avisa una vez cuando la unidad del primer tramo se acerca a tu estación de origen. */

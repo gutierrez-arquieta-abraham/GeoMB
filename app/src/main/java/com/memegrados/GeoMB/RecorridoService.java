@@ -366,10 +366,11 @@ public class RecorridoService extends Service {
         avanceMin = best;   // nunca retrocede
         actualIdx = best;
 
-        // Aviso único del servicio elegido (Ordinario/Express, unidad Rosa) al iniciar el recorrido.
-        if (servicioTexto != null && !servicioAnunciado) {
+        // Aviso ÚNICO al iniciar el recorrido: DIRECCIÓN (terminal del sentido de viaje) + TOTAL de
+        // estaciones del viaje; y el servicio elegido (Ordinario/Express, unidad Rosa) si aplica.
+        if (!servicioAnunciado) {
             servicioAnunciado = true;
-            sonarYHablar(servicioTexto, seq.get(0).linea);
+            sonarYHablar(avisoAbordaje(seq, best), seq.get(best).linea);
         }
 
         // Mide el acercamiento a la estación más cercana: cuando ya te alejaste PASO_M de tu punto
@@ -441,7 +442,7 @@ public class RecorridoService extends Service {
                 handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
                 return;
             }
-            sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);   // "Llegando a X" (+ correspondencia / terminal / consejo)
+            sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea);   // "Llegando a X" (+ cambio de dirección/unidad/ruta)
         }
         // voz de afectación (una vez, si aparece durante el recorrido), con voz Mia.
         if (Manifestaciones.hay() && !afectacionAvisada) {
@@ -636,8 +637,9 @@ public class RecorridoService extends Service {
             if (esFinal) vt += ". " + getString(R.string.voz_ultima_est);
             return vt;
         }
-        // ¿Bajas aquí a transbordar? (la parada siguiente es el cambio de línea/servicio).
-        boolean bajas = best + 1 < seq.size() && seq.get(best + 1).transbordo;
+        // ¿Bajas aquí a cambiar? La parada siguiente arranca otro tramo (línea/conexión, unidad o ruta).
+        int tcSig = best + 1 < seq.size() ? tipoCambio(seq, best + 1) : 0;
+        boolean bajas = tcSig != 0 || (best + 1 < seq.size() && seq.get(best + 1).transbordo);
         String tf = transferenciaTexto(p.linea, basesCorresp(p));
         if (tf.isEmpty() && !bajas) {
             StringBuilder v = new StringBuilder(getString(R.string.voz_llegando_est, nom(p)));
@@ -651,12 +653,170 @@ public class RecorridoService extends Service {
         }
         StringBuilder v = new StringBuilder(getString(R.string.voz_lleg_base, nom(p))).append(tf);
         if (bajas) {
-            // "Baja y realiza tu {transbordo/correspondencia/conexión}" según los sistemas involucrados.
-            String palabra = getString(palabraTransferencia(p.linea, seq.get(best + 1).linea));
-            v.append(". ").append(getString(R.string.voz_baja_realiza, palabra));
+            // Instrucción de bajada según el cambio: transbordo/correspondencia, conexión (camina) o
+            // cambio de servicio/ruta (baja y toma el servicio con dirección).
+            v.append(". ").append(instruccionBajada(seq, best, tcSig != 0 ? tcSig : 1));
         }
         if (esFinal) v.append(". ").append(getString(R.string.voz_ultima_est));
         return v.toString();
+    }
+
+    /** Total de estaciones del viaje: saltos reales entre paradas físicas DISTINTAS (los transbordos
+     *  co-ubicados no se cuentan dos veces). */
+    private int contarEstaciones(List<Planificador.Parada> seq) {
+        int n = 0;
+        for (int i = 1; i < seq.size(); i++)
+            if (!mismaEstacion(seq.get(i - 1), seq.get(i))) n++;
+        return Math.max(n, 1);
+    }
+
+    /** Tipo de cambio de trazo al ENTRAR a la parada i (respecto de la anterior):
+     *  1 = cambio de línea (dirección), 2 = cambio de unidad (ordinario↔exprés), 3 = cambio de ruta
+     *  (L4 Norte↔Sur), 0 = sin cambio. */
+    private int tipoCambio(List<Planificador.Parada> seq, int i) {
+        if (i <= 0 || i >= seq.size()) return 0;
+        Planificador.Parada a = seq.get(i - 1), b = seq.get(i);
+        if (baseLinea(a.linea) != baseLinea(b.linea)) return 1;                 // otra línea → dirección
+        boolean exprA = a.linea >= 121 && a.linea <= 124, exprB = b.linea >= 121 && b.linea <= 124;
+        if (exprA != exprB) return 2;                                            // ordinario↔exprés → unidad
+        if (baseLinea(b.linea) == 4) {
+            int ra = RutasMixtas.rutaL4(a.nombre), rb = RutasMixtas.rutaL4(b.nombre);
+            if (ra != 0 && rb != 0 && ra != rb) return 3;                        // Norte↔Sur → ruta
+        }
+        return 0;
+    }
+
+    /** Sufijo al ABORDAR el nuevo tramo (primera parada de la línea nueva): "Toma la unidad/el autobús
+     *  con dirección {terminal}". Solo para cambio de LÍNEA (transbordo/correspondencia/conexión); los
+     *  cambios de unidad/ruta ya se anuncian en la bajada. "" si aquí no empieza otra línea. */
+    private String sufijoCambio(List<Planificador.Parada> seq, int i) {
+        if (tipoCambio(seq, i) != 1) return "";
+        boolean conexion = palabraTransferencia(seq.get(i - 1).linea, seq.get(i).linea)
+                == R.string.voz_palabra_conexion;
+        String terminal = direccionTerminal(seq, i);
+        return ". " + getString(conexion ? R.string.voz_toma_autobus : R.string.voz_toma_unidad, terminal);
+    }
+
+    /** Aviso inicial de abordaje: "Aborda una unidad con destino a {terminal}[, servicio {X}]
+     *  [, en unidad rosa…]. {N} estaciones." */
+    private String avisoAbordaje(List<Planificador.Parada> seq, int i) {
+        StringBuilder v = new StringBuilder(getString(R.string.voz_aborda, direccionTerminal(seq, i)));
+        String svc = servicioPalabra(seq.get(i).linea);
+        if (!svc.isEmpty()) v.append(getString(R.string.voz_aborda_servicio, svc));
+        if (servicioTexto != null && Planificador.norm(servicioTexto).contains("rosa"))
+            v.append(getString(R.string.voz_unidad_rosa));
+        v.append(". ").append(getString(R.string.voz_n_estaciones, contarEstaciones(seq)));
+        return v.toString();
+    }
+
+    /** Palabra de servicio Mexibús según la línea: Express (12X) / Ordinario (10X); "" en otros. */
+    private String servicioPalabra(int linea) {
+        if (linea >= 121 && linea <= 124) return getString(R.string.servicio_express);
+        if (linea >= 101 && linea <= 104) return getString(R.string.servicio_ordinario);
+        return "";
+    }
+
+    /** Instrucción de bajada al terminar el tramo (best), según el cambio hacia best+1:
+     *  conexión → "Camina hasta la conexión con {estación} {línea}"; unidad → "Baja y toma el servicio
+     *  {X} con dirección a {terminal}"; ruta → "Baja y toma la unidad con dirección a {terminal}";
+     *  transbordo/correspondencia → "Baja y realiza tu {palabra}". */
+    private String instruccionBajada(List<Planificador.Parada> seq, int best, int tc) {
+        int i = best + 1;
+        if (i >= seq.size()) return "";
+        String terminal = direccionTerminal(seq, i);
+        if (tc == 2) return getString(R.string.voz_baja_servicio, servicioPalabra(seq.get(i).linea), terminal);
+        if (tc == 3) return getString(R.string.voz_baja_unidad_dir, terminal);
+        int palabra = palabraTransferencia(seq.get(best).linea, seq.get(i).linea);
+        if (palabra == R.string.voz_palabra_conexion)
+            return getString(R.string.voz_camina_conexion, nombreConexion(seq, i));
+        return getString(R.string.voz_baja_realiza, getString(palabra));   // transbordo / correspondencia
+    }
+
+    /** "{estación} {etiqueta de línea}" de la parada de conexión (para "camina hasta la conexión con …"). */
+    private String nombreConexion(List<Planificador.Parada> seq, int i) {
+        Planificador.Parada p = seq.get(i);
+        return nom(p) + " " + etiquetaLinea(baseLinea(p.linea), p.nombre);
+    }
+
+    /** Terminal de DIRECCIÓN del tramo que inicia en i. Metrobús: terminal de la RUTA (horarios) más
+     *  cercana en tu sentido (mixtas adelante); respaldo y demás sistemas: terminal de la línea. */
+    private String direccionTerminal(List<Planificador.Parada> seq, int i) {
+        Planificador.Parada p = seq.get(i);
+        int base = baseLinea(p.linea);
+        if (base >= 1 && base <= 7 && Horarios.tieneLinea(this, base)) {
+            int fin = i;
+            while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
+            Linea l = GtfsRepository.porNumero(this, base);
+            if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
+                int ia = idxEnLinea(l, seq.get(i).nombre);
+                int ib = idxEnLinea(l, seq.get(fin).nombre);
+                if (ia >= 0 && ib >= 0 && ia != ib) {
+                    String t = terminalHorario(base, l, ia, ib);
+                    if (t != null) return t;
+                }
+            }
+        }
+        return terminalSentido(seq, i);
+    }
+
+    /** Terminal de la ruta de horarios MÁS CERCANA en tu sentido (ib respecto a ia). Las mixtas cuyo
+     *  extremo cae en otra línea se toman como "más allá del final" (solo si ninguna ruta de esta línea
+     *  llega a tu bajada). null si no hay ruta aplicable. */
+    private String terminalHorario(int base, Linea l, int ia, int ib) {
+        boolean forward = ib > ia;
+        String mejor = null;
+        int mejorIdx = forward ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+        for (Horarios.Ruta r : Horarios.deLinea(this, base)) {
+            String end = forward ? r.destino : r.origen;
+            if (end == null || end.isEmpty()) continue;
+            int idx = idxEnLinea(l, end);
+            int ef;
+            if (idx < 0) ef = forward ? Integer.MAX_VALUE - 1 : Integer.MIN_VALUE + 1;   // mixta fuera de la línea
+            else if (forward ? idx >= ib : idx <= ib) ef = idx;                          // llega al menos a tu bajada
+            else continue;                                                               // se queda antes
+            boolean mejora = forward ? ef < mejorIdx : ef > mejorIdx;
+            if (mejora) { mejorIdx = ef; mejor = nomNombre(end); }
+        }
+        return mejor;
+    }
+
+    /** Terminal del SENTIDO de viaje del tramo que empieza en i: la estación extrema de la línea hacia la
+     *  que avanza la secuencia. Respaldo: la última parada del tramo (donde bajas/terminas). */
+    private String terminalSentido(List<Planificador.Parada> seq, int i) {
+        Planificador.Parada p = seq.get(i);
+        int base = baseLinea(p.linea);
+        int fin = i;
+        while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
+        Linea l = GtfsRepository.porNumero(this, p.linea);
+        if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
+            int ia = idxEnLinea(l, seq.get(i).nombre);
+            int ib = idxEnLinea(l, seq.get(fin).nombre);
+            if (ia >= 0 && ib >= 0 && ia != ib) {
+                Estacion term = ib > ia ? l.estaciones.get(l.estaciones.size() - 1) : l.estaciones.get(0);
+                return nomNombre(term.nombre);
+            }
+        }
+        return nomNombre(seq.get(fin).nombre);   // respaldo: última parada del tramo
+    }
+
+    /** Índice en la línea de la estación cuyo nombre (normalizado, sin MXB) coincide con el de la parada. */
+    private static int idxEnLinea(Linea l, String nombreParada) {
+        String q = Planificador.norm(Planificador.sinMxb(nombreParada));
+        for (int k = 0; k < l.estaciones.size(); k++)
+            if (Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre)).equals(q)) return k;
+        for (int k = 0; k < l.estaciones.size(); k++) {
+            String nn = Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre));
+            if (!nn.isEmpty() && !q.isEmpty() && (nn.contains(q) || q.contains(nn))) return k;
+        }
+        return -1;
+    }
+
+    /** Nombre para HABLAR desde un String de estación (sin "MXB " ni el paréntesis de conexión). */
+    private static String nomNombre(String nombre) {
+        if (nombre == null) return "";
+        String s = Planificador.sinMxb(nombre);
+        int par = s.indexOf('(');
+        return par >= 0 ? s.substring(0, par).trim() : s;
     }
 
     /**
