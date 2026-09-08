@@ -826,8 +826,8 @@ public class PlanificadorFragment extends Fragment {
         if (aviso.length() > 0) resAviso.setText(aviso.toString());
         panelResultado.setVisibility(View.VISIBLE);
 
-        // deslizador de estaciones (arriba)
-        sliderAdapter.set(r.secuencia);
+        // deslizador de estaciones (arriba) + chips de instrucción por tramo (Aborda/Toma · dirección)
+        sliderAdapter.set(r.secuencia, r.instrucciones);
         panelEstaciones.setVisibility(r.secuencia.isEmpty() ? View.GONE : View.VISIBLE);
         boolean veniaRecorrido = recorrido;
         if (recorrido) detenerRecorrido();
@@ -1423,6 +1423,8 @@ public class PlanificadorFragment extends Fragment {
     private void centrarSlider(int idx) {
         RecyclerView.LayoutManager lm = rvEstaciones.getLayoutManager();
         if (lm == null) return;
+        int pos = sliderAdapter.posDe(idx);   // la secuencia trae chips intercalados: mapea a la posición real
+        if (pos < 0) return;
         androidx.recyclerview.widget.LinearSmoothScroller s =
                 new androidx.recyclerview.widget.LinearSmoothScroller(requireContext()) {
                     @Override public int calculateDtToFit(int vs, int ve, int bs, int be, int sp) {
@@ -1432,7 +1434,7 @@ public class PlanificadorFragment extends Fragment {
                         return 60f / dm.densityDpi;   // desplazamiento suave
                     }
                 };
-        s.setTargetPosition(idx);
+        s.setTargetPosition(pos);
         lm.startSmoothScroll(s);
     }
 

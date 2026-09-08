@@ -289,12 +289,22 @@ public class RecorridoService extends Service {
         return ls;
     }
 
+    // Acceso PEATONAL de Puente de Fierro (Mexibús L3): la entrada a pie no coincide con el punto del
+    // andén, así que la llegada se mide también contra esta coordenada (lo que se alcance primero).
+    private static final double PF_ACC_LAT = 19.602869413781498, PF_ACC_LON = -99.03368304222656;
+
     /** Distancia a la parada. En Indios Verdes cada andén tiene una ZONA de cobertura (corredor A→B): se
-     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). */
+     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). En
+     *  Puente de Fierro se considera además el acceso peatonal (mínimo de andén y acceso). */
     private double distParada(android.location.Location l, Planificador.Parada p) {
         double dz = Planificador.distanciaZona(p, l.getLatitude(), l.getLongitude());
-        if (dz >= 0) return dz;
-        return haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
+        double base = dz >= 0 ? dz
+                : haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
+        if (p.nombre != null && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
+            double acc = haversine(l.getLatitude(), l.getLongitude(), PF_ACC_LAT, PF_ACC_LON);
+            return Math.min(base, acc);
+        }
+        return base;
     }
 
     /** Nº mínimo de estaciones dentro de una línea (tras la correspondencia) para dar por hecho que ya
@@ -425,7 +435,10 @@ public class RecorridoService extends Service {
             ultProxima = proxIdx;
             // Te acercas a la estación de BAJADA si la parada siguiente a "prox" es un transbordo.
             boolean prepararse = proxIdx + 1 <= last && seq.get(proxIdx + 1).transbordo;
-            sonarYHablar(vozProxima(seq, proxIdx, prepararse), prox.linea);   // "Próxima estación X" (+ correspondencia / prep)
+            // El jingle usa la línea que VAS VIAJANDO (la actual), no la de la próxima parada: así en
+            // correspondencias co-ubicadas (p. ej. Indios Verdes) no suena el tururu de Metrobús mientras
+            // sigues en Mexibús.
+            sonarYHablar(vozProxima(seq, proxIdx, prepararse), seq.get(best).linea);   // "Próxima estación X" (+ correspondencia / prep)
         } else if (bd <= radioCerca(seq.get(best)) && ultLlegando != best) {
             ultLlegando = best;
             ultProxima = -99;
@@ -701,19 +714,38 @@ public class RecorridoService extends Service {
      *  [, en unidad rosa…]. {N} estaciones." */
     private String avisoAbordaje(List<Planificador.Parada> seq, int i) {
         StringBuilder v = new StringBuilder(getString(R.string.voz_aborda, direccionTerminal(seq, i)));
-        String svc = servicioPalabra(seq.get(i).linea);
+        String svc = servicioNombre(seq, i, esRosa());
         if (!svc.isEmpty()) v.append(getString(R.string.voz_aborda_servicio, svc));
-        if (servicioTexto != null && Planificador.norm(servicioTexto).contains("rosa"))
-            v.append(getString(R.string.voz_unidad_rosa));
+        if (esRosa()) v.append(getString(R.string.voz_unidad_rosa));
         v.append(". ").append(getString(R.string.voz_n_estaciones, contarEstaciones(seq)));
         return v.toString();
     }
 
-    /** Palabra de servicio Mexibús según la línea: Express (12X) / Ordinario (10X); "" en otros. */
-    private String servicioPalabra(int linea) {
-        if (linea >= 121 && linea <= 124) return getString(R.string.servicio_express);
-        if (linea >= 101 && linea <= 104) return getString(R.string.servicio_ordinario);
-        return "";
+    /** ¿El viaje va en unidad Rosa? (se decidió al elegir el servicio; el texto lo incluye). */
+    private boolean esRosa() {
+        return servicioTexto != null && Planificador.norm(servicioTexto).contains("rosa");
+    }
+
+    /** Nombre de servicio Mexibús para la voz: tipo (Ordinario/Express) anteponiendo el CÓDIGO del
+     *  servicio (p. ej. "TR1 Ordinario", "Express 3") cuando el tramo recorrido identifica uno solo.
+     *  "" para Metrobús/Mexicable. */
+    private String servicioNombre(List<Planificador.Parada> seq, int i, boolean rosa) {
+        int linea = seq.get(i).linea;
+        boolean express = linea >= 121 && linea <= 124;
+        boolean ordinario = linea >= 101 && linea <= 104;
+        if (!express && !ordinario) return "";
+        String tipo = getString(express ? R.string.servicio_express : R.string.servicio_ordinario);
+        int base = Servicios.base(linea);
+        String cod = null;
+        if (express) {   // identifica la variante por las paradas del tramo actual (misma base)
+            int fin = i;
+            while (fin + 1 < seq.size() && Servicios.base(seq.get(fin + 1).linea) == base) fin++;
+            java.util.List<String> tramo = new java.util.ArrayList<>();
+            for (int k = i; k <= fin; k++) tramo.add(seq.get(k).nombre);
+            cod = ServiciosMexibus.codigoPorTramo(this, base, true, rosa, tramo);
+        }
+        if (cod == null) cod = ServiciosMexibus.codigoUnico(this, base, express, rosa);
+        return cod != null ? cod + " " + tipo : tipo;
     }
 
     /** Instrucción de bajada al terminar el tramo (best), según el cambio hacia best+1:
@@ -724,7 +756,7 @@ public class RecorridoService extends Service {
         int i = best + 1;
         if (i >= seq.size()) return "";
         String terminal = direccionTerminal(seq, i);
-        if (tc == 2) return getString(R.string.voz_baja_servicio, servicioPalabra(seq.get(i).linea), terminal);
+        if (tc == 2) return getString(R.string.voz_baja_servicio, servicioNombre(seq, i, esRosa()), terminal);
         if (tc == 3) return getString(R.string.voz_baja_unidad_dir, terminal);
         int palabra = palabraTransferencia(seq.get(best).linea, seq.get(i).linea);
         if (palabra == R.string.voz_palabra_conexion)
@@ -743,41 +775,65 @@ public class RecorridoService extends Service {
     private String direccionTerminal(List<Planificador.Parada> seq, int i) {
         Planificador.Parada p = seq.get(i);
         int base = baseLinea(p.linea);
+        int fin = i;
+        while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
+        String t = null;
         if (base >= 1 && base <= 7 && Horarios.tieneLinea(this, base)) {
-            int fin = i;
-            while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
             Linea l = GtfsRepository.porNumero(this, base);
             if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
                 int ia = idxEnLinea(l, seq.get(i).nombre);
                 int ib = idxEnLinea(l, seq.get(fin).nombre);
-                if (ia >= 0 && ib >= 0 && ia != ib) {
-                    String t = terminalHorario(base, l, ia, ib);
-                    if (t != null) return t;
-                }
+                if (ia >= 0 && ib >= 0 && ia != ib) t = terminalHorario(base, l, ia, ib);
             }
         }
-        return terminalSentido(seq, i);
+        if (t == null) t = terminalSentido(seq, i);
+        // Salvaguarda: la dirección nunca debe ser la MISMA estación donde vas/abordas; si lo fuera
+        // (datos raros), usa el final del tramo (tu destino en esta línea).
+        String aqui = nomNombre(seq.get(i).nombre);
+        if (t == null || Planificador.norm(t).equals(Planificador.norm(aqui))) t = nomNombre(seq.get(fin).nombre);
+        return t;
     }
 
-    /** Terminal de la ruta de horarios MÁS CERCANA en tu sentido (ib respecto a ia). Las mixtas cuyo
-     *  extremo cae en otra línea se toman como "más allá del final" (solo si ninguna ruta de esta línea
-     *  llega a tu bajada). null si no hay ruta aplicable. */
+    /**
+     * Terminal(es) de dirección para tu parada, según las rutas de horarios. Recolecta las rutas que
+     * CUBREN tu parada (ia) y toma, de cada una, su extremo en tu sentido de viaje (por índice; no se
+     * asume que {@code destino} sea el extremo mayor). Devuelve las terminales DISTINTAS de la más
+     * cercana a la más lejana, unidas con " o " (p. ej. "Instituto Politécnico Nacional o El Rosario").
+     * Si MÁS DE 3 rutas cubren la parada, devuelve solo la más cercana. null si ninguna aplica.
+     */
     private String terminalHorario(int base, Linea l, int ia, int ib) {
-        boolean forward = ib > ia;
-        String mejor = null;
-        int mejorIdx = forward ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+        boolean forward = ib > ia;               // hacia el extremo de índice MAYOR de la línea
+        int last = l.estaciones.size() - 1;
+        java.util.List<Integer> idxs = new java.util.ArrayList<>();
+        java.util.List<String> nombres = new java.util.ArrayList<>();
+        int rutasCubren = 0;
         for (Horarios.Ruta r : Horarios.deLinea(this, base)) {
-            String end = forward ? r.destino : r.origen;
-            if (end == null || end.isEmpty()) continue;
-            int idx = idxEnLinea(l, end);
-            int ef;
-            if (idx < 0) ef = forward ? Integer.MAX_VALUE - 1 : Integer.MIN_VALUE + 1;   // mixta fuera de la línea
-            else if (forward ? idx >= ib : idx <= ib) ef = idx;                          // llega al menos a tu bajada
-            else continue;                                                               // se queda antes
-            boolean mejora = forward ? ef < mejorIdx : ef > mejorIdx;
-            if (mejora) { mejorIdx = ef; mejor = nomNombre(end); }
+            int oi = idxEnLinea(l, r.origen), di = idxEnLinea(l, r.destino);
+            if (oi < 0 && di < 0) continue;
+            if (oi < 0) oi = (di <= last - di) ? last : 0;   // extremo mixto (fuera de la línea): al extremo opuesto
+            if (di < 0) di = (oi <= last - oi) ? last : 0;
+            int lo = Math.min(oi, di), hi = Math.max(oi, di);
+            if (ia < lo || ia > hi) continue;                // esta ruta no cubre tu parada
+            rutasCubren++;
+            int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
+            String nombre = (termIdx == oi) ? r.origen : r.destino;
+            if (nombre == null || nombre.isEmpty() || idxEnLinea(l, nombre) < 0)
+                nombre = l.estaciones.get(termIdx).nombre;   // respaldo (mixta): nombre de la estación extrema
+            nombre = nomNombre(nombre);
+            if (!idxs.contains(termIdx)) { idxs.add(termIdx); nombres.add(nombre); }
         }
-        return mejor;
+        if (idxs.isEmpty()) return null;
+        // ordena por cercanía a tu parada (ia)
+        for (int a = 0; a < idxs.size(); a++)
+            for (int b = a + 1; b < idxs.size(); b++)
+                if (Math.abs(idxs.get(b) - ia) < Math.abs(idxs.get(a) - ia)) {
+                    int ti = idxs.get(a); idxs.set(a, idxs.get(b)); idxs.set(b, ti);
+                    String tn = nombres.get(a); nombres.set(a, nombres.get(b)); nombres.set(b, tn);
+                }
+        if (rutasCubren > 3) return nombres.get(0);          // demasiadas rutas: solo la más cercana
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < nombres.size(); i++) sb.append(i > 0 ? " o " : "").append(nombres.get(i));
+        return sb.toString();
     }
 
     /** Terminal del SENTIDO de viaje del tramo que empieza en i: la estación extrema de la línea hacia la

@@ -1,0 +1,30 @@
+{
+  "_nota": "Catálogo de servicios finos de Mexibús por línea base (101-104). tipo: ordinario|express|mixto. rosa: unidad exclusiva. origen/destino: terminales de la ruta. estaciones: paradas propias del servicio exprés (el planificador rutea CADA variante como su propia secuencia). L2 (Mixto) sigue sin patrón de paradas: se enruta con la exprés genérica hasta capturarlas.",
+  "servicios": [
+    { "linea": 101, "codigo": "TR1", "tipo": "ordinario", "rosa": false, "origen": "Ojo de Agua", "destino": "Ciudad Azteca" },
+    { "linea": 101, "codigo": "TR3", "tipo": "express",   "rosa": false, "origen": "Ojo de Agua", "destino": "Ciudad Azteca",
+      "estaciones": ["Ojo de Agua", "Cuahutémoc Norte", "Central de Abastos", "Jardines de Morelos", "Hospital", "1° de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
+    { "linea": 101, "codigo": "TR3", "tipo": "express",   "rosa": true,  "origen": "Ojo de Agua", "destino": "Ciudad Azteca",
+      "estaciones": ["Ojo de Agua", "Cuahutémoc Norte", "Central de Abastos", "Jardines de Morelos", "Hospital", "1° de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
+    { "linea": 101, "codigo": "TR4", "tipo": "express",   "rosa": false, "origen": "Central de Abastos", "destino": "Ciudad Azteca",
+      "estaciones": ["Central de Abastos", "Jardines de Morelos", "Hospital", "1° de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
+
+    { "linea": 102, "tipo": "ordinario", "rosa": false, "_prefijos": "Rosa, Mixto" },
+    { "linea": 102, "tipo": "express",   "rosa": false, "_prefijos": "Rosa, Mixto" },
+
+    { "linea": 103, "tipo": "ordinario", "rosa": false, "origen": "Chimalhuacán", "destino": "Pantitlán" },
+    { "linea": 103, "codigo": "Express Rosa", "tipo": "express", "rosa": true, "origen": "Chimalhuacán", "destino": "Pantitlán",
+      "estaciones": ["Chimalhuacán", "Acuitlapilco", "Los Patos", "La Presa", "Las Torres", "General Vicente Villada", "Adolfo López Mateos", "Riva Palacio", "Calle 6", "Pantitlán"] },
+    { "linea": 103, "codigo": "Express 1", "tipo": "express", "rosa": false, "origen": "Acuitlapilco",  "destino": "Pantitlán",
+      "estaciones": ["Acuitlapilco", "Los Patos", "La Presa", "Las Flores", "Las Torres", "Rayito de Sol", "General Vicente Villada", "Palacio Municipal", "Adolfo López Mateos", "Nezahualcóyotl", "Riva Palacio", "El Barquito", "Pantitlán"] },
+    { "linea": 103, "codigo": "Express 2", "tipo": "express", "rosa": false, "origen": "Chimalhuacán",  "destino": "Pantitlán",
+      "estaciones": ["Chimalhuacán", "Los Patos", "La Presa", "Las Torres", "General Vicente Villada", "Adolfo López Mateos", "Riva Palacio", "Pantitlán"] },
+    { "linea": 103, "codigo": "Express 3", "tipo": "express", "rosa": false, "origen": "Rayito de Sol", "destino": "Pantitlán",
+      "estaciones": ["Rayito de Sol", "General Vicente Villada", "Palacio Municipal", "Adolfo López Mateos", "Riva Palacio", "El Barquito", "Calle 6", "Pantitlán"] },
+
+    { "linea": 104, "tipo": "ordinario", "rosa": false, "_prefijos": "Rosa",
+      "_nota": "L4 se rutea directo por las líneas 104 (ordinario) y 124 (express); 124 ya trae solo las paradas express, con manejo especial del couplet (La Raza únicamente descenso, Indios Verdes)." },
+    { "linea": 104, "tipo": "express",   "rosa": false, "_prefijos": "Rosa",
+      "estaciones_ref": ["UMB", "Flores", "Revolución", "Central de Abastos", "Puente de Fierro", "Nuevo Laredo", "Tulpetlac", "Clínica 93", "Santa Clara", "Clínica 76", "Periférico", "Indios Verdes", "La Raza"] }
+  ]
+}

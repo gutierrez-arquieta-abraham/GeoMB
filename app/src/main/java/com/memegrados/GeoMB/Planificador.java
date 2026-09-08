@@ -663,6 +663,82 @@ public final class Planificador {
         return r;
     }
 
+    /**
+     * Agrega al grafo las rutas de los SERVICIOS EXPRÉS Mexibús que tienen lista de paradas propia
+     * (servicios_mexibus.json): cada variante (L1 TR3/TR4, L3 Express 1/2/3/Rosa) se rutea como su propia
+     * secuencia de UNA VÍA (ida y vuelta), saltando las estaciones que ese servicio no hace. Devuelve el
+     * conjunto de líneas 12X que quedaron cubiertas por variantes (para NO agregar además la 12X genérica).
+     */
+    private static Set<Integer> agregarVariantes(Context ctx, List<Route> rutas) {
+        Set<Integer> cubiertas = new java.util.HashSet<>();
+        for (int ex = 121; ex <= 124; ex++) {
+            Linea l12 = GtfsRepository.porNumero(ctx, ex);
+            if (l12 == null) continue;
+            // Índice nombre-limpio → estación de la 12X (para resolver las paradas de cada variante).
+            java.util.Map<String, Estacion> idx = new java.util.HashMap<>();
+            for (Estacion e : l12.estaciones) if (!e.soloMapa) idx.put(limpiaNom(e.nombre), e);
+            boolean agrego = false;
+            Set<String> patrones = new java.util.HashSet<>();   // dedupe por patrón (Rosa = mismo trazo que su base)
+            for (ServiciosMexibus.Svc s : ServiciosMexibus.deLinea(ctx, 100 + ex % 10)) {
+                if (s.estaciones == null || s.estaciones.size() < 2 || s.codigo == null) continue;
+                List<Estacion> ests = new ArrayList<>();
+                boolean ok = true;
+                StringBuilder clave = new StringBuilder();
+                for (String nom : s.estaciones) {
+                    Estacion e = resolverEstacion(idx, nom);
+                    if (e == null) { ok = false; break; }
+                    ests.add(e);
+                    clave.append(norm(e.nombre)).append('|');
+                }
+                if (!ok || ests.size() < 2) continue;
+                if (!patrones.add(clave.toString())) continue;   // ese trazo ya se agregó (p. ej. TR3 vs TR3 rosa)
+                String vis = (l12.nombre != null ? l12.nombre : ("L" + (ex % 100))) + " " + s.codigo;
+                String base = "V" + ex + s.codigo.replaceAll("\\s+", "");
+                rutas.add(rutaDeEstaciones(base + ">", vis, l12, ests, false));
+                rutas.add(rutaDeEstaciones(base + "<", vis, l12, ests, true));
+                agrego = true;
+            }
+            if (agrego) cubiertas.add(ex);
+        }
+        return cubiertas;
+    }
+
+    /** Ruta de UNA VÍA a partir de una secuencia de estaciones (para los servicios exprés por variante).
+     *  Se referencia la línea 12X ({@code l12}) para que el trazo use su geometría real (sigue el corredor
+     *  aunque el servicio salte estaciones) y las terminales oficiales del sentido. */
+    private static Route rutaDeEstaciones(String id, String visible, Linea l12,
+                                          List<Estacion> ests, boolean invertir) {
+        Route r = new Route(id, visible, false, true, l12, l12.color);
+        int n = ests.size();
+        for (int k = 0; k < n; k++) {
+            Estacion e = ests.get(invertir ? n - 1 - k : k);
+            r.stops.add(new Stop(e.nombre, norm(e.nombre), e.icono, e.posicion, l12.numero, l12.color));
+        }
+        return r;
+    }
+
+    /** Nombre limpio para casar variantes con la 12X: sin "MXB", sin paréntesis de conexión, normalizado. */
+    private static String limpiaNom(String s) {
+        return norm(sinMxb(s.replaceAll("\\(.*?\\)", "")));
+    }
+
+    /** Resuelve una parada de variante contra el índice de la 12X: exacto y, si no, por contención
+     *  (la clave más corta que contiene o está contenida en el nombre buscado). null si no aparece. */
+    private static Estacion resolverEstacion(java.util.Map<String, Estacion> idx, String nombre) {
+        String q = limpiaNom(nombre);
+        Estacion e = idx.get(q);
+        if (e != null) return e;
+        Estacion mejor = null; int mejorLen = Integer.MAX_VALUE;
+        for (java.util.Map.Entry<String, Estacion> en : idx.entrySet()) {
+            String k = en.getKey();
+            if (k.isEmpty()) continue;
+            if (k.contains(q) || q.contains(k)) {
+                if (k.length() < mejorLen) { mejorLen = k.length(); mejor = en.getValue(); }
+            }
+        }
+        return mejor;
+    }
+
     /** Arma un recorrido mixto como ruta de UNA VÍA (opcionalmente invertido para el otro sentido). */
     private static Route construirMixta(Context ctx, RutasMixtas.SeqMixta sm, boolean invertir) {
         int n = sm.estaciones.length;
@@ -778,10 +854,14 @@ public final class Planificador {
             rutas = grafoCache.rutas; node = grafoCache.node; rango = grafoCache.rango; adj = grafoCache.adj;
             n = node.size();
         } else {
-        // 1. Construir rutas: 7 líneas físicas + recorridos mixtos con su secuencia.
+        // 1. Construir rutas: 7 líneas físicas + recorridos mixtos + servicios exprés Mexibús por variante.
         rutas = new ArrayList<>();
+        // Exprés Mexibús con lista de paradas propia (L1 TR3/TR4, L3 Express 1/2/3/Rosa): se rutea CADA
+        // variante como su propia secuencia (salta las estaciones que no hace) en vez de la 12X genérica.
+        Set<Integer> exprVariante = agregarVariantes(ctx, rutas);
         for (Linea l : GtfsRepository.getRuteables(ctx)) {
             if (l.numero == 4 || l.numero == 7) continue;   // L4 y L7 se rutean por sus servicios (RutasMixtas)
+            if (exprVariante.contains(l.numero)) continue;  // 12X con variantes: se agregaron arriba
             if (l.numero == 2) {           // L2: el este es couplet de una vía → dos rutas dirigidas
                 rutas.add(dirRoute(l, "L2>", true, L2_IDA));    // Tacubaya → Tepalcates
                 rutas.add(dirRoute(l, "L2<", false, L2_VUELTA)); // Tepalcates → Tacubaya
