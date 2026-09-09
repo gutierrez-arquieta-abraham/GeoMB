@@ -1161,7 +1161,10 @@ public class RecorridoService extends Service {
      *  normalizado (correspondencia con el mismo nombre, p. ej. Puente de Fierro L2↔L4). */
     private static boolean mismaEstacion(Planificador.Parada a, Planificador.Parada b) {
         if (a == null || b == null) return false;
-        if (claveServicio(a.linea) == claveServicio(b.linea)) return true;
+        // OJO: claveServicio(n) devuelve n para cualquier línea no exprés, así que comparar solo la
+        // clave sin exigir líneas DISTINTAS haría "misma estación" a cualquier par de la misma línea
+        // (a.linea == b.linea siempre cumple), rompiendo el cálculo de la próxima parada a anunciar.
+        if (a.linea != b.linea && claveServicio(a.linea) == claveServicio(b.linea)) return true;
         return Planificador.norm(Planificador.sinMxb(a.nombre))
                 .equals(Planificador.norm(Planificador.sinMxb(b.nombre)));
     }
