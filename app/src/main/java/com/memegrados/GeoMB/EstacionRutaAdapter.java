@@ -124,10 +124,19 @@ public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         String limpio = Planificador.nombreMostrar(e.itemView.getContext(), p.nombre, p.linea);
         e.nombre.setText(p.transbordo ? "⇄ " + limpio : limpio);
 
-        GradientDrawable dot = new GradientDrawable();
-        dot.setShape(GradientDrawable.OVAL);
-        dot.setColor(p.color);
-        e.dot.setBackground(dot);
+        // Pictograma de la estación (misma lógica que la descripción de ruta: respeta nuevo/antiguo y,
+        // si no hay pictograma, cae a un punto del color de la línea).
+        int px = Math.round(24 * e.itemView.getResources().getDisplayMetrics().density);
+        android.graphics.Bitmap bmp = Iconos.pictograma(e.itemView.getContext(), p.icono, px);
+        if (bmp != null) {
+            e.dot.setImageBitmap(bmp);
+        } else {
+            GradientDrawable dot = new GradientDrawable();
+            dot.setShape(GradientDrawable.OVAL);
+            dot.setColor(p.color);
+            dot.setSize(px, px);
+            e.dot.setImageDrawable(dot);
+        }
 
         boolean esActual = it.seqIdx == actual;
         Tipografia.aplicar(e.nombre, esActual ? Typeface.BOLD : Typeface.NORMAL);
@@ -144,7 +153,7 @@ public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     public int getItemCount() { return items.size(); }
 
     static final class EstVH extends RecyclerView.ViewHolder {
-        final View dot;
+        final android.widget.ImageView dot;
         final TextView nombre;
         EstVH(@NonNull View v) {
             super(v);

@@ -81,6 +81,7 @@ public class PlanificadorFragment extends Fragment {
     private boolean autoTrazar = false;
     private boolean recorrido = false;
     private final java.util.Map<String, com.google.android.gms.maps.model.Marker> marcadoresUnidad = new java.util.HashMap<>();
+    private UnidadAnimador animUnidades;   // anima las unidades pegadas al grafo y por su velocidad
     private final java.util.Map<String, Long> animToken = new java.util.HashMap<>();   // anima el desplazamiento de cada unidad
     private long animSeq = 0;
     private static final double RADIO_ESTACION_M = 50;   // metros a la redonda del trazo para mostrar unidades
@@ -885,87 +886,84 @@ public class PlanificadorFragment extends Fragment {
     }
 
     /**
-     * Descripción de ruta como lista scrolleable: el logo (pictograma) de cada estación —respeta el
-     * modo nuevo/antiguo vía {@link Iconos#pictograma}— y, en cada cambio de línea, servicio o
-     * sistema, una fila de transferencia con ícono de caminata (si es a pie) o de transbordo.
+     * Descripción de ruta como lista scrolleable de INDICACIONES en texto (una por tramo:
+     * línea/servicio → terminal · nº estaciones) y, en cada cambio de trazo, una fila de transferencia
+     * (caminata si es a pie, o transbordo/correspondencia/conexión). Las estaciones ya NO se listan aquí:
+     * sus pictogramas van en el deslizador (panel_estaciones).
      */
     private void pintarPasos(Planificador.Ruta r) {
         resPasosList.removeAllViews();
-        int prevLinea = 0; String prevNombre = null;
-        for (int j = 0; j < r.secuencia.size(); j++) {
-            Planificador.Parada p = r.secuencia.get(j);
-            // Fila de transferencia SOLO en correspondencias reales (p.transbordo). Ordinario↔exprés de la
-            // misma línea ya no marca transbordo, así que no genera fila.
-            if (j > 0 && p.transbordo) {
-                // Cambio de línea/sistema → transferencia. Nombres distintos = caminata.
-                boolean camina = prevNombre != null
-                        && !Planificador.norm(prevNombre).equals(Planificador.norm(p.nombre));
+        java.util.List<Planificador.Paso> pasos = r.pasos;
+        java.util.List<Planificador.Instruccion> ins = r.instrucciones;
+        int n = Math.min(pasos == null ? 0 : pasos.size(), ins == null ? 0 : ins.size());
+        for (int t = 0; t < n; t++) {
+            Planificador.Paso paso = pasos.get(t);
+            // Entre tramos de TRAZO distinto (transbordo/correspondencia/conexión): fila de transferencia.
+            // Ordinario↔exprés de la misma troncal es el MISMO trazo → no genera fila.
+            if (t > 0 && !mismoTrazo(pasos.get(t - 1).linea, paso.linea)) {
+                Planificador.Paso prev = pasos.get(t - 1);
+                boolean camina = prev.destino != null && paso.origen != null
+                        && !Planificador.norm(Planificador.sinMxb(prev.destino))
+                                .equals(Planificador.norm(Planificador.sinMxb(paso.origen)));
                 String texto;
                 if (camina) {
                     texto = getString(R.string.ruta_camina,
-                            Planificador.nombreMostrar(requireContext(), p.nombre, p.linea));
+                            Planificador.nombreMostrar(requireContext(), paso.origen, paso.linea));
                 } else {
-                    String verbo = getString(verboTransferencia(prevLinea, p.linea));
+                    String verbo = getString(verboTransferencia(prev.linea, paso.linea));
                     if (!verbo.isEmpty()) verbo = Character.toUpperCase(verbo.charAt(0)) + verbo.substring(1);
-                    texto = verbo + " · L" + Planificador.etiquetaLineaCortaPub(p.linea);
+                    texto = verbo + " · L" + Planificador.etiquetaLineaCortaPub(paso.linea);
                 }
                 resPasosList.addView(filaTransfer(camina, texto));
             }
-            android.view.View fe = filaEstacion(p);
-            fe.setTag("est");   // marca de fila-estación (para contar 4 visibles)
-            resPasosList.addView(fe);
-            prevLinea = p.linea; prevNombre = p.nombre;
+            // Indicación (texto) del tramo: línea/servicio → terminal · nº estaciones. Sin listar estaciones.
+            resPasosList.addView(filaIndicacion(ins.get(t)));
         }
-        // Limita la altura a 4 estaciones visibles (más las transferencias intercaladas antes de la 4ª);
-        // el resto queda con scroll. Mantiene la separación previa respecto a los controles del mapa.
+        // La lista de indicaciones es corta: alto natural (con scroll solo si hiciera falta).
         resPasosScroll.post(() -> {
             if (resPasosScroll == null) return;
-            int acumulado = 0, estaciones = 0;
-            for (int k = 0; k < resPasosList.getChildCount(); k++) {
-                android.view.View c = resPasosList.getChildAt(k);
-                acumulado += c.getHeight();
-                if ("est".equals(c.getTag()) && ++estaciones == 4) break;
-            }
             android.view.ViewGroup.LayoutParams lp = resPasosScroll.getLayoutParams();
-            lp.height = (estaciones >= 4 && resPasosList.getHeight() > acumulado)
-                    ? acumulado : android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
+            lp.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
             resPasosScroll.setLayoutParams(lp);
         });
     }
 
-    /** Fila de estación: barra del color de la línea + pictograma (logo) + nombre. */
-    private android.view.View filaEstacion(Planificador.Parada p) {
+    /** ¿Dos líneas son el MISMO trazo (no hay transbordo)? Une ordinario↔exprés de la misma troncal
+     *  Mexibús (10X↔12X); los ramales (L1↔L1A) SÍ son trazos distintos. */
+    private static boolean mismoTrazo(int a, int b) {
+        int ca = (a >= 121 && a <= 124) ? a - 20 : a;   // exprés 12X → ordinaria 10X
+        int cb = (b >= 121 && b <= 124) ? b - 20 : b;
+        return ca == cb;
+    }
+
+    /** Indicación de un tramo (texto): barra del color + "{línea/servicio} → {terminal} · N estaciones". */
+    private android.view.View filaIndicacion(Planificador.Instruccion ins) {
         float d = getResources().getDisplayMetrics().density;
         android.widget.LinearLayout fila = new android.widget.LinearLayout(requireContext());
         fila.setOrientation(android.widget.LinearLayout.HORIZONTAL);
         fila.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        fila.setPadding(0, Math.round(4 * d), 0, Math.round(4 * d));
+        fila.setPadding(0, Math.round(5 * d), 0, Math.round(5 * d));
 
         android.view.View barra = new android.view.View(requireContext());
         android.widget.LinearLayout.LayoutParams lpB =
                 new android.widget.LinearLayout.LayoutParams(Math.round(3 * d), Math.round(24 * d));
         lpB.rightMargin = Math.round(8 * d);
         barra.setLayoutParams(lpB);
-        barra.setBackgroundColor(p.color);
+        barra.setBackgroundColor(ins.color);
         fila.addView(barra);
 
-        android.widget.ImageView ico = new android.widget.ImageView(requireContext());
-        int ip = Math.round(28 * d);
-        android.widget.LinearLayout.LayoutParams lpI = new android.widget.LinearLayout.LayoutParams(ip, ip);
-        lpI.rightMargin = Math.round(8 * d);
-        ico.setLayoutParams(lpI);
-        Bitmap bmp = Iconos.pictograma(requireContext(), p.icono, ip);
-        ico.setImageBitmap(bmp != null ? bmp
-                : badgeLinea(p.color, Planificador.etiquetaLineaCortaPub(p.linea)));
-        fila.addView(ico);
+        String linea = (ins.ruta != null && !ins.ruta.isEmpty()) ? ins.ruta
+                : getString(R.string.manifest_linea_fmt, Planificador.etiquetaLineaCortaPub(ins.linea));
+        StringBuilder txt = new StringBuilder(linea);
+        if (ins.terminal != null && !ins.terminal.isEmpty()) txt.append(" → ").append(ins.terminal);
+        txt.append(" · ").append(ins.paradas).append(ins.paradas == 1 ? " estación" : " estaciones");
 
-        TextView nom = new TextView(requireContext());
-        nom.setText(Planificador.nombreMostrar(requireContext(), p.nombre, p.linea));
-        nom.setTextSize(14f);
-        nom.setTextColor(com.google.android.material.color.MaterialColors.getColor(
+        TextView t = new TextView(requireContext());
+        t.setText(txt.toString());
+        t.setTextSize(14f);
+        t.setTextColor(com.google.android.material.color.MaterialColors.getColor(
                 fila, com.google.android.material.R.attr.colorOnSurface));
-        if (p.transbordo) nom.setTypeface(nom.getTypeface(), android.graphics.Typeface.BOLD);
-        fila.addView(nom);
+        fila.addView(t);
         return fila;
     }
 
@@ -1029,10 +1027,12 @@ public class PlanificadorFragment extends Fragment {
     /** Dibuja/actualiza SOLO las unidades dentro del área visible del mapa (como el mapa general). */
     private void dibujarUnidades(List<UnidadReal> unidades) {
         if (mapa == null) return;
+        if (animUnidades == null) animUnidades = new UnidadAnimador(requireContext());
         // Sin una ruta trazada no se muestran unidades (durante el recorrido sí se mantienen).
         if (anclasZona == null || anclasZona.isEmpty() || unidades == null) {
             for (com.google.android.gms.maps.model.Marker m : marcadoresUnidad.values()) m.remove();
             marcadoresUnidad.clear();
+            animUnidades.limpiar();
             return;
         }
         // Filtro por zonas: solo las unidades a RADIO_ESTACION_M metros a la redonda del trazo
@@ -1048,19 +1048,22 @@ public class PlanificadorFragment extends Fragment {
             vistos.add(u.numero);
             com.google.android.gms.maps.model.Marker m = marcadoresUnidad.get(u.numero);
             if (m == null) {
-                m = mapa.addMarker(new MarkerOptions().position(u.posicion)
+                m = mapa.addMarker(new MarkerOptions().position(animUnidades.inicial(u))
                         .title("Unidad " + u.numero).snippet(snippet(u)).icon(iconoUnidad(u))
                         .anchor(0.5f, 0.5f).zIndex(9f));
                 if (m != null) marcadoresUnidad.put(u.numero, m);
             } else {
-                moverMarcador(u.numero, m, u.posicion);   // desplazamiento animado (sensación de tiempo real)
+                animUnidades.animar(u, m);   // pegada al grafo + avance por velocidad (tiempo real)
                 m.setSnippet(snippet(u));
             }
         }
         for (java.util.Iterator<java.util.Map.Entry<String, com.google.android.gms.maps.model.Marker>>
              it = marcadoresUnidad.entrySet().iterator(); it.hasNext(); ) {
             java.util.Map.Entry<String, com.google.android.gms.maps.model.Marker> e = it.next();
-            if (!vistos.contains(e.getKey())) { e.getValue().remove(); animToken.remove(e.getKey()); it.remove(); }
+            if (!vistos.contains(e.getKey())) {
+                e.getValue().remove(); animToken.remove(e.getKey());
+                animUnidades.olvidar(e.getKey()); it.remove();
+            }
         }
     }
 
@@ -1378,6 +1381,12 @@ public class PlanificadorFragment extends Fragment {
         RecorridoService.servicioTexto = s == null ? null
                 : (s.rosa ? getString(R.string.servicio_voz_rosa, s.nombre.replace(" · Rosa", ""))
                           : getString(R.string.servicio_voz, s.nombre));
+        // Terminal (dirección) por tramo, tal como la calculó el planificador: respaldo autoritativo para
+        // la voz en couplets (L4/L7) y Mexibús, donde el índice de la línea base no basta.
+        java.util.List<String> terms = new java.util.ArrayList<>();
+        if (rutaActiva.instrucciones != null)
+            for (Planificador.Instruccion ins : rutaActiva.instrucciones) terms.add(ins.terminal);
+        RecorridoService.terminalesTramo = terms;
         RecorridoService.iniciar(requireContext(), rutaActiva.secuencia, destinoFinal);
     }
 

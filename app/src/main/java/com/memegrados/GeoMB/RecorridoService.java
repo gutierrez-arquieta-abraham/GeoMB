@@ -95,6 +95,9 @@ public class RecorridoService extends Service {
     public static volatile int actualIdx = -1;
     public static volatile boolean activo = false;
     public static volatile String servicioTexto = null;   // aviso único del servicio elegido (Ordinario/Express/Rosa)
+    // Terminal (dirección) que calculó el planificador por TRAMO (índice de tramo = nº de transbordos hasta
+    // ese punto). Respaldo autoritativo para la dirección hablada, correcto también en couplets (L4/L7).
+    public static volatile java.util.List<String> terminalesTramo = null;
     private static volatile boolean servicioAnunciado = false;
     private static volatile int avanceMin = 0;             // índice mínimo ya alcanzado (progreso monótono)
     public static volatile com.google.android.gms.maps.model.LatLng ultimaPos;   // última ubicación GPS (para el puntero)
@@ -392,7 +395,12 @@ public class RecorridoService extends Service {
         // Fin sobre el punto (≤5 m); Mexibús L4 conserva el radio normal (2 andenes, la unidad rebasa el punto).
         boolean finL4 = seq.get(last).linea == 104 || seq.get(last).linea == 124;
         boolean fin = best >= last && bd <= (finL4 ? radioCerca(seq.get(last)) : FIN_M);
-        int proxIdx = Math.min(best + 1, last);
+        // Próxima estación DISTINTA: salta los andenes CO-UBICADOS del mismo nombre (p. ej. Indios Verdes
+        // L4 ↔ Metrobús L1/L7), para no anunciar "próxima Indios Verdes" ni "vas de Indios Verdes a Indios
+        // Verdes" ni pisar el aviso de conexión con un "próxima" espurio.
+        int proxIdx = best + 1;
+        while (proxIdx < last && coUbicada(seq.get(best), seq.get(proxIdx))) proxIdx++;
+        if (proxIdx > last) proxIdx = last;
         int antIdx = Math.max(0, proxIdx - 1);     // estación anterior a la próxima
         int postIdx = Math.min(last, proxIdx + 1); // estación posterior a la próxima
         Planificador.Parada prox = seq.get(proxIdx), ant = seq.get(antIdx), post = seq.get(postIdx);
@@ -778,7 +786,9 @@ public class RecorridoService extends Service {
         int fin = i;
         while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
         String t = null;
-        if (base >= 1 && base <= 7 && Horarios.tieneLinea(this, base)) {
+        // Metrobús de ORDEN LINEAL (1,3,5,6): terminal(es) por horarios, permitiendo la lista "A o B".
+        boolean lineal = base == 1 || base == 3 || base == 5 || base == 6;
+        if (lineal && Horarios.tieneLinea(this, base)) {
             Linea l = GtfsRepository.porNumero(this, base);
             if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
                 int ia = idxEnLinea(l, seq.get(i).nombre);
@@ -786,6 +796,9 @@ public class RecorridoService extends Service {
                 if (ia >= 0 && ib >= 0 && ia != ib) t = terminalHorario(base, l, ia, ib);
             }
         }
+        // Couplets de Metrobús (L2/L4/L7): su línea base no es lineal, así que se usa la terminal que ya
+        // calculó el planificador para este tramo (el conteo por transbordos casa con sus tramos).
+        else if (base == 2 || base == 4 || base == 7) t = terminalPlanificador(seq, i);
         if (t == null) t = terminalSentido(seq, i);
         // Salvaguarda: la dirección nunca debe ser la MISMA estación donde vas/abordas; si lo fuera
         // (datos raros), usa el final del tramo (tu destino en esta línea).
@@ -855,16 +868,34 @@ public class RecorridoService extends Service {
         return nomNombre(seq.get(fin).nombre);   // respaldo: última parada del tramo
     }
 
-    /** Índice en la línea de la estación cuyo nombre (normalizado, sin MXB) coincide con el de la parada. */
+    /** Índice en la línea de la estación cuyo nombre (normalizado, sin MXB, con alias) coincide con el de
+     *  la parada. Aplica alias para siglas comunes de horarios (p. ej. "IPN" → Instituto Politécnico). */
     private static int idxEnLinea(Linea l, String nombreParada) {
-        String q = Planificador.norm(Planificador.sinMxb(nombreParada));
+        String q = aliasEst(Planificador.norm(Planificador.sinMxb(nombreParada)));
         for (int k = 0; k < l.estaciones.size(); k++)
-            if (Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre)).equals(q)) return k;
+            if (aliasEst(Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre))).equals(q)) return k;
         for (int k = 0; k < l.estaciones.size(); k++) {
-            String nn = Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre));
+            String nn = aliasEst(Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre)));
             if (!nn.isEmpty() && !q.isEmpty() && (nn.contains(q) || q.contains(nn))) return k;
         }
         return -1;
+    }
+
+    /** Alias de nombres de estación para casar horarios ↔ datos de línea (siglas/abreviaturas). */
+    private static String aliasEst(String q) {
+        if (q.equals("ipn") || q.equals("i p n") || q.contains("politecnico")) return "instituto politecnico nacional";
+        if (q.contains("18 de marzo") || q.contains("18 mzo") || q.contains("18 mar")) return "dep 18 mzo";
+        return q;
+    }
+
+    /** Terminal (dirección) que el planificador calculó para el tramo que contiene la parada i. El índice
+     *  de tramo = nº de transbordos hasta i (así se alinea con {@link #terminalesTramo}). null si no hay. */
+    private static String terminalPlanificador(List<Planificador.Parada> seq, int i) {
+        java.util.List<String> ts = terminalesTramo;
+        if (ts == null || ts.isEmpty()) return null;
+        int leg = 0;
+        for (int k = 1; k <= i && k < seq.size(); k++) if (seq.get(k).transbordo) leg++;
+        return (leg >= 0 && leg < ts.size()) ? ts.get(leg) : null;
     }
 
     /** Nombre para HABLAR desde un String de estación (sin "MXB " ni el paréntesis de conexión). */
@@ -1114,6 +1145,17 @@ public class RecorridoService extends Service {
 
     /** Clave de servicio: une ordinario↔exprés de la misma línea (104↔124), pero NO los ramales. */
     private static int claveServicio(int n) { return (n >= 121 && n <= 124) ? (100 + n % 10) : n; }
+
+    /** ¿Dos paradas son ANDENES CO-UBICADOS del mismo lugar (para no repetir avisos)? Igual que
+     *  {@link #mismaEstacion} pero además acepta el MISMO NÚCLEO de nombre a corta distancia, para casar
+     *  andenes de distinto sistema cuyo nombre difiere por el paréntesis de conexión (p. ej. Indios Verdes
+     *  "…" ↔ "Indios Verdes (conexión Metrobús L1 y L7)"). El límite de distancia evita casar estaciones
+     *  homónimas lejanas. */
+    private static boolean coUbicada(Planificador.Parada a, Planificador.Parada b) {
+        if (mismaEstacion(a, b)) return true;
+        if (a == null || b == null || a.pos == null || b.pos == null) return false;
+        return nucleoCoincide(a.nombre, b.nombre) && Linea.distancia(a.pos, b.pos) < 350.0;
+    }
 
     /** ¿Dos paradas son la MISMA estación física? Ordinario↔exprés de la misma línea, o mismo nombre
      *  normalizado (correspondencia con el mismo nombre, p. ej. Puente de Fierro L2↔L4). */

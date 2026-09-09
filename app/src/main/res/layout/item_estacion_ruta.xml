@@ -8,10 +8,12 @@
     android:paddingHorizontal="10dp"
     android:paddingVertical="8dp">
 
-    <View
+    <ImageView
         android:id="@+id/est_dot"
-        android:layout_width="12dp"
-        android:layout_height="12dp" />
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
 
     <TextView
         android:id="@+id/est_nombre"

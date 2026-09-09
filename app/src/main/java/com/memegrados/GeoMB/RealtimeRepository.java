@@ -136,12 +136,34 @@ public final class RealtimeRepository {
             String ruta = o.isNull("route_id") ? null : o.optString("route_id", null);
             String placa = o.optString("plate", "");
             float rumbo = (float) o.optDouble("bearing", 0);
+            // El feed manda la velocidad en km/h; se guarda en m/s para animar el avance sobre el grafo.
+            float velMs = (float) (o.optDouble("speed", 0) / 3.6);
+            // Epoch (s) del último reporte de la unidad; sirve para descartar "fantasmas" (ver abajo).
+            long ts = o.optLong("timestamp", 0);
             // Empresa, marca y modelo salen TODOS del CSV de Drive (Modelos).
             Modelos.Ficha ficha = Modelos.paraEconomico(numero);
 
             lista.add(new UnidadReal(numero, linea, destino, origen, ruta, ficha.empresa,
-                    ficha.marca, ficha.modelo, placa, lat, lon, rumbo));
+                    ficha.marca, ficha.modelo, placa, lat, lon, rumbo, velMs, ts));
         }
+        return filtrarFantasmas(lista);
+    }
+
+    /**
+     * Descarta unidades "fantasma": las que llevan mucho sin reportar (su {@code timestamp} quedó muy
+     * atrás). La referencia de "ahora" es la unidad MÁS FRESCA del propio lote (no el reloj del teléfono),
+     * para ser inmune a desfases de reloj. Las que no traen timestamp se conservan. Así el mapa y las
+     * llegadas ({@link Llegadas}) no muestran unidades que en realidad ya no transmiten.
+     */
+    private static List<UnidadReal> filtrarFantasmas(List<UnidadReal> lista) {
+        long ref = 0;
+        for (UnidadReal u : lista) if (u.timestamp > ref) ref = u.timestamp;
+        if (ref <= 0) return lista;   // el feed no trae timestamps: no se filtra
+        final long refFin = ref;
+        lista.removeIf(u -> u.timestamp > 0 && (refFin - u.timestamp) > UMBRAL_FANTASMA_S);
         return lista;
     }
+
+    /** Antigüedad máxima (s) respecto a la unidad más fresca antes de considerar una unidad "fantasma". */
+    private static final long UMBRAL_FANTASMA_S = 240;   // 4 min (tolera huecos cortos de GPS)
 }

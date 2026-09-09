@@ -16,10 +16,12 @@ public class UnidadReal {
     public final String placa;
     public final LatLng posicion;
     public final float rumbo;        // bearing en grados
+    public final float velMs;        // velocidad en m/s (el feed la manda en km/h)
+    public final long timestamp;     // epoch (s) del último reporte de la unidad (0 = sin dato)
 
     public UnidadReal(String numero, Integer linea, String destino, String origen, String ruta,
                       String empresa, String marca, String modelo,
-                      String placa, double lat, double lon, float rumbo) {
+                      String placa, double lat, double lon, float rumbo, float velMs, long timestamp) {
         this.numero = numero;
         this.linea = linea;
         this.destino = destino;
@@ -31,6 +33,8 @@ public class UnidadReal {
         this.placa = placa;
         this.posicion = new LatLng(lat, lon);
         this.rumbo = rumbo;
+        this.velMs = velMs;
+        this.timestamp = timestamp;
     }
 
     /** "Marca Modelo" listo para mostrar, o "Desconocido". */

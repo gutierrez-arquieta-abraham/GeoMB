@@ -137,6 +137,7 @@ public class ManifestacionesService extends Service {
     }
 
     private void revisar() {
+        refrescarEc2();   // actualiza en segundo plano la liveness del EC2 (para el gate de notificar())
         if (!cargando && web != null) {
             cargando = true;
             fase = 0;
@@ -617,17 +618,35 @@ public class ManifestacionesService extends Service {
      * (nueva afectación, cambio de afectación o restablecimiento). Elevadores + mantenimiento:
      * un resumen 2 veces al día (≈05:00 y ≈13:00). Requiere que el Estado del Servicio se haya leído.
      */
-    /** ¿El backend (EC2) sigue activo? Se considera vivo si escribió afectaciones_mexibus.json en los
-     *  últimos 4 min. Si no responde o el dato está viejo, el scraper local toma el relevo. */
+    // Liveness del EC2 CACHEADA (epoch de "actualizado" del último afectaciones_mexibus.json leído en
+    // SEGUNDO PLANO). notificar() corre en el hilo principal (callback del WebView), así que NO se puede
+    // descargar ahí: hacerlo lanzaba NetworkOnMainThreadException → ec2Activo() devolvía SIEMPRE false y
+    // el scraper local notificaba SIEMPRE, duplicando el push del EC2.
+    private volatile long ec2Actualizado = 0;   // epoch del último JSON leído (0 = nunca)
+    private volatile int  ec2Fallos = 0;        // descargas fallidas consecutivas (sin epoch previo)
+    private final java.util.concurrent.ExecutorService ec2Exec =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
+
+    /** Actualiza en segundo plano el epoch de liveness del EC2 (sin bloquear el hilo principal). */
+    private void refrescarEc2() {
+        ec2Exec.execute(() -> {
+            try {
+                String json = Backend.descargar(Config.PATH_AFECT_MXB);
+                long act = new org.json.JSONObject(json).optLong("actualizado", 0);
+                if (act > 0) { ec2Actualizado = act; ec2Fallos = 0; }
+            } catch (Exception e) {
+                ec2Fallos++;   // EC2 no responde: se deja el último epoch (envejecerá) y se cuenta el fallo.
+            }
+        });
+    }
+
+    /** ¿El backend (EC2) sigue activo? Lee SOLO el cache (sin red, para no bloquear el hilo principal).
+     *  Con epoch conocido decide por antigüedad (≤4 min = vivo); sin epoch aún, asume VIVO (para no
+     *  duplicar el push) salvo que ya hayan fallado varias descargas seguidas (EC2 caído de arranque). */
     private boolean ec2Activo() {
-        try {
-            String json = Backend.descargar(Config.PATH_AFECT_MXB);
-            long act = new org.json.JSONObject(json).optLong("actualizado", 0);
-            long ahora = System.currentTimeMillis() / 1000L;
-            return act > 0 && (ahora - act) <= 240;   // ≤ 4 min = EC2 vivo
-        } catch (Exception e) {
-            return false;   // no responde → EC2 inactivo → notifica el local
-        }
+        long act = ec2Actualizado;
+        if (act > 0) return (System.currentTimeMillis() / 1000L - act) <= 240;
+        return ec2Fallos < 3;   // nunca leído: vivo por defecto hasta ~3 fallos consecutivos
     }
 
     private void notificar() {
@@ -828,6 +847,7 @@ public class ManifestacionesService extends Service {
     public void onDestroy() {
         handler.removeCallbacks(tick);
         if (web != null) { web.destroy(); web = null; }
+        ec2Exec.shutdownNow();
         super.onDestroy();
     }
 

@@ -80,6 +80,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     private final List<Marker> marcadoresEstacion = new ArrayList<>();
     private final Map<String, Marker> marcadoresUnidad = new HashMap<>();
+    private UnidadAnimador animUnidades;   // anima las unidades pegadas al grafo y por su velocidad
     private final Map<Integer, Integer> coloresLinea = new HashMap<>();
 
     /** Datos de todas las estaciones; sus marcadores se crean por demanda (radio). */
@@ -673,11 +674,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      * {@code centroForzado} si se indica, p. ej. al buscar una unidad concreta).
      */
     private void actualizarUnidades(List<UnidadReal> unidades, LatLng centroForzado) {
+        if (animUnidades == null) animUnidades = new UnidadAnimador(requireContext());
         // Unidades ocultas por el botón: no se dibujan (salvo búsqueda explícita de una unidad).
         if (!mostrarUnidades && centroForzado == null) {
             if (!marcadoresUnidad.isEmpty()) {
                 for (Marker m : marcadoresUnidad.values()) m.remove();
                 marcadoresUnidad.clear();
+                animUnidades.limpiar();
             }
             return;
         }
@@ -697,7 +700,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             Marker m = marcadoresUnidad.get(u.numero);
             if (m == null) {
                 m = mapa.addMarker(new MarkerOptions()
-                        .position(u.posicion)
+                        .position(animUnidades.inicial(u))
                         .title("Unidad " + u.numero)
                         .snippet(snippet(u))
                         .icon(iconoParaUnidad(u))
@@ -705,7 +708,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                         .zIndex(10f));
                 if (m != null) marcadoresUnidad.put(u.numero, m);
             } else {
-                moverMarcador(u.numero, m, u.posicion);
+                animUnidades.animar(u, m);   // pegada al grafo + avance por velocidad (tiempo real)
                 m.setSnippet(snippet(u));
             }
         }
@@ -716,6 +719,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             Map.Entry<String, Marker> e = it.next();
             if (!vistos.contains(e.getKey())) {
                 e.getValue().remove();
+                animUnidades.olvidar(e.getKey());
                 it.remove();
             }
         }
@@ -1045,6 +1049,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         handler.removeCallbacks(poll);
         marcadoresEstacion.clear();
         marcadoresUnidad.clear();
+        if (animUnidades != null) animUnidades.limpiar();
         estaciones.clear();
         mexibusEst.clear();
         mexibusLineas.clear();
