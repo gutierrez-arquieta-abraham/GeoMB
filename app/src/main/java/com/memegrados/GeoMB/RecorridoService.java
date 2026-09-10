@@ -128,6 +128,13 @@ public class RecorridoService extends Service {
         alFinVoz = null;
         if (r != null) handler.post(r);
     }
+
+    /** Se llama cuando TERMINA de sonar un aviso completo (tururu + voz): dispara la acción pendiente
+     *  de fin de recorrido (si la hay) y de inmediato sigue con el siguiente aviso en cola, si hay. */
+    private void vozTerminada() {
+        dispararFinVoz();
+        procesarSiguienteVoz();
+    }
     private int ultVoz = -99;              // índice ya anunciado por voz (solo "llegaste" al final)
     private int ultLlegando = -99;         // estación cuya llegada ya se anunció ("Llegando a…")
     private int ultProxima = -99;          // próxima estación ya anunciada al salir de la anterior
@@ -136,7 +143,13 @@ public class RecorridoService extends Service {
     private boolean afectacionAvisada = false;
     private boolean finalizado = false;    // ya se llegó al destino: se detiene el servicio
     private android.media.MediaPlayer mpActual;   // reproductor en curso (tururu o voz): evita traslapes
-    private long vozSeq = 0;                       // secuencia de aviso: descarta voces viejas
+    // Cola de avisos pendientes (tururu+voz), en vez de cancelar el que sigue sonando: dos eventos
+    // seguidos (p. ej. "llegando con transbordo" y, segundos después, "próxima estación" del nuevo
+    // tramo) antes SE PERDÍAN si el segundo llegaba mientras el primero aún esperaba la voz (descarga
+    // Mia hasta 4 s). Cada elemento es {texto, línea}.
+    private final java.util.ArrayDeque<Object[]> colaVoz = new java.util.ArrayDeque<>();
+    private boolean vozOcupada = false;            // hay un aviso sonando/hablando ahora mismo
+    private volatile boolean destruido = false;    // el servicio ya se detuvo: no reproducir nada más
 
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
@@ -216,8 +229,8 @@ public class RecorridoService extends Service {
                 tts.setPitch(1.05f);          // timbre ligeramente más agudo (femenino)
                 tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
                     @Override public void onStart(String id) {}
-                    @Override public void onDone(String id) { dispararFinVoz(); }
-                    @Override public void onError(String id) { dispararFinVoz(); }
+                    @Override public void onDone(String id) { handler.post(RecorridoService.this::vozTerminada); }
+                    @Override public void onError(String id) { handler.post(RecorridoService.this::vozTerminada); }
                 });
                 ttsListo = true;
             }
@@ -483,15 +496,30 @@ public class RecorridoService extends Service {
     }
 
     /**
-     * PRIMERO el "tururu" (res/raw/tururu) y, cuando TERMINA, la voz — con un checador
-     * (onCompletion + retardo corto) para que no se encimen y la voz sí se escuche. Si no está el
-     * audio, habla directo.
+     * Encola el aviso (PRIMERO el "tururu" y, cuando TERMINA, la voz). Los avisos se reproducen uno
+     * tras otro EN ORDEN, sin cancelar los pendientes: si dos eventos se disparan seguidos (p. ej.
+     * "llegando, baja y realiza tu transbordo" y, unos segundos después, "próxima estación" del nuevo
+     * tramo), antes el segundo invalidaba al primero mientras este todavía esperaba la voz (la descarga
+     * de Mia puede tardar hasta el timeout de {@link #VOZ_TIMEOUT_MS}), y el aviso importante del
+     * transbordo se perdía en silencio. Ahora simplemente espera su turno.
      */
     private void sonarYHablar(String texto) { sonarYHablar(texto, 0); }
 
     /** Jingle según el sistema de la estación (Mexibús/Mexicable = tururu_mxb; Metrobús = tururu_mb) + voz. */
     private void sonarYHablar(String texto, int linea) {
-        final long seq = ++vozSeq;            // este es el aviso más nuevo
+        if (destruido) return;
+        colaVoz.add(new Object[]{texto, linea});
+        if (!vozOcupada) procesarSiguienteVoz();
+    }
+
+    /** Toma el siguiente aviso de la cola y lo reproduce (tururu, luego voz). Al terminar (ver
+     *  {@link #vozTerminada()}), se vuelve a llamar para seguir con el que sigue. */
+    private void procesarSiguienteVoz() {
+        Object[] item = colaVoz.poll();
+        if (item == null || destruido) { vozOcupada = false; return; }
+        vozOcupada = true;
+        String texto = (String) item[0];
+        int linea = (Integer) item[1];
         soltarActual();                       // corta cualquier audio en curso (evita el "agudo" por traslape)
         String raw = linea >= 100 ? "tururu_mxb" : "tururu_mb";
         int id = getResources().getIdentifier(raw, "raw", getPackageName());
@@ -505,12 +533,12 @@ public class RecorridoService extends Service {
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (Exception ignore) {}
                         if (mpActual == m) mpActual = null;
-                        handler.postDelayed(() -> decirConVoz(texto, seq), 250);   // deja respirar antes de la voz
+                        handler.postDelayed(() -> decirConVoz(texto), 250);   // deja respirar antes de la voz
                     });
                     mp.setOnErrorListener((m, a, b) -> {
                         try { m.release(); } catch (Exception ignore) {}
                         if (mpActual == m) mpActual = null;
-                        decirConVoz(texto, seq);
+                        decirConVoz(texto);
                         return true;
                     });
                     mp.start();
@@ -518,7 +546,7 @@ public class RecorridoService extends Service {
                 }
             } catch (Exception ignore) {}
         }
-        decirConVoz(texto, seq);
+        decirConVoz(texto);
     }
 
     /** Detiene y libera el reproductor en curso (tururu o voz) para que no se encimen. */
@@ -533,22 +561,23 @@ public class RecorridoService extends Service {
     // ---- voz Mia (AWS Polly) con caché local; respaldo al TTS de Android ----
 
     /** Reproduce la frase con la voz Mia (mp3 del backend, cacheada). Si falla/offline, usa TTS. */
-    private void decirConVoz(String texto, long seq) {
-        if (seq != vozSeq) return;   // ya llegó un aviso más nuevo: descarta este
+    private void decirConVoz(String texto) {
+        if (destruido) { vozOcupada = false; return; }
         java.io.File cache = archivoVoz(texto);
         if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }
-        // Descarga la voz Mia PERO con un límite de ~2 s: si no llega a tiempo, se habla ya con el
-        // TTS de Google para no dejar esperando; la descarga sigue y queda cacheada para la próxima.
+        // Descarga la voz Mia PERO con un límite (VOZ_TIMEOUT_MS): si no llega a tiempo, se habla ya
+        // con el TTS de Google para no dejar esperando; la descarga sigue y queda cacheada para la
+        // próxima. Este aviso YA está "en curso" (vozOcupada=true): el siguiente de la cola espera.
         final boolean[] resuelto = {false};
         handler.postDelayed(() -> {
-            if (seq != vozSeq || resuelto[0]) return;
+            if (destruido || resuelto[0]) return;
             resuelto[0] = true;
-            hablar(texto);   // se pasó de los 2 s: TTS inmediato
+            hablar(texto);   // se pasó del timeout: TTS inmediato
         }, VOZ_TIMEOUT_MS);
         new Thread(() -> {
             java.io.File out = descargarVoz(texto);
             handler.post(() -> {
-                if (seq != vozSeq || resuelto[0]) return;   // ya habló el TTS por timeout, o cambió el aviso
+                if (destruido || resuelto[0]) return;   // ya habló el TTS por timeout
                 resuelto[0] = true;
                 if (out != null && out.exists() && out.length() > 0) reproducir(out);
                 else hablar(texto);   // respaldo: TTS de Android (offline o error)
@@ -600,12 +629,12 @@ public class RecorridoService extends Service {
             mp.setOnCompletionListener(m -> {
                 try { m.release(); } catch (Exception ignore) {}
                 if (mpActual == m) mpActual = null;
-                dispararFinVoz();   // terminó la voz: ejecuta la acción pendiente (p. ej. finalizar recorrido)
+                vozTerminada();   // terminó la voz: acción pendiente de fin + siguiente aviso en cola
             });
             mp.prepare();
             mp.start();
         } catch (Exception e) {
-            dispararFinVoz();   // si el mp3 falla, no dejar colgada la acción de fin
+            vozTerminada();   // si el mp3 falla, no dejar colgada la acción de fin ni la cola
         }
     }
 
@@ -1161,7 +1190,10 @@ public class RecorridoService extends Service {
      *  normalizado (correspondencia con el mismo nombre, p. ej. Puente de Fierro L2↔L4). */
     private static boolean mismaEstacion(Planificador.Parada a, Planificador.Parada b) {
         if (a == null || b == null) return false;
-        if (claveServicio(a.linea) == claveServicio(b.linea)) return true;
+        // OJO: claveServicio(n) devuelve n para cualquier línea no exprés, así que comparar solo la
+        // clave sin exigir líneas DISTINTAS haría "misma estación" a cualquier par de la misma línea
+        // (a.linea == b.linea siempre cumple), rompiendo el cálculo de la próxima parada a anunciar.
+        if (a.linea != b.linea && claveServicio(a.linea) == claveServicio(b.linea)) return true;
         return Planificador.norm(Planificador.sinMxb(a.nombre))
                 .equals(Planificador.norm(Planificador.sinMxb(b.nombre)));
     }
@@ -1359,7 +1391,8 @@ public class RecorridoService extends Service {
         activo = false; actualIdx = -1; ultimaPos = null;
         detenerUbicacion();
         handler.removeCallbacksAndMessages(null);   // cancela tick y el stopSelf diferido
-        vozSeq++;                                    // invalida cualquier voz pendiente
+        destruido = true;                            // invalida cualquier voz pendiente/en cola
+        colaVoz.clear();
         soltarActual();
         if (tts != null) { tts.stop(); tts.shutdown(); tts = null; }
         // Quita la notificación al terminar/detener la ruta (finalizar ruta o llegada al destino).
