@@ -68,12 +68,23 @@ public class RecorridoService extends Service {
     // ello, el de "próxima estación" (que es radioCerca + COBERTURA_EXTRA_M).
     private static final float ZONA_CERCA_M = 70f;    // corredor de andén (Indios Verdes): radio amplio
     private static final float ANDEN_LARGO_M = 55f;   // andén ~100 m (solo centro): ~110 m de cobertura
+    // Puente de Fierro (plataforma L4): el acceso peatonal real queda un poco más lejos del punto
+    // registrado de la plataforma que el radio normal (CERCA_MXB_M), así que sin este margen extra el
+    // GPS no llegaba a disparar la llegada. Se aplica SOLO a la copia de L4 (no a la de L2) para no
+    // reintroducir la ambigüedad entre las dos plataformas que se quitó del cálculo de distancia.
+    private static final float PF_L4_RADIO_EXTRA_M = 8f;   // +8 m (dentro del rango 5-10 m pedido)
 
-    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal. */
+    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal (+ el
+     *  margen extra de Puente de Fierro L4, si aplica). */
     private static float radioCerca(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
-        return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
+        float base = (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
+        if (p != null && (p.linea == 104 || p.linea == 124)
+                && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
+            base += PF_L4_RADIO_EXTRA_M;
+        }
+        return base;
     }
     /** Metros de alejamiento para disparar "próxima estación", según el sistema. */
     private static float radioPaso(Planificador.Parada p) {
