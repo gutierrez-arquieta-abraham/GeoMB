@@ -377,8 +377,16 @@ public class RecorridoService extends Service {
                 // no basta con que 'best' la roce por cercanía: hay que haber llegado físicamente a ella.
                 boolean alcanzasteAnterior = ultLlegando >= i - 1;
                 float umbral = mismaEstacion(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
+                // IMPORTANTE: se corta aquí (break) aunque SÍ se cruce la correspondencia. Si se dejara
+                // seguir el bucle, la siguiente iteración compararía la parada de ADELANTE (misma línea
+                // nueva, p. ej. Nuevo Laredo tras Puente de Fierro en L4) por simple cercanía —sin ningún
+                // resguardo de "ya se anunció"— y podía ganar la comparación y quedarse como 'best' EN EL
+                // MISMO ciclo. Eso saltaba de largo el propio nodo de correspondencia (Puente de Fierro)
+                // sin que su aviso de llegada/transbordo llegara a dispararse nunca: el próximo ciclo ya
+                // hablaba de la estación siguiente. Al cortar aquí, este ciclo se queda EN el nodo de
+                // correspondencia y el de llegada podrá anunciarlo; recién el siguiente ciclo avanza más.
                 if (alcanzasteAnterior && d <= umbral) { bd = d; best = i; }
-                else break;
+                break;
             } else if (d < bd) {
                 bd = d; best = i;
             }
