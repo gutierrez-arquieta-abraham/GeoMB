@@ -333,11 +333,20 @@ public class RecorridoService extends Service {
     /** Nº mínimo de estaciones dentro de una línea (tras la correspondencia) para dar por hecho que ya
      *  vas en ella y saltar el aviso a esa línea. */
     private static final int SALTO_MIN_ESTACIONES = 3;
+    // Sin esto, el reanclaje solo exigía estar PARADO sobre una estación de otro trazo, sin verificar
+    // que hubiera un enlace real (correspondencia/conexión/transbordo, por nombre o "sistemático"
+    // declarado, p. ej. Delegación Cuauhtémoc↔El Chopo) cerca de tu posición que explicara cómo
+    // llegaste ahí. Dos trazos de la ruta pueden coincidir en el mapa por pura casualidad geográfica
+    // sin que exista una correspondencia real en ese punto; sin este resguardo el recorrido podía
+    // "reanclarse" ahí igual. 700 m es un margen razonable de caminata desde el punto de enlace real.
+    private static final float RADIO_ENLACE_M = 700f;
 
     /**
      * Si la ubicación está sobre una parada de OTRA línea de la ruta, situada al menos
-     * {@link #SALTO_MIN_ESTACIONES} estaciones dentro de esa línea (después de la correspondencia),
-     * devuelve su índice para reanclar ahí. Si no, devuelve {@code best}.
+     * {@link #SALTO_MIN_ESTACIONES} estaciones dentro de esa línea (después de la correspondencia), Y
+     * además tu posición está a ≤{@link #RADIO_ENLACE_M} del punto real donde la ruta entra a ese
+     * trazo (el enlace ya construido por el planificador, sea por nombre/cercanía o declarado
+     * manualmente), devuelve su índice para reanclar ahí. Si no, devuelve {@code best}.
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
@@ -349,11 +358,24 @@ public class RecorridoService extends Service {
             // ¿Cuántas estaciones consecutivas de ESE trazo terminan en j? (profundidad tras el cambio)
             // Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS también cuente como
             // cambio de trazo: si ya avanzaste ≥3 estaciones en el exprés, el aviso salta a ese trazo.
-            int dentro = 0;
-            for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) dentro++;
-            if (dentro >= SALTO_MIN_ESTACIONES) mejor = j;             // toma la más adelantada válida
+            // 'inicio' queda en el primer índice de esa racha: el nodo donde la ruta ABORDA ese trazo
+            // (el propio punto de correspondencia/conexión/transbordo que construyó el planificador).
+            int dentro = 0, inicio = j;
+            for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) { dentro++; inicio = k; }
+            if (dentro < SALTO_MIN_ESTACIONES) continue;
+            if (!enlaceCerca(l, seq, inicio)) continue;                // sin un enlace real cerca: no reanclar
+            mejor = j;                                                 // toma la más adelantada válida
         }
         return mejor;
+    }
+
+    /** ¿Hay un enlace real (correspondencia/conexión/transbordo) cerca de tu posición, en el punto
+     *  donde la ruta aborda el trazo que empieza en 'inicio'? Se mide contra esa propia parada y la
+     *  anterior (de donde bajas para hacer el enlace), lo que quede más cerca. */
+    private boolean enlaceCerca(android.location.Location l, List<Planificador.Parada> seq, int inicio) {
+        double d = distParada(l, seq.get(inicio));
+        if (inicio > 0) d = Math.min(d, distParada(l, seq.get(inicio - 1)));
+        return d <= RADIO_ENLACE_M;
     }
 
     private void procesar(android.location.Location l) {
