@@ -395,17 +395,25 @@ public class RecorridoService extends Service {
             if (pi.linea != seq.get(best).linea) {
                 // Correspondencia (cambio de línea): el aviso NO cambia a la nueva línea hasta que estás
                 // físicamente en su andén. Te aferras a la línea actual mientras caminas la correspondencia.
-                // Si es la MISMA estación (mismo nombre, p. ej. Puente de Fierro L2↔L4, u ordinario↔exprés
-                // de la misma base), el cambio se permite dentro del radio de LLEGADA (~50 m), porque estar
-                // en ese andén ya cuenta como haber hecho la correspondencia. Para andenes co-ubicados de
-                // DISTINTO nombre se mantiene el umbral estricto (CAMBIO_LINEA_M) para no saltar antes.
+                // Si es la MISMA estación física (mismo nombre exacto —p. ej. Puente de Fierro L2↔L4, u
+                // ordinario↔exprés de la misma base—, O mismo NÚCLEO de nombre a corta distancia —p. ej.
+                // "Indios Verdes" Metrobús vs "Indios Verdes (conexión Metrobús L1 y L7)" de Mexibús, que
+                // NO son idénticas letra por letra por el paréntesis—), el cambio se permite dentro del
+                // radio de LLEGADA (~50 m o más), porque estar en ese andén ya cuenta como haber hecho la
+                // correspondencia. Para andenes co-ubicados de nombre REALMENTE distinto se mantiene el
+                // umbral estricto (CAMBIO_LINEA_M) para no saltar antes. Se usa coUbicada() (no solo
+                // mismaEstacion()) para que el núcleo del nombre también cuente: si solo se exigiera
+                // igualdad exacta, Indios Verdes nunca cumplía este radio amplio y el salto dependía del
+                // mecanismo más tosco (reanclarOtraLinea, sin la verificación de "ya llegaste antes").
                 // No brincar a la otra línea antes de ANUNCIAR la llegada a la parada previa: si el andén de
                 // la otra línea queda en el camino antes de tu terminal (Indios Verdes sur: el andén de
                 // Metrobús L1 está al norte, antes del terminal L4 al sur), el aviso saltaba antes de tiempo.
                 // Se exige que la llegada a la parada anterior YA se haya anunciado (ultLlegando ≥ i-1); así
                 // no basta con que 'best' la roce por cercanía: hay que haber llegado físicamente a ella.
+                // Esta verificación por POSICIÓN/ESTADO (no por tiempo) es a propósito: un temporizador fijo
+                // no distingue caminar despacio de estar simplemente detenido en otro punto de la ruta.
                 boolean alcanzasteAnterior = ultLlegando >= i - 1;
-                float umbral = mismaEstacion(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
+                float umbral = coUbicada(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
                 // IMPORTANTE: se corta aquí (break) aunque SÍ se cruce la correspondencia. Si se dejara
                 // seguir el bucle, la siguiente iteración compararía la parada de ADELANTE (misma línea
                 // nueva, p. ej. Nuevo Laredo tras Puente de Fierro en L4) por simple cercanía —sin ningún
