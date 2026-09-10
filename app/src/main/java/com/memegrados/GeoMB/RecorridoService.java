@@ -305,22 +305,18 @@ public class RecorridoService extends Service {
         return ls;
     }
 
-    // Acceso PEATONAL de Puente de Fierro (Mexibús L3): la entrada a pie no coincide con el punto del
-    // andén, así que la llegada se mide también contra esta coordenada (lo que se alcance primero).
-    private static final double PF_ACC_LAT = 19.602869413781498, PF_ACC_LON = -99.03368304222656;
-
     /** Distancia a la parada. En Indios Verdes cada andén tiene una ZONA de cobertura (corredor A→B): se
-     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). En
-     *  Puente de Fierro se considera además el acceso peatonal (mínimo de andén y acceso). */
+     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos).
+     *  NOTA: Puente de Fierro tenía además un atajo por "acceso peatonal" (una coordenada única aplicada
+     *  por igual a sus DOS copias, L2 y L4). Como ambas comparten el mismo nombre, ese atajo hacía que,
+     *  estando cerca de esa coordenada, el código calculara una distancia igual de pequeña a AMBAS
+     *  plataformas simultáneamente (aun estando en realidad a 206 m de la de L2 y 85 m de la de L4),
+     *  una ambigüedad que producía saltos erráticos de 'best' entre ellas. Se quitó: ahora se usa la
+     *  distancia real (o la zona, si aplica) contra cada plataforma como cualquier otra estación. */
     private double distParada(android.location.Location l, Planificador.Parada p) {
         double dz = Planificador.distanciaZona(p, l.getLatitude(), l.getLongitude());
-        double base = dz >= 0 ? dz
+        return dz >= 0 ? dz
                 : haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
-        if (p.nombre != null && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
-            double acc = haversine(l.getLatitude(), l.getLongitude(), PF_ACC_LAT, PF_ACC_LON);
-            return Math.min(base, acc);
-        }
-        return base;
     }
 
     /** Nº mínimo de estaciones dentro de una línea (tras la correspondencia) para dar por hecho que ya
