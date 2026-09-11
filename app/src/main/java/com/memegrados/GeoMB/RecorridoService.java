@@ -68,12 +68,23 @@ public class RecorridoService extends Service {
     // ello, el de "próxima estación" (que es radioCerca + COBERTURA_EXTRA_M).
     private static final float ZONA_CERCA_M = 70f;    // corredor de andén (Indios Verdes): radio amplio
     private static final float ANDEN_LARGO_M = 55f;   // andén ~100 m (solo centro): ~110 m de cobertura
+    // Puente de Fierro (plataforma L4): el acceso peatonal real queda un poco más lejos del punto
+    // registrado de la plataforma que el radio normal (CERCA_MXB_M), así que sin este margen extra el
+    // GPS no llegaba a disparar la llegada. Se aplica SOLO a la copia de L4 (no a la de L2) para no
+    // reintroducir la ambigüedad entre las dos plataformas que se quitó del cálculo de distancia.
+    private static final float PF_L4_RADIO_EXTRA_M = 8f;   // +8 m (dentro del rango 5-10 m pedido)
 
-    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal. */
+    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal (+ el
+     *  margen extra de Puente de Fierro L4, si aplica). */
     private static float radioCerca(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
-        return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
+        float base = (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
+        if (p != null && (p.linea == 104 || p.linea == 124)
+                && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
+            base += PF_L4_RADIO_EXTRA_M;
+        }
+        return base;
     }
     /** Metros de alejamiento para disparar "próxima estación", según el sistema. */
     private static float radioPaso(Planificador.Parada p) {
@@ -305,19 +316,26 @@ public class RecorridoService extends Service {
         return ls;
     }
 
-    // Acceso PEATONAL de Puente de Fierro (Mexibús L3): la entrada a pie no coincide con el punto del
-    // andén, así que la llegada se mide también contra esta coordenada (lo que se alcance primero).
-    private static final double PF_ACC_LAT = 19.602869413781498, PF_ACC_LON = -99.03368304222656;
+    // Acceso PEATONAL real de Puente de Fierro (el camino que de verdad se puede pisar/tener señal GPS
+    // queda ~85 m de la plataforma L4 registrada). Antes este atajo se aplicaba por igual a las DOS
+    // copias de la estación (L2 y L4) por compartir nombre, y eso hacía que estando cerca de este punto
+    // ambas plataformas parecieran igual de cercanas (aun a 206 m reales la de L2 y 85 m la de L4),
+    // produciendo saltos erráticos de 'best' entre ellas. Ahora se aplica SOLO a la copia de L4 (ver
+    // distParada): la de L2 nunca se ve afectada, así que la ambigüedad no puede repetirse.
+    private static final double PF_L4_ACC_LAT = 19.602869413781498, PF_L4_ACC_LON = -99.03368304222656;
 
     /** Distancia a la parada. En Indios Verdes cada andén tiene una ZONA de cobertura (corredor A→B): se
-     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). En
-     *  Puente de Fierro se considera además el acceso peatonal (mínimo de andén y acceso). */
+     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). En la
+     *  plataforma L4 de Puente de Fierro se considera además el acceso peatonal real (mínimo de andén y
+     *  acceso) porque, aun con el margen extra de {@link #PF_L4_RADIO_EXTRA_M}, la llegada no siempre
+     *  disparaba: el punto GPS realmente alcanzable por el peatón queda más lejos del andén registrado. */
     private double distParada(android.location.Location l, Planificador.Parada p) {
         double dz = Planificador.distanciaZona(p, l.getLatitude(), l.getLongitude());
         double base = dz >= 0 ? dz
                 : haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
-        if (p.nombre != null && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
-            double acc = haversine(l.getLatitude(), l.getLongitude(), PF_ACC_LAT, PF_ACC_LON);
+        if (p != null && (p.linea == 104 || p.linea == 124)
+                && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
+            double acc = haversine(l.getLatitude(), l.getLongitude(), PF_L4_ACC_LAT, PF_L4_ACC_LON);
             return Math.min(base, acc);
         }
         return base;
@@ -326,11 +344,20 @@ public class RecorridoService extends Service {
     /** Nº mínimo de estaciones dentro de una línea (tras la correspondencia) para dar por hecho que ya
      *  vas en ella y saltar el aviso a esa línea. */
     private static final int SALTO_MIN_ESTACIONES = 3;
+    // Sin esto, el reanclaje solo exigía estar PARADO sobre una estación de otro trazo, sin verificar
+    // que hubiera un enlace real (correspondencia/conexión/transbordo, por nombre o "sistemático"
+    // declarado, p. ej. Delegación Cuauhtémoc↔El Chopo) cerca de tu posición que explicara cómo
+    // llegaste ahí. Dos trazos de la ruta pueden coincidir en el mapa por pura casualidad geográfica
+    // sin que exista una correspondencia real en ese punto; sin este resguardo el recorrido podía
+    // "reanclarse" ahí igual. 700 m es un margen razonable de caminata desde el punto de enlace real.
+    private static final float RADIO_ENLACE_M = 700f;
 
     /**
      * Si la ubicación está sobre una parada de OTRA línea de la ruta, situada al menos
-     * {@link #SALTO_MIN_ESTACIONES} estaciones dentro de esa línea (después de la correspondencia),
-     * devuelve su índice para reanclar ahí. Si no, devuelve {@code best}.
+     * {@link #SALTO_MIN_ESTACIONES} estaciones dentro de esa línea (después de la correspondencia), Y
+     * además tu posición está a ≤{@link #RADIO_ENLACE_M} del punto real donde la ruta entra a ese
+     * trazo (el enlace ya construido por el planificador, sea por nombre/cercanía o declarado
+     * manualmente), devuelve su índice para reanclar ahí. Si no, devuelve {@code best}.
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
@@ -342,11 +369,24 @@ public class RecorridoService extends Service {
             // ¿Cuántas estaciones consecutivas de ESE trazo terminan en j? (profundidad tras el cambio)
             // Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS también cuente como
             // cambio de trazo: si ya avanzaste ≥3 estaciones en el exprés, el aviso salta a ese trazo.
-            int dentro = 0;
-            for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) dentro++;
-            if (dentro >= SALTO_MIN_ESTACIONES) mejor = j;             // toma la más adelantada válida
+            // 'inicio' queda en el primer índice de esa racha: el nodo donde la ruta ABORDA ese trazo
+            // (el propio punto de correspondencia/conexión/transbordo que construyó el planificador).
+            int dentro = 0, inicio = j;
+            for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) { dentro++; inicio = k; }
+            if (dentro < SALTO_MIN_ESTACIONES) continue;
+            if (!enlaceCerca(l, seq, inicio)) continue;                // sin un enlace real cerca: no reanclar
+            mejor = j;                                                 // toma la más adelantada válida
         }
         return mejor;
+    }
+
+    /** ¿Hay un enlace real (correspondencia/conexión/transbordo) cerca de tu posición, en el punto
+     *  donde la ruta aborda el trazo que empieza en 'inicio'? Se mide contra esa propia parada y la
+     *  anterior (de donde bajas para hacer el enlace), lo que quede más cerca. */
+    private boolean enlaceCerca(android.location.Location l, List<Planificador.Parada> seq, int inicio) {
+        double d = distParada(l, seq.get(inicio));
+        if (inicio > 0) d = Math.min(d, distParada(l, seq.get(inicio - 1)));
+        return d <= RADIO_ENLACE_M;
     }
 
     private void procesar(android.location.Location l) {
@@ -366,17 +406,25 @@ public class RecorridoService extends Service {
             if (pi.linea != seq.get(best).linea) {
                 // Correspondencia (cambio de línea): el aviso NO cambia a la nueva línea hasta que estás
                 // físicamente en su andén. Te aferras a la línea actual mientras caminas la correspondencia.
-                // Si es la MISMA estación (mismo nombre, p. ej. Puente de Fierro L2↔L4, u ordinario↔exprés
-                // de la misma base), el cambio se permite dentro del radio de LLEGADA (~50 m), porque estar
-                // en ese andén ya cuenta como haber hecho la correspondencia. Para andenes co-ubicados de
-                // DISTINTO nombre se mantiene el umbral estricto (CAMBIO_LINEA_M) para no saltar antes.
+                // Si es la MISMA estación física (mismo nombre exacto —p. ej. Puente de Fierro L2↔L4, u
+                // ordinario↔exprés de la misma base—, O mismo NÚCLEO de nombre a corta distancia —p. ej.
+                // "Indios Verdes" Metrobús vs "Indios Verdes (conexión Metrobús L1 y L7)" de Mexibús, que
+                // NO son idénticas letra por letra por el paréntesis—), el cambio se permite dentro del
+                // radio de LLEGADA (~50 m o más), porque estar en ese andén ya cuenta como haber hecho la
+                // correspondencia. Para andenes co-ubicados de nombre REALMENTE distinto se mantiene el
+                // umbral estricto (CAMBIO_LINEA_M) para no saltar antes. Se usa coUbicada() (no solo
+                // mismaEstacion()) para que el núcleo del nombre también cuente: si solo se exigiera
+                // igualdad exacta, Indios Verdes nunca cumplía este radio amplio y el salto dependía del
+                // mecanismo más tosco (reanclarOtraLinea, sin la verificación de "ya llegaste antes").
                 // No brincar a la otra línea antes de ANUNCIAR la llegada a la parada previa: si el andén de
                 // la otra línea queda en el camino antes de tu terminal (Indios Verdes sur: el andén de
                 // Metrobús L1 está al norte, antes del terminal L4 al sur), el aviso saltaba antes de tiempo.
                 // Se exige que la llegada a la parada anterior YA se haya anunciado (ultLlegando ≥ i-1); así
                 // no basta con que 'best' la roce por cercanía: hay que haber llegado físicamente a ella.
+                // Esta verificación por POSICIÓN/ESTADO (no por tiempo) es a propósito: un temporizador fijo
+                // no distingue caminar despacio de estar simplemente detenido en otro punto de la ruta.
                 boolean alcanzasteAnterior = ultLlegando >= i - 1;
-                float umbral = mismaEstacion(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
+                float umbral = coUbicada(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
                 // IMPORTANTE: se corta aquí (break) aunque SÍ se cruce la correspondencia. Si se dejara
                 // seguir el bucle, la siguiente iteración compararía la parada de ADELANTE (misma línea
                 // nueva, p. ej. Nuevo Laredo tras Puente de Fierro en L4) por simple cercanía —sin ningún
@@ -418,9 +466,14 @@ public class RecorridoService extends Service {
         boolean fin = best >= last && bd <= (finL4 ? radioCerca(seq.get(last)) : FIN_M);
         // Próxima estación DISTINTA: salta los andenes CO-UBICADOS del mismo nombre (p. ej. Indios Verdes
         // L4 ↔ Metrobús L1/L7), para no anunciar "próxima Indios Verdes" ni "vas de Indios Verdes a Indios
-        // Verdes" ni pisar el aviso de conexión con un "próxima" espurio.
+        // Verdes" ni pisar el aviso de conexión con un "próxima" espurio. PERO no se salta un andén
+        // co-ubicado que además esté marcado transbordo=true: ese SÍ es el punto real donde se aborda la
+        // correspondencia (p. ej. Puente de Fierro L4, a 284 m real de su copia en L2) y trae su propio
+        // texto de "correspondencia con línea X" -saltárselo dejaba el aviso mudo justo en la parada que
+        // más importa, anunciando de una vez la SIGUIENTE estación real (San Cristóbal, Nuevo Laredo…).
         int proxIdx = best + 1;
-        while (proxIdx < last && coUbicada(seq.get(best), seq.get(proxIdx))) proxIdx++;
+        while (proxIdx < last && coUbicada(seq.get(best), seq.get(proxIdx)) && !seq.get(proxIdx).transbordo)
+            proxIdx++;
         if (proxIdx > last) proxIdx = last;
         int antIdx = Math.max(0, proxIdx - 1);     // estación anterior a la próxima
         int postIdx = Math.min(last, proxIdx + 1); // estación posterior a la próxima
