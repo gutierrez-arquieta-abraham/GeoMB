@@ -81,12 +81,15 @@ public final class RutasRepository {
                 if (ls != null && !ls.isEmpty()) {
                     try { linea = Integer.parseInt(ls.trim()); } catch (NumberFormatException ignore) {}
                 }
-                if (linea == null) continue;
-                lista.add(new Ruta(
-                        o.optString("route_id", ""),
-                        linea,
-                        o.isNull("origen") ? "" : o.optString("origen", ""),
-                        o.isNull("destino") ? "" : o.optString("destino", ""),
+                String origen = o.isNull("origen") ? "" : o.optString("origen", "");
+                String destino = o.isNull("destino") ? "" : o.optString("destino", "");
+                // Antes se DESCARTABAN las rutas sin 'line'; ahora se conservan con linea=0 para que su
+                // route_id siga resolviendo su recorrido (origen→destino) en el filtro y demás, aunque NO
+                // entren en las consultas por línea (deLinea usa 1..7). Solo se omiten las que no traen ni
+                // línea ni recorrido (inútiles).
+                int ln = linea != null ? linea : 0;
+                if (ln == 0 && origen.trim().isEmpty() && destino.trim().isEmpty()) continue;
+                lista.add(new Ruta(o.optString("route_id", ""), ln, origen, destino,
                         o.optString("color", "#D40D0D")));
             }
         } catch (Exception e) {

@@ -942,12 +942,12 @@ public class PlanificadorFragment extends Fragment {
         android.widget.LinearLayout fila = new android.widget.LinearLayout(requireContext());
         fila.setOrientation(android.widget.LinearLayout.HORIZONTAL);
         fila.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        fila.setPadding(0, Math.round(5 * d), 0, Math.round(5 * d));
+        fila.setPadding(0, Math.round(2 * d), 0, Math.round(2 * d));
 
         android.view.View barra = new android.view.View(requireContext());
         android.widget.LinearLayout.LayoutParams lpB =
-                new android.widget.LinearLayout.LayoutParams(Math.round(3 * d), Math.round(24 * d));
-        lpB.rightMargin = Math.round(8 * d);
+                new android.widget.LinearLayout.LayoutParams(Math.round(3 * d), Math.round(15 * d));
+        lpB.rightMargin = Math.round(7 * d);
         barra.setLayoutParams(lpB);
         barra.setBackgroundColor(ins.color);
         fila.addView(barra);
@@ -960,7 +960,9 @@ public class PlanificadorFragment extends Fragment {
 
         TextView t = new TextView(requireContext());
         t.setText(txt.toString());
-        t.setTextSize(14f);
+        t.setTextSize(13f);
+        t.setMaxLines(1);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
         t.setTextColor(com.google.android.material.color.MaterialColors.getColor(
                 fila, com.google.android.material.R.attr.colorOnSurface));
         fila.addView(t);
@@ -973,13 +975,13 @@ public class PlanificadorFragment extends Fragment {
         android.widget.LinearLayout fila = new android.widget.LinearLayout(requireContext());
         fila.setOrientation(android.widget.LinearLayout.HORIZONTAL);
         fila.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        fila.setPadding(Math.round(4 * d), Math.round(2 * d), 0, Math.round(2 * d));
+        fila.setPadding(Math.round(4 * d), 0, 0, 0);
 
         android.widget.ImageView ic = new android.widget.ImageView(requireContext());
-        int is = Math.round(18 * d);
+        int is = Math.round(15 * d);
         android.widget.LinearLayout.LayoutParams lpI = new android.widget.LinearLayout.LayoutParams(is, is);
-        lpI.leftMargin = Math.round(3 * d);
-        lpI.rightMargin = Math.round(10 * d);
+        lpI.leftMargin = Math.round(2 * d);
+        lpI.rightMargin = Math.round(9 * d);
         ic.setLayoutParams(lpI);
         ic.setImageResource(camina ? R.drawable.ic_walk : R.drawable.ic_swap);
         ic.setColorFilter(0xFF757575);
@@ -987,7 +989,9 @@ public class PlanificadorFragment extends Fragment {
 
         TextView t = new TextView(requireContext());
         t.setText(texto);
-        t.setTextSize(13f);
+        t.setTextSize(12f);
+        t.setMaxLines(1);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
         t.setTextColor(0xFF757575);
         t.setTypeface(t.getTypeface(), android.graphics.Typeface.ITALIC);
         fila.addView(t);

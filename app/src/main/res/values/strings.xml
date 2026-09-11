@@ -53,7 +53,7 @@
     <string name="mapa_iconos_antiguos">Iconos antiguos (puntos)</string>
     <string name="mapa_3d">Vista 3D</string>
     <string name="estacion_no_encontrada">No se encontró esa estación</string>
-    <string name="ruta_resumen">%1$d paradas · %2$d correspondencias · ~%3$d min</string>
+    <string name="ruta_resumen">%1$d paradas · %2$d correspondencias · %3$d min aprox.</string>
     <string name="ruta_sin_ruta">No se encontró una ruta a %1$s</string>
     <string name="ruta_estacion_cerrada">%1$s está fuera de servicio (%2$s)</string>
     <string name="ruta_corte_bloqueo">No hay ruta: la línea está partida por una afectación en el servicio</string>
