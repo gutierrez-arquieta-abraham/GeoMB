@@ -14,6 +14,30 @@
       },
       "oauth_client": [
         {
+          "client_id": "345257771271-kemqtktih8v7rcqlh4j1hgtqvpako052.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.memegrados.GeoMB",
+            "certificate_hash": "69bcb91965f59fa2999583492de7c2278f3c09a1"
+          }
+        },
+        {
+          "client_id": "345257771271-q4q9uma9ch5cu3qp131bab1r5c7042im.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.memegrados.GeoMB",
+            "certificate_hash": "6277db335df0b1f4b6ada72ad5c45cc66e833593"
+          }
+        },
+        {
+          "client_id": "345257771271-vh3lafo15phploa1iqj7djo9dj04fjhc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.memegrados.GeoMB",
+            "certificate_hash": "8a5d367d8ab46b1489462774e452a199344b6459"
+          }
+        },
+        {
           "client_id": "345257771271-0drk75pmou68d0opfu0tt6n5u57rm9gb.apps.googleusercontent.com",
           "client_type": 3
         }
