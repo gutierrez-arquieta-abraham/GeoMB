@@ -455,9 +455,14 @@ public class RecorridoService extends Service {
         boolean fin = best >= last && bd <= (finL4 ? radioCerca(seq.get(last)) : FIN_M);
         // Próxima estación DISTINTA: salta los andenes CO-UBICADOS del mismo nombre (p. ej. Indios Verdes
         // L4 ↔ Metrobús L1/L7), para no anunciar "próxima Indios Verdes" ni "vas de Indios Verdes a Indios
-        // Verdes" ni pisar el aviso de conexión con un "próxima" espurio.
+        // Verdes" ni pisar el aviso de conexión con un "próxima" espurio. PERO no se salta un andén
+        // co-ubicado que además esté marcado transbordo=true: ese SÍ es el punto real donde se aborda la
+        // correspondencia (p. ej. Puente de Fierro L4, a 284 m real de su copia en L2) y trae su propio
+        // texto de "correspondencia con línea X" -saltárselo dejaba el aviso mudo justo en la parada que
+        // más importa, anunciando de una vez la SIGUIENTE estación real (San Cristóbal, Nuevo Laredo…).
         int proxIdx = best + 1;
-        while (proxIdx < last && coUbicada(seq.get(best), seq.get(proxIdx))) proxIdx++;
+        while (proxIdx < last && coUbicada(seq.get(best), seq.get(proxIdx)) && !seq.get(proxIdx).transbordo)
+            proxIdx++;
         if (proxIdx > last) proxIdx = last;
         int antIdx = Math.max(0, proxIdx - 1);     // estación anterior a la próxima
         int postIdx = Math.min(last, proxIdx + 1); // estación posterior a la próxima
