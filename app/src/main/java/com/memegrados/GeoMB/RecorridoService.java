@@ -424,7 +424,17 @@ public class RecorridoService extends Service {
                 // Esta verificación por POSICIÓN/ESTADO (no por tiempo) es a propósito: un temporizador fijo
                 // no distingue caminar despacio de estar simplemente detenido en otro punto de la ruta.
                 boolean alcanzasteAnterior = ultLlegando >= i - 1;
-                float umbral = coUbicada(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
+                boolean coloc = coUbicada(pi, seq.get(best));
+                float umbral = coloc ? radioCerca(pi) : CAMBIO_LINEA_M;
+                // En plataformas con ZONA (p. ej. Indios Verdes): dos andenes co-ubicados por núcleo de
+                // nombre pueden ser paralelos y estar a muy poca distancia entre sí (el de ascenso de
+                // Metrobús L1 y el de Mexibús L4 quedan a ~30-40 m uno del otro) — bastante MENOS que el
+                // radio ancho de zona (ZONA_CERCA_M=70 m). Ese radio por sí solo no alcanza a distinguirlos:
+                // estando cómodo en el andén de Metrobús ya caías también dentro del radio de "llegada" de
+                // Mexibús, y el aviso de la otra línea sonaba de más, sin haber caminado a su andén. Para
+                // este caso se exige ADEMÁS estar más cerca de la zona NUEVA que de la actual.
+                boolean zonaAmbigua = coloc && (Planificador.tieneZona(pi) || Planificador.tieneZona(seq.get(best)));
+                boolean cruzaZona = !zonaAmbigua || d < distParada(l, seq.get(best));
                 // IMPORTANTE: se corta aquí (break) aunque SÍ se cruce la correspondencia. Si se dejara
                 // seguir el bucle, la siguiente iteración compararía la parada de ADELANTE (misma línea
                 // nueva, p. ej. Nuevo Laredo tras Puente de Fierro en L4) por simple cercanía —sin ningún
@@ -433,7 +443,7 @@ public class RecorridoService extends Service {
                 // sin que su aviso de llegada/transbordo llegara a dispararse nunca: el próximo ciclo ya
                 // hablaba de la estación siguiente. Al cortar aquí, este ciclo se queda EN el nodo de
                 // correspondencia y el de llegada podrá anunciarlo; recién el siguiente ciclo avanza más.
-                if (alcanzasteAnterior && d <= umbral) { bd = d; best = i; }
+                if (alcanzasteAnterior && d <= umbral && cruzaZona) { bd = d; best = i; }
                 break;
             } else if (d < bd) {
                 bd = d; best = i;
