@@ -11,6 +11,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -115,6 +117,10 @@ public class RecorridoService extends Service {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private FusedLocationProviderClient loc;
+    private AudioManager audioManager;
+    private AudioFocusRequest focusRequest;   // API 26+
+    // No reacciona a pérdidas de foco: los avisos son cortos y transitorios; al terminar se suelta solo.
+    private final AudioManager.OnAudioFocusChangeListener focusListener = f -> {};
     private boolean ciclando = false;
     private boolean recibiendo = false;   // ya se pidió el stream continuo de ubicación
     private final Runnable tick = this::ciclo;
@@ -227,6 +233,7 @@ public class RecorridoService extends Service {
     @Override public void onCreate() {
         super.onCreate();
         loc = LocationServices.getFusedLocationProviderClient(this);
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         crearCanal();
         tts = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS && tts != null) {
@@ -580,14 +587,21 @@ public class RecorridoService extends Service {
     private void sonarYHablar(String texto, int linea) {
         if (destruido) return;
         colaVoz.add(new Object[]{texto, linea});
-        if (!vozOcupada) procesarSiguienteVoz();
+        if (!vozOcupada) {
+            pedirFocoAudio();   // "duckea" lo que esté sonando (música, podcast) mientras avisamos
+            procesarSiguienteVoz();
+        }
     }
 
     /** Toma el siguiente aviso de la cola y lo reproduce (tururu, luego voz). Al terminar (ver
      *  {@link #vozTerminada()}), se vuelve a llamar para seguir con el que sigue. */
     private void procesarSiguienteVoz() {
         Object[] item = colaVoz.poll();
-        if (item == null || destruido) { vozOcupada = false; return; }
+        if (item == null || destruido) {
+            vozOcupada = false;
+            soltarFocoAudio();   // ya no hay más avisos: que lo demás recupere su volumen normal
+            return;
+        }
         vozOcupada = true;
         String texto = (String) item[0];
         int linea = (Integer) item[1];
@@ -627,6 +641,49 @@ public class RecorridoService extends Service {
             try { mpActual.release(); } catch (Exception ignore) {}
             mpActual = null;
         }
+    }
+
+    /**
+     * Pide foco de audio de tipo "transitorio, puede bajar el volumen de lo demás" (ducking): mientras
+     * dura el aviso, Android le baja el volumen a lo que ya estuviera sonando (música, podcast, etc.)
+     * en vez de dejarlo mezclado a todo volumen encima del aviso. Se usa USAGE_ASSISTANCE_NAVIGATION_
+     * GUIDANCE, el tipo estándar para avisos de navegación por voz (el mismo que usan Maps/Waze), que
+     * el resto de las apps de audio ya saben manejar. No cambia el volumen del dispositivo: el aviso
+     * sigue sonando al volumen de multimedia que tenga puesto el usuario, solo dejando de competir con
+     * lo que ya sonaba.
+     */
+    private void pedirFocoAudio() {
+        if (audioManager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                android.media.AudioAttributes attrs = new android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build();
+                focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(attrs)
+                        .setOnAudioFocusChangeListener(focusListener)
+                        .build();
+                audioManager.requestAudioFocus(focusRequest);
+            } else {
+                //noinspection deprecation
+                audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC,
+                        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+            }
+        } catch (Exception ignore) {}
+    }
+
+    /** Suelta el foco de audio: lo que estaba sonando antes (música, podcast) recupera su volumen normal. */
+    private void soltarFocoAudio() {
+        if (audioManager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                audioManager.abandonAudioFocusRequest(focusRequest);
+            } else {
+                //noinspection deprecation
+                audioManager.abandonAudioFocus(focusListener);
+            }
+        } catch (Exception ignore) {}
     }
 
     // ---- voz Mia (AWS Polly) con caché local; respaldo al TTS de Android ----
@@ -1465,6 +1522,7 @@ public class RecorridoService extends Service {
         destruido = true;                            // invalida cualquier voz pendiente/en cola
         colaVoz.clear();
         soltarActual();
+        soltarFocoAudio();   // por si se detiene el recorrido a media reproducción
         if (tts != null) { tts.stop(); tts.shutdown(); tts = null; }
         // Quita la notificación al terminar/detener la ruta (finalizar ruta o llegada al destino).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE);
