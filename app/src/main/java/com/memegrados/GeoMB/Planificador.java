@@ -1381,21 +1381,28 @@ public final class Planificador {
     /** Geometría real de una línea para un tramo mixto (L7: sublínea por sentido del couplet). */
     private static List<LatLng> geomLinea(Context ctx, int linea, String seqId, List<LatLng> grupo) {
         if (linea == 7) return GtfsRepository.sublinea(ctx, claveSublineaL7(seqId, grupo));
-        // L4 al aeropuerto: la ruta base es un lazo y al rebanar San Lázaro→T2 se salta la
-        // Terminal 1; usar el ramal dedicado San Lázaro→T1→T2 cuando el tramo toca las terminales.
         if (linea == 4) {
+            // Cada servicio de L4 tiene su shape PROPIO del GTFS (Ruta Norte/Sur, Hidalgo–Alameda
+            // Oriente, Aeropuerto–Amajac): se prueba PRIMERO porque es la geometría exacta de ESE
+            // tramo. Se quita el sufijo "<" del sentido invertido (p. ej. "L4-RN<") para hallar la
+            // sublínea; subRuta ya orienta el trazo, así que el mismo shape sirve para ambos sentidos.
+            String sk = seqId != null && seqId.endsWith("<") ? seqId.substring(0, seqId.length() - 1) : seqId;
+            List<LatLng> serv = sk != null ? GtfsRepository.sublinea(ctx, sk) : null;
+            if (serv != null && serv.size() >= 2) return serv;
+            // Sin shape propio identificado (ruta base / caller genérico): la ruta base es un lazo y
+            // al rebanar San Lázaro→T2 por cercanía se salta la Terminal 1; usar el ramal dedicado
+            // San Lázaro→T1→T2 cuando el tramo TOCA las terminales. OJO: este heurístico de cercanía
+            // (2500 m) es deliberadamente el ÚLTIMO recurso, no el primero — antes se probaba primero
+            // y daba un falso positivo real: el servicio L4-HAO (Hidalgo–Alameda Oriente) pasa por
+            // Pantitlán y Calle 6, a pocos cientos de metros del aeropuerto pero en un servicio sin
+            // relación con él, y su trazo se sustituía por el lazo San Lázaro-T1-T2 completo (varios
+            // km de desvío ajeno al tramo real) aunque su propio shape "L4-HAO" ya existía y era correcto.
             if (enZonaAeropuerto(ctx, grupo)) {
                 // Ida: San Lázaro→T1→T2 (pasa por T1). Vuelta: T2→San Lázaro DIRECTO (sin T1).
                 boolean vuelta = seqId != null && seqId.toLowerCase().contains("vuelta");
                 List<LatLng> aero = GtfsRepository.sublinea(ctx, vuelta ? "L4-aero-vuelta" : "L4-aero-ida");
                 if (aero != null && aero.size() >= 2) return aero;
             }
-            // Cada servicio de L4 tiene su shape del GTFS (Ruta Norte/Sur, Hidalgo–Alameda Oriente).
-            // Se quita el sufijo "<" del sentido invertido (p. ej. "L4-RN<") para hallar la sublínea;
-            // subRuta ya orienta el trazo, así que el mismo shape sirve para ambos sentidos.
-            String sk = seqId != null && seqId.endsWith("<") ? seqId.substring(0, seqId.length() - 1) : seqId;
-            List<LatLng> serv = sk != null ? GtfsRepository.sublinea(ctx, sk) : null;
-            if (serv != null && serv.size() >= 2) return serv;
         }
         return geomSentido(ctx, linea, grupo.get(0), grupo.get(grupo.size() - 1));
     }
