@@ -230,6 +230,9 @@
     <string name="audios_todas">⬇ Descargar TODAS las líneas</string>
     <string name="audios_borrar">🗑 Borrar audios descargados</string>
     <string name="audios_borrados">Audios borrados (%1$d)</string>
+    <string name="audios_cancelar">Cancelar descarga</string>
+    <string name="audios_en_curso">Ya hay una descarga de audios en curso</string>
+    <string name="canal_descarga_audios">Descarga de audios</string>
     <string name="ruta_horario_hoy">🕓 Servicio hoy — %1$s</string>
     <string name="ruta_fuera_horario">⚠ A esta hora podría no circular: %1$s</string>
     <string name="ruta_unidad_cerca">Tu unidad de L%1$d hacia %2$s está por llegar a %3$s</string>

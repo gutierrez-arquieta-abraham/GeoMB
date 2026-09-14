@@ -72,6 +72,11 @@
             android:foregroundServiceType="dataSync" />
 
         <service
+            android:name=".DescargaVozService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
             android:name=".RecorridoService"
             android:exported="false"
             android:stopWithTask="false"
