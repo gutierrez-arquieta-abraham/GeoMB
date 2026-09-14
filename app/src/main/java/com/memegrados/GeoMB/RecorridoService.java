@@ -63,6 +63,13 @@ public class RecorridoService extends Service {
     private static final float FIN_M = 30f;
     private static final long INTERVALO_MS = 1000L;   // revisa la ubicación cada 1 s durante el recorrido
     private static final float TURURU_VOL = 0.7f;     // volumen del "tururu" (70% del real)
+    /** Volumen relativo de la VOZ (Mia/TTS) dentro del volumen de medios del dispositivo. Antes se
+     *  forzaba a 1.0 (máximo) sin importar el volumen que el usuario tuviera puesto: como el audio
+     *  de Mia y la voz del sistema vienen "masterizados" más fuerte que música/podcasts normales,
+     *  a un mismo nivel del volumen de medios (p. ej. 20%) sonaban como si el dispositivo estuviera
+     *  mucho más arriba (p. ej. 80%), obligando a bajarle manualmente durante el aviso. Se atenúa
+     *  igual que el "tururu" para que respete proporcionalmente el volumen ya puesto por el usuario. */
+    private static final float VOZ_VOL = 0.7f;
     private static final long VOZ_TIMEOUT_MS = 4000L; // margen para descargar la voz Mia antes de caer al TTS
 
     // Andenes con ZONA de cobertura (Indios Verdes) miden ~100 m de largo. Como la distancia se mide al
@@ -568,7 +575,7 @@ public class RecorridoService extends Service {
     private void hablar(String t) {
         if (ttsListo && tts != null && t != null) {
             android.os.Bundle p = new android.os.Bundle();
-            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f);   // voz a volumen máximo
+            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VOZ_VOL);   // respeta el volumen de medios puesto por el usuario
             tts.speak(t, TextToSpeech.QUEUE_FLUSH, p, "geomb");
         }
     }
@@ -757,7 +764,7 @@ public class RecorridoService extends Service {
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build());
             mp.setDataSource(f.getAbsolutePath());
-            mp.setVolume(1f, 1f);
+            mp.setVolume(VOZ_VOL, VOZ_VOL);   // respeta el volumen de medios puesto por el usuario
             mp.setOnCompletionListener(m -> {
                 try { m.release(); } catch (Exception ignore) {}
                 if (mpActual == m) mpActual = null;
