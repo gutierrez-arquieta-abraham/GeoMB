@@ -151,16 +151,24 @@ public final class RealtimeRepository {
 
     /**
      * Descarta unidades "fantasma": las que llevan mucho sin reportar (su {@code timestamp} quedó muy
-     * atrás). La referencia de "ahora" es la unidad MÁS FRESCA del propio lote (no el reloj del teléfono),
-     * para ser inmune a desfases de reloj. Las que no traen timestamp se conservan. Así el mapa y las
-     * llegadas ({@link Llegadas}) no muestran unidades que en realidad ya no transmiten.
+     * atrás). La referencia de "ahora" es la MEDIANA de los timestamps del propio lote (no el reloj del
+     * teléfono), para ser inmune a desfases de reloj. Las que no traen timestamp se conservan.
+     * OJO: se usa la MEDIANA y no el máximo -el máximo es tremendamente frágil: si UNA sola unidad
+     * reporta con el reloj GPS desincronizado (un timestamp minutos "en el futuro"), esa unidad se
+     * volvía la referencia de "ahora" para TODO el lote, y de golpe cientos de unidades activas
+     * quedaban "viejas" respecto a ese punto corrupto y se descartaban en masa. La mediana no se mueve
+     * por uno o pocos valores extremos, así que un solo reloj mal no puede arrastrar al resto.
+     * Así el mapa y las llegadas ({@link Llegadas}) no muestran unidades que en realidad ya no transmiten.
      */
     private static List<UnidadReal> filtrarFantasmas(List<UnidadReal> lista) {
-        long ref = 0;
-        for (UnidadReal u : lista) if (u.timestamp > ref) ref = u.timestamp;
-        if (ref <= 0) return lista;   // el feed no trae timestamps: no se filtra
-        final long refFin = ref;
-        lista.removeIf(u -> u.timestamp > 0 && (refFin - u.timestamp) > UMBRAL_FANTASMA_S);
+        List<Long> timestamps = new ArrayList<>();
+        for (UnidadReal u : lista) if (u.timestamp > 0) timestamps.add(u.timestamp);
+        if (timestamps.isEmpty()) return lista;   // el feed no trae timestamps: no se filtra
+        java.util.Collections.sort(timestamps);
+        int n = timestamps.size();
+        final long ref = (n % 2 == 1) ? timestamps.get(n / 2)
+                : (timestamps.get(n / 2 - 1) + timestamps.get(n / 2)) / 2;
+        lista.removeIf(u -> u.timestamp > 0 && Math.abs(ref - u.timestamp) > UMBRAL_FANTASMA_S);
         return lista;
     }
 
