@@ -112,6 +112,13 @@ public class AcercaFragment extends Fragment {
         swMexibus.setOnCheckedChangeListener((btn, activar) ->
                 Modos.setMostrarMexibus(requireContext(), activar));
 
+        // "Ahorro de datos": activo por defecto; espacia el refresco de unidades en vivo y evita
+        // descargar la voz Mia mientras se está en datos móviles (ver Red.java).
+        SwitchMaterial swAhorroDatos = view.findViewById(R.id.sw_ahorro_datos);
+        swAhorroDatos.setChecked(Modos.ahorroDatos(requireContext()));
+        swAhorroDatos.setOnCheckedChangeListener((btn, activar) ->
+                Modos.setAhorroDatos(requireContext(), activar));
+
         // "Recibir por líneas": activa la suscripción a afectaciones y despliega el menú por línea.
         View panelLineas = view.findViewById(R.id.panel_notif_lineas);
         SwitchMaterial swAfect = view.findViewById(R.id.sw_notif_afect);

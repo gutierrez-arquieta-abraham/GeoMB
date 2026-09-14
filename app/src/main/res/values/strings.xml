@@ -338,6 +338,8 @@
     <string name="sincro_switch_desc">Mantiene los datos de las unidades actualizados aunque la app esté cerrada. Muestra un aviso permanente y puede consumir algo más de batería.</string>
     <string name="mexibus_switch">Mostrar Mexibús y Mexicable</string>
     <string name="mexibus_switch_desc">Muestra las líneas y estaciones del Mexibús y el Mexicable en el mapa y las incluye en el planificador de rutas.</string>
+    <string name="ahorro_datos_switch">Ahorro de datos</string>
+    <string name="ahorro_datos_switch_desc">En datos móviles, espacia la actualización de unidades en vivo y usa la voz del teléfono en vez de descargar la voz Mia, para no gastar de más tu paquete de datos. Actívalo/desactívalo según tu plan.</string>
     <string name="notif_titulo">Notificaciones</string>
     <string name="notif_afect_switch">Avisos de afectaciones al servicio</string>
     <string name="notif_act_switch">Avisos de nueva versión de la app</string>

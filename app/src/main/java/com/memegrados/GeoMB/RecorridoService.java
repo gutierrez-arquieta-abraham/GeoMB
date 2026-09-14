@@ -692,7 +692,11 @@ public class RecorridoService extends Service {
     private void decirConVoz(String texto) {
         if (destruido) { vozOcupada = false; return; }
         java.io.File cache = archivoVoz(texto);
-        if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }
+        if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }   // ya en caché: no gasta datos
+        // Modo ahorro de datos (activo por defecto en datos móviles, desactivable en "Acerca de"):
+        // si esta frase no está ya cacheada, no se descarga la voz Mia -se habla directo con la voz
+        // local del teléfono (TTS, sin conexión, cero datos).
+        if (Red.ahorrarAhora(this)) { hablar(texto); return; }
         // Descarga la voz Mia PERO con un límite (VOZ_TIMEOUT_MS): si no llega a tiempo, se habla ya
         // con el TTS de Google para no dejar esperando; la descarga sigue y queda cacheada para la
         // próxima. Este aviso YA está "en curso" (vozOcupada=true): el siguiente de la cola espera.
