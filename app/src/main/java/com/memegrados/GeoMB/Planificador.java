@@ -1281,10 +1281,21 @@ public final class Planificador {
         }
         // Mexibús L4: Indios Verdes es estación de PASO; la plataforma depende del SENTIDO de viaje
         // (hacia el norte / UMB Tecámac = andén norte SALE; hacia el sur / La Raza = andén sur LLEGA).
+        // El sentido se determina con la estación VECINA de la MISMA línea (L4), nunca con la del
+        // TRANSBORDO (Metrobús L1): su coordenada GTFS de "Indios Verdes" es una representativa propia de
+        // esa agencia y no tiene por qué reflejar hacia dónde caminabas en L4. Bosques→IPN es el caso real:
+        // la coordenada de Metrobús L1 (19.49678) cae ~190 m al NORTE de la de Mexibús L4 (19.495027) pese
+        // a que ibas hacia el SUR — al preferir siempre 'nextPos' (aquí, el nodo de L1) se leía 'norte=true'
+        // y se asignaba el andén de ascenso NORTE (a solo 40 m del de abordaje de L1) en vez del de llegada
+        // SUR (a 275 m real): el aviso de cambio de línea quedaba disparando casi de inmediato al llegar.
+        boolean prevMismaLinea = prevPos != null && prevLin >= 0 && baseLinea(prevLin) == baseLinea(linea);
+        boolean nextMismaLinea = nextPos != null && nextLin >= 0 && baseLinea(nextLin) == baseLinea(linea);
         boolean norte;
-        if (nextPos != null)      norte = nextPos.latitude > pos.latitude;   // el siguiente está al norte → vas al norte
-        else if (prevPos != null) norte = pos.latitude > prevPos.latitude;   // vienes del sur → vas al norte
-        else                      norte = false;
+        if (nextMismaLinea)        norte = nextPos.latitude > pos.latitude;   // el siguiente (en L4) está al norte → vas al norte
+        else if (prevMismaLinea)   norte = pos.latitude > prevPos.latitude;   // vienes (en L4) del sur → vas al norte
+        else if (nextPos != null)  norte = nextPos.latitude > pos.latitude;   // sin vecino de L4: último recurso
+        else if (prevPos != null)  norte = pos.latitude > prevPos.latitude;
+        else                       norte = false;
         return norte ? IV_L4_SALE : IV_L4_LLEGA;
     }
 
