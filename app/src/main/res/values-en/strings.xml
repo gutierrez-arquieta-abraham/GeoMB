@@ -318,6 +318,8 @@
     <string name="sincro_switch_desc">Keeps unit data updated even when the app is closed. Shows a permanent notice and may use a bit more battery.</string>
     <string name="mexibus_switch">Show Mexibús and Mexicable</string>
     <string name="mexibus_switch_desc">Shows Mexibús and Mexicable lines and stations on the map and includes them in the route planner.</string>
+    <string name="ahorro_datos_switch">Data saver</string>
+    <string name="ahorro_datos_switch_desc">On mobile data, slows down live vehicle updates and uses the phone\'s voice instead of downloading the Mia voice, so it doesn\'t eat into your data plan. Turn it on/off depending on your plan.</string>
     <string name="notif_titulo">Notifications</string>
     <string name="notif_afect_switch">Service disruption alerts</string>
     <string name="notif_act_switch">New app version alerts</string>

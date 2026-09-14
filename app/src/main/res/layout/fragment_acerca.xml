@@ -178,6 +178,29 @@
             android:textSize="13sp"
             android:lineSpacingExtra="2dp" />
 
+        <!-- Ahorro de datos: activo por defecto, desactivable para quien no le importe el consumo. -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="20dp"
+            android:background="@color/mb_outline" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/sw_ahorro_datos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/ahorro_datos_switch" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/ahorro_datos_switch_desc"
+            android:textColor="@color/mb_gray"
+            android:textSize="13sp"
+            android:lineSpacingExtra="2dp" />
+
         <!-- Notificaciones push (afectaciones / actualizaciones), desactivables por el usuario -->
         <View
             android:layout_width="match_parent"

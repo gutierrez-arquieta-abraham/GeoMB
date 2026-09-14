@@ -129,4 +129,16 @@ public final class Modos {
     public static void setIconosNuevos(Context c, boolean v) {
         p(c).edit().putBoolean("iconos_nuevos", v).apply();
     }
+
+    // --- Ahorro de datos: en datos móviles, espacia el refresco de unidades en vivo y usa solo la
+    // voz local (TTS) en vez de descargar la voz Mia. Activo por defecto (hay usuarios con muy poco
+    // saldo/datos para el día); se puede desactivar desde "Acerca de". ---
+
+    public static boolean ahorroDatos(Context c) {
+        return p(c).getBoolean("ahorro_datos", true);
+    }
+
+    public static void setAhorroDatos(Context c, boolean v) {
+        p(c).edit().putBoolean("ahorro_datos", v).apply();
+    }
 }
