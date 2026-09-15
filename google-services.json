@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "345257771271-n2p7qckejlftus5c6j0jssh9n8ardg8f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.memegrados.GeoMB",
+            "certificate_hash": "3a244feeb0d57084c8e4456833f0cee0fe9cab89"
+          }
+        },
+        {
           "client_id": "345257771271-q4q9uma9ch5cu3qp131bab1r5c7042im.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
