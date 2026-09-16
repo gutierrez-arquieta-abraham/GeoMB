@@ -49,6 +49,22 @@
             android:textSize="15sp"
             android:textStyle="bold" />
 
+        <!-- Chips de cada estación puntual (una por afectación), desplazables si no caben. -->
+        <HorizontalScrollView
+            android:id="@+id/ia_estaciones_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/ia_estaciones_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
         <TextView
             android:id="@+id/ia_lbl_dir"
             android:layout_width="match_parent"
