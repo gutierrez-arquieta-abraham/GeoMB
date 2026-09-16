@@ -222,7 +222,9 @@
     <string name="voz_tip_objetos">Mantén tus objetos de valor en un lugar seguro</string>
     <string name="voz_tip_correr">Evita correr en la estación para abordar la unidad</string>
     <string name="voz_tip_rosa">Recuerda que las unidades rosas son exclusivas para mujeres, niñas y niños</string>
-    <string name="ruta_alterna">⚠ Ruta alterna por afectaciones en el servicio</string>
+    <string name="ruta_alterna">⚠ Ruta alterna por afectaciones en el servicio (toca para ver detalle)</string>
+    <string name="afectaciones_carta_titulo">Afectaciones en esta ruta</string>
+    <string name="afectaciones_carta_vacio">Hay afectaciones activas en el servicio, pero ninguna coincide con esta ruta en particular.</string>
     <string name="audios_descargar">Descargar audios (offline)</string>
     <string name="audios_titulo">Descargar audios del recorrido</string>
     <string name="audios_descargando">Descargando %1$d/%2$d…</string>
