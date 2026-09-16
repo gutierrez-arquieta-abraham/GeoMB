@@ -862,22 +862,33 @@ public class PlanificadorFragment extends Fragment {
         java.util.Set<String> nombresRuta = new java.util.HashSet<>();
         for (Planificador.Parada p : rutaActiva.secuencia) nombresRuta.add(Planificador.norm(p.nombre));
 
-        StringBuilder msg = new StringBuilder();
+        List<Manifestaciones.Afectacion> relevantes = new ArrayList<>();
         for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
             boolean tocaLinea = lineasRuta.contains(a.lineaNum);
             boolean tocaLugar = tocaLugarRuta(Planificador.norm(a.lugar), nombresRuta);
-            if (!tocaLinea && !tocaLugar) continue;
-            if (msg.length() > 0) msg.append("\n\n");
-            msg.append(a.resumen());
-            if (!a.info.isEmpty()) msg.append("\n").append(a.info);
+            if (tocaLinea || tocaLugar) relevantes.add(a);
         }
-        if (msg.length() == 0) msg.append(getString(R.string.afectaciones_carta_vacio));
 
-        new AlertDialog.Builder(requireContext())
+        AlertDialog.Builder b = new AlertDialog.Builder(requireContext())
                 .setTitle(R.string.afectaciones_carta_titulo)
-                .setMessage(msg.toString())
-                .setPositiveButton(android.R.string.ok, null)
-                .show();
+                .setPositiveButton(android.R.string.ok, null);
+        if (relevantes.isEmpty()) {
+            b.setMessage(R.string.afectaciones_carta_vacio);
+        } else {
+            // Mismas tarjetas (item_afectacion) y adaptador que usa "Llegadas" para el estado del
+            // servicio, en vez de texto plano suelto: logo de línea con su color oficial y Tipo Metro.
+            RecyclerView rv = new RecyclerView(requireContext());
+            rv.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            int pad = Math.round(8 * getResources().getDisplayMetrics().density);
+            rv.setPadding(pad, pad, pad, pad);
+            rv.setLayoutManager(new LinearLayoutManager(requireContext()));
+            AfectacionesAdapter ad = new AfectacionesAdapter();
+            ad.set(relevantes);
+            rv.setAdapter(ad);
+            b.setView(rv);
+        }
+        b.show();
     }
 
     /** ¿El 'lugar' de una afectación (normalizado) toca alguna estación de la ruta? Comparación por
