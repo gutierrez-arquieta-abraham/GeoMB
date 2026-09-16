@@ -862,12 +862,25 @@ public class PlanificadorFragment extends Fragment {
         java.util.Set<String> nombresRuta = new java.util.HashSet<>();
         for (Planificador.Parada p : rutaActiva.secuencia) nombresRuta.add(Planificador.norm(p.nombre));
 
-        List<Manifestaciones.Afectacion> relevantes = new ArrayList<>();
+        // El panel del backend combina varias afectaciones de una línea en una sola fila, pero
+        // ManifestacionesService (que escanea la página oficial DIRECTO desde la app, aparte del
+        // JSON del servidor) sigue trayendo las filas sueltas también — Manifestaciones.lista()
+        // las junta a todas, así que sin filtrar aquí se repite la misma línea varias veces
+        // (las sueltas + la combinada). Nos quedamos con UNA por (línea, categoría): la de texto
+        // más largo, que en la práctica es la combinada (o la única, si no hay repetidas).
+        java.util.Map<String, Manifestaciones.Afectacion> porLineaCat = new java.util.LinkedHashMap<>();
         for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
             boolean tocaLinea = lineasRuta.contains(a.lineaNum);
             boolean tocaLugar = tocaLugarRuta(Planificador.norm(a.lugar), nombresRuta);
-            if (tocaLinea || tocaLugar) relevantes.add(a);
+            if (!tocaLinea && !tocaLugar) continue;
+            String k = a.lineaNum + "|" + a.categoria;
+            Manifestaciones.Afectacion actual = porLineaCat.get(k);
+            int largoNuevo = a.estado.length() + a.lugar.length() + a.info.length();
+            int largoActual = actual == null ? -1
+                    : actual.estado.length() + actual.lugar.length() + actual.info.length();
+            if (actual == null || largoNuevo > largoActual) porLineaCat.put(k, a);
         }
+        List<Manifestaciones.Afectacion> relevantes = new ArrayList<>(porLineaCat.values());
 
         AlertDialog.Builder b = new AlertDialog.Builder(requireContext())
                 .setTitle(R.string.afectaciones_carta_titulo)
