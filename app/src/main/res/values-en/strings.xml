@@ -206,7 +206,9 @@
     <string name="voz_tip_objetos">Keep your valuables in a safe place</string>
     <string name="voz_tip_correr">Do not run in the station to board the vehicle</string>
     <string name="voz_tip_rosa">Remember that pink vehicles are reserved for women and children</string>
-    <string name="ruta_alterna">⚠ Alternate route due to service disruptions</string>
+    <string name="ruta_alterna">⚠ Alternate route due to service disruptions (tap for details)</string>
+    <string name="afectaciones_carta_titulo">Disruptions on this route</string>
+    <string name="afectaciones_carta_vacio">There are active service disruptions, but none match this specific route.</string>
     <string name="audios_descargar">Download audios (offline)</string>
     <string name="audios_titulo">Download route audios</string>
     <string name="audios_descargando">Downloading %1$d/%2$d…</string>

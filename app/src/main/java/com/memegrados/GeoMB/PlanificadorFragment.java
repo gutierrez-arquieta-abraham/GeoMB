@@ -172,6 +172,7 @@ public class PlanificadorFragment extends Fragment {
         resPasosList = view.findViewById(R.id.res_pasos_list);
         resPasosScroll = view.findViewById(R.id.res_pasos_scroll);
         resAviso = view.findViewById(R.id.res_aviso);
+        resAviso.setOnClickListener(v -> mostrarCartaAfectaciones());
         resEstado = view.findViewById(R.id.res_estado);
         btnRecorrido = view.findViewById(R.id.btn_recorrido);
         swExpress = view.findViewById(R.id.sw_express);
@@ -845,6 +846,50 @@ public class PlanificadorFragment extends Fragment {
         }
 
         encuadrar(limites);   // encuadra la ruta en el espacio visible (sin tapar con las tarjetas)
+    }
+
+    /**
+     * "Carta" con el detalle de las afectaciones que tocan la ruta mostrada (por línea usada o por
+     * estación de la ruta), en vez de solo el aviso genérico "Ruta alterna por afectaciones en el
+     * servicio". Se abre al tocar ese aviso. Si hay afectaciones activas en el sistema pero ninguna
+     * coincide con esta ruta en particular, lo dice explícitamente (no se queda en silencio).
+     */
+    private void mostrarCartaAfectaciones() {
+        if (rutaActiva == null || !isAdded()) return;
+        java.util.Set<Integer> lineasRuta = new java.util.HashSet<>();
+        if (rutaActiva.instrucciones != null)
+            for (Planificador.Instruccion ins : rutaActiva.instrucciones) lineasRuta.add(ins.linea);
+        java.util.Set<String> nombresRuta = new java.util.HashSet<>();
+        for (Planificador.Parada p : rutaActiva.secuencia) nombresRuta.add(Planificador.norm(p.nombre));
+
+        StringBuilder msg = new StringBuilder();
+        for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
+            boolean tocaLinea = lineasRuta.contains(a.lineaNum);
+            boolean tocaLugar = tocaLugarRuta(Planificador.norm(a.lugar), nombresRuta);
+            if (!tocaLinea && !tocaLugar) continue;
+            if (msg.length() > 0) msg.append("\n\n");
+            msg.append(a.resumen());
+            if (!a.info.isEmpty()) msg.append("\n").append(a.info);
+        }
+        if (msg.length() == 0) msg.append(getString(R.string.afectaciones_carta_vacio));
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.afectaciones_carta_titulo)
+                .setMessage(msg.toString())
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
+    /** ¿El 'lugar' de una afectación (normalizado) toca alguna estación de la ruta? Comparación por
+     *  substring en ambos sentidos: 'lugar' puede ser un tramo ("Buenavista - Bellas Artes"), varias
+     *  estaciones ("X y Y") o una sola, y no siempre coincide letra por letra con el nombre de ruta. */
+    private static boolean tocaLugarRuta(String lugarNorm, java.util.Set<String> nombresRuta) {
+        if (lugarNorm.isEmpty()) return false;
+        for (String n : nombresRuta) {
+            if (n.length() < 3) continue;
+            if (lugarNorm.contains(n) || n.contains(lugarNorm)) return true;
+        }
+        return false;
     }
 
     /** Info/aviso de horarios (Metrobús L1..L7): ventana de servicio de hoy por línea y aviso si a
