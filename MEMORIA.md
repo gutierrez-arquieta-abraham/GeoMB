@@ -1,7 +1,7 @@
 # GeoMB — Memoria del proyecto (consolidada)
 
 > Contexto para retomar sin re-derivar. Consolida `MEMORIA_PROYECTO.md` (fundacional) + trabajo reciente.
-> Última actualización: 2026-09-09. Cuando algo se marcó "pendiente" antes y ya se hizo, aquí manda lo reciente.
+> Última actualización: 2026-09-17. Cuando algo se marcó "pendiente" antes y ya se hizo, aquí manda lo reciente.
 
 ## Visión general
 App Android (Java, package `com.memegrados.GeoMB`, Google Maps SDK). Cubre **Metrobús CDMX (L1–L7)**,
@@ -100,12 +100,38 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
   lectura confiable; caído tras epoch >240 s o 3 fallos seguidos.
 - IDs unificados push ↔ AfectMexibusFeed: `4510 + hash(linea|lugar)`. Etiqueta `etiquetaLineaNotif`; ícono `Tipografia.bitmapLineaLogo`.
   Panel de estado alimentado por `AfectacionesMexibus` (JSON EC2) / local; bloqueo de ruteo por sin servicio / circuito / paso de largo.
+  **Nota:** `AfectacionesMexibus` NO filtra por rango de línea → el mismo JSON (`/data/afectaciones_mexibus.json`, ahora fusión de Mexibús + Metrobús +
+  manuales, ver Backend) alimenta el panel de **ambos** sistemas y **persiste** (ya no depende de cachar el push FCM).
 
-## Backend / servidor (EC2, FastAPI, `https://geomb.duckdns.org`)
-- Endpoints vivos: `/data/vehicles.json` (posiciones), `/data/routes.json`, `/data/afectaciones_mexibus.json`.
-- `mexibus_afectaciones.py` (systemd `mexibus-afectaciones`): sondea 3 feeds RSS.app → FCM (data-only, topic `afectaciones`) +
-  escribe el JSON del panel. poll=60 s; dedup por post id+línea. `.env`: comentarios en su propia línea (systemd no los ignora).
-  Deploy scp DESDE la PC (IP 78.14.99.249). Firebase service-account solo en EC2.
+## Backend / servidor (EC2 Ubuntu, `https://geomb.duckdns.org`, IP 78.14.99.249)
+Repo backend: **github.com/gutierrez-arquieta-abraham/metrobus_app** (rama `master`). nginx (Certbot/Let's Encrypt) al frente;
+gunicorn en `127.0.0.1:8000`. Firebase service-account (`/home/ubuntu/firebase.json`) y llaves solo en EC2 (nunca al repo/chat).
+**Layout real y servicios systemd:**
+- **`metrobus-web.service`** → `app.py` (Flask, `gunicorn app:app`) en `/home/ubuntu/metrobus_app`, env `/home/ubuntu/geomb.env`
+  (+ drop-in `kyc.conf` con llaves Didit). Sirve web + `/data/*` + blueprints `didit_backend` (KYC), `tts_backend` (Polly), `admin_afect`.
+- **`metrobus-push.service`** → `push_metrobus.py` en `/home/ubuntu` (raspa estado Metrobús del gov + elevadores/mantenimiento → FCM).
+- **`mexibus-afectaciones.service`** → `mexibus_afectaciones.py` en `/opt/geomb-afect` (3 feeds RSS.app → FCM + panel Mexibús). poll=60 s.
+- Deploy: `deploy_backend.sh` (scp desde la PC a las 3 rutas + reinicia los 3 servicios). `.env`: comentarios en su propia línea (systemd no los ignora).
+  El **venv** (`/home/ubuntu/venv`) ya trae todas las deps → NO usar pip del sistema (PEP 668 lo bloquea). `requirements.txt` completo
+  (Flask, requests, gtfs-realtime-bindings, firebase-admin, beautifulsoup4, boto3).
+
+**Panel de afectaciones (fusión al vuelo):** `app.py` sirve `/data/afectaciones_mexibus.json` **calculado en cada request** (no archivo estático),
+mezclando 3 fuentes por línea: feed Mexibús (`AFECT_MXB_OUT` = `data/afectaciones_mexibus.json`, lo escribe `mexibus_afectaciones.py`) +
+estado Metrobús (`data/afect_metrobus.json`, lo escribe `push_metrobus._escribir_estado_metrobus`) + **overrides manuales** (`data/afect_manual.json`).
+El manual **gana** mientras no venza; si una línea trae varias afectaciones a la vez, se **combinan** en una fila (junta estado/lugar/info con ` / ` y ` · `).
+
+**Aviso manual (admin) + mTLS:** `admin_afect.py` = blueprint con formulario móvil `GET/POST /admin/afectacion`. Empuja FCM (topic `afectaciones`,
+reusa `push_metrobus._push`) y escribe el override con `expira = min(now + AFECT_DUR_H h, 23:59 CDMX)` (default 7 h). Metrobús L1–L7 y Mexibús/ramales
+(Mexicable NO). **Auth por certificado cliente (mTLS):** el panel vive en `https://geomb.duckdns.org:8443/admin/afectacion` (nginx `ssl_verify_client on`,
+CA propia `/etc/nginx/certs/geomb-admin-ca.crt`); `/admin` **bloqueado (404) en el `:443`** público para que no se pueda falsear el header. El cliente importa
+`geomb-admin.p12` (llave dedicada, NO la .jks de firma) → Chrome lo presenta solo. `ADMIN_TOKEN` queda solo como respaldo local. Flask confía en el header
+`X-Client-Verify: SUCCESS` que pone nginx. Abrir puerto **8443** en el Security Group de AWS.
+
+**Caducidad del feed:** `mexibus_afectaciones.computar_estado` y el estado Metrobús caducan con `MXB_ESTADO_TTL` (min, default 420 = 7 h; usar 300–540 = 5–9 h)
+**y tope duro a las 23:59 CDMX** del día del post (`_fin_del_dia_local`, `zoneinfo America/Mexico_City`).
+
+**Detección de ramal L3A:** en el parser RSS (`lineas_en_texto`), un post con `#ampliación` + línea 3 → **L3A (113)** (el `#MexibusLinea3` es la troncal). Igual que "Servicio Eléctrico"→L2A.
+
 - Metrobús/CDMX publica GTFS-Realtime (VehiclePositions + **TripUpdates/arribos por estación** + alertas, ~30 s, registro en portal
   datos abiertos) → vía posible para arribos "tipo pantalla" (incluye unidades sin GPS). Pendiente de integrar.
 
@@ -136,4 +162,5 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
 - Tiempo real: `RealtimeRepository`, `UnidadReal`, `UnidadAnimador`, `Llegadas`, `MapFragment`, `PlanificadorFragment`.
 - Recorrido/voz: `RecorridoService`, `DescargaVoz`, `Locuciones`, `Tipografia`, `Iconos`.
 - Afectaciones: `MensajesService`, `ManifestacionesService`, `AfectMexibusFeed`, `AfectacionesMexibus`, `Manifestaciones`.
-- Backend: `mexibus_afectaciones.py` (+ `.env.example`, `requirements.txt`, `mexibus-afectaciones.service`).
+- Backend (repo `metrobus_app`): `app.py` (Flask/panel fusión), `admin_afect.py` (panel mTLS), `push_metrobus.py` (estado Metrobús + FCM),
+  `mexibus_afectaciones.py` (RSS Mexibús), `didit_backend.py`, `tts_backend.py`, `deploy_backend.sh`, `requirements.txt`, `mexibus-afectaciones.service`.
