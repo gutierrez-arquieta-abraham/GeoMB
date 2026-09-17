@@ -11,6 +11,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -61,6 +63,13 @@ public class RecorridoService extends Service {
     private static final float FIN_M = 30f;
     private static final long INTERVALO_MS = 1000L;   // revisa la ubicación cada 1 s durante el recorrido
     private static final float TURURU_VOL = 0.7f;     // volumen del "tururu" (70% del real)
+    /** Volumen relativo de la VOZ (Mia/TTS) dentro del volumen de medios del dispositivo. Antes se
+     *  forzaba a 1.0 (máximo) sin importar el volumen que el usuario tuviera puesto: como el audio
+     *  de Mia y la voz del sistema vienen "masterizados" más fuerte que música/podcasts normales,
+     *  a un mismo nivel del volumen de medios (p. ej. 20%) sonaban como si el dispositivo estuviera
+     *  mucho más arriba (p. ej. 80%), obligando a bajarle manualmente durante el aviso. Se atenúa
+     *  igual que el "tururu" para que respete proporcionalmente el volumen ya puesto por el usuario. */
+    private static final float VOZ_VOL = 0.7f;
     private static final long VOZ_TIMEOUT_MS = 4000L; // margen para descargar la voz Mia antes de caer al TTS
 
     // Andenes con ZONA de cobertura (Indios Verdes) miden ~100 m de largo. Como la distancia se mide al
@@ -115,6 +124,10 @@ public class RecorridoService extends Service {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private FusedLocationProviderClient loc;
+    private AudioManager audioManager;
+    private AudioFocusRequest focusRequest;   // API 26+
+    // No reacciona a pérdidas de foco: los avisos son cortos y transitorios; al terminar se suelta solo.
+    private final AudioManager.OnAudioFocusChangeListener focusListener = f -> {};
     private boolean ciclando = false;
     private boolean recibiendo = false;   // ya se pidió el stream continuo de ubicación
     private final Runnable tick = this::ciclo;
@@ -227,6 +240,7 @@ public class RecorridoService extends Service {
     @Override public void onCreate() {
         super.onCreate();
         loc = LocationServices.getFusedLocationProviderClient(this);
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         crearCanal();
         tts = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS && tts != null) {
@@ -424,7 +438,17 @@ public class RecorridoService extends Service {
                 // Esta verificación por POSICIÓN/ESTADO (no por tiempo) es a propósito: un temporizador fijo
                 // no distingue caminar despacio de estar simplemente detenido en otro punto de la ruta.
                 boolean alcanzasteAnterior = ultLlegando >= i - 1;
-                float umbral = coUbicada(pi, seq.get(best)) ? radioCerca(pi) : CAMBIO_LINEA_M;
+                boolean coloc = coUbicada(pi, seq.get(best));
+                float umbral = coloc ? radioCerca(pi) : CAMBIO_LINEA_M;
+                // En plataformas con ZONA (p. ej. Indios Verdes): dos andenes co-ubicados por núcleo de
+                // nombre pueden ser paralelos y estar a muy poca distancia entre sí (el de ascenso de
+                // Metrobús L1 y el de Mexibús L4 quedan a ~30-40 m uno del otro) — bastante MENOS que el
+                // radio ancho de zona (ZONA_CERCA_M=70 m). Ese radio por sí solo no alcanza a distinguirlos:
+                // estando cómodo en el andén de Metrobús ya caías también dentro del radio de "llegada" de
+                // Mexibús, y el aviso de la otra línea sonaba de más, sin haber caminado a su andén. Para
+                // este caso se exige ADEMÁS estar más cerca de la zona NUEVA que de la actual.
+                boolean zonaAmbigua = coloc && (Planificador.tieneZona(pi) || Planificador.tieneZona(seq.get(best)));
+                boolean cruzaZona = !zonaAmbigua || d < distParada(l, seq.get(best));
                 // IMPORTANTE: se corta aquí (break) aunque SÍ se cruce la correspondencia. Si se dejara
                 // seguir el bucle, la siguiente iteración compararía la parada de ADELANTE (misma línea
                 // nueva, p. ej. Nuevo Laredo tras Puente de Fierro en L4) por simple cercanía —sin ningún
@@ -433,7 +457,7 @@ public class RecorridoService extends Service {
                 // sin que su aviso de llegada/transbordo llegara a dispararse nunca: el próximo ciclo ya
                 // hablaba de la estación siguiente. Al cortar aquí, este ciclo se queda EN el nodo de
                 // correspondencia y el de llegada podrá anunciarlo; recién el siguiente ciclo avanza más.
-                if (alcanzasteAnterior && d <= umbral) { bd = d; best = i; }
+                if (alcanzasteAnterior && d <= umbral && cruzaZona) { bd = d; best = i; }
                 break;
             } else if (d < bd) {
                 bd = d; best = i;
@@ -551,7 +575,7 @@ public class RecorridoService extends Service {
     private void hablar(String t) {
         if (ttsListo && tts != null && t != null) {
             android.os.Bundle p = new android.os.Bundle();
-            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f);   // voz a volumen máximo
+            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VOZ_VOL);   // respeta el volumen de medios puesto por el usuario
             tts.speak(t, TextToSpeech.QUEUE_FLUSH, p, "geomb");
         }
     }
@@ -570,14 +594,21 @@ public class RecorridoService extends Service {
     private void sonarYHablar(String texto, int linea) {
         if (destruido) return;
         colaVoz.add(new Object[]{texto, linea});
-        if (!vozOcupada) procesarSiguienteVoz();
+        if (!vozOcupada) {
+            pedirFocoAudio();   // "duckea" lo que esté sonando (música, podcast) mientras avisamos
+            procesarSiguienteVoz();
+        }
     }
 
     /** Toma el siguiente aviso de la cola y lo reproduce (tururu, luego voz). Al terminar (ver
      *  {@link #vozTerminada()}), se vuelve a llamar para seguir con el que sigue. */
     private void procesarSiguienteVoz() {
         Object[] item = colaVoz.poll();
-        if (item == null || destruido) { vozOcupada = false; return; }
+        if (item == null || destruido) {
+            vozOcupada = false;
+            soltarFocoAudio();   // ya no hay más avisos: que lo demás recupere su volumen normal
+            return;
+        }
         vozOcupada = true;
         String texto = (String) item[0];
         int linea = (Integer) item[1];
@@ -619,13 +650,60 @@ public class RecorridoService extends Service {
         }
     }
 
+    /**
+     * Pide foco de audio de tipo "transitorio, puede bajar el volumen de lo demás" (ducking): mientras
+     * dura el aviso, Android le baja el volumen a lo que ya estuviera sonando (música, podcast, etc.)
+     * en vez de dejarlo mezclado a todo volumen encima del aviso. Se usa USAGE_ASSISTANCE_NAVIGATION_
+     * GUIDANCE, el tipo estándar para avisos de navegación por voz (el mismo que usan Maps/Waze), que
+     * el resto de las apps de audio ya saben manejar. No cambia el volumen del dispositivo: el aviso
+     * sigue sonando al volumen de multimedia que tenga puesto el usuario, solo dejando de competir con
+     * lo que ya sonaba.
+     */
+    private void pedirFocoAudio() {
+        if (audioManager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                android.media.AudioAttributes attrs = new android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build();
+                focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(attrs)
+                        .setOnAudioFocusChangeListener(focusListener)
+                        .build();
+                audioManager.requestAudioFocus(focusRequest);
+            } else {
+                //noinspection deprecation
+                audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC,
+                        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+            }
+        } catch (Exception ignore) {}
+    }
+
+    /** Suelta el foco de audio: lo que estaba sonando antes (música, podcast) recupera su volumen normal. */
+    private void soltarFocoAudio() {
+        if (audioManager == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                audioManager.abandonAudioFocusRequest(focusRequest);
+            } else {
+                //noinspection deprecation
+                audioManager.abandonAudioFocus(focusListener);
+            }
+        } catch (Exception ignore) {}
+    }
+
     // ---- voz Mia (AWS Polly) con caché local; respaldo al TTS de Android ----
 
     /** Reproduce la frase con la voz Mia (mp3 del backend, cacheada). Si falla/offline, usa TTS. */
     private void decirConVoz(String texto) {
         if (destruido) { vozOcupada = false; return; }
         java.io.File cache = archivoVoz(texto);
-        if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }
+        if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }   // ya en caché: no gasta datos
+        // Modo ahorro de datos (activo por defecto en datos móviles, desactivable en "Acerca de"):
+        // si esta frase no está ya cacheada, no se descarga la voz Mia -se habla directo con la voz
+        // local del teléfono (TTS, sin conexión, cero datos).
+        if (Red.ahorrarAhora(this)) { hablar(texto); return; }
         // Descarga la voz Mia PERO con un límite (VOZ_TIMEOUT_MS): si no llega a tiempo, se habla ya
         // con el TTS de Google para no dejar esperando; la descarga sigue y queda cacheada para la
         // próxima. Este aviso YA está "en curso" (vozOcupada=true): el siguiente de la cola espera.
@@ -686,7 +764,7 @@ public class RecorridoService extends Service {
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build());
             mp.setDataSource(f.getAbsolutePath());
-            mp.setVolume(1f, 1f);
+            mp.setVolume(VOZ_VOL, VOZ_VOL);   // respeta el volumen de medios puesto por el usuario
             mp.setOnCompletionListener(m -> {
                 try { m.release(); } catch (Exception ignore) {}
                 if (mpActual == m) mpActual = null;
@@ -1455,6 +1533,7 @@ public class RecorridoService extends Service {
         destruido = true;                            // invalida cualquier voz pendiente/en cola
         colaVoz.clear();
         soltarActual();
+        soltarFocoAudio();   // por si se detiene el recorrido a media reproducción
         if (tts != null) { tts.stop(); tts.shutdown(); tts = null; }
         // Quita la notificación al terminar/detener la ruta (finalizar ruta o llegada al destino).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE);

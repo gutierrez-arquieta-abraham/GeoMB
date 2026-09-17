@@ -38,6 +38,7 @@ public class AcercaFragment extends Fragment {
     private View panel;
     private SwitchMaterial swCachondo, swPbs;
     private View btnVerClaves;
+    private AlertDialog dlgDescargaAudios;   // se cierra en onDestroyView para no dejar la ventana "colgada"
     private final CheckBox[] chkLineas = new CheckBox[8];   // 1..7 (índice 0 sin usar)
     private final java.util.LinkedHashMap<Integer, CheckBox> chkTodas = new java.util.LinkedHashMap<>();  // Metrobús + Mexibús
     private int taps = 0;
@@ -49,6 +50,18 @@ public class AcercaFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_acerca, container, false);
+    }
+
+    /** Evita dejar la "carta" de progreso colgada (window leak) si el fragmento se destruye a
+     *  mitad de una descarga; la descarga en sí sigue viva en {@link DescargaVozService}. */
+    @Override
+    public void onDestroyView() {
+        if (dlgDescargaAudios != null) {
+            try { if (dlgDescargaAudios.isShowing()) dlgDescargaAudios.dismiss(); } catch (Exception ignore) {}
+            dlgDescargaAudios = null;
+        }
+        DescargaVozService.setEscucha(null);
+        super.onDestroyView();
     }
 
     @Override
@@ -111,6 +124,13 @@ public class AcercaFragment extends Fragment {
         swMexibus.setChecked(Modos.mostrarMexibus(requireContext()));
         swMexibus.setOnCheckedChangeListener((btn, activar) ->
                 Modos.setMostrarMexibus(requireContext(), activar));
+
+        // "Ahorro de datos": activo por defecto; espacia el refresco de unidades en vivo y evita
+        // descargar la voz Mia mientras se está en datos móviles (ver Red.java).
+        SwitchMaterial swAhorroDatos = view.findViewById(R.id.sw_ahorro_datos);
+        swAhorroDatos.setChecked(Modos.ahorroDatos(requireContext()));
+        swAhorroDatos.setOnCheckedChangeListener((btn, activar) ->
+                Modos.setAhorroDatos(requireContext(), activar));
 
         // "Recibir por líneas": activa la suscripción a afectaciones y despliega el menú por línea.
         View panelLineas = view.findViewById(R.id.panel_notif_lineas);
@@ -426,32 +446,45 @@ public class AcercaFragment extends Fragment {
                 }).show();
     }
 
-    /** Descarga los audios de una o varias líneas mostrando el progreso. */
+    /**
+     * Descarga los audios de una o varias líneas mostrando el progreso. La descarga corre en
+     * {@link DescargaVozService} (primer plano, con notificación de progreso) para que "descargar
+     * todas las líneas" (cientos de peticiones, varios minutos) no se corte si la app pasa a
+     * segundo plano. La "carta" solo REFLEJA el avance mientras está visible: cerrarla (o que la
+     * app se vaya a segundo plano) no cancela nada, solo deja de actualizarse; el progreso real
+     * se sigue viendo en la notificación hasta terminar.
+     */
     private void descargarAudios(java.util.List<Integer> lineas, String nombre) {
+        if (DescargaVozService.corriendo) {
+            Toast.makeText(requireContext(), R.string.audios_en_curso, Toast.LENGTH_SHORT).show();
+            return;
+        }
         float dp = getResources().getDisplayMetrics().density;
-        final android.widget.TextView tv = new android.widget.TextView(requireContext());
+        final TextView tv = new TextView(requireContext());
         int p = Math.round(22 * dp);
         tv.setPadding(p, p, p, p);
         java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
         for (int ln : lineas) set.addAll(DescargaVoz.textosLinea(requireContext(), ln));
         int total = set.size();
         tv.setText(getString(R.string.audios_descargando, 0, total));
-        final androidx.appcompat.app.AlertDialog dlg = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle(nombre).setView(tv).setCancelable(false)
-                .setNegativeButton(android.R.string.cancel, (d, w) -> DescargaVoz.cancelar())
+        final AlertDialog dlg = new AlertDialog.Builder(requireContext())
+                .setTitle(nombre).setView(tv)
+                .setNegativeButton(android.R.string.cancel, (d, w) -> DescargaVozService.cancelar(requireContext()))
                 .create();
+        dlg.setOnDismissListener(d -> DescargaVozService.setEscucha(null));   // deja de actualizar la carta; la descarga sigue
+        dlgDescargaAudios = dlg;
         dlg.show();
-        DescargaVoz.descargarVarias(requireContext(), lineas, new DescargaVoz.Progreso() {
+        DescargaVozService.setEscucha(new DescargaVozService.Escucha() {
             @Override public void avance(int h, int t) {
-                if (isAdded()) tv.setText(getString(R.string.audios_descargando, h, t));
+                if (isAdded() && dlg.isShowing()) tv.setText(getString(R.string.audios_descargando, h, t));
             }
             @Override public void fin(int ok, int t) {
                 if (dlg.isShowing()) dlg.dismiss();
-                if (isAdded()) android.widget.Toast.makeText(requireContext(),
-                        getString(R.string.audios_listo, ok), android.widget.Toast.LENGTH_SHORT).show();
+                if (isAdded()) Toast.makeText(requireContext(),
+                        getString(R.string.audios_listo, ok), Toast.LENGTH_SHORT).show();
             }
-            @Override public void error(String m) { if (dlg.isShowing()) dlg.dismiss(); }
         });
+        DescargaVozService.iniciar(requireContext(), lineas, nombre);
     }
 
     private void editarPerfil() {

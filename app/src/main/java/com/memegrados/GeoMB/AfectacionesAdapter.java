@@ -5,13 +5,16 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Tarjetas de afectación dentro de la app, con el formato de la imagen (todo en Tipo Metro):
@@ -51,9 +54,40 @@ public class AfectacionesAdapter extends RecyclerView.Adapter<AfectacionesAdapte
         Tipografia.aplicar(h.lblDir);
         Tipografia.aplicar(h.lblInfo);
 
+        // Chips con las estaciones puntuales mencionadas en 'lugar' (más precisos que leerlas
+        // dentro del párrafo): 'lugar' puede traer un rango "A - B", varias por "y"/coma, o varias
+        // afectaciones combinadas por "/". Se muestra el nombre TAL COMO lo reportan (limpio de
+        // "MXB "/paréntesis si hace match exacto con una estación real de esa línea) — sin adivinar
+        // estaciones intermedias de un rango, que en la lista base de la línea no van en orden físico.
+        Linea linea = a.lineaNum > 0 ? GtfsRepository.porNumero(h.itemView.getContext(), a.lineaNum) : null;
+        List<String> estaciones = estacionesDe(linea, a.lugar);
+        h.estacionesRow.removeAllViews();
+        if (estaciones.isEmpty()) {
+            h.estacionesScroll.setVisibility(View.GONE);
+        } else {
+            int color = linea != null ? linea.color : 0xFFD40D0D;
+            float dens = h.itemView.getResources().getDisplayMetrics().density;
+            for (String nombre : estaciones) {
+                TextView chip = new TextView(h.itemView.getContext());
+                chip.setText(nombre);
+                chip.setTextSize(11);
+                chip.setTextColor(color);
+                chip.setTypeface(Tipografia.metro(h.itemView.getContext()));
+                chip.setBackgroundResource(R.drawable.bg_pill_soft);
+                int padH = Math.round(9 * dens), padV = Math.round(3 * dens);
+                chip.setPadding(padH, padV, padH, padV);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                lp.setMarginEnd(Math.round(6 * dens));
+                chip.setLayoutParams(lp);
+                h.estacionesRow.addView(chip);
+            }
+            h.estacionesScroll.setVisibility(View.VISIBLE);
+        }
+
         // Logo de línea: cuadro redondeado con color oficial + número (Tipo Metro)
         if (a.lineaNum > 0) {
-            Linea l = GtfsRepository.porNumero(h.itemView.getContext(), a.lineaNum);
+            Linea l = linea;
             int color = l != null ? l.color : 0xFFD40D0D;
             float dens = h.itemView.getResources().getDisplayMetrics().density;
             GradientDrawable bg = new GradientDrawable();
@@ -77,11 +111,42 @@ public class AfectacionesAdapter extends RecyclerView.Adapter<AfectacionesAdapte
         if (v == View.VISIBLE) valor.setText(s);
     }
 
+    /** Nombres de estación sueltos de 'lugar': separa un rango "A - B", varias por "y"/coma, o
+     *  varias afectaciones combinadas por "/". Cada token se limpia (sin "MXB "/paréntesis) SOLO si
+     *  hace match EXACTO con una estación real de esa línea; si no, se muestra tal cual vino — no se
+     *  "adivinan" estaciones intermedias de un rango (la lista base de la línea no va en orden físico). */
+    private static List<String> estacionesDe(Linea l, String lugar) {
+        Set<String> out = new LinkedHashSet<>();
+        if (lugar == null || lugar.isEmpty()) return new ArrayList<>(out);
+        for (String seg : lugar.split("\\s*/\\s*")) {
+            for (String tok : seg.split("(?i)\\s*-\\s*|\\s*,\\s*|\\s+y\\s+")) {
+                String t = tok.trim();
+                if (t.isEmpty()) continue;
+                out.add(l != null ? nombreReal(l, t) : t);
+            }
+        }
+        return new ArrayList<>(out);
+    }
+
+    private static String nombreReal(Linea l, String texto) {
+        String q = Planificador.norm(Planificador.sinMxb(texto));
+        for (Estacion e : l.estaciones) {
+            if (Planificador.norm(Planificador.sinMxb(e.nombre)).equals(q)) {
+                String s = Planificador.sinMxb(e.nombre);
+                int par = s.indexOf('(');
+                return par >= 0 ? s.substring(0, par).trim() : s;
+            }
+        }
+        return texto;
+    }
+
     @Override
     public int getItemCount() { return datos.size(); }
 
     static final class VH extends RecyclerView.ViewHolder {
         final TextView estado, lblEst, lugar, lblDir, direccion, lblInfo, info, logo;
+        final View estacionesScroll;
+        final LinearLayout estacionesRow;
         VH(@NonNull View v) {
             super(v);
             estado = v.findViewById(R.id.ia_estado);
@@ -92,6 +157,8 @@ public class AfectacionesAdapter extends RecyclerView.Adapter<AfectacionesAdapte
             lblInfo = v.findViewById(R.id.ia_lbl_info);
             info = v.findViewById(R.id.ia_info);
             logo = v.findViewById(R.id.ia_logo);
+            estacionesScroll = v.findViewById(R.id.ia_estaciones_scroll);
+            estacionesRow = v.findViewById(R.id.ia_estaciones_row);
         }
     }
 }

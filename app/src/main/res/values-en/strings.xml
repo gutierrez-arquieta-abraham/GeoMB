@@ -206,7 +206,9 @@
     <string name="voz_tip_objetos">Keep your valuables in a safe place</string>
     <string name="voz_tip_correr">Do not run in the station to board the vehicle</string>
     <string name="voz_tip_rosa">Remember that pink vehicles are reserved for women and children</string>
-    <string name="ruta_alterna">⚠ Alternate route due to service disruptions</string>
+    <string name="ruta_alterna">⚠ Alternate route due to service disruptions (tap for details)</string>
+    <string name="afectaciones_carta_titulo">Disruptions on this route</string>
+    <string name="afectaciones_carta_vacio">There are active service disruptions, but none match this specific route.</string>
     <string name="audios_descargar">Download audios (offline)</string>
     <string name="audios_titulo">Download route audios</string>
     <string name="audios_descargando">Downloading %1$d/%2$d…</string>
@@ -214,6 +216,9 @@
     <string name="audios_todas">⬇ Download ALL lines</string>
     <string name="audios_borrar">🗑 Delete downloaded audios</string>
     <string name="audios_borrados">Audios deleted (%1$d)</string>
+    <string name="audios_cancelar">Cancel download</string>
+    <string name="audios_en_curso">An audio download is already in progress</string>
+    <string name="canal_descarga_audios">Audio download</string>
     <string name="ruta_horario_hoy">🕓 Service today — %1$s</string>
     <string name="ruta_fuera_horario">⚠ May not be running at this time: %1$s</string>
     <string name="ruta_unidad_cerca">Your L%1$d unit toward %2$s is about to reach %3$s</string>
@@ -318,6 +323,8 @@
     <string name="sincro_switch_desc">Keeps unit data updated even when the app is closed. Shows a permanent notice and may use a bit more battery.</string>
     <string name="mexibus_switch">Show Mexibús and Mexicable</string>
     <string name="mexibus_switch_desc">Shows Mexibús and Mexicable lines and stations on the map and includes them in the route planner.</string>
+    <string name="ahorro_datos_switch">Data saver</string>
+    <string name="ahorro_datos_switch_desc">On mobile data, slows down live vehicle updates and uses the phone\'s voice instead of downloading the Mia voice, so it doesn\'t eat into your data plan. Turn it on/off depending on your plan.</string>
     <string name="notif_titulo">Notifications</string>
     <string name="notif_afect_switch">Service disruption alerts</string>
     <string name="notif_act_switch">New app version alerts</string>

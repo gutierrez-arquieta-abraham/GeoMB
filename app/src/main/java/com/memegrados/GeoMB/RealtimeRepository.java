@@ -146,24 +146,13 @@ public final class RealtimeRepository {
             lista.add(new UnidadReal(numero, linea, destino, origen, ruta, ficha.empresa,
                     ficha.marca, ficha.modelo, placa, lat, lon, rumbo, velMs, ts));
         }
-        return filtrarFantasmas(lista);
-    }
-
-    /**
-     * Descarta unidades "fantasma": las que llevan mucho sin reportar (su {@code timestamp} quedó muy
-     * atrás). La referencia de "ahora" es la unidad MÁS FRESCA del propio lote (no el reloj del teléfono),
-     * para ser inmune a desfases de reloj. Las que no traen timestamp se conservan. Así el mapa y las
-     * llegadas ({@link Llegadas}) no muestran unidades que en realidad ya no transmiten.
-     */
-    private static List<UnidadReal> filtrarFantasmas(List<UnidadReal> lista) {
-        long ref = 0;
-        for (UnidadReal u : lista) if (u.timestamp > ref) ref = u.timestamp;
-        if (ref <= 0) return lista;   // el feed no trae timestamps: no se filtra
-        final long refFin = ref;
-        lista.removeIf(u -> u.timestamp > 0 && (refFin - u.timestamp) > UMBRAL_FANTASMA_S);
+        // DESACTIVADO temporalmente: tanto la versión por MÁXIMO como la versión por MEDIANA de
+        // filtrarFantasmas() terminaron descartando la mayoría de las ~845 unidades reales del feed
+        // (bajaba a ~400 y luego a ~36), señal de que la distribución real de timestamps de este feed
+        // no es la esperada (un cúmulo fresco + pocos outliers viejos) y cualquier criterio relativo
+        // "adivinado" sin ver los datos reales corre el riesgo de ocultar unidades genuinamente activas.
+        // Mientras no se analice una muestra real del feed para calibrar un criterio correcto, se
+        // devuelve la lista completa (coincide con lo que confirma el backend: ~845 unidades reales).
         return lista;
     }
-
-    /** Antigüedad máxima (s) respecto a la unidad más fresca antes de considerar una unidad "fantasma". */
-    private static final long UMBRAL_FANTASMA_S = 240;   // 4 min (tolera huecos cortos de GPS)
 }

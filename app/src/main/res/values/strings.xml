@@ -222,7 +222,9 @@
     <string name="voz_tip_objetos">Mantén tus objetos de valor en un lugar seguro</string>
     <string name="voz_tip_correr">Evita correr en la estación para abordar la unidad</string>
     <string name="voz_tip_rosa">Recuerda que las unidades rosas son exclusivas para mujeres, niñas y niños</string>
-    <string name="ruta_alterna">⚠ Ruta alterna por afectaciones en el servicio</string>
+    <string name="ruta_alterna">⚠ Ruta alterna por afectaciones en el servicio (toca para ver detalle)</string>
+    <string name="afectaciones_carta_titulo">Afectaciones en esta ruta</string>
+    <string name="afectaciones_carta_vacio">Hay afectaciones activas en el servicio, pero ninguna coincide con esta ruta en particular.</string>
     <string name="audios_descargar">Descargar audios (offline)</string>
     <string name="audios_titulo">Descargar audios del recorrido</string>
     <string name="audios_descargando">Descargando %1$d/%2$d…</string>
@@ -230,6 +232,9 @@
     <string name="audios_todas">⬇ Descargar TODAS las líneas</string>
     <string name="audios_borrar">🗑 Borrar audios descargados</string>
     <string name="audios_borrados">Audios borrados (%1$d)</string>
+    <string name="audios_cancelar">Cancelar descarga</string>
+    <string name="audios_en_curso">Ya hay una descarga de audios en curso</string>
+    <string name="canal_descarga_audios">Descarga de audios</string>
     <string name="ruta_horario_hoy">🕓 Servicio hoy — %1$s</string>
     <string name="ruta_fuera_horario">⚠ A esta hora podría no circular: %1$s</string>
     <string name="ruta_unidad_cerca">Tu unidad de L%1$d hacia %2$s está por llegar a %3$s</string>
@@ -338,6 +343,8 @@
     <string name="sincro_switch_desc">Mantiene los datos de las unidades actualizados aunque la app esté cerrada. Muestra un aviso permanente y puede consumir algo más de batería.</string>
     <string name="mexibus_switch">Mostrar Mexibús y Mexicable</string>
     <string name="mexibus_switch_desc">Muestra las líneas y estaciones del Mexibús y el Mexicable en el mapa y las incluye en el planificador de rutas.</string>
+    <string name="ahorro_datos_switch">Ahorro de datos</string>
+    <string name="ahorro_datos_switch_desc">En datos móviles, espacia la actualización de unidades en vivo y usa la voz del teléfono en vez de descargar la voz Mia, para no gastar de más tu paquete de datos. Actívalo/desactívalo según tu plan.</string>
     <string name="notif_titulo">Notificaciones</string>
     <string name="notif_afect_switch">Avisos de afectaciones al servicio</string>
     <string name="notif_act_switch">Avisos de nueva versión de la app</string>

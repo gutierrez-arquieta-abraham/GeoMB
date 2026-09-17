@@ -9,18 +9,26 @@ import java.nio.charset.StandardCharsets;
 /**
  * Acceso al backend con FAILOVER automático: primero el principal (AWS/México) y, si no
  * responde, el de respaldo (Railway). Recuerda cuál funcionó para no reintentar el caído en
- * cada petición; cuando el principal vuelve, en la siguiente falla del respaldo regresa a él.
+ * cada petición; pero reintenta el PRINCIPAL cada {@link #REINTENTO_PRIMARIO_MS} aunque siga
+ * "activo" el respaldo, para no quedarse pegado a él indefinidamente si el respaldo funciona
+ * (no lanza excepción) pero sirve datos incompletos (p. ej. menos unidades en tiempo real) -
+ * antes, una sola falla transitoria del principal dejaba la app en el respaldo para siempre.
  */
 public final class Backend {
 
     private static volatile String activo = Config.BASE_URL;
+    private static volatile long ultimoIntentoPrimario = 0L;
+    private static final long REINTENTO_PRIMARIO_MS = 30_000L;   // vuelve a probar el principal cada 30 s
 
     private Backend() {}
 
     /** GET de un path (p. ej. "/data/vehicles.json") con failover entre los dos backends. */
     public static String descargar(String path) throws Exception {
-        String primero = activo;
+        boolean tocaReintentarPrimario = !activo.equals(Config.BASE_URL)
+                && (System.currentTimeMillis() - ultimoIntentoPrimario) > REINTENTO_PRIMARIO_MS;
+        String primero = tocaReintentarPrimario ? Config.BASE_URL : activo;
         String otro = primero.equals(Config.BASE_URL) ? Config.FALLBACK_URL : Config.BASE_URL;
+        if (primero.equals(Config.BASE_URL)) ultimoIntentoPrimario = System.currentTimeMillis();
         try {
             String r = get(primero + path);
             activo = primero;

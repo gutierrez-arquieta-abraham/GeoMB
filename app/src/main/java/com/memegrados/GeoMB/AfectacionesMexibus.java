@@ -111,9 +111,16 @@ public final class AfectacionesMexibus {
                 if (!hab[i]) bloq.add(Planificador.norm(est.get(i).nombre));
         } else if (e.contains("sin servicio")) {
             for (Estacion x : est) bloq.add(Planificador.norm(x.nombre));   // toda la línea
-        } else if (e.contains("paso de largo")) {
-            int i = indiceEstacion(est, lugar);
-            if (i >= 0) bloq.add(Planificador.norm(est.get(i).nombre));      // solo esa estación
+        } else if (e.contains("paso de largo") || e.contains("estación cerrada") || e.contains("estacion cerrada")) {
+            // 'lugar' puede traer UNA estación ("paso de largo") o VARIAS juntas por "y"/coma
+            // ("estación cerrada": p. ej. "Adolfo López Mateos y Palacio Municipal") — se bloquea
+            // cada una que sí mapee a una estación real de la línea; el resto de la línea sigue.
+            for (String nombre : lugar.split("(?i)\\s*,\\s*|\\s+y\\s+")) {
+                String n = nombre.trim();
+                if (n.isEmpty()) continue;
+                int i = indiceEstacion(est, n);
+                if (i >= 0) bloq.add(Planificador.norm(est.get(i).nombre));
+            }
         }
     }
 
