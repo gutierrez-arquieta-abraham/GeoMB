@@ -369,7 +369,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelOdExpandido.setVisibility(View.GONE);
         panelOdColapsado.setVisibility(View.VISIBLE);
-        reajustarMapaTrasPanel(panelOrigen);
+        reajustarMapaTrasPanel();
     }
 
     /** Expande de nuevo el formulario completo desde la mini viñeta, con lo que ya se tenía. */
@@ -379,24 +379,34 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelOdColapsado.setVisibility(View.GONE);
         panelOdExpandido.setVisibility(View.VISIBLE);
-        reajustarMapaTrasPanel(panelOrigen);
+        reajustarMapaTrasPanel();
     }
 
+    private android.view.ViewTreeObserver.OnGlobalLayoutListener ajusteMapaPendiente;
+
     /**
-     * Reajusta el mapa después de colapsar/expandir un panel: durante el recorrido, recentra en el
-     * usuario YA (sin esperar el próximo tick de {@link #tickRecorrido}); si no, reencuadra la ruta
-     * completa en el espacio que quedó libre/ocupado. {@code panel} es la tarjeta cuyo TAMAÑO cambió
-     * (panelOrigen o panelResultado, el CardView completo, no el contenido interno que se
-     * oculta/muestra): se espera su evento de layout real (no un post() a secas, que puede correr
-     * ANTES de que la tarjeta termine de encogerse/crecer con la animación de TransitionManager, y
-     * entonces mide el tamaño viejo) — mismo truco que ya usa {@link #encuadrar}.
+     * Reajusta el mapa después de colapsar/expandir un panel (o de trazar/reactivar una ruta):
+     * durante el recorrido, recentra en el usuario YA (sin esperar el próximo tick de
+     * {@link #tickRecorrido}); si no, reencuadra la ruta completa en el espacio libre/ocupado.
+     *
+     * Espera el layout COMPLETO del árbol (ViewTreeObserver.OnGlobalLayoutListener), no el de una
+     * sola tarjeta: cuando origen/destino Y resultado cambian de tamaño en la MISMA pasada (p. ej.
+     * al trazar, que contrae uno y puede expandir el otro), escuchar solo una de las dos podía
+     * disparar el ajuste ANTES de que la OTRA terminara su layout, leyendo un tamaño viejo — el
+     * orden entre ambas no está garantizado, y por eso salía bien a veces y mal otras según cuál
+     * terminara primero. Además se COALESCE: si ya hay un ajuste pendiente de una llamada anterior
+     * en la misma pasada, se reemplaza por este en vez de apilar dos (evita que el primero, con
+     * datos parciales, gane por casualidad al segundo).
      */
-    private void reajustarMapaTrasPanel(View panel) {
-        if (mapa == null || panel == null) return;
-        panel.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-            @Override public void onLayoutChange(View v, int l, int t, int r, int b,
-                                                 int ol, int ot, int or, int ob) {
-                panel.removeOnLayoutChangeListener(this);
+    private void reajustarMapaTrasPanel() {
+        View root = getView();
+        if (root == null || mapa == null) return;
+        android.view.ViewTreeObserver vto = root.getViewTreeObserver();
+        if (ajusteMapaPendiente != null) vto.removeOnGlobalLayoutListener(ajusteMapaPendiente);
+        ajusteMapaPendiente = new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override public void onGlobalLayout() {
+                vto.removeOnGlobalLayoutListener(this);
+                ajusteMapaPendiente = null;
                 if (!isAdded() || mapa == null) return;
                 if (recorrido && seguirCamara && RecorridoService.ultimaPos != null) {
                     centrarRecorrido(RecorridoService.ultimaPos);
@@ -404,7 +414,8 @@ public class PlanificadorFragment extends Fragment {
                     encuadrarAhora(ultimosLimites);
                 }
             }
-        });
+        };
+        vto.addOnGlobalLayoutListener(ajusteMapaPendiente);
     }
 
     /** Toca el resumen o el chevron del panel de resultado: alterna el detalle (pasos + aviso). */
@@ -423,7 +434,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelResultadoDetalle.setVisibility(View.GONE);
         icContraerResultado.setRotation(90);
-        reajustarMapaTrasPanel(panelResultado);
+        reajustarMapaTrasPanel();
     }
 
     /** Expande de nuevo la descripción completa de la ruta. */
@@ -433,7 +444,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelResultadoDetalle.setVisibility(View.VISIBLE);
         icContraerResultado.setRotation(-90);
-        reajustarMapaTrasPanel(panelResultado);
+        reajustarMapaTrasPanel();
     }
 
     /** Muestra el nombre SIN prefijo MXB en el campo, pero recuerda el canónico para el ruteo. */
@@ -963,7 +974,7 @@ public class PlanificadorFragment extends Fragment {
             colapsarResultado();   // ya vas en camino: más mapa, el detalle se puede reabrir tocando el resumen
         }
 
-        encuadrar(limites);   // encuadra la ruta en el espacio visible (sin tapar con las tarjetas)
+        reajustarMapaTrasPanel();   // encuadra la ruta en el espacio visible (sin tapar con las tarjetas)
     }
 
     /**
@@ -1439,27 +1450,6 @@ public class PlanificadorFragment extends Fragment {
         if (progresoLine != null) progresoLine.setPoints(hecho);
         else progresoLine = mapa.addPolyline(new PolylineOptions().addAll(hecho)
                 .color(0xFF9E9E9E).width(20f).zIndex(7f));   // gris sólido encima = "ya recorrido" (estilo Maps)
-    }
-
-    /** Encaja la ruta en el área visible del mapa dejando margen para las tarjetas. */
-    private void encuadrar(LatLngBounds limites) {
-        View root = getView();
-        if (root == null || mapa == null) return;
-        // En el PRIMER trazo el panel de resultado se acaba de mostrar y aún no está medido:
-        // getTop() sería 0 y el padding inferior saldría enorme (la cámara quedaba muy arriba).
-        // Se espera a que el panel tenga layout antes de encuadrar.
-        if (panelResultado.getVisibility() == View.VISIBLE
-                && (panelResultado.getHeight() == 0 || !panelResultado.isLaidOut())) {
-            panelResultado.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-                @Override public void onLayoutChange(View v, int l, int t, int r, int b,
-                                                     int ol, int ot, int or, int ob) {
-                    panelResultado.removeOnLayoutChangeListener(this);
-                    encuadrarAhora(limites);
-                }
-            });
-            return;
-        }
-        encuadrarAhora(limites);
     }
 
     private void encuadrarAhora(LatLngBounds limites) {
