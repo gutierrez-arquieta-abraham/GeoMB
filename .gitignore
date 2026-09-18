@@ -13,3 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Llave de firma de la app: nunca al repo (es pública en GitHub).
+/keystore/
+*.jks
+*.keystore
+*.p12
+key.properties
