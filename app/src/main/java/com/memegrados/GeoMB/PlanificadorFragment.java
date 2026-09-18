@@ -365,8 +365,7 @@ public class PlanificadorFragment extends Fragment {
         String d = inDestino.getText().toString().trim();
         txtOdColapsado.setText(d.isEmpty() ? o
                 : (o.isEmpty() ? d : getString(R.string.planificador_resumen_od, o, d)));
-        if (getView() != null)
-            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        iniciarTransicionPanel();
         panelOdExpandido.setVisibility(View.GONE);
         panelOdColapsado.setVisibility(View.VISIBLE);
         reajustarMapaTrasPanel();
@@ -375,15 +374,29 @@ public class PlanificadorFragment extends Fragment {
     /** Expande de nuevo el formulario completo desde la mini viñeta, con lo que ya se tenía. */
     private void expandirOrigenDestino() {
         if (panelOdColapsado == null || panelOdColapsado.getVisibility() != View.VISIBLE || !isAdded()) return;
-        if (getView() != null)
-            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        iniciarTransicionPanel();
         panelOdColapsado.setVisibility(View.GONE);
         panelOdExpandido.setVisibility(View.VISIBLE);
         reajustarMapaTrasPanel();
     }
 
+    // Duración de la transición GONE/VISIBLE de las tarjetas. Se fija explícita (en vez de dejar
+    // el default de AutoTransition, ~300ms) para que sea MENOR que AJUSTE_MAPA_DEBOUNCE_MS: si el
+    // debounce fuera más corto que la animación, el reencuadre se dispara a medio camino y lee los
+    // bordes de la tarjeta TODAVÍA cambiando (no los finales) — se veía como que la tarjeta de abajo
+    // (con más contenido: el ScrollView de pasos) "no reaccionaba" sola y solo se aplicaba correcto
+    // al tocar también la de arriba (para entonces ya había pasado tiempo de sobra).
+    private static final long TRANSICION_PANEL_MS = 180L;
+    private static final long AJUSTE_MAPA_DEBOUNCE_MS = 350L;
+
+    private void iniciarTransicionPanel() {
+        View root = getView();
+        if (root == null) return;
+        android.transition.TransitionManager.beginDelayedTransition((ViewGroup) root,
+                new android.transition.AutoTransition().setDuration(TRANSICION_PANEL_MS));
+    }
+
     private android.view.ViewTreeObserver.OnGlobalLayoutListener ajusteMapaListener;
-    private static final long AJUSTE_MAPA_DEBOUNCE_MS = 150L;
     private final Runnable ajusteMapaAccion = () -> {
         View root = getView();
         if (root != null && ajusteMapaListener != null) {
@@ -438,8 +451,7 @@ public class PlanificadorFragment extends Fragment {
      *  dispara sola al iniciar un recorrido ni al trazar, para no mover el mapa sin que lo pida. */
     private void colapsarResultado() {
         if (panelResultadoDetalle == null || panelResultadoDetalle.getVisibility() != View.VISIBLE || !isAdded()) return;
-        if (getView() != null)
-            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        iniciarTransicionPanel();
         panelResultadoDetalle.setVisibility(View.GONE);
         icContraerResultado.setRotation(90);
         reajustarMapaTrasPanel();
@@ -448,8 +460,7 @@ public class PlanificadorFragment extends Fragment {
     /** Expande de nuevo la descripción completa de la ruta. */
     private void expandirResultado() {
         if (panelResultadoDetalle == null || panelResultadoDetalle.getVisibility() == View.VISIBLE || !isAdded()) return;
-        if (getView() != null)
-            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        iniciarTransicionPanel();
         panelResultadoDetalle.setVisibility(View.VISIBLE);
         icContraerResultado.setRotation(-90);
         reajustarMapaTrasPanel();
