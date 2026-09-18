@@ -50,7 +50,11 @@ public class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineaViewHol
     @Override
     public void onBindViewHolder(@NonNull LineaViewHolder holder, int position) {
         Linea linea = lineas.get(position);
-        holder.txtNumero.setText(String.valueOf(linea.numero));
+        // Etiqueta corta (no el número interno): Metrobús "1".."7"; Mexibús "1".."4"/"1A".."3A";
+        // Mexicable "1"/"2" — el 10X/11X/20X es solo interno y no debe verse (ver CLAUDE.md).
+        String etiqueta = Planificador.etiquetaLineaCortaPub(linea.numero);
+        holder.txtNumero.setText(etiqueta);
+        holder.txtNumero.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, etiqueta.length() > 1 ? 15f : 20f);
         // Badge circular con color de línea y contorno negro.
         float dens = holder.itemView.getResources().getDisplayMetrics().density;
         android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
@@ -58,8 +62,11 @@ public class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineaViewHol
         bg.setColor(linea.color);
         bg.setStroke(Math.round(2 * dens), 0xFF000000);
         holder.txtNumero.setBackground(bg);
-        holder.txtNombre.setText(holder.itemView.getContext()
-                .getString(R.string.linea_formato, linea.numero) + " · " + linea.nombre);
+        // Metrobús: "Línea N · nombre-de-la-ruta". Mexibús/Mexicable: su nombre ya es autodescriptivo
+        // ("Mexibús L1", "Mexicable L2"), así que no se antepone "Línea 101"/"Línea 201".
+        holder.txtNombre.setText(linea.numero < 100
+                ? holder.itemView.getContext().getString(R.string.linea_formato, linea.numero) + " · " + linea.nombre
+                : linea.nombre);
         // Pestaña Líneas: solo estaciones (sin conteo de unidades).
         holder.txtEstaciones.setText(holder.itemView.getContext()
                 .getString(R.string.estaciones_formato, linea.estaciones.size()));

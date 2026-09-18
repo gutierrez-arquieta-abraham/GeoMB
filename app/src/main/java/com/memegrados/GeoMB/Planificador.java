@@ -586,6 +586,8 @@ public final class Planificador {
         TERMINALES_MXB.put(111, new String[]{"AIFA", "Ojo de Agua"});
         TERMINALES_MXB.put(112, new String[]{"Las Américas", "Río de los Remedios"});
         TERMINALES_MXB.put(113, new String[]{"Acuitlapilco", "CEDA Chicoloapan"});
+        TERMINALES_MXB.put(201, new String[]{"Santa Clara", "La Cañada"});
+        TERMINALES_MXB.put(202, new String[]{"Indios Verdes", "Hank González II"});
     }
 
     /** Clave de terminales de una línea Mexibús: la exprés (12X) usa la de su troncal; ramales (11X) y

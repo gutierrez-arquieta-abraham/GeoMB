@@ -302,7 +302,7 @@ public class LlegadasFragment extends Fragment {
             String nombre = l != null ? l.nombre : getString(R.string.linea_formato, i);
             llEstadoMetrobus.addView(filaEstado(String.valueOf(i), color, nombre, estado.get(i)));
         }
-        // Mexibús: troncales (101..104) y ramales (111..113); no exprés (12x) ni Mexicable (20x).
+        // Mexibús: troncales (101..104), ramales (111..113) y Mexicable (201..202); no exprés (12x).
         // Cada fila muestra el par de terminales OFICIALES (dirección). Respeta el ajuste "mostrar Mexibús".
         llEstadoMexibus.removeAllViews();
         int mostradas = 0;
@@ -310,7 +310,8 @@ public class LlegadasFragment extends Fragment {
             for (Linea l : GtfsRepository.getMexibus(requireContext())) {
                 boolean troncal = l.numero >= 101 && l.numero <= 104;
                 boolean ramal = l.numero >= 111 && l.numero <= 113;
-                if (!troncal && !ramal) continue;
+                boolean cable = l.numero >= 201 && l.numero <= 202;
+                if (!troncal && !ramal && !cable) continue;
                 String par = Planificador.terminalesMexibusPar(l.numero);
                 String nombre = par != null ? par : l.nombre;
                 llEstadoMexibus.addView(filaEstado(Planificador.etiquetaLineaCortaPub(l.numero), l.color, nombre, estado.get(l.numero)));
