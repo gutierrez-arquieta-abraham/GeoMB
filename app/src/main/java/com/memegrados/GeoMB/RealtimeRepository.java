@@ -111,7 +111,10 @@ public final class RealtimeRepository {
                 ultimo = lista;
                 main.post(() -> cb.onData(lista));
             } catch (Exception e) {
-                main.post(() -> cb.onError(e.getMessage() != null ? e.getMessage() : "error"));
+                String msg = e.getMessage() != null ? e.getMessage() : "error";
+                GeoMBApplication app = GeoMBApplication.get();
+                if (app != null) Telemetria.registrarError(app, Telemetria.ERR_RED, "RealtimeRepository.fetch", msg);
+                main.post(() -> cb.onError(msg));
             }
         });
     }

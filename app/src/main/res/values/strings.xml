@@ -361,6 +361,9 @@
     <string name="cerca_texto">El eco %1$s que estás siguiendo está por llegar (a %2$s).</string>
     <string name="seguir_activado">Siguiendo la unidad %1$s. Te aviso a 5 km y a 800 m.</string>
     <string name="seguir_permiso_ubicacion">Activa el permiso de ubicación para seguir la unidad.</string>
+    <string name="favorito_guardado">%1$s guardada como favorita: te avisará cuando esté cerca aunque reinicies el teléfono.</string>
+    <string name="favorito_quitado">%1$s ya no es favorita.</string>
+    <string name="favorito_pista">Mantén presionado \"Seguir\" para guardar/quitar esta unidad de tus favoritas.</string>
 
     <!-- Info por económico -->
     <string name="estado_fuera_servicio">Fuera de servicio</string>

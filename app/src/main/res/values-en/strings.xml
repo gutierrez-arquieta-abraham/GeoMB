@@ -341,6 +341,9 @@
     <string name="cerca_texto">The unit %1$s you\'re following is about to arrive (%2$s away).</string>
     <string name="seguir_activado">Following unit %1$s. I\'ll alert you at 5 km and 800 m.</string>
     <string name="seguir_permiso_ubicacion">Enable location permission to follow the unit.</string>
+    <string name="favorito_guardado">%1$s saved as favorite: it\'ll alert you when it\'s nearby even if you restart your phone.</string>
+    <string name="favorito_quitado">%1$s is no longer a favorite.</string>
+    <string name="favorito_pista">Long-press \"Follow\" to save/remove this unit from your favorites.</string>
 
     <!-- Info by unit number -->
     <string name="estado_fuera_servicio">Out of service</string>

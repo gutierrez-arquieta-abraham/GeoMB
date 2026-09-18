@@ -94,6 +94,7 @@ public class LlegadaService extends Service {
         paradaSeguida = estacion;
         avisados.clear();
         detenido = false;
+        persistir(linea, estacion, sentido, pos);   // sobrevive a un reinicio del teléfono (ArranqueReceiver)
         arrancarPrimerPlano(getString(R.string.llegada_ongoing_formato, estacion));
         handler.removeCallbacks(tick);
         handler.post(tick);
@@ -204,9 +205,43 @@ public class LlegadaService extends Service {
     private void detener() {
         detenido = true;
         paradaSeguida = null;
+        limpiarPersistencia(this);
         handler.removeCallbacks(tick);
         stopForeground(true);
         stopSelf();
+    }
+
+    // ---- persistencia (para resumir tras reiniciar el teléfono, ver ArranqueReceiver) ----
+
+    private static final String PREFS = "llegada_estado";
+
+    /** Guarda la estación vigilada para poder retomarla tras un reinicio del teléfono. */
+    private void persistir(int lineaP, String estacionP, String sentidoP, LatLng posP) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putInt("linea", lineaP)
+                .putString("estacion", estacionP)
+                .putString("sentido", sentidoP)
+                .putFloat("lat", (float) posP.latitude)
+                .putFloat("lon", (float) posP.longitude)
+                .apply();
+    }
+
+    private static void limpiarPersistencia(android.content.Context c) {
+        c.getSharedPreferences(PREFS, MODE_PRIVATE).edit().clear().apply();
+    }
+
+    /** Si había una estación vigilada antes del reinicio, la retoma (llamado por ArranqueReceiver). */
+    public static void reanudarSiHay(android.content.Context c) {
+        android.content.SharedPreferences p = c.getSharedPreferences(PREFS, MODE_PRIVATE);
+        String estacion = p.getString("estacion", null);
+        if (estacion == null) return;
+        Intent i = new Intent(c, LlegadaService.class)
+                .putExtra(EXTRA_LINEA, p.getInt("linea", 1))
+                .putExtra(EXTRA_ESTACION, estacion)
+                .putExtra(EXTRA_SENTIDO, p.getString("sentido", null))
+                .putExtra(EXTRA_LAT, (double) p.getFloat("lat", 0f))
+                .putExtra(EXTRA_LON, (double) p.getFloat("lon", 0f));
+        androidx.core.content.ContextCompat.startForegroundService(c, i);
     }
 
     /** Android 14+: límite de tiempo del FGS dataSync. Detener limpio para no crashear. */
