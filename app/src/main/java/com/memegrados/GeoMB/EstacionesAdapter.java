@@ -10,6 +10,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.maps.model.LatLng;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,18 +42,30 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         final String subtitulo;  // "Dirección X" o "" (solo estación)
         final String icono;      // solo estación
         final int color;
+        final int linea;         // solo estación: línea real de ESE punto (varía en rutas mixtas)
+        final LatLng posicion;   // solo estación: para ubicarla en el mapa al tocarla
 
-        private Item(boolean header, String titulo, String subtitulo, String icono, int color) {
+        private Item(boolean header, String titulo, String subtitulo, String icono, int color,
+                     int linea, LatLng posicion) {
             this.header = header; this.titulo = titulo; this.subtitulo = subtitulo;
-            this.icono = icono; this.color = color;
+            this.icono = icono; this.color = color; this.linea = linea; this.posicion = posicion;
         }
         public static Item header(String titulo, int color) {
-            return new Item(true, titulo, "", "", color);
+            return new Item(true, titulo, "", "", color, 0, null);
         }
         public static Item estacion(String nombre, String subtitulo, String icono, int color) {
-            return new Item(false, nombre, subtitulo, icono, color);
+            return new Item(false, nombre, subtitulo, icono, color, 0, null);
+        }
+        public static Item estacion(String nombre, String subtitulo, String icono, int color,
+                                     int linea, LatLng posicion) {
+            return new Item(false, nombre, subtitulo, icono, color, linea, posicion);
         }
     }
+
+    /** Toca una fila de estación (no un encabezado): para ubicarla en el mapa. */
+    public interface OnEstacionClick { void onClick(Item item); }
+    private OnEstacionClick clickListener;
+    public void setOnEstacionClick(OnEstacionClick l) { this.clickListener = l; }
 
     private final List<Item> datos = new ArrayList<>();
 
@@ -106,6 +120,10 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             // Acento vertical del color de la línea (sustituye al punto lateral).
             v.barra.setBackgroundTintList(android.content.res.ColorStateList.valueOf(it.color));
             v.dot.setVisibility(View.GONE);
+
+            v.itemView.setOnClickListener(vw -> {
+                if (clickListener != null && it.posicion != null) clickListener.onClick(it);
+            });
         }
     }
 

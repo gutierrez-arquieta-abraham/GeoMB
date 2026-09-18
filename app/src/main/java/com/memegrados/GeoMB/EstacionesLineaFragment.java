@@ -58,6 +58,7 @@ public class EstacionesLineaFragment extends Fragment {
         RecyclerView rv = view.findViewById(R.id.recycler_estaciones);
         rv.setLayoutManager(new LinearLayoutManager(requireContext()));
         EstacionesAdapter adapter = new EstacionesAdapter();
+        adapter.setOnEstacionClick(this::ubicarEnMapa);
         rv.setAdapter(adapter);
 
         if (l == null) return;
@@ -71,6 +72,13 @@ public class EstacionesLineaFragment extends Fragment {
         adapter.set(items);
     }
 
+    /** Toca una estación del listado: cambia a la pestaña Mapa, centra ahí y la destella. */
+    private void ubicarEnMapa(EstacionesAdapter.Item it) {
+        RealtimeRepository.estacionSeleccionadaPos = it.posicion;
+        RealtimeRepository.estacionSeleccionadaLinea = it.linea;
+        ((MainActivity) requireActivity()).navegarA(R.id.nav_mapa);
+    }
+
     /** Línea normal (L1/L3/L5): lista simple de estaciones. */
     private void construirPlano(List<EstacionesAdapter.Item> items, Linea l) {
         // Una sola entrada por estación: en los datos algunas traen sus 2 andenes (p. ej. Indios
@@ -78,7 +86,7 @@ public class EstacionesLineaFragment extends Fragment {
         java.util.Set<String> vistas = new java.util.HashSet<>();
         for (Estacion e : l.estaciones) {
             if (!vistas.add(Planificador.norm(e.nombre))) continue;
-            items.add(EstacionesAdapter.Item.estacion(e.nombre, "", e.icono, l.color));
+            items.add(EstacionesAdapter.Item.estacion(e.nombre, "", e.icono, l.color, l.numero, e.posicion));
         }
     }
 
@@ -98,12 +106,14 @@ public class EstacionesLineaFragment extends Fragment {
         items.add(EstacionesAdapter.Item.header(getString(R.string.direccion_fmt, termFin), l.color));
         for (int k = 0; k < est.size(); k++)
             if (!exFin.contains(Planificador.norm(est.get(k).nombre)))
-                items.add(EstacionesAdapter.Item.estacion(est.get(k).nombre, "", est.get(k).icono, l.color));
+                items.add(EstacionesAdapter.Item.estacion(est.get(k).nombre, "", est.get(k).icono, l.color,
+                        l.numero, est.get(k).posicion));
 
         items.add(EstacionesAdapter.Item.header(getString(R.string.direccion_fmt, termIni), l.color));
         for (int k = est.size() - 1; k >= 0; k--)
             if (!exIni.contains(Planificador.norm(est.get(k).nombre)))
-                items.add(EstacionesAdapter.Item.estacion(est.get(k).nombre, "", est.get(k).icono, l.color));
+                items.add(EstacionesAdapter.Item.estacion(est.get(k).nombre, "", est.get(k).icono, l.color,
+                        l.numero, est.get(k).posicion));
     }
 
     /**
@@ -125,7 +135,8 @@ public class EstacionesLineaFragment extends Fragment {
             for (int k = 0; k < sm.estaciones.length; k++) {
                 Estacion e = buscar(sm.lineas[k], sm.estaciones[k]);
                 String icono = e != null ? e.icono : "";
-                items.add(EstacionesAdapter.Item.estacion(sm.estaciones[k], "", icono, colorDe(sm.lineas[k])));
+                items.add(EstacionesAdapter.Item.estacion(sm.estaciones[k], "", icono, colorDe(sm.lineas[k]),
+                        sm.lineas[k], e != null ? e.posicion : null));
             }
         }
     }

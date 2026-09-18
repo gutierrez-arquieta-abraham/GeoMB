@@ -46,6 +46,11 @@ public final class RealtimeRepository {
     public static int lineaSeleccionada = -1;
     /** Económico que el buscador del mapa manda al buscador de unidades si no está en vivo. */
     public static String ecoParaBuscar = null;
+    /** Estación elegida en el listado de una línea (pestaña Líneas): el mapa la centra y la
+     *  destella al llegar. Se sabe la posición exacta de antemano (viene del propio listado),
+     *  a diferencia de unidadSeleccionada que necesita esperar el feed en vivo. */
+    public static com.google.android.gms.maps.model.LatLng estacionSeleccionadaPos = null;
+    public static int estacionSeleccionadaLinea = -1;
 
     /** Filtros activos (compartidos entre mapa y listado). */
     public static final Filtro filtro = new Filtro();
