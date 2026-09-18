@@ -1527,7 +1527,12 @@ public class RecorridoService extends Service {
         RemoteViews rv = new RemoteViews(getPackageName(), R.layout.notif_recorrido);
         // Próxima estación (bitmap): Tipo Metro para Metrobús/Mexicable; Mexibús imita su
         // señalética real según línea y modo de iconografía (ver Tipografia.fuenteEstacion()).
-        Bitmap nombreBmp = Tipografia.render(this, proxima, 20f, 0xFFC8103E, true, lineaProxima);
+        // SIN negrita: Gotham Black ya es un peso muy grueso de por sí, y pedirle además la
+        // negrita SINTÉTICA de Android (Typeface.create(tf, BOLD) sobre una fuente que no trae
+        // una variante "bold" propia) hace que algunos fabricantes (Xiaomi/MIUI en particular)
+        // descarten la tipografía personalizada y caigan de vuelta a su propia fuente del
+        // sistema -- de ahí que se viera "MI" en vez de Gotham/Rounded Elegance.
+        Bitmap nombreBmp = Tipografia.render(this, proxima, 20f, 0xFFC8103E, false, lineaProxima);
         if (nombreBmp != null) {
             rv.setImageViewBitmap(R.id.nr_estacion, nombreBmp);
             rv.setContentDescription(R.id.nr_estacion, proxima);
