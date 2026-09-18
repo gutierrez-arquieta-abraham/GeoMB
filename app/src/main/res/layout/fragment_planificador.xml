@@ -244,48 +244,80 @@
             android:orientation="vertical"
             android:padding="14dp">
 
-            <TextView
-                android:id="@+id/res_resumen"
+            <!-- Encabezado SIEMPRE visible: resumen + chevron. Toca cualquiera de los dos para
+                 contraer/expandir el detalle (lista de pasos + aviso) de abajo. Se contrae solo al
+                 iniciar el recorrido (más mapa mientras navegas); el resumen se queda como mini
+                 viñeta con lo que ya se tenía. -->
+            <LinearLayout
+                android:id="@+id/fila_resultado_resumen"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                tools:text="8 paradas · 0 transbordos · ~13 min" />
-
-            <!-- Descripción de ruta: lista scrolleable con logos de estación (nuevo/antiguo)
-                 e íconos de transferencia (caminata/transbordo) entre sistemas, líneas o servicio. -->
-            <ScrollView
-                android:id="@+id/res_pasos_scroll"
-                android:tag="largo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:scrollbars="vertical"
-                android:fadeScrollbars="false"
-                android:overScrollMode="ifContentScrolls">
-
-                <LinearLayout
-                    android:id="@+id/res_pasos_list"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-            </ScrollView>
-
-            <TextView
-                android:id="@+id/res_aviso"
-                android:tag="largo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:padding="4dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:focusable="true"
-                android:textColor="@color/mb_red"
-                android:textSize="13sp"
-                android:visibility="gone"
-                tools:text="⚠ Ruta alterna por afectaciones en el servicio (toca para ver detalle)" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/res_resumen"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="8 paradas · 0 transbordos · ~13 min" />
+
+                <ImageView
+                    android:id="@+id/ic_contraer_resultado"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:contentDescription="@string/planificador_contraer"
+                    android:rotation="-90"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="?attr/colorPrimary" />
+            </LinearLayout>
+
+            <!-- Detalle CONTRAÍBLE: descripción de ruta (lista scrolleable con logos de estación,
+                 nuevo/antiguo, e íconos de transferencia entre sistemas/líneas/servicio) + aviso. -->
+            <LinearLayout
+                android:id="@+id/panel_resultado_detalle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <ScrollView
+                    android:id="@+id/res_pasos_scroll"
+                    android:tag="largo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:scrollbars="vertical"
+                    android:fadeScrollbars="false"
+                    android:overScrollMode="ifContentScrolls">
+
+                    <LinearLayout
+                        android:id="@+id/res_pasos_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </ScrollView>
+
+                <TextView
+                    android:id="@+id/res_aviso"
+                    android:tag="largo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:padding="4dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:textColor="@color/mb_red"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    tools:text="⚠ Ruta alterna por afectaciones en el servicio (toca para ver detalle)" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/res_estado"

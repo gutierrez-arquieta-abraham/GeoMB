@@ -74,6 +74,8 @@ public class PlanificadorFragment extends Fragment {
     private View panelResultado, panelEstaciones, panelOrigen;
     private View panelOdExpandido, panelOdColapsado, btnContraerOd;
     private TextView txtOdColapsado;
+    private View panelResultadoDetalle, filaResultadoResumen;
+    private android.widget.ImageView icContraerResultado;
     private TextView resResumen, resAviso, resEstado;
     private android.widget.LinearLayout resPasosList;   // lista scrolleable de la descripción de ruta
     private android.widget.ScrollView resPasosScroll;
@@ -191,6 +193,10 @@ public class PlanificadorFragment extends Fragment {
         btnContraerOd = view.findViewById(R.id.btn_contraer_od);
         btnContraerOd.setOnClickListener(v -> colapsarOrigenDestino());
         panelOdColapsado.setOnClickListener(v -> expandirOrigenDestino());
+        panelResultadoDetalle = view.findViewById(R.id.panel_resultado_detalle);
+        filaResultadoResumen = view.findViewById(R.id.fila_resultado_resumen);
+        icContraerResultado = view.findViewById(R.id.ic_contraer_resultado);
+        filaResultadoResumen.setOnClickListener(v -> alternarResultado());
         resResumen = view.findViewById(R.id.res_resumen);
         resPasosList = view.findViewById(R.id.res_pasos_list);
         resPasosScroll = view.findViewById(R.id.res_pasos_scroll);
@@ -371,6 +377,33 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelOdColapsado.setVisibility(View.GONE);
         panelOdExpandido.setVisibility(View.VISIBLE);
+    }
+
+    /** Toca el resumen o el chevron del panel de resultado: alterna el detalle (pasos + aviso). */
+    private void alternarResultado() {
+        if (panelResultadoDetalle == null) return;
+        if (panelResultadoDetalle.getVisibility() == View.VISIBLE) colapsarResultado();
+        else expandirResultado();
+    }
+
+    /** Contrae la descripción de la ruta (lista de pasos + aviso) dejando el resumen como mini
+     *  viñeta, para dar más mapa mientras navegas. Se dispara sola al iniciar el recorrido; el
+     *  encabezado sigue tocable para expandirla de nuevo con lo que ya se tenía. */
+    private void colapsarResultado() {
+        if (panelResultadoDetalle == null || panelResultadoDetalle.getVisibility() != View.VISIBLE || !isAdded()) return;
+        if (getView() != null)
+            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        panelResultadoDetalle.setVisibility(View.GONE);
+        icContraerResultado.setRotation(90);
+    }
+
+    /** Expande de nuevo la descripción completa de la ruta. */
+    private void expandirResultado() {
+        if (panelResultadoDetalle == null || panelResultadoDetalle.getVisibility() == View.VISIBLE || !isAdded()) return;
+        if (getView() != null)
+            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        panelResultadoDetalle.setVisibility(View.VISIBLE);
+        icContraerResultado.setRotation(-90);
     }
 
     /** Muestra el nombre SIN prefijo MXB en el campo, pero recuerda el canónico para el ruteo. */
@@ -883,6 +916,7 @@ public class PlanificadorFragment extends Fragment {
         panelEstaciones.setVisibility(r.secuencia.isEmpty() ? View.GONE : View.VISIBLE);
         btnContraerOd.setVisibility(View.VISIBLE);   // ya hay ruta: se puede contraer el buscador a mano
         colapsarOrigenDestino();                     // libera espacio de mapa automáticamente al trazar
+        expandirResultado();                         // ruta nueva: siempre se ve el detalle completo primero
         boolean veniaRecorrido = recorrido;
         if (recorrido) detenerRecorrido();
         resEstado.setVisibility(View.GONE);
@@ -895,6 +929,7 @@ public class PlanificadorFragment extends Fragment {
             btnRecorrido.setText(R.string.recorrido_detener);
             resEstado.setVisibility(View.VISIBLE);
             resEstado.setText(R.string.recorrido_ubicando);
+            colapsarResultado();   // ya vas en camino: más mapa, el detalle se puede reabrir tocando el resumen
         }
 
         encuadrar(limites);   // encuadra la ruta en el espacio visible (sin tapar con las tarjetas)
@@ -1502,6 +1537,7 @@ public class PlanificadorFragment extends Fragment {
         btnRecorrido.setText(R.string.recorrido_detener);
         resEstado.setVisibility(View.VISIBLE);
         resEstado.setText(R.string.recorrido_ubicando);
+        colapsarResultado();   // ya vas en camino: más mapa, el detalle se puede reabrir tocando el resumen
         String destinoFinal = rutaActiva.secuencia.get(rutaActiva.secuencia.size() - 1).nombre;
         RecorridoService.servicioTexto = s == null ? null
                 : (s.rosa ? getString(R.string.servicio_voz_rosa, s.nombre.replace(" · Rosa", ""))
