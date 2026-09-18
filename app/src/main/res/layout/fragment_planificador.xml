@@ -28,7 +28,11 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Formulario EXPANDIDO (origen/destino/swap/trazar). Se contrae solo al trazar una ruta, o
+             a mano con el chevron junto al título, para liberar mapa; la mini viñeta de abajo (GONE
+             mientras este está visible) permite volver a expandirlo con lo que ya se tenía. -->
         <LinearLayout
+            android:id="@+id/panel_od_expandido"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -50,6 +54,18 @@
                     android:textSize="17sp"
                     android:textStyle="bold"
                     android:textAlignment="center"/>
+
+                <ImageButton
+                    android:id="@+id/btn_contraer_od"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/planificador_contraer"
+                    android:padding="5dp"
+                    android:rotation="-90"
+                    android:src="@drawable/ic_chevron_right"
+                    android:visibility="gone"
+                    app:tint="?attr/colorPrimary" />
             </LinearLayout>
 
             <LinearLayout
@@ -140,6 +156,51 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/planificador_trazar" />
+        </LinearLayout>
+
+        <!-- Mini viñeta COLAPSADA: cabe en cualquier tamaño de pantalla; toca para volver a expandir
+             el formulario completo con el origen/destino que ya se tenía. -->
+        <LinearLayout
+            android:id="@+id/panel_od_colapsado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:contentDescription="@string/planificador_expandir"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="12dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_estaciones"
+                app:tint="?attr/colorPrimary" />
+
+            <TextView
+                android:id="@+id/txt_od_colapsado"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold"
+                tools:text="Bosques del Valle → París" />
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@null"
+                android:rotation="90"
+                android:src="@drawable/ic_chevron_right"
+                app:tint="?attr/colorPrimary" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

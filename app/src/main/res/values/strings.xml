@@ -243,6 +243,9 @@
     <string name="planificador_destino">Hasta (estación de destino)</string>
     <string name="planificador_trazar">Trazar ruta</string>
     <string name="intercambiar">Intercambiar origen y destino</string>
+    <string name="planificador_contraer">Contraer el buscador de ruta</string>
+    <string name="planificador_expandir">Toca para volver a mostrar el buscador de ruta</string>
+    <string name="planificador_resumen_od">%1$s → %2$s</string>
     <string name="recorrido_iniciar">Iniciar recorrido</string>
     <string name="recorrido_detener">Detener recorrido</string>
     <string name="recorrido_vas">Vas en %1$s · Siguiente: %2$s</string>
