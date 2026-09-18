@@ -418,6 +418,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // en la estación (esa era la causa de que "ver en mapa" no llevara a la unidad).
             UnidadReal u = RealtimeRepository.get().buscar(RealtimeRepository.unidadSeleccionada);
             aplicarCentro(u != null ? u.posicion : CDMX);
+        } else if (RealtimeRepository.estacionSeleccionadaPos != null) {
+            // Viene una estación del listado de Líneas: ya se conoce su posición exacta (no hace
+            // falta esperar ningún feed), así que se vuela ahí directo y se destella para ubicarla.
+            LatLng pos = RealtimeRepository.estacionSeleccionadaPos;
+            int color = colorDeLinea(RealtimeRepository.estacionSeleccionadaLinea);
+            RealtimeRepository.estacionSeleccionadaPos = null;
+            RealtimeRepository.estacionSeleccionadaLinea = -1;
+            centroCarga = pos;
+            mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f));
+            destelloEstacion(pos, color);
         } else {
             centrarEnCercana();   // centra en la estación más cercana y carga solo ese radio
         }
@@ -781,6 +791,47 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private int colorDeLinea(Integer linea) {
         Integer c = linea != null ? coloresLinea.get(linea) : null;
         return c != null ? c : ContextCompat.getColor(requireContext(), R.color.mb_gray);
+    }
+
+    /**
+     * "Destello" para ubicar una estación: un aro (Circle, coordenadas reales) del color de su
+     * línea que crece y se desvanece alrededor del punto, un par de veces, y luego se quita solo.
+     * Se usa un Circle (no un Marker con bitmap animado) porque escala con el zoom del mapa y no
+     * hace falta redibujar bitmaps en cada frame.
+     */
+    private void destelloEstacion(LatLng pos, int color) {
+        if (mapa == null) return;
+        final com.google.android.gms.maps.model.Circle circulo = mapa.addCircle(
+                new com.google.android.gms.maps.model.CircleOptions()
+                        .center(pos)
+                        .radius(12)
+                        .strokeWidth(6f)
+                        .strokeColor(color)
+                        .fillColor(colorConAlfa(color, 70))
+                        .zIndex(20f));
+        android.animation.ValueAnimator anim = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        anim.setDuration(900);
+        anim.setRepeatCount(2);
+        anim.setRepeatMode(android.animation.ValueAnimator.RESTART);
+        anim.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            try {
+                circulo.setRadius(12 + t * 48);              // 12 m -> 60 m
+                int alfa = Math.round(180 * (1 - t));         // se desvanece según crece
+                circulo.setStrokeColor(colorConAlfa(color, alfa));
+                circulo.setFillColor(colorConAlfa(color, Math.round(alfa * 0.35f)));
+            } catch (Exception ignore) {}                     // el fragment pudo cerrarse a medio camino
+        });
+        anim.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(android.animation.Animator animation) {
+                try { circulo.remove(); } catch (Exception ignore) {}
+            }
+        });
+        anim.start();
+    }
+
+    private static int colorConAlfa(int color, int alfa) {
+        return Color.argb(alfa, Color.red(color), Color.green(color), Color.blue(color));
     }
 
     /** Centra el mapa en la unidad buscada, si viene una selección del buscador. */
