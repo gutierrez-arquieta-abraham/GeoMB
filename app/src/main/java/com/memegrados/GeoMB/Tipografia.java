@@ -123,9 +123,19 @@ public final class Tipografia {
      * el color es fijo porque el fondo de esas tarjetas es blanco.
      */
     public static Bitmap render(Context c, String texto, float spSize, int color, boolean negrita) {
+        return render(c, texto, spSize, color, negrita, metro(c));
+    }
+
+    /** Igual que {@link #render}, pero elige la tipografía según línea (ver {@link #fuenteEstacion}):
+     *  usado en la notificación de recorrido, para que la próxima estación de Mexibús imite su
+     *  señalética real en vez de Tipo Metro siempre. */
+    public static Bitmap render(Context c, String texto, float spSize, int color, boolean negrita, int linea) {
+        return render(c, texto, spSize, color, negrita, fuenteEstacion(c, linea));
+    }
+
+    private static Bitmap render(Context c, String texto, float spSize, int color, boolean negrita, Typeface tf) {
         if (texto == null || texto.isEmpty()) return null;
         if (texto.length() > 34) texto = texto.substring(0, 33) + "…";
-        Typeface tf = metro(c);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTypeface(negrita ? Typeface.create(tf, Typeface.BOLD) : tf);
         p.setColor(color);
