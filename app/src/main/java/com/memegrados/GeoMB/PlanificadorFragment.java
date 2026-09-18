@@ -369,7 +369,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelOdExpandido.setVisibility(View.GONE);
         panelOdColapsado.setVisibility(View.VISIBLE);
-        reajustarMapaTrasPanel();
+        reajustarMapaTrasPanel(panelOrigen);
     }
 
     /** Expande de nuevo el formulario completo desde la mini viñeta, con lo que ya se tenía. */
@@ -379,24 +379,30 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelOdColapsado.setVisibility(View.GONE);
         panelOdExpandido.setVisibility(View.VISIBLE);
-        reajustarMapaTrasPanel();
+        reajustarMapaTrasPanel(panelOrigen);
     }
 
     /**
      * Reajusta el mapa después de colapsar/expandir un panel: durante el recorrido, recentra en el
      * usuario YA (sin esperar el próximo tick de {@link #tickRecorrido}); si no, reencuadra la ruta
-     * completa en el espacio que quedó libre/ocupado. Se difiere un post() para medir DESPUÉS de que
-     * la tarjeta ya terminó de encogerse/crecer (si se mide antes, el tamaño todavía es el viejo).
+     * completa en el espacio que quedó libre/ocupado. {@code panel} es la tarjeta cuyo TAMAÑO cambió
+     * (panelOrigen o panelResultado, el CardView completo, no el contenido interno que se
+     * oculta/muestra): se espera su evento de layout real (no un post() a secas, que puede correr
+     * ANTES de que la tarjeta termine de encogerse/crecer con la animación de TransitionManager, y
+     * entonces mide el tamaño viejo) — mismo truco que ya usa {@link #encuadrar}.
      */
-    private void reajustarMapaTrasPanel() {
-        View root = getView();
-        if (root == null || mapa == null) return;
-        root.post(() -> {
-            if (!isAdded() || mapa == null) return;
-            if (recorrido && seguirCamara && RecorridoService.ultimaPos != null) {
-                centrarRecorrido(RecorridoService.ultimaPos);
-            } else if (ultimosLimites != null) {
-                encuadrarAhora(ultimosLimites);
+    private void reajustarMapaTrasPanel(View panel) {
+        if (mapa == null || panel == null) return;
+        panel.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override public void onLayoutChange(View v, int l, int t, int r, int b,
+                                                 int ol, int ot, int or, int ob) {
+                panel.removeOnLayoutChangeListener(this);
+                if (!isAdded() || mapa == null) return;
+                if (recorrido && seguirCamara && RecorridoService.ultimaPos != null) {
+                    centrarRecorrido(RecorridoService.ultimaPos);
+                } else if (ultimosLimites != null) {
+                    encuadrarAhora(ultimosLimites);
+                }
             }
         });
     }
@@ -417,7 +423,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelResultadoDetalle.setVisibility(View.GONE);
         icContraerResultado.setRotation(90);
-        reajustarMapaTrasPanel();
+        reajustarMapaTrasPanel(panelResultado);
     }
 
     /** Expande de nuevo la descripción completa de la ruta. */
@@ -427,7 +433,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelResultadoDetalle.setVisibility(View.VISIBLE);
         icContraerResultado.setRotation(-90);
-        reajustarMapaTrasPanel();
+        reajustarMapaTrasPanel(panelResultado);
     }
 
     /** Muestra el nombre SIN prefijo MXB en el campo, pero recuerda el canónico para el ruteo. */
