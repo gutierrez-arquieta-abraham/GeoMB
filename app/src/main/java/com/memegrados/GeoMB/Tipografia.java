@@ -153,8 +153,10 @@ public final class Tipografia {
 
     /**
      * Ícono PROPIO de la línea para notificaciones: Metrobús {@code linea_N}; Mexibús
-     * {@code mexibus_0N}/{@code mexibus_ant_0N} (troncal/ramal); Mexicable su logo. Respaldo:
-     * el badge de texto {@link #logoLinea}. Usado por MensajesService y ManifestacionesService.
+     * {@code mexibus_0N}/{@code mexibus_ant_0N} (troncal/ramal); Mexicable {@code mexicable_0N}
+     * (logo propio por línea: L1/L2 en operación, L3 en construcción con logo provisional).
+     * Respaldo: el badge de texto {@link #logoLinea}. Usado por MensajesService y
+     * ManifestacionesService.
      */
     public static Bitmap bitmapLineaLogo(Context c, int linea, int color) {
         int id = 0;
@@ -166,7 +168,8 @@ public final class Tipografia {
             if (!Modos.iconosNuevos(c)) id = idDrawable(c, "mexibus_ant_" + suf);   // antiguo
             if (id == 0) id = idDrawable(c, "mexibus_" + suf);                        // nuevo / respaldo
         } else {                                 // Mexicable
-            id = Modos.iconosNuevos(c) ? R.drawable.logo_mexicable_nuevo : R.drawable.mexicable_01_0;
+            id = idDrawable(c, "mexicable_0" + (linea - 200));   // 201->mexicable_01, 202->_02, 203->_03
+            if (id == 0) id = Modos.iconosNuevos(c) ? R.drawable.logo_mexicable_nuevo : R.drawable.mexicable_01_0;
         }
         if (id != 0) {
             Bitmap b = android.graphics.BitmapFactory.decodeResource(c.getResources(), id);
