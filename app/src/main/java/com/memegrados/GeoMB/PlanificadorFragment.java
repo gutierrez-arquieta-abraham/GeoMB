@@ -355,9 +355,9 @@ public class PlanificadorFragment extends Fragment {
 
     /**
      * Contrae el buscador de origen/destino a una mini viñeta (toca para expandirla de nuevo),
-     * dejando más mapa visible para el deslizador de estaciones y el resultado. Se dispara sola al
-     * trazar una ruta (ver {@link #dibujar}); el chevron del formulario permite contraerla a mano
-     * en cualquier otro momento, sin perder lo que ya se tenía escrito.
+     * dejando más mapa visible para el deslizador de estaciones y el resultado. Solo el USUARIO la
+     * contrae/expande (con el chevron del formulario o tocando la viñeta): no se dispara sola al
+     * trazar ni al iniciar un recorrido, para no reacomodar el mapa sin que el usuario lo pida.
      */
     private void colapsarOrigenDestino() {
         if (panelOdExpandido == null || panelOdExpandido.getVisibility() != View.VISIBLE || !isAdded()) return;
@@ -434,8 +434,8 @@ public class PlanificadorFragment extends Fragment {
     }
 
     /** Contrae la descripción de la ruta (lista de pasos + aviso) dejando el resumen como mini
-     *  viñeta, para dar más mapa mientras navegas. Se dispara sola al iniciar el recorrido; el
-     *  encabezado sigue tocable para expandirla de nuevo con lo que ya se tenía. */
+     *  viñeta, para dar más mapa. Solo el USUARIO la contrae/expande tocando el encabezado: no se
+     *  dispara sola al iniciar un recorrido ni al trazar, para no mover el mapa sin que lo pida. */
     private void colapsarResultado() {
         if (panelResultadoDetalle == null || panelResultadoDetalle.getVisibility() != View.VISIBLE || !isAdded()) return;
         if (getView() != null)
@@ -965,8 +965,6 @@ public class PlanificadorFragment extends Fragment {
         sliderAdapter.set(r.secuencia, r.instrucciones);
         panelEstaciones.setVisibility(r.secuencia.isEmpty() ? View.GONE : View.VISIBLE);
         btnContraerOd.setVisibility(View.VISIBLE);   // ya hay ruta: se puede contraer el buscador a mano
-        colapsarOrigenDestino();                     // libera espacio de mapa automáticamente al trazar
-        expandirResultado();                         // ruta nueva: siempre se ve el detalle completo primero
         boolean veniaRecorrido = recorrido;
         if (recorrido) detenerRecorrido();
         resEstado.setVisibility(View.GONE);
@@ -979,7 +977,6 @@ public class PlanificadorFragment extends Fragment {
             btnRecorrido.setText(R.string.recorrido_detener);
             resEstado.setVisibility(View.VISIBLE);
             resEstado.setText(R.string.recorrido_ubicando);
-            colapsarResultado();   // ya vas en camino: más mapa, el detalle se puede reabrir tocando el resumen
         }
 
         reajustarMapaTrasPanel();   // encuadra la ruta en el espacio visible (sin tapar con las tarjetas)
@@ -1566,7 +1563,6 @@ public class PlanificadorFragment extends Fragment {
         btnRecorrido.setText(R.string.recorrido_detener);
         resEstado.setVisibility(View.VISIBLE);
         resEstado.setText(R.string.recorrido_ubicando);
-        colapsarResultado();   // ya vas en camino: más mapa, el detalle se puede reabrir tocando el resumen
         String destinoFinal = rutaActiva.secuencia.get(rutaActiva.secuencia.size() - 1).nombre;
         RecorridoService.servicioTexto = s == null ? null
                 : (s.rosa ? getString(R.string.servicio_voz_rosa, s.nombre.replace(" · Rosa", ""))
