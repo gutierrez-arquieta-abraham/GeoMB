@@ -87,6 +87,7 @@ public class PlanificadorFragment extends Fragment {
 
     private final List<Polyline> trazo = new ArrayList<>();
     private Planificador.Ruta rutaActiva;
+    private LatLngBounds ultimosLimites;   // último encuadre calculado, para reencuadrar al colapsar/expandir un panel
     // Ruta recordada entre módulos: al volver al planificador se re-traza sola.
     private static String ultOrigen, ultDestino;
     // Preferencias de la última ruta trazada (para re-trazarla igual al volver si el recorrido sigue activo).
@@ -368,6 +369,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelOdExpandido.setVisibility(View.GONE);
         panelOdColapsado.setVisibility(View.VISIBLE);
+        reajustarMapaTrasPanel();
     }
 
     /** Expande de nuevo el formulario completo desde la mini viñeta, con lo que ya se tenía. */
@@ -377,6 +379,26 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelOdColapsado.setVisibility(View.GONE);
         panelOdExpandido.setVisibility(View.VISIBLE);
+        reajustarMapaTrasPanel();
+    }
+
+    /**
+     * Reajusta el mapa después de colapsar/expandir un panel: durante el recorrido, recentra en el
+     * usuario YA (sin esperar el próximo tick de {@link #tickRecorrido}); si no, reencuadra la ruta
+     * completa en el espacio que quedó libre/ocupado. Se difiere un post() para medir DESPUÉS de que
+     * la tarjeta ya terminó de encogerse/crecer (si se mide antes, el tamaño todavía es el viejo).
+     */
+    private void reajustarMapaTrasPanel() {
+        View root = getView();
+        if (root == null || mapa == null) return;
+        root.post(() -> {
+            if (!isAdded() || mapa == null) return;
+            if (recorrido && seguirCamara && RecorridoService.ultimaPos != null) {
+                centrarRecorrido(RecorridoService.ultimaPos);
+            } else if (ultimosLimites != null) {
+                encuadrarAhora(ultimosLimites);
+            }
+        });
     }
 
     /** Toca el resumen o el chevron del panel de resultado: alterna el detalle (pasos + aviso). */
@@ -395,6 +417,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelResultadoDetalle.setVisibility(View.GONE);
         icContraerResultado.setRotation(90);
+        reajustarMapaTrasPanel();
     }
 
     /** Expande de nuevo la descripción completa de la ruta. */
@@ -404,6 +427,7 @@ public class PlanificadorFragment extends Fragment {
             android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
         panelResultadoDetalle.setVisibility(View.VISIBLE);
         icContraerResultado.setRotation(-90);
+        reajustarMapaTrasPanel();
     }
 
     /** Muestra el nombre SIN prefijo MXB en el campo, pero recuerda el canónico para el ruteo. */
@@ -899,6 +923,7 @@ public class PlanificadorFragment extends Fragment {
         }
         dibujarUnidades(RealtimeRepository.get().getUltimo());   // unidades cerca del trazo (ocultas en recorrido)
         final LatLngBounds limites = bounds.build();
+        ultimosLimites = limites;
 
         resResumen.setText(getString(R.string.ruta_resumen, r.paradas, r.transbordos, r.minutos));
         pintarPasos(r);
