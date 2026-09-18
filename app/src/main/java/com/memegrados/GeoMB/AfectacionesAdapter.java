@@ -107,7 +107,9 @@ public class AfectacionesAdapter extends RecyclerView.Adapter<AfectacionesAdapte
             bg.setColor(color);
             bg.setStroke(Math.round(2 * dens), 0xFF000000);   // contorno negro
             h.logo.setBackground(bg);
-            h.logo.setText(String.valueOf(a.lineaNum));
+            // Mexibús suma 100 al número interno (101=L1…113=L3A) para distinguirlo de Metrobús
+            // (1-7): mostrar a.lineaNum tal cual ponía "103" en vez de "3" para Mexibús L3.
+            h.logo.setText(Planificador.etiquetaLineaCortaPub(a.lineaNum));
             h.logo.setTypeface(Tipografia.metro(h.itemView.getContext()), Typeface.BOLD);
             h.logo.setVisibility(View.VISIBLE);
         } else {
