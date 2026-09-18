@@ -83,9 +83,14 @@ public final class Iconos {
         Bitmap cached = CACHE.get(key);
         if (cached != null) return cached;
         String dw = nombre;
-        // Modo "iconos antiguos": Mexibús usa su iconografía antigua (mexibus_ant_*); Mexicable = punto.
+        // Modo "iconos antiguos": Mexibús y Mexicable usan su iconografía antigua
+        // (mexibus_ant_*/mexicable_ant_*); si no hay icono antiguo para esa estación, punto.
         if (!nuevos) {
-            if (dw.startsWith("mexicable_")) return null;   // Mexicable antiguo: punto
+            if (dw.startsWith("mexicable_") && !dw.startsWith("mexicable_ant_")) {
+                String ant = "mexicable_ant_" + dw.substring("mexicable_".length());
+                if (resId(ctx, ant) == 0) return null;   // sin icono antiguo -> punto
+                dw = ant;
+            }
             if (dw.startsWith("mexibus_") && !dw.startsWith("mexibus_ant_")) {
                 String ant = "mexibus_ant_" + dw.substring("mexibus_".length());
                 if (resId(ctx, ant) == 0) return null;   // sin icono antiguo -> punto
