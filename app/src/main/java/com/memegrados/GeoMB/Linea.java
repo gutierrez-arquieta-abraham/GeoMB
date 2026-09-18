@@ -7,6 +7,31 @@ import com.google.android.gms.maps.model.LatLngBounds;
 
 import java.util.List;
 
+// ============================================================
+// CLASE    : Linea
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Representa una LÍNEA del Metrobús con su trazado (lista de puntos
+// LatLng) y sus estaciones. Además de guardar datos, hace GEOMETRÍA
+// sobre la vía, clave para el mapa, las llegadas y el recorrido.
+//
+// CAMPOS IMPORTANTES:
+//   - ruta      : la polilínea (puntos) para cálculos de proyección.
+//   - segmentos : trazado oficial por tramos (ida/vuelta/ramales) para
+//                 DIBUJAR; si es null, se dibuja 'ruta'.
+//   - acumulado : distancia acumulada (m) hasta cada punto (se calcula
+//                 una vez en el constructor para acelerar los cálculos).
+//
+// MÉTODOS GEOMÉTRICOS CLAVE:
+//   - distanciaEn(LatLng) : "¿a cuántos metros A LO LARGO de la línea cae
+//                            este punto?" (proyecta el punto sobre la ruta).
+//   - puntoEn(double)     : lo inverso: dada una distancia, devuelve la
+//                            coordenada sobre la línea.
+//   Con estos dos se "pega" (snap) unidades y estaciones a la vía.
+// ============================================================
 /** Línea del Metrobús con su trazado y estaciones (datos del GTFS). */
 public class Linea {
 
@@ -51,6 +76,10 @@ public class Linea {
 
     /** Punto interpolado a `metros` del inicio de la ruta. */
     public LatLng puntoEn(double metros) {
+        // INVERSO de distanciaEn: dada una distancia A LO LARGO de la ruta, busca en qué
+        // segmento cae (recorriendo 'acumulado', ya precalculado en el constructor) e
+        // INTERPOLA linealmente entre sus dos extremos (t = fracción dentro del segmento).
+        // Junto con distanciaEn permite "pegar" (snap) unidades/estaciones a la vía.
         if (metros <= 0) return ruta.get(0);
         if (metros >= largoTotal()) return ruta.get(ruta.size() - 1);
         int i = 1;
@@ -82,6 +111,14 @@ public class Linea {
 
     /** Proyecta p sobre el segmento a-b (en metros). Devuelve {t∈[0,1], distPerp}. */
     private static double[] proyectar(LatLng p, LatLng a, LatLng b) {
+        // GEOMETRÍA "rebuscada": ¿cuál es el punto del segmento a-b más cercano a p?
+        //   1) Pasamos lat/lon a METROS en un plano local (equirectangular): multiplicar
+        //      por M_GRADO (metros por grado) y, en X, por COS_LAT (los meridianos se
+        //      juntan lejos del ecuador). Así podemos usar geometría plana normal.
+        //   2) Proyección por PRODUCTO PUNTO: t = ((p-a)·(b-a)) / |b-a|²  indica qué tanto,
+        //      de 0 a 1, avanza el pie de la perpendicular a lo largo de a→b. Se RECORTA a
+        //      [0,1] para no salirse del segmento (si p queda "antes" de a o "después" de b).
+        //   3) Devuelve t y la distancia PERPENDICULAR (qué tan lejos cae p de la vía).
         double ax = a.longitude * M_GRADO * COS_LAT, ay = a.latitude * M_GRADO;
         double bx = b.longitude * M_GRADO * COS_LAT, by = b.latitude * M_GRADO;
         double px = p.longitude * M_GRADO * COS_LAT, py = p.latitude * M_GRADO;

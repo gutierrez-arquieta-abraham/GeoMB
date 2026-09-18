@@ -30,6 +30,28 @@ import java.util.concurrent.Executors;
  *       completo a un {@code String}/árbol en memoria, sino que se instancian los objetos uno por uno.</li>
  * </ul>
  */
+// ============================================================
+// CLASE    : GtfsRepository
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Carga y GUARDA en memoria las redes de líneas: Metrobús (assets/
+// lineas.json) y Mexibús (mexibus.json), generadas del GTFS. Es la
+// "fuente de la verdad" de las líneas/estaciones para todo lo demás.
+//
+// DOS TRUCOS DE RENDIMIENTO (importantes):
+//   1. SIN BLOQUEO de lectores: cada red se arma como lista INMUTABLE en
+//      segundo plano y se publica de golpe en una referencia 'volatile'.
+//      Los lectores solo leen esa referencia → el hilo principal nunca se
+//      queda esperando (nada de 'synchronized' de varios segundos).
+//   2. STREAMING (JsonReader): no carga el JSON completo a memoria; va
+//      creando los objetos uno por uno (menos consumo de RAM).
+//
+// La capa Mexibús solo entra en 'ruteables' si el ajuste "Mostrar Mexibús"
+// está activo. Clase de UTILIDAD (final + constructor privado + static).
+// ============================================================
 public final class GtfsRepository {
 
     private GtfsRepository() {}
@@ -51,6 +73,14 @@ public final class GtfsRepository {
     // ---------------------------------------------------------------- getters sin bloqueo
 
     public static List<Linea> getLineas(Context c) {
+        // PATRÓN "rebuscado" de concurrencia: DOUBLE-CHECKED LOCKING con 'volatile'.
+        // Muchas pantallas piden las líneas a la vez; queremos que la LECTURA sea sin
+        // candado (rápida) pero que la CONSTRUCCIÓN ocurra UNA sola vez. El truco:
+        //   1) leer la referencia 'volatile' sin bloquear; si ya está lista, devolverla;
+        //   2) si es null, entrar al 'synchronized' y VOLVER a checar (otro hilo pudo
+        //      construirla mientras esperábamos el candado).
+        // 'volatile' garantiza que, cuando un hilo publica la lista, los demás la vean
+        // COMPLETA (no a medio construir). Así el hilo principal casi nunca se bloquea.
         List<Linea> l = lineas;                 // lectura lock-free de la referencia ya publicada
         if (l != null) return l;
         synchronized (lock) {                   // solo la PRIMERA carga entra aquí

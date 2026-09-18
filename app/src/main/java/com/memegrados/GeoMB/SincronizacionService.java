@@ -24,6 +24,20 @@ import java.util.List;
  * datos frescos aunque la app no esté visible. El usuario lo activa/desactiva
  * desde "Acerca de" (switch siempre visible).
  */
+// ============================================================
+// CLASE    : SincronizacionService   (extends Service)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Servicio en PRIMER PLANO que mantiene la sincronización con el servidor de
+// unidades EN SEGUNDO PLANO: pide el feed periódicamente para conservar los
+// datos frescos aunque la app no esté visible.
+//
+// El usuario lo activa/desactiva desde "Acerca de" (switch siempre visible).
+// ACCION_DETENER permite pararlo desde su propia notificación.
+// ============================================================
 public class SincronizacionService extends Service {
 
     public static final String ACCION_DETENER = "detener_sincro";

@@ -20,6 +20,33 @@ import androidx.core.os.LocaleListCompat;
  * Para sumar un idioma curado: crea res/values-b+&lt;tag&gt;/ y agrégalo en curado().
  * Los idiomas automáticos son los que soporte ML Kit (~59); se listan en LISTA.
  */
+// ============================================================
+// CLASE    : Idiomas
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Maneja el IDIOMA de la app y muestra el selector con banderas.
+// Usa un modelo MIXTO de traducción:
+//
+//   - Idiomas CURADOS (con archivos de recursos res/values-*):
+//     español (base), inglés y náhuatl → traducción revisada.
+//   - CUALQUIER OTRO idioma: se traduce AUTOMÁTICAMENTE con el
+//     motor de Google (ML Kit) desde el español (ver Traductor).
+//     Puede tener errores → al elegirlo se muestra un aviso.
+//
+// PIEZAS CLAVE:
+//   - LISTA           : tabla {etiqueta BCP-47, nombre propio, bandera}.
+//   - curado(tag)     : ¿ese idioma tiene recursos propios?
+//   - mostrarSelector : diálogo con banderas; al elegir aplica el idioma.
+//   - aplicar         : cambia el locale (curado) o activa la traducción
+//                       automática (base español + objetivo).
+//   - actividad(c)    : saca la Activity desde un Context para recrear
+//                       la pantalla y que el cambio se vea.
+//
+// Clase de UTILIDAD (final + constructor privado + métodos static).
+// ============================================================
 public final class Idiomas {
 
     // { etiqueta BCP-47, nombre en su propia lengua (autoglotónimo), bandera/logo de la región }.

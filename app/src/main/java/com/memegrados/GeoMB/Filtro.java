@@ -4,6 +4,30 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
 
+// ============================================================
+// CLASE    : Filtro
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Guarda el ESTADO de los filtros que el usuario aplica a las
+// unidades del mapa: por línea, destino, ruta o empresa.
+// Un campo en null significa "no filtrar por eso".
+//
+// MÉTODOS DE INSTANCIA:
+//   - hayAlguno() : ¿hay al menos un filtro activo?
+//   - activos()   : cuántos filtros están activos.
+//   - limpiar()   : quita todos los filtros.
+//   - cumple(u)   : ¿la unidad 'u' pasa TODOS los filtros activos?
+//                   (incluye rutas mixtas que tocan la línea aunque el
+//                    feed les ponga otro número).
+//
+// MÉTODOS ESTÁTICOS (pueblan los selectores desde la data en vivo):
+//   - empresasDisponibles / destinosDisponibles / rutasDisponibles /
+//     lineasDisponibles : lista ordenada y SIN repetidos (usan TreeSet,
+//     que ordena y deduplica solo) de las unidades actuales.
+// ============================================================
 /**
  * Estado de los filtros aplicados a las unidades (línea / destino / ruta /
  * empresa). Un campo en null significa "sin filtrar por eso".

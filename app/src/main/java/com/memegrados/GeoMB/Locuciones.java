@@ -20,6 +20,21 @@ import java.util.TreeSet;
  * Debe mantenerse en sincronía con RecorridoService; si algún string divergiera, solo se
  * pierde el acierto de caché (se baja online), nunca truena.
  */
+// ============================================================
+// CLASE    : Locuciones
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Réplica EXACTA (aislada) de cómo RecorridoService genera los textos de
+// correspondencia/terminal, para pre-descargar sus audios (Fase 2) con los
+// MISMOS strings.
+//
+// IMPORTANTE: debe mantenerse EN SINCRONÍA con RecorridoService. Si algún
+// texto divergiera, solo se pierde el acierto de caché (se baja online),
+// nunca truena. Clase de UTILIDAD (final + static).
+// ============================================================
 public final class Locuciones {
 
     private static final double CORRESP_VOZ_M = 600.0;

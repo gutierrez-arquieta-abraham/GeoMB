@@ -19,6 +19,21 @@ import androidx.fragment.app.Fragment;
  * {@link #marcarVerificado(Context, String)} con el nombre validado. Mientras tanto, {@link #iniciar}
  * ofrece un "modo pruebas" para poder validar el resto del flujo (correo/evidencia).
  */
+// ============================================================
+// CLASE    : Verificacion
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Capa de VERIFICACIÓN de identidad del reportante (andamiaje). Coordina el
+// estado "verificado" y el nombre validado.
+//
+// ESTADO: falta conectar un proveedor KYC real (Incode / MetaMap / Truora /
+// Veridas / Didit). Su SDK captura ID + rostro en vivo, verifica, y al
+// terminar llama a marcarVerificado(context, nombre). Mientras tanto,
+// iniciar() ofrece un "modo pruebas" para validar el resto del flujo.
+// ============================================================
 public final class Verificacion {
 
     private static final String PREFS = "geomb";

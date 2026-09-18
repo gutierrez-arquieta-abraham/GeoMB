@@ -15,6 +15,20 @@ import androidx.core.content.res.ResourcesCompat;
  * Tipografía institucional "Tipo Metro" (res/font/tipo_metro.otf).
  * Se usa en textos breves: nombres de estación y números de unidad.
  */
+// ============================================================
+// CLASE    : Tipografia
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Da acceso a la tipografía institucional "Tipo Metro"
+// (res/font/tipo_metro.otf), usada en textos breves como nombres de
+// estación y números de unidad.
+//
+// Se cachea (patrón "doble verificación con synchronized") para cargarla
+// UNA sola vez; si falla, usa la tipografía por defecto. Clase de UTILIDAD.
+// ============================================================
 public final class Tipografia {
 
     private static volatile Typeface metro;

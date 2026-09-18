@@ -19,6 +19,20 @@ import java.util.List;
  * Hoja inferior con los 4 filtros (línea / destino / ruta / empresa).
  * Los selectores se pueblan con los valores presentes en la data en vivo.
  */
+// ============================================================
+// CLASE    : FiltrosSheet   (extends BottomSheetDialogFragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// La HOJA INFERIOR (bottom sheet) con los 4 filtros del mapa: línea /
+// destino / ruta / empresa. Los selectores se pueblan con los valores
+// presentes en la data EN VIVO. Al aplicar, avisa a su Host (MapFragment)
+// para refrescar. Mapea los route_id a "Origen → Destino" legible.
+//
+// Un BottomSheetDialogFragment es un panel que sube desde abajo de la pantalla.
+// ============================================================
 public class FiltrosSheet extends BottomSheetDialogFragment {
 
     /** El fragment que muestra la hoja implementa esto para refrescar al aplicar. */

@@ -22,6 +22,30 @@ import java.util.List;
  *  - aparecer en "Rutas por código" y en los destinos de "Llegadas", vía
  *    {@link #comoRutas()}.
  */
+// ============================================================
+// CLASE    : RutasMixtas   (subclase Mixta)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Catálogo de rutas MIXTAS del Metrobús: servicios que SALEN en una línea
+// y TERMINAN en otra (comparten vía entre dos corredores). No vienen en el
+// GTFS del backend, así que se definen AQUÍ como fuente única.
+//
+// CÓMO SE DETECTAN: por el PAR (origen, destino) del feed, NO por el número
+// de línea (el feed suele etiquetar la mixta con una sola línea; p. ej. una
+// unidad Rojo Gómez → Dr. Gálvez llega como line="1").
+//
+// SIRVEN PARA:
+//   - el icono de la unidad (degradado: arriba línea de salida, abajo de
+//     término), vía tramo();
+//   - integrar la unidad en AMBAS líneas que toca (mapa y llegadas), vía
+//     tocaLinea();
+//   - aparecer en "Rutas por código" y en los destinos de "Llegadas", vía comoRutas().
+//
+// SUBCLASE Mixta: un recorrido entre el extremo A (lineaA) y el B (lineaB).
+// ============================================================
 public final class RutasMixtas {
 
     /** Un recorrido mixto entre el extremo A (línea {@link #lineaA}) y el B ({@link #lineaB}). */

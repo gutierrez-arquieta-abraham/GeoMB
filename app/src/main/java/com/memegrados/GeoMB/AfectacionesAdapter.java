@@ -20,6 +20,17 @@ import java.util.Set;
  * Tarjetas de afectación dentro de la app, con el formato de la imagen (todo en Tipo Metro):
  * Estado / Estación / DIRECCIÓN / valor / INFORMACIÓN ADICIONAL / valor + logo de línea.
  */
+// ============================================================
+// CLASE    : AfectacionesAdapter   (extends RecyclerView.Adapter)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ADAPTADOR de las TARJETAS de afectación dentro de la app (todo en tipografía
+// Tipo Metro): Estado / Estación / Dirección / Información adicional + logo de
+// línea. Muestra el panel de elevadores/otras afectaciones (no la tabla de estado).
+// ============================================================
 public class AfectacionesAdapter extends RecyclerView.Adapter<AfectacionesAdapter.VH> {
 
     private final List<Manifestaciones.Afectacion> datos = new ArrayList<>();

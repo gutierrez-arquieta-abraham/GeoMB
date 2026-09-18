@@ -1,5 +1,25 @@
 package com.memegrados.GeoMB;
 
+// ============================================================
+// CLASE    : Ruta
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Representa una RUTA/servicio del Metrobús (del GTFS): un route_id
+// con su línea (1..7) y su recorrido "origen → destino". Clase de DATOS.
+//
+// ¿QUÉ ES EL "CÓDIGO"?
+//   A una misma ruta le corresponden DOS sentidos (ida y vuelta). Para
+//   agruparlos bajo un solo número por línea se usa 'codigo'. La clave
+//   'claveRecorrido()' ordena origen/destino alfabéticamente para que
+//   ida y vuelta den la MISMA clave y compartan código.
+//
+// MÉTODOS:
+//   - recorrido()      : "Origen → Destino" para mostrar.
+//   - claveRecorrido() : clave sin importar el sentido (para agrupar).
+// ============================================================
 /**
  * Una ruta/servicio del Metrobús (del GTFS): un route_id con su línea y su
  * recorrido origen → destino. El "código" se asigna por línea agrupando los

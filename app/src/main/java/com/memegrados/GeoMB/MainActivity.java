@@ -11,6 +11,26 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
+// ============================================================
+// CLASE    : MainActivity   (extends AppCompatActivity)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// La pantalla PRINCIPAL de la app: hospeda la barra de navegación inferior
+// y va intercambiando los FRAGMENTS (Mapa, Buscar, Líneas, Ruta, Llegadas,
+// Reporte, Acerca de) según lo que toque el usuario.
+//
+// PUNTOS CLAVE:
+//   - NAV_IDS : los ítems del menú inferior.
+//   - EXTRA_ABRIR_RUTA : extra para abrir directo el planificador (p. ej. al
+//     tocar la notificación de recorrido).
+//   - EdgeToEdge : dibuja detrás de las barras del sistema (pantalla completa).
+//
+// Una "Activity" es una pantalla de Android; los "Fragments" son piezas
+// intercambiables dentro de ella.
+// ============================================================
 public class MainActivity extends AppCompatActivity {
 
     /** Extra: abrir directamente el planificador (p.ej. al tocar la notificación de recorrido). */

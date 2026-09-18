@@ -27,6 +27,23 @@ import java.util.Set;
  * Con esto los avisos llegan como en WhatsApp (sin servicio en primer plano) cuando el
  * backend envíe el push; el envío lo hace el servidor (Railway), no el teléfono.
  */
+// ============================================================
+// CLASE    : MensajesService   (extends FirebaseMessagingService)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Recibe las notificaciones PUSH (FCM) que manda el servidor. Según el
+// campo "tipo" del mensaje:
+//   - "afectacion"    : muestra la tarjeta de afectación (mismos campos que
+//                       el monitoreo local).
+//   - "actualizacion" : avisa que hay nueva versión y abre la ficha de la tienda.
+//
+// Con esto los avisos llegan como en WhatsApp (sin necesidad de un servicio
+// en primer plano) cuando el backend envía el push. El ENVÍO lo hace el
+// servidor, no el teléfono; aquí solo se RECIBE y se muestra.
+// ============================================================
 public class MensajesService extends FirebaseMessagingService {
 
     private static final String CANAL = "avisos_push";

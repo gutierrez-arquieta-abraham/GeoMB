@@ -2,6 +2,34 @@ package com.memegrados.GeoMB;
 
 import com.google.android.gms.maps.model.LatLng;
 
+// ============================================================
+// CLASE    : UnidadReal
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Representa UNA unidad (autobús) del Metrobús en servicio, tal
+// como llega del feed en tiempo real. Es una clase de DATOS.
+//
+// CAMPOS PRINCIPALES:
+//   - numero    : número económico del autobús (su "placa interna").
+//   - linea     : 1..7, o null si no se pudo saber su línea.
+//   - origen/destino : de dónde sale y a dónde va (según su ruta).
+//   - ruta      : route_id (identificador de la ruta en el feed).
+//   - empresa/marca/modelo : se calculan a partir del económico.
+//   - posicion  : coordenadas actuales (lat, lon).
+//   - rumbo     : hacia dónde apunta (grados).
+//   - velMs     : velocidad en m/s (el feed la manda en km/h ⇒ se divide entre 3.6).
+//   - timestamp : segundos epoch del último reporte (0 = sin dato) →
+//                 sirve para descartar unidades "fantasma" (viejas).
+//
+// MÉTODOS:
+//   - marcaModelo() : arma "Marca Modelo" para mostrar (o "Desconocido").
+//   - sinRuta()     : true si la unidad no tiene línea asignada.
+//
+// Campos 'final' = inmutable: cada actualización crea una unidad nueva.
+// ============================================================
 /** Una unidad del Metrobús en servicio, tal como llega del feed en tiempo real. */
 public class UnidadReal {
 

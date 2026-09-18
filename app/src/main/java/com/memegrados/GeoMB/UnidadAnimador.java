@@ -24,6 +24,29 @@ import java.util.Map;
  * El sentido de avance se toma del cambio de posición entre actualizaciones (fiable) y, la primera vez,
  * del destino. Cada pantalla (mapa general, planificador) usa su propia instancia.
  */
+// ============================================================
+// CLASE    : UnidadAnimador
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Anima los marcadores de las unidades en el mapa PEGÁNDOLOS AL GRAFO
+// de su línea (la polilínea) y avanzándolos por su velocidad entre
+// actualizaciones del feed. Da sensación de "tiempo real" fluido.
+//
+// CÓMO FUNCIONA (3 pasos):
+//   1. Al llegar una posición, se PROYECTA sobre la polilínea (no se dibuja
+//      el GPS crudo, que a veces cae fuera del carril) y el marcador se
+//      desliza hasta ahí.
+//   2. Luego sigue avanzando sobre la ruta a la velocidad reportada
+//      (dead-reckoning); la siguiente actualización corrige la deriva.
+//   3. Si la unidad no tiene línea o cae lejos del trazo → línea recta (respaldo).
+//
+// TRUCO ANTI-"REGRESONES": solo avanza una FRACCIÓN de la velocidad
+// (FACTOR_VEL) para quedar un poco atrás y corregir HACIA ADELANTE, sin
+// saltos hacia atrás. Cada pantalla usa su PROPIA instancia.
+// ============================================================
 public final class UnidadAnimador {
 
     private static final double CERCA_LINEA_M = 150.0;   // máx. desviación del GPS al trazo para "pegarlo"
@@ -55,6 +78,18 @@ public final class UnidadAnimador {
 
     /** Anima el marcador de {@code u}: corrige hacia su posición (por el grafo) y luego avanza por velocidad. */
     public void animar(UnidadReal u, Marker marker) {
+        // DEAD-RECKONING "rebuscado": el feed solo llega cada ~10 s; para que el marcador
+        // NO brinque, lo movemos en DOS fases, todo medido como distancia 'd' a lo largo
+        // de la ruta (y convertido a LatLng con puntoEn = "snap" a la vía):
+        //   Fase 1 (el < ANIM_MS): DESLIZA suave desde donde estaba hasta la posición
+        //           reportada (interpolación).
+        //   Fase 2 (después): sigue AVANZANDO solo con la velocidad reportada (por eso
+        //           "dead-reckoning": estima sin dato nuevo), a una FRACCIÓN (FACTOR_VEL)
+        //           para quedar un poco atrás y que el siguiente update corrija hacia
+        //           adelante, sin "regresones".
+        // 'token'/'seq' es un TRUCO de cancelación: cada llamada saca un número nuevo; si
+        // llega una actualización más reciente, el bucle viejo se detiene solo (compara su
+        // token con el vigente). Corre a ~12 fps (postDelayed 80 ms).
         Linea l = lineaDe(u);
         LatLng cruda = u.posicion;
         if (l == null || Linea.distancia(cruda, l.puntoEn(l.distanciaEn(cruda))) > CERCA_LINEA_M) {

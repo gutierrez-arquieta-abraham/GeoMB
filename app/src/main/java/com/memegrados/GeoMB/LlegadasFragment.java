@@ -36,6 +36,18 @@ import java.util.Set;
  * ves las próximas llegadas estimadas en vivo y puedes activar una notificación
  * que te avisa cuando una unidad se acerque a esa parada.
  */
+// ============================================================
+// CLASE    : LlegadasFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Aviso de LLEGADA por dirección: eliges línea, estación y sentido (destino),
+// ves las próximas llegadas estimadas en vivo (Llegadas) y puedes activar una
+// notificación que te avisa cuando una unidad se acerque a esa parada
+// (LlegadaService).
+// ============================================================
 public class LlegadasFragment extends Fragment {
 
     private Spinner spLinea, spEstacion, spSentido;

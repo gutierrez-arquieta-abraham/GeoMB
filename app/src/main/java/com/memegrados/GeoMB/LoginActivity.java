@@ -44,6 +44,20 @@ import java.util.Map;
  * Inicio de sesión con Google + registro del usuario en Firestore.
  * Si ya hay sesión activa, entra directo a la app.
  */
+// ============================================================
+// CLASE    : LoginActivity   (extends AppCompatActivity)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Pantalla de INICIO DE SESIÓN con Google + registro del usuario en
+// Firestore (la base de datos de Firebase). Si ya hay sesión activa, entra
+// directo a la app sin volver a pedir login.
+//
+// Usa Google Sign-In (GoogleSignInClient) para autenticar sin manejar
+// contraseñas. Los datos del usuario se guardan en Firestore.
+// ============================================================
 public class LoginActivity extends AppCompatActivity {
 
     private static final int RC_SIGN_IN = 9001;

@@ -10,6 +10,21 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
+// ============================================================
+// CLASE    : LinesAdapter   (extends RecyclerView.Adapter)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ADAPTADOR de la lista de líneas: convierte los datos (List<Linea>) en las
+// filas visibles del RecyclerView de LinesFragment (nombre + color + conteo
+// de unidades). Al tocar una fila abre las unidades de esa línea.
+//
+// ¿QUÉ ES UN RecyclerView.Adapter? El "puente" entre los DATOS y la LISTA en
+// pantalla: crea las vistas (onCreateViewHolder) y las rellena
+// (onBindViewHolder), RECICLANDO las que salen de pantalla para ir rápido.
+// ============================================================
 public class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineaViewHolder> {
 
     public interface OnLineaClick {

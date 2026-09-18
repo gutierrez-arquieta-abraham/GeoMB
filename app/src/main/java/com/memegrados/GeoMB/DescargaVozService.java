@@ -17,6 +17,22 @@ import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.List;
 
+// ============================================================
+// CLASE    : DescargaVozService
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Ejecuta la descarga de audios (offline) como SERVICIO EN PRIMER PLANO
+// con notificación de progreso, en vez de una tarea suelta en 2º plano.
+//
+// ¿POR QUÉ? "Descargar todas las líneas" son cientos de peticiones
+// secuenciales y tarda minutos. Sin un servicio en primer plano, si el
+// usuario manda la app a 2º plano, el sistema puede MATAR el proceso (se
+// sentía como cierre forzado a mitad). Con este servicio la descarga sigue
+// viva y su avance se ve en la notificación aunque la app esté cerrada.
+// ============================================================
 /**
  * Descarga los audios (offline) en un servicio en PRIMER PLANO con notificación de progreso, en
  * vez de una simple tarea en segundo plano atada al fragmento de Acerca de. "Descargar todas las

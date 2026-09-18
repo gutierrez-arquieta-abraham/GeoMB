@@ -22,6 +22,26 @@ import java.util.Map;
  * Se ignoran líneas vacías, comentarios (#) y el encabezado. Lo no listado
  * queda "Desconocido".
  */
+// ============================================================
+// CLASE    : Modelos   (contiene la subclase Ficha)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Catálogo de MARCA y MODELO (y empresa/foto) por número económico
+// del autobús. Los datos NO están en el código; se cargan del CSV:
+//   1) empaquetado (assets/modelos.csv) → disponible de inmediato;
+//   2) remoto (Config.MODELOS_URL) → colaborativo y en vivo, reemplaza
+//      al empaquetado cuando llega.
+//
+// Formato CSV:  economico,marca,modelo  (ignora vacías, # y encabezado).
+// Lo no listado queda "Desconocido".
+//
+// SUBCLASE Ficha: empresa + marca + modelo (+ imagen y créditos) de una
+// unidad; su método etiqueta() arma el texto "Marca Modelo".
+// Clase de UTILIDAD (final + constructor privado + tabla static).
+// ============================================================
 public final class Modelos {
 
     public static final String DESCONOCIDO = "Desconocido";

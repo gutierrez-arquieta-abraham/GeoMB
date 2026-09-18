@@ -25,6 +25,17 @@ import java.util.Map;
  * origen ↔ destino) derivadas del GTFS del backend, con cuántas unidades
  * hay en servicio en cada una.
  */
+// ============================================================
+// CLASE    : RutasFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// "Rutas por código": lista las rutas de cada línea (código + recorrido
+// origen ↔ destino) derivadas del GTFS del backend, con cuántas unidades
+// hay en servicio en cada una.
+// ============================================================
 public class RutasFragment extends Fragment {
 
     private RecyclerView recycler;

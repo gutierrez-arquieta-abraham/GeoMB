@@ -22,6 +22,28 @@ import java.util.Locale;
  *   · validar en el planificador si una línea aún circula a la hora actual.
  * Regla de defecto: si un viernes no tiene su propio bloque, hereda el de Lun-Jue.
  */
+// ============================================================
+// CLASE    : Horarios   (subclases Ventana y Ruta)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Horarios de servicio del Metrobús (assets/horarios.json). Por cada
+// RUTA guarda primera/última salida por tipo de día (LJ, V, S, D, LV)
+// y por sentido (ida = origen→destino, vuelta = destino→origen).
+//
+// SIRVE PARA:
+//   - mostrar la ventana de servicio de hoy por línea/ruta, y
+//   - validar en el planificador si una línea aún circula a esta hora.
+//
+// REGLA: si un viernes no tiene su propio bloque, hereda el de Lun-Jue.
+//
+// SUBCLASES:
+//   - Ventana : rango [prim, ult] en minutos desde medianoche; si ult<prim
+//               la ventana cruza medianoche (contiene() lo tolera).
+//   - Ruta    : una ruta de servicio con sus horarios por día/sentido.
+// ============================================================
 public final class Horarios {
 
     /** Ventana de un sentido en minutos desde medianoche; ult<prim ⇒ cruza medianoche. */

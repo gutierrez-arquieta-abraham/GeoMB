@@ -8,6 +8,30 @@ import android.content.SharedPreferences;
  * Se guardan en SharedPreferences. Los sub-modos (cachondo / PBS) solo cuentan
  * si el modo personalizado está activo, y se desactivan si éste se apaga.
  */
+// ============================================================
+// CLASE    : Modos
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Guarda las PREFERENCIAS y "modos" de la app en SharedPreferences
+// (un almacén clave-valor que persiste aunque se cierre la app).
+//
+// QUÉ GUARDA:
+//   - Modos ocultos (personalizado, cachondo, PBS) activables desde
+//     "Acerca de" con 5 toques al logo. Los sub-modos solo cuentan si
+//     'personalizado' está activo, y se apagan con él.
+//   - Sincronización en segundo plano.
+//   - Tiempo de refresco del mapa (15–120 s, def. 30).
+//   - Suscripciones de notificaciones (afectaciones, actualizaciones y
+//     por línea 1..7).
+//   - Mostrar Mexibús (capa + ruteo), estilo de iconos, ahorro de datos.
+//
+// PATRÓN: para cada preferencia hay un GET (leer) y un SET (guardar).
+// Clase de UTILIDAD (final + constructor privado + métodos static);
+// los valores viven en SharedPreferences "geomb_modos".
+// ============================================================
 public final class Modos {
 
     private static final String PREFS = "geomb_modos";

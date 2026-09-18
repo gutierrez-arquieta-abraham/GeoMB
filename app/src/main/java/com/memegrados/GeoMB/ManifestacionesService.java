@@ -32,6 +32,23 @@ import java.util.Set;
  * (manifestaciones, cierres, mantenimiento) con un WebView oculto, detecta las
  * estaciones afectadas y avisa. El planificador las usa para rutas alternas.
  */
+// ============================================================
+// CLASE    : ManifestacionesService   (extends Service)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Servicio que revisa cada minuto, en segundo plano, la página OFICIAL de
+// estado del servicio (manifestaciones, cierres, mantenimiento) usando un
+// WebView OCULTO, detecta las estaciones afectadas y avisa. El planificador
+// las usa para rutas alternas.
+//
+// ¿POR QUÉ WEBVIEW? La página del gobierno se arma con JavaScript; un
+// WebView invisible la ejecuta y lee el resultado (scraping). Este monitoreo
+// LOCAL es un respaldo: cuando el EC2 vive, manda los push y este no duplica.
+// También dispara AfectMexibusFeed (respaldo Mexibús) solo si el EC2 está caído.
+// ============================================================
 public class ManifestacionesService extends Service {
 
     // Estado del Servicio: iframe de incidentesmovilidad (tabla limpia Línea·Estado·Estaciones·Info).

@@ -64,6 +64,23 @@ import java.util.Set;
  * Pantalla principal: mapa con las 7 líneas del Metrobús (GTFS),
  * sus estaciones y las unidades EN TIEMPO REAL (feed del backend).
  */
+// ============================================================
+// CLASE    : MapFragment   (extends Fragment, implements FiltrosSheet.Host)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// La pantalla PRINCIPAL: un mapa (Google Maps) con las 7 líneas del
+// Metrobús (y Mexibús si está activo), sus estaciones y las UNIDADES EN
+// TIEMPO REAL (feed del backend), animadas sobre la vía (UnidadAnimador).
+//
+// ¿QUÉ ES UN FRAGMENT? Una "sub-pantalla" reutilizable que vive dentro de
+// una Activity (aquí MainActivity). Cada pestaña de la app es un Fragment.
+//
+// Implementa FiltrosSheet.Host: recibe el aviso cuando cambian los filtros
+// (línea/destino/ruta/empresa) para redibujar solo lo que corresponde.
+// ============================================================
 public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     private static final LatLng CDMX = new LatLng(19.41, -99.14);

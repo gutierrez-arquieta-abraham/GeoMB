@@ -12,6 +12,17 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 /** Lista de rutas por línea: encabezado de línea + filas de ruta (código, recorrido). */
+// ============================================================
+// CLASE    : RutasAdapter   (extends RecyclerView.Adapter)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ADAPTADOR de "Rutas por código": arma la lista con encabezado de línea +
+// filas de ruta (código, recorrido origen↔destino) para RutasFragment.
+// (Un Adapter es el puente entre los datos y las filas del RecyclerView.)
+// ============================================================
 public class RutasAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final int TIPO_HEADER = 0;

@@ -43,6 +43,18 @@ import java.util.List;
  * Requiere login + verificación KYC (el nombre del reportante sale de la sesión). Evidencia en vivo
  * obligatoria; línea deducida por cercanía; teléfono opcional.
  */
+// ============================================================
+// CLASE    : ReporteFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Formulario para REPORTAR una irregularidad (ubicándola como en el mapa,
+// estación → estación). Requiere login + verificación KYC (el nombre del
+// reportante sale de la sesión). Evidencia en vivo obligatoria; la línea se
+// deduce por cercanía; teléfono opcional.
+// ============================================================
 public class ReporteFragment extends Fragment {
 
     private static final float RADIO_UNIDADES_M = 500f;

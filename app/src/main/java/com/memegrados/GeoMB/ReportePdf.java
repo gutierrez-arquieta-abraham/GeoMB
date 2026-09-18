@@ -25,6 +25,19 @@ import java.util.Locale;
  * Genera una hoja membretada del reporte en PDF ("Enviado mediante GeoMB"), lista para adjuntar
  * al correo. Se dibuja en el dispositivo con {@link PdfDocument} (sin Word ni servidor).
  */
+// ============================================================
+// CLASE    : ReportePdf
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Genera una hoja MEMBRETADA del reporte en PDF ("Enviado mediante GeoMB"),
+// lista para adjuntar al correo.
+//
+// ¿CÓMO? Se dibuja EN EL DISPOSITIVO con PdfDocument (canvas), sin Word ni
+// servidor: la app pinta el documento página por página. Clase de UTILIDAD.
+// ============================================================
 public final class ReportePdf {
 
     private static final int A4_W = 595, A4_H = 842, MARGEN = 48;
@@ -146,6 +159,10 @@ public final class ReportePdf {
             if (!dir.exists()) dir.mkdirs();
             File f = new File(dir, "reporte_" + System.currentTimeMillis() + ".pdf");
             try (FileOutputStream fo = new FileOutputStream(f)) { doc.writeTo(fo); }
+            // FileProvider: la app de correo es OTRA app y NO puede leer nuestro
+            // cacheDir directamente (seguridad de Android). FileProvider entrega un
+            // Uri "content://" temporal que sí puede abrir (junto con el flag
+            // FLAG_GRANT_READ_URI_PERMISSION que pone ReporteIrregularidad).
             return FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", f);
         } catch (Exception e) {
             return null;
@@ -168,6 +185,10 @@ public final class ReportePdf {
 
     /** Dibuja un párrafo con salto de línea por ancho. Devuelve la nueva Y. */
     private static int parrafo(Canvas cv, Paint p, int y, String texto, int ancho) {
+        // "Word-wrap" A MANO: Canvas no ajusta el texto solo. Vamos ARMANDO la
+        // línea palabra por palabra y, ANTES de que measureText() (ancho en píxeles
+        // del texto) rebase 'ancho', dibujamos lo acumulado y empezamos otra línea.
+        // Los "\n" del texto fuerzan un salto explícito. 'y' baja 16 px por renglón.
         String[] palabras = texto.replace("\n", " \n ").split(" ");
         StringBuilder linea = new StringBuilder();
         for (String w : palabras) {
@@ -211,6 +232,10 @@ public final class ReportePdf {
         Paint negro = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         negro.setColorFilter(new android.graphics.PorterDuffColorFilter(
                 0xFF000000, android.graphics.PorterDuff.Mode.SRC_IN));
+        // TRUCO del contorno: no hay "stroke" para un bitmap. Se estampa el MISMO
+        // icono tintado de NEGRO 8 veces, cada una desplazada 'o' píxeles (arriba,
+        // abajo, lados y diagonales); esas 8 copias asoman por el borde y forman la
+        // silueta negra. Luego (más abajo) se dibuja el icono a COLOR encima.
         float o = 1.6f;
         float[][] off = {{-o, 0}, {o, 0}, {0, -o}, {0, o}, {-o, -o}, {o, -o}, {-o, o}, {o, o}};
         for (float[] dxy : off)

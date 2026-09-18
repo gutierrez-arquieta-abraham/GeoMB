@@ -22,6 +22,26 @@ import java.util.List;
  * Mixto) requiere la lista de paradas propia de cada servicio: los que la tienen pendiente se marcan con
  * {@code pendiente_estaciones} y no se nombran por código todavía.
  */
+// ============================================================
+// CLASE    : ServiciosMexibus   (subclase Svc)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Catálogo de servicios FINOS de Mexibús (assets/servicios_mexibus.json).
+// Por cada línea base guarda los servicios reales con su código
+// (TR1/TR3/TR4, Express 1/2/3…), tipo (ordinario/express/mixto), si es
+// unidad Rosa y las terminales.
+//
+// USO ACTUAL: sobre todo para NOMBRAR el servicio en los avisos de voz
+// cuando es inequívoco. La selección fina por tramo (TR3 vs TR4, Express
+// 1/2/3, Mixto) necesita la lista de paradas propia de cada servicio;
+// los que la tienen pendiente se marcan 'pendienteEstaciones'.
+//
+// SUBCLASE Svc: un servicio (línea base, código, tipo, rosa, terminales,
+// y sus estaciones propias si las tiene).
+// ============================================================
 public final class ServiciosMexibus {
 
     public static final class Svc {

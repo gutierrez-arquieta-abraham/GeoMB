@@ -26,6 +26,21 @@ import java.net.URL;
  * {"url":"https://verify.didit.me/session/..."}. Mientras esté vacío, el módulo usa el modo pruebas.
  * Plan gratuito de Didit: 500 verificaciones/mes.
  */
+// ============================================================
+// CLASE    : DiditKYC
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Integración con DIDIT para la verificación de identidad (KYC = "Know Your
+// Customer"): pide al backend una sesión de verificación y abre su flujo
+// (captura de ID + rostro). Se usa para validar al reportante.
+//
+// CONFIG: SESSION_ENDPOINT apunta al endpoint del backend (AWS) que devuelve
+// {"url":"https://verify.didit.me/session/..."}. Vacío ⇒ modo pruebas.
+// Plan gratuito de Didit: 500 verificaciones/mes. Clase de UTILIDAD.
+// ============================================================
 public final class DiditKYC {
 
     /** Backend GeoMB (mismo del feed). Los endpoints KYC viven en didit_backend.py. */
@@ -46,6 +61,10 @@ public final class DiditKYC {
     /** Consulta (en segundo plano) si el usuario ya quedó verificado tras completar Didit. */
     public static void consultarEstado(String uid, EstadoCallback cb) {
         if (uid == null || uid.isEmpty()) return;
+        // PATRÓN de red en Android (se repite en abrir()): NO se puede hacer red en
+        // el hilo principal (congelaría la pantalla → NetworkOnMainThreadException).
+        // Por eso: se lanza un Thread aparte para la descarga y, al terminar, se
+        // devuelve el resultado al hilo de UI con main.post(...) para tocar la vista.
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
             boolean[] verif = {false};

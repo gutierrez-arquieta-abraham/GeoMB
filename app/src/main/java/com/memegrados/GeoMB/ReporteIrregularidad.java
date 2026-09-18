@@ -25,6 +25,21 @@ import java.util.Locale;
  *                          (p. ej. Indios Verdes). Excepción: Buenavista (sus plataformas NO
  *                          están integradas a Metrobús como en Indios Verdes).
  */
+// ============================================================
+// CLASE    : ReporteIrregularidad
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Lógica de a QUIÉN corresponde una queja según lo reportado (para dirigir
+// el reporte a la instancia correcta):
+//   - Unidad y personal → empresa operadora/concesionario (por el económico).
+//   - Estación → Metrobús administra directo las estaciones integradas
+//     no-CETRAM (p. ej. Indios Verdes; excepción: Buenavista).
+//
+// Modela el reporte y su destinatario. Clase de apoyo del ReporteFragment.
+// ============================================================
 public final class ReporteIrregularidad {
     /** Correo oficial de Atención a Usuarios de Metrobús (destino de los reportes en producción). */
     public static final String DESTINO_OFICIAL = "atencion_usuarios@metrobus.cdmx.gob.mx";
@@ -114,6 +129,26 @@ public final class ReporteIrregularidad {
         if (pdf != null) adjuntos.add(pdf);
         if (foto != null) adjuntos.add(foto);
 
+        // --------------------------------------------------------
+        // PARTE "REBUSCADA": cómo se manda el correo con adjuntos
+        // --------------------------------------------------------
+        // NO auto-enviamos: abrimos el cliente de correo del usuario para que
+        // el remitente real sea SU cuenta y él toque "Enviar" (evita reportes
+        // falsos). El truco está en elegir el Intent correcto según cuántos
+        // archivos se adjuntan:
+        //
+        //   · 2+ adjuntos (PDF + evidencia) -> ACTION_SEND_MULTIPLE + LISTA de Uris.
+        //   · 1 adjunto                      -> ACTION_SEND + un solo Uri.
+        //   · 0 adjuntos                     -> ACTION_SENDTO con "mailto:" (lo más compatible).
+        //
+        // Detalles de Android que no son obvios:
+        //   - setType("message/rfc822"): SESGA el selector hacia apps de CORREO
+        //     (no WhatsApp, etc.).
+        //   - FLAG_GRANT_READ_URI_PERMISSION: deja que la app de correo LEA los
+        //     adjuntos, que son archivos de OTRA app (la nuestra) — sin esto, no
+        //     podría abrirlos por seguridad.
+        //   - EXTRA_STREAM lleva UN Uri (ACTION_SEND) o una LISTA (SEND_MULTIPLE);
+        //     por eso se ramifica según el tamaño.
         Intent i;
         if (!adjuntos.isEmpty()) {
             i = new Intent(adjuntos.size() > 1 ? Intent.ACTION_SEND_MULTIPLE : Intent.ACTION_SEND);

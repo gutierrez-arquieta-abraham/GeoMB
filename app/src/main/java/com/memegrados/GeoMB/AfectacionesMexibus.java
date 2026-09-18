@@ -22,6 +22,26 @@ import java.util.concurrent.Executors;
  * Formato:  {"actualizado":<epoch>, "afectaciones":[{"linea":102,"estado":"Sin servicio",
  *                                                    "lugar":"Tultitlán","info":"..."}]}
  */
+// ============================================================
+// CLASE    : AfectacionesMexibus
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Descarga del backend el estado actual de afectaciones que sirve el panel
+// (/data/afectaciones_mexibus.json — que en realidad ya trae Mexibús Y
+// Metrobús Y avisos manuales fusionados) y lo INYECTA en Manifestaciones
+// para que el panel de estado del servicio lo muestre.
+//
+// Además calcula qué estaciones BLOQUEAR para el ruteo según el aviso:
+//   - circuito → habilita solo los tramos que operan;
+//   - "sin servicio" → bloquea toda la línea;
+//   - "paso de largo" → bloquea solo la estación afectada.
+// Salvaguarda: si un circuito no mapea a estaciones reales, no bloquea nada.
+//
+// Corre en segundo plano (executor) y avisa al terminar en el hilo principal.
+// ============================================================
 public final class AfectacionesMexibus {
 
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();

@@ -11,6 +11,16 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 
+// ============================================================
+// CLASE    : LlegadasAdapter   (extends RecyclerView.Adapter)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ADAPTADOR de la lista de PRÓXIMAS LLEGADAS (unidad + tiempo/distancia
+// estimados) para LlegadasFragment. (Adapter = puente datos ↔ filas.)
+// ============================================================
 /** Lista de próximas llegadas (unidad + tiempo/distancia estimados). */
 public class LlegadasAdapter extends RecyclerView.Adapter<LlegadasAdapter.VH> {
 

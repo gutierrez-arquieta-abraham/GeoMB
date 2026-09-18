@@ -23,6 +23,24 @@ import java.util.concurrent.Executors;
  * estación: X" y "Próxima estación: X" (los strings exactos del recorrido). Las variantes de
  * correspondencia/conexión son Fase 2.
  */
+// ============================================================
+// CLASE    : DescargaVoz   (interfaz Progreso)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Pre-descarga (Fase 1) los audios base del recorrido de UNA línea a la
+// MISMA caché que usa RecorridoService (getCacheDir()/voz/, nombre
+// hash("Mia|"+texto).mp3), para que el recorrido se oiga OFFLINE.
+//
+// Fase 1 = por cada estación: "Llegando a estación: X" y "Próxima
+// estación: X" (los textos EXACTOS del recorrido). Las variantes de
+// correspondencia/conexión son Fase 2 (ver Locuciones).
+//
+// La interfaz Progreso reporta avance/fin para mostrar el porcentaje.
+// Descarga de a una (no satura el ancho de banda). Clase de UTILIDAD.
+// ============================================================
 public final class DescargaVoz {
 
     public interface Progreso {

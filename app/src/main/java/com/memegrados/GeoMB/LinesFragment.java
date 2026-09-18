@@ -17,6 +17,16 @@ import java.util.List;
  * Lista de las 7 líneas del Metrobús con el conteo de unidades en servicio.
  * Al tocar una línea se abre el listado de sus unidades.
  */
+// ============================================================
+// CLASE    : LinesFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Lista de las 7 líneas del Metrobús con el conteo de unidades en servicio.
+// Al tocar una línea se abre el listado de sus unidades (UnidadesFragment).
+// ============================================================
 public class LinesFragment extends Fragment {
 
     private LinesAdapter adapter;

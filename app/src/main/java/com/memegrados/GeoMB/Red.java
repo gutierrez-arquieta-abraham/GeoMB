@@ -20,6 +20,28 @@ import android.telephony.TelephonyManager;
  * {@link #datosMoviles} y {@link Modos#ahorroDatos} para decidir si descarga la voz Mia o usa
  * directo la voz local del teléfono.
  */
+// ============================================================
+// CLASE    : Red
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Utilidades de RED (conexión). Detecta si el teléfono usa datos móviles
+// (y si está en roaming) para ESPACIAR las peticiones periódicas (feed en
+// vivo, llegadas, seguimiento) y no gastar de más el paquete de datos, sin
+// bloquear el uso de la app.
+//
+// REGLAS:
+//   - Datos móviles normales + ahorro activado (Modos.ahorroDatos): espacia
+//     con FACTOR_DATOS.
+//   - Roaming: espacia SIEMPRE (FACTOR_ROAMING), sin importar el ajuste
+//     (son los cargos más caros).
+//   - El GPS del recorrido NO se espacia (debe correr a su ritmo), pero sí
+//     consulta esto para decidir si baja la voz Mia o usa la voz local.
+//
+// Clase de UTILIDAD (final + constructor privado + métodos static).
+// ============================================================
 public final class Red {
 
     /** En roaming, las peticiones periódicas se espacian este factor (siempre, sin importar el ajuste). */

@@ -1,5 +1,46 @@
 package com.memegrados.GeoMB;
 
+// ============================================================
+// CLASE   : Backend
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Esta clase es el "cartero" de la app: se encarga de PEDIR
+// datos al servidor de GeoMB por internet (por ejemplo la lista
+// de unidades en tiempo real o el catálogo de rutas) y devolver
+// el texto que responde el servidor.
+//
+// ------------------------------------------------------------
+// ¿QUÉ ES FAILOVER (RESPALDO)?
+// ------------------------------------------------------------
+//
+// Existen DOS servidores: uno PRINCIPAL y uno de RESPALDO.
+// "Failover" significa que, si el principal no contesta, la app
+// cambia SOLA al de respaldo, sin que el usuario note nada.
+//
+// Es como tener dos llaves de agua: si una no da agua, abres la
+// otra automáticamente.
+//
+// ------------------------------------------------------------
+// IDEA CLAVE
+// ------------------------------------------------------------
+//
+// La clase RECUERDA cuál servidor funcionó la última vez (campo
+// 'activo'), para no volver a intentar el caído en cada petición.
+// Pero cada 30 segundos vuelve a probar el PRINCIPAL, para no
+// quedarse pegada al respaldo indefinidamente.
+//
+// ------------------------------------------------------------
+// NOTA: 'final' + constructor privado = clase de UTILIDAD
+// ------------------------------------------------------------
+//
+// No se crean objetos de esta clase; todo es 'static'. Se usa
+// directo como  Backend.descargar("/data/vehicles.json").
+//
+// ============================================================
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -22,6 +63,28 @@ public final class Backend {
 
     private Backend() {}
 
+    // ========================================================
+    // MÉTODO: descargar(path)   [público]
+    // ========================================================
+    //
+    // Es el método que usa el RESTO de la app para pedir datos.
+    //
+    // Recibe un "path" (la ruta del recurso), por ejemplo:
+    //
+    //     "/data/vehicles.json"
+    //
+    // y devuelve el texto (JSON) que respondió el servidor.
+    //
+    // PASOS:
+    //
+    //   1. Decide con cuál servidor intentar PRIMERO: si ya toca
+    //      reintentar el principal (pasaron 30 s) usa el principal;
+    //      si no, sigue con el que estaba 'activo'.
+    //   2. Intenta descargar del primero → si funciona, lo guarda
+    //      como 'activo' y devuelve el resultado.
+    //   3. Si falla, intenta con el OTRO servidor y recuerda cuál sirvió.
+    //
+    // ========================================================
     /** GET de un path (p. ej. "/data/vehicles.json") con failover entre los dos backends. */
     public static String descargar(String path) throws Exception {
         boolean tocaReintentarPrimario = !activo.equals(Config.BASE_URL)
@@ -40,6 +103,25 @@ public final class Backend {
         }
     }
 
+    // ========================================================
+    // MÉTODO: get(urlStr)   [privado]
+    // ========================================================
+    //
+    // Hace la petición HTTP REAL a una URL completa y devuelve
+    // el texto de la respuesta.
+    //
+    // DETALLES IMPORTANTES:
+    //
+    //   - setConnectTimeout / setReadTimeout: cuánto esperar antes
+    //     de rendirse (10 s para conectar, 15 s para leer).
+    //   - Si el código de respuesta NO es 2xx (éxito), lanza una
+    //     excepción para que 'descargar' pruebe el otro servidor.
+    //   - Lee la respuesta línea por línea y la junta en un
+    //     StringBuilder.
+    //   - El bloque 'finally' cierra la conexión SIEMPRE, haya o
+    //     no error (buena práctica: liberar recursos).
+    //
+    // ========================================================
     private static String get(String urlStr) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         try {

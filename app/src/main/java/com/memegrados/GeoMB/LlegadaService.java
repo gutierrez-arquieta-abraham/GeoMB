@@ -23,6 +23,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+// ============================================================
+// CLASE    : LlegadaService   (extends Service)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Servicio en PRIMER PLANO que vigila UNA parada + dirección y avisa cuando
+// una unidad se acerca (dentro de Config.LLEGADA_AVISO_M).
+//
+// DIFERENCIA con SeguimientoService: este NO usa la ubicación del usuario;
+// compara la posición de las unidades contra la ESTACIÓN elegida. Funciona
+// con la app en segundo plano. (SeguimientoService sigue unidades vs. TU ubicación.)
+// ============================================================
 /**
  * Servicio en primer plano que vigila una parada + dirección y avisa cuando una
  * unidad se acerca (dentro de {@link Config#LLEGADA_AVISO_M}). No usa la

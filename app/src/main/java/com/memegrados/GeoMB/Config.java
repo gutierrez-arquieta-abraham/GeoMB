@@ -1,5 +1,23 @@
 package com.memegrados.GeoMB;
 
+// ============================================================
+// CLASE    : Config
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Guarda en un solo lugar todos los "números y direcciones fijas"
+// de la app: URLs del servidor, cada cuánto se pide el feed, radios
+// para los avisos de llegada, duración de animaciones, etc.
+//
+// ¿POR QUÉ UNA CLASE DE CONFIGURACIÓN?
+//   Tener las constantes juntas evita "números mágicos" regados por
+//   el código: si hay que cambiar un valor, se cambia AQUÍ una vez.
+//
+// Todo es 'static final' (constante) y el constructor es privado:
+// no se crean objetos, se usa directo como  Config.POLL_MS.
+// ============================================================
 /** Configuración central de la app. */
 public final class Config {
 

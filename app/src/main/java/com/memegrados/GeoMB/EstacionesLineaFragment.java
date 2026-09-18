@@ -19,6 +19,17 @@ import java.util.List;
  * Estaciones de una línea (pestaña Líneas). L4 se muestra por rutas (orden real);
  * L2/L6/L7 se muestran por dirección (encabezado "Dirección &lt;terminal&gt;").
  */
+// ============================================================
+// CLASE    : EstacionesLineaFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Muestra las ESTACIONES de una línea (pestaña Líneas). L4 se ordena por
+// rutas (orden real); L2/L6/L7 se muestran por dirección (encabezado
+// "Dirección <terminal>") por ser couplets (ida/vuelta en calles distintas).
+// ============================================================
 public class EstacionesLineaFragment extends Fragment {
 
     private static final String ARG_LINEA = "linea";

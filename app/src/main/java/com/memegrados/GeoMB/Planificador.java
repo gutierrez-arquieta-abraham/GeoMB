@@ -18,6 +18,39 @@ import java.util.regex.Pattern;
  * y los recorridos mixtos (A31, C2, C3, C21, H72), cada uno con su secuencia exacta
  * de estaciones. Viajar en una ruta no cuesta transbordo; cambiar de ruta sí.
  */
+// ============================================================
+// CLASE    : Planificador
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// El CEREBRO del ruteo: calcula la ruta ÓPTIMA (menor tiempo estimado)
+// entre dos estaciones, usando el algoritmo de DIJKSTRA sobre un grafo.
+//
+// ------------------------------------------------------------
+// ¿QUÉ ES DIJKSTRA?
+// ------------------------------------------------------------
+// Algoritmo clásico que encuentra el camino más "barato" entre dos puntos
+// de una red, explorando siempre el nodo pendiente más barato primero
+// (aquí el "costo" es TIEMPO en segundos). Usa una cola de prioridad
+// (PriorityQueue) para lograrlo.
+//
+// ------------------------------------------------------------
+// EL GRAFO DE GeoMB
+// ------------------------------------------------------------
+// Nodos = estaciones; aristas = tramos. El costo mezcla:
+//   - costoTramo(a,b): distancia real / velocidad media (VEL_MS ≈ 6 m/s)
+//     + una parada (DWELL_S). Es por KILOMETRAJE, no por nº de paradas.
+//   - esperaExtra(linea): penaliza abordar líneas poco frecuentes (ramales
+//     Mexibús mucho; troncales algo; Metrobús nada).
+//   - transbordo: viajar en una misma ruta NO cuesta; CAMBIAR de ruta sí
+//     (SEG_TRANSBORDO). Correspondencias por cercanía ≤800 m suman caminata.
+//
+// El grafo incluye las 7 líneas físicas, las rutas mixtas y las variantes
+// exprés. Produce un objeto Ruta (pasos + instrucciones + trazo).
+// Clase de UTILIDAD (final + métodos static; grafo cacheado).
+// ============================================================
 public final class Planificador {
 
     private static final double SEG_PARADA = 100.0;
@@ -670,6 +703,15 @@ public final class Planificador {
      * conjunto de líneas 12X que quedaron cubiertas por variantes (para NO agregar además la 12X genérica).
      */
     private static Set<Integer> agregarVariantes(Context ctx, List<Route> rutas) {
+        // IDEA "rebuscada" del ruteo exprés: un servicio como "L3 Express 1" NO es una línea
+        // aparte en los datos; es un SUBCONJUNTO de paradas de la línea exprés 12X. Por eso,
+        // por cada servicio con lista de paradas propia, construimos una RUTA nueva que solo
+        // pasa por esas estaciones pero REUSA la geometría de la 12X (así el trazo sigue el
+        // corredor real aunque el servicio salte paradas). Detalles:
+        //   - idx: mapea nombre-limpio -> estación de la 12X, para resolver cada parada.
+        //   - patrones: DEDUPE por trazo; "Rosa" es el mismo recorrido en otra unidad, así que
+        //     no se agrega dos veces (TR3 vs TR3 Rosa dan la misma secuencia).
+        //   - se agregan ida (">") y vuelta ("<"). 'cubiertas' evita meter además la 12X genérica.
         Set<Integer> cubiertas = new java.util.HashSet<>();
         for (int ex = 121; ex <= 124; ex++) {
             Linea l12 = GtfsRepository.porNumero(ctx, ex);
@@ -1015,6 +1057,23 @@ public final class Planificador {
         // Dijkstra. 1ª pasada RESTRINGIENDO las correspondencias de troncales con exprés a sus paradas
         // exprés (ordinario y exprés transbordan en la MISMA estación). Si no hay ruta, 2ª pasada sin
         // restricción (respaldo, para no dejar sin ruta trayectos cuyo único transbordo es ordinario).
+        // ========================================================
+        // NÚCLEO DIJKSTRA (parte "rebuscada"): camino de menor TIEMPO
+        // ========================================================
+        // Se corre HASTA DOS VECES ('restringir' = true, luego false): la 1ª pasada
+        // exige que las correspondencias exprés sean en la MISMA estación (ruta más
+        // "limpia"); si no halla camino, la 2ª relaja esa regla (respaldo).
+        //
+        // Dijkstra en breve:
+        //   - dist[i]: mejor tiempo conocido hasta el nodo i (empieza en ∞).
+        //   - pq (PriorityQueue): saca SIEMPRE el nodo pendiente más barato.
+        //   - Se "siembran" los nodos ORIGEN con su espera inicial de abordaje.
+        //   - Al sacar un nodo se RELAJAN sus vecinos: si llegar por aquí (nd) es más
+        //     barato que dist[v], se actualiza y se reencola. 'prev[]' recuerda de dónde
+        //     vino cada nodo para reconstruir el camino al final.
+        //   - Termina al sacar un nodo destino (esDest) → óptimo garantizado.
+        // El costo de cada arista mezcla tiempo por distancia, transbordo y sesgos de
+        // servicio (penalServicio/penalTramo) y respeta las estaciones cerradas.
         int fin = -1;
         for (boolean restringir : new boolean[]{true, false}) {
             for (int i = 0; i < n; i++) { dist[i] = Double.MAX_VALUE; prev[i] = -1; }

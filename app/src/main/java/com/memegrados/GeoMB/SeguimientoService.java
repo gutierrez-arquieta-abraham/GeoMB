@@ -25,6 +25,21 @@ import com.google.android.gms.location.Priority;
 
 import java.util.List;
 
+// ============================================================
+// CLASE    : SeguimientoService
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Servicio en PRIMER PLANO que sigue VARIAS unidades a la vez por su número
+// económico: compara la ubicación del usuario con la posición en vivo de
+// cada unidad y avisa cuando entra al radio de cercanía (dos avisos: "ya
+// viene" y "está por llegar").
+//
+// Al ser servicio en primer plano, sigue funcionando aunque la app esté
+// cerrada. Usa el proveedor de ubicación fusionada (FusedLocation).
+// ============================================================
 /**
  * Servicio en primer plano que sigue VARIAS unidades a la vez por su número económico: compara la
  * ubicación del usuario con la posición en vivo de cada unidad y avisa cuando entra al radio de

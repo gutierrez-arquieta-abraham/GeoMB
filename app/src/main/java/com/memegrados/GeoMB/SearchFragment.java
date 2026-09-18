@@ -38,6 +38,16 @@ import java.util.List;
  * Buscador de unidad por número económico. Permite ver la unidad en el mapa
  * o "Seguir" (aviso de cercanía a 500 m mediante SeguimientoService).
  */
+// ============================================================
+// CLASE    : SearchFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Buscador de UNIDAD por número económico. Permite ver la unidad en el mapa
+// o "Seguir" (aviso de cercanía mediante SeguimientoService).
+// ============================================================
 public class SearchFragment extends Fragment {
 
     private MaterialButton btnSeguir;

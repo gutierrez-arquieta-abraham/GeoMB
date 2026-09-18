@@ -11,6 +11,25 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+// ============================================================
+// CLASE    : RedViewModel
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Un VIEWMODEL de la red (Metrobús + Mexibús). Separa los DATOS de la UI:
+//   - La carga y el parseo ocurren en un hilo de E/S (GtfsRepository, streaming).
+//   - La UI (LinesFragment / SearchFragment / MapFragment) SOLO observa
+//     LiveData y dibuja las listas ya construidas, sin tocar archivos ni JSON.
+//
+// ¿QUÉ ES UN VIEWMODEL? Un componente de Android que GUARDA los datos de la
+// pantalla y SOBREVIVE a rotaciones/cambios de configuración → la red se
+// parsea UNA sola vez por sesión, no cada vez que gira el teléfono.
+//
+// LiveData = "dato observable": la UI se suscribe con observe() y se
+// redibuja sola cuando el dato cambia.
+// ============================================================
 /**
  * ViewModel de la RED (Metrobús + Mexibús). Separa la capa de datos de la UI:
  *

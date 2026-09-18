@@ -17,6 +17,25 @@ import java.util.List;
  * promedio ({@link Config#LLEGADA_VEL_MS}). Solo considera unidades que van
  * hacia el mismo destino (mismo sentido) y que aún no pasaron la estación.
  */
+// ============================================================
+// CLASE    : Llegadas   (subclase Prox)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Calcula las "próximas llegadas" de unidades a una estación, por
+// dirección (destino). NO hay un feed de predicciones: se ESTIMA.
+//
+// CÓMO ESTIMA:
+//   - Proyecta la estación y cada unidad sobre la polilínea de la línea
+//     para saber su distancia A LO LARGO del recorrido.
+//   - Estima el tiempo con una velocidad promedio (Config.LLEGADA_VEL_MS).
+//   - Solo cuenta unidades que van al MISMO destino (mismo sentido) y que
+//     aún NO pasaron la estación, dentro de MAX_DIST_M.
+//
+// SUBCLASE Prox: una unidad próxima (económico, destino, metros, ETA seg).
+// ============================================================
 public final class Llegadas {
 
     /** Máximo de llegadas a mostrar en la lista (ambos sentidos). */

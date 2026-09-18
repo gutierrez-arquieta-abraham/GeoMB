@@ -16,6 +16,25 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * sin importar la razón, con estación/tramo, dirección y razón. El planificador usa
  * las estaciones afectadas para trazar rutas alternas.
  */
+// ============================================================
+// CLASE    : Manifestaciones   (subclase Afectacion)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ESTADO COMPARTIDO (en memoria) de las afectaciones al servicio. Es la
+// "pizarra" que todas las pantallas leen para el panel de estado.
+//
+// Guarda TODAS las afectaciones (estado, elevadores, mantenimiento) con su
+// estación/tramo, dirección y razón. El PLANIFICADOR usa las estaciones
+// afectadas para trazar rutas alternas.
+//
+// CATEGORÍAS: C_ESTADO (tabla por línea), C_ELEVADOR, C_MANTENIMIENTO.
+// Marcador AMBOS ("*") = bloquea la estación completa sin importar el sentido.
+// Usa colecciones concurrentes (varios hilos escriben: push, local, EC2).
+// SUBCLASE Afectacion: una fila (línea, estado, estación/tramo, info…).
+// ============================================================
 public final class Manifestaciones {
 
     /** Marcador de "ambos sentidos": bloquea la estación completa (sin importar terminal). */

@@ -12,6 +12,22 @@ import android.graphics.Rect;
  * Utilidades para cargar pictogramas de estación de forma eficiente (reducción de muestreo),
  * centralizando el bloque que antes se repetía en el mapa, el planificador y el recorrido.
  */
+// ============================================================
+// CLASE    : Iconos
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Carga los PICTOGRAMAS de estación de forma eficiente (reducción de
+// muestreo), centralizando el código que antes se repetía en el mapa, el
+// planificador y el recorrido.
+//
+// ¿POR QUÉ CON CACHÉ? El mismo pictograma se pide para el marcador del mapa
+// Y para la lista de la ruta, en cada redibujo. Sin caché, una ruta larga
+// (~40 estaciones) bloqueaba el hilo principal → ANR (app no responde).
+// Por eso guarda IDs y Bitmaps en mapas concurrentes. Clase de UTILIDAD.
+// ============================================================
 public final class Iconos {
 
     private Iconos() {}
@@ -33,6 +49,12 @@ public final class Iconos {
     /** Decodifica el drawable REDUCIDO (evita OOM) y lo escala a un bitmap px×px, o null. */
     public static Bitmap escalado(Resources res, int id, int px) {
         try {
+            // TRUCO "rebuscado" anti-OOM (falta de memoria): un PNG grande decodificado a
+            // pelo puede reventar la RAM. Se hace en dos pasos:
+            //   1) inJustDecodeBounds=true: SOLO mide el tamaño real (no carga píxeles).
+            //   2) inSampleSize=s (potencia de 2): decodifica REDUCIDO a la mitad tantas
+            //      veces como haga falta hasta acercarse al destino (px*2).
+            // Después se escala fino a px×px y se libera (recycle) el bitmap fuente.
             BitmapFactory.Options medir = new BitmapFactory.Options();
             medir.inJustDecodeBounds = true;
             BitmapFactory.decodeResource(res, id, medir);

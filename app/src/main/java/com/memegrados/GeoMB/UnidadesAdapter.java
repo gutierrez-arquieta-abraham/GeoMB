@@ -15,6 +15,17 @@ import com.google.android.material.button.MaterialButton;
 import java.util.ArrayList;
 import java.util.List;
 
+// ============================================================
+// CLASE    : UnidadesAdapter   (extends RecyclerView.Adapter)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ADAPTADOR de la lista de UNIDADES en servicio (económico, línea, ruta,
+// marca/modelo) para UnidadesFragment. Se actualiza en vivo con el feed.
+// (Adapter = puente datos ↔ filas del RecyclerView.)
+// ============================================================
 public class UnidadesAdapter extends RecyclerView.Adapter<UnidadesAdapter.VH> {
 
     public interface OnVer {

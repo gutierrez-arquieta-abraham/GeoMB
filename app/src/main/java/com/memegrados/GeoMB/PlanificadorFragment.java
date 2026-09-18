@@ -49,6 +49,21 @@ import java.util.List;
  * ruta óptima entre dos estaciones, con paradas, transbordos, tiempo estimado y
  * aviso cuando la unidad de tu primer tramo está por llegar a tu estación de origen.
  */
+// ============================================================
+// CLASE    : PlanificadorFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Pantalla de PLANEACIÓN DE VIAJE: en su propio mapa ILUMINA la ruta óptima
+// entre dos estaciones (la calcula Planificador), con paradas, transbordos,
+// tiempo estimado y un aviso cuando la unidad de tu primer tramo está por
+// llegar a tu estación de origen.
+//
+// Es la UI del planificador: arma las tarjetas de indicaciones, el deslizador
+// de estaciones y lanza el "modo recorrido" (RecorridoService).
+// ============================================================
 public class PlanificadorFragment extends Fragment {
 
     public static final String ARG_DESTINO = "destino";

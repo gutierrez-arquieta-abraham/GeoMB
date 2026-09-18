@@ -23,6 +23,21 @@ import androidx.appcompat.app.AppCompatActivity;
  * Para poner tu propio video: coloca el archivo en res/raw/splash.mp4
  * (o .webm). Si no existe, se muestra una animación de carga simple.
  */
+// ============================================================
+// CLASE    : SplashActivity   (extends AppCompatActivity)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Pantalla de CARGA. Muestra una animación/video UNA VEZ POR REINICIO DEL
+// SISTEMA (no en cada apertura): detecta el arranque comparando la hora
+// aproximada de boot. Luego valida el aviso ético (una vez por dispositivo)
+// antes de entrar a la app.
+//
+// Para poner tu propio video: res/raw/splash.mp4 (o .webm); si no existe,
+// muestra una animación de carga simple. Guarda su estado en SharedPreferences.
+// ============================================================
 public class SplashActivity extends AppCompatActivity {
 
     private static final String PREFS = "geomb";

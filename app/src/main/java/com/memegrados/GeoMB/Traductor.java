@@ -26,6 +26,21 @@ import java.util.Map;
  * usuario). Cubre los textos estáticos de las pantallas; algunos textos generados en tiempo
  * de ejecución o dentro de notificaciones pueden quedar en español.
  */
+// ============================================================
+// CLASE    : Traductor
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Traducción AUTOMÁTICA de los textos de la app con el motor de Google
+// (ML Kit) desde el español, para los idiomas que no tienen recursos propios
+// (ver Idiomas). Guarda el idioma "objetivo" activo.
+//
+// AVISO: al ser automática puede estar incompleta o tener errores (por eso se
+// avisa al usuario). Cubre los textos estáticos; algunos textos generados en
+// ejecución o en notificaciones pueden quedar en español. Clase de UTILIDAD.
+// ============================================================
 public final class Traductor {
 
     private static final String PREFS = "geomb_idioma";

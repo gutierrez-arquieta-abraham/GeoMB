@@ -18,6 +18,25 @@ import java.util.concurrent.Executors;
  * También guarda la selección actual (unidad o línea a mostrar en el mapa)
  * para comunicar entre pantallas.
  */
+// ============================================================
+// CLASE    : RealtimeRepository
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Descarga las POSICIONES de las unidades en tiempo real desde el
+// backend y las entrega ya parseadas EN EL HILO PRINCIPAL (para que la
+// UI las dibuje sin trabarse). También guarda la selección actual
+// (unidad o línea a mostrar) para comunicar entre pantallas.
+//
+// PATRÓN SINGLETON: hay UNA sola instancia (get()), porque el estado
+// (última lista, filtros, selección) se comparte entre el mapa y el
+// listado. La descarga corre en un executor (2º plano) y publica en el
+// 'main' Handler.
+//
+// Incluye el filtro de "fantasmas" (descarta unidades con timestamp viejo).
+// ============================================================
 public final class RealtimeRepository {
 
     private static RealtimeRepository instancia;

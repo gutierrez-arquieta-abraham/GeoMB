@@ -14,6 +14,28 @@ import java.util.List;
  * Los servicios más finos (TR3 vs TR4 en L1; Mixto en L2; etc.) tienen distinta lista de paradas y
  * requieren capturar esos datos por servicio: se añadirán aquí cuando estén disponibles.
  */
+// ============================================================
+// CLASE    : Servicios   (subclase Servicio)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Calcula qué SERVICIOS de una línea Mexibús aplican para un viaje
+// concreto (origen→destino sobre una sola línea base). Hoy distingue
+// dos recorridos REALES:
+//   - Ordinario (línea 10X): para en TODAS las estaciones.
+//   - Express (línea 12X): salta estaciones.
+// Cada uno puede ir en unidad ROSA (exclusiva para mujeres): es el MISMO
+// recorrido en otro vehículo, por eso Rosa es un modificador, no otra ruta.
+//
+// MÉTODOS CLAVE:
+//   - base(n)   : línea ordinaria base de una variante (121→101, 111→101).
+//   - expresDe  : exprés con paradas propias de una base (101–104 ⇒ 121–124).
+//
+// (Los servicios más finos TR3/TR4/Mixto viven en ServiciosMexibus.)
+// SUBCLASE Servicio: etiqueta visible + línea a rutear + si es Rosa.
+// ============================================================
 public final class Servicios {
 
     private Servicios() {}

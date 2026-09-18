@@ -32,6 +32,18 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.InputStream;
 
+// ============================================================
+// CLASE    : AcercaFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Pantalla "Acerca de": información general de la app, agradecimientos, los
+// ajustes (idioma, ahorro de datos, refresco del mapa, Mostrar Mexibús,
+// notificaciones, descarga de voz offline) y el "modo personalizado" OCULTO
+// (5 toques al logo). Es el panel de configuración que lee/escribe en Modos.
+// ============================================================
 /** Información general de la app, agradecimientos y el "modo personalizado" oculto. */
 public class AcercaFragment extends Fragment {
 

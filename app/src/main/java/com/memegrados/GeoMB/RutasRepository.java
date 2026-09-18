@@ -15,6 +15,26 @@ import java.util.Map;
  * Carga el catálogo de rutas del backend (/data/routes.json) y les asigna un
  * "código" por línea. Cachea en memoria; se refresca en segundo plano.
  */
+// ============================================================
+// CLASE    : RutasRepository
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Carga y cachea el CATÁLOGO de rutas del backend (/data/routes.json) y a
+// cada ruta le asigna un "código" por línea (ida y vuelta del mismo
+// recorrido comparten código). Se refresca en segundo plano una vez.
+//
+// SIRVE PARA: resolver el nombre "Origen → Destino" de un route_id (p. ej.
+// en el filtro por ruta del mapa) y listar las rutas de una línea.
+//
+// NOTA: conserva rutas SIN línea (linea=0) para poder resolver su recorrido
+// aunque no entren en las consultas por línea (deLinea usa 1..7).
+//
+// MÉTODOS CLAVE: init() (descarga en 2º plano), porRouteId(id), deLinea(n),
+// recorridosDeLinea(n). Clase de UTILIDAD (final + static + caché volatile).
+// ============================================================
 public final class RutasRepository {
 
     private static volatile List<Ruta> rutas = new ArrayList<>();

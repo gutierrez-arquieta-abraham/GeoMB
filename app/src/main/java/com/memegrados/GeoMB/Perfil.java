@@ -8,6 +8,21 @@ import android.content.SharedPreferences;
  * - Tipo (Normal / Aficionado): ninguno ve el buscador de unidades históricas.
  * - Movilidad reducida: solo entonces se muestran avisos de elevadores afectados.
  */
+// ============================================================
+// CLASE    : Perfil
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Perfil del usuario capturado en el mini-formulario de login. PERSONALIZA
+// la app según sus datos:
+//   - Tipo (Normal / Aficionado): quién ve el buscador de unidades históricas.
+//   - Movilidad reducida: solo entonces se muestran avisos de elevadores
+//     fuera de servicio.
+//
+// Clase de datos/preferencias (se guarda para adaptar la experiencia).
+// ============================================================
 public final class Perfil {
 
     public static final int NORMAL = 0;

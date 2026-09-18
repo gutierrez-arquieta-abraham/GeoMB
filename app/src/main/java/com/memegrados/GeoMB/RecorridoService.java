@@ -40,6 +40,33 @@ import java.util.Locale;
  * con la PRÓXIMA ESTACIÓN, origen/destino y pictograma, más avisos de voz (TTS) de
  * próxima estación, transbordo, llegada y afectaciones del servicio.
  */
+// ============================================================
+// CLASE    : RecorridoService   (extends Service)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// El "modo recorrido" estilo Google Maps: es un SERVICIO EN PRIMER PLANO
+// que sigue la ubicación del usuario a lo largo de la secuencia de
+// estaciones de su ruta y lo va GUIANDO POR VOZ y con una notificación.
+//
+// QUÉ HACE:
+//   - Muestra una notificación (diseño propio, visible en pantalla de
+//     bloqueo) con la PRÓXIMA ESTACIÓN, origen/destino y pictograma.
+//   - Da avisos de voz (TTS): próxima estación, llegada, transbordo/
+//     correspondencia/conexión, cambio de servicio y afectaciones.
+//   - Usa la voz "Mia" (AWS Polly) cacheada; si no hay, la voz local del
+//     teléfono como respaldo.
+//   - Pega el puntero al trazo (snap) y tiene brújula propia.
+//
+// ¿POR QUÉ SERVICIO EN PRIMER PLANO? Para seguir funcionando (GPS + voz)
+// aunque el usuario apague la pantalla o cambie de app (onTaskRemoved lo
+// mantiene). Es la clase MÁS GRANDE del proyecto: coordina ubicación,
+// audio, notificación y la lógica de "¿qué aviso toca ahora?".
+//
+// (El detalle fino de radios/avisos está documentado en MEMORIA.md.)
+// ============================================================
 public class RecorridoService extends Service {
 
     public static final String ACCION_DETENER = "detener_recorrido";
@@ -404,6 +431,21 @@ public class RecorridoService extends Service {
     }
 
     private void procesar(android.location.Location l) {
+        // ========================================================
+        // "QUÉ AVISO TOCA": se llama en CADA fix de GPS. Mapa del método:
+        // ========================================================
+        //   1) Busca la estación más cercana ('best'), pero SOLO hacia adelante
+        //      (avanceMin nunca retrocede) para no saltar atrás ni pegarse a un
+        //      andén co-ubicado de otra línea antes de la correspondencia.
+        //   2) Reglas finas de CAMBIO DE LÍNEA: no brinca a la otra línea hasta
+        //      estar físicamente en su andén y haber anunciado la parada previa
+        //      (ver los comentarios detallados abajo; casos Indios Verdes / zonas).
+        //   3) Anuncia UNA vez la dirección + total de estaciones al iniciar.
+        //   4) Detecta "ya pasaste" la estación (te alejaste PASO_M de tu punto más
+        //      cercano) y calcula la PRÓXIMA estación distinta (salta co-ubicadas).
+        //   5) Con eso arma y encola los avisos de voz (próxima, llegada, transbordo).
+        // Los comentarios largos de cada bloque explican los casos borde REALES
+        // (Puente de Fierro, Indios Verdes) que motivaron cada resguardo.
         ciclando = false;
         List<Planificador.Parada> seq = paradas;
         if (l == null || seq == null || seq.isEmpty()) return;

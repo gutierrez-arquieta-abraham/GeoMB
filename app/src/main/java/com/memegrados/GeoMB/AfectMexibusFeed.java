@@ -42,6 +42,23 @@ import java.util.regex.Pattern;
  * (afectaciones_mexibus.json obsoleto o inalcanzable): cuando el EC2 vive, él manda los push
  * (Metrobús + Mexibús) y este respaldo no corre, para no duplicar.
  */
+// ============================================================
+// CLASE    : AfectMexibusFeed
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// RESPALDO LOCAL de afectaciones de Mexibús: lee directo los mismos feeds
+// RSS de SITRAMYTEM, interpreta las publicaciones (port a Java del parser de
+// mexibus_afectaciones.py del backend), NOTIFICA y alimenta el PANEL de
+// estado (Manifestaciones.setMexibus) + el bloqueo de ruteo.
+//
+// CUÁNDO CORRE: se invoca desde ManifestacionesService SOLO cuando el
+// backend (EC2) está caído (afectaciones_mexibus.json obsoleto o
+// inalcanzable). Cuando el EC2 vive, él manda los push (Metrobús + Mexibús)
+// y este respaldo NO corre, para no duplicar avisos.
+// ============================================================
 public final class AfectMexibusFeed {
 
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();

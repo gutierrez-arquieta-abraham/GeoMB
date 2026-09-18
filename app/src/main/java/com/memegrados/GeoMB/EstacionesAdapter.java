@@ -17,6 +17,17 @@ import java.util.List;
  * Lista de estaciones de una línea con encabezados de sección (por dirección en
  * L2/L6/L7, o por ruta en L4). Solo estaciones, sin unidades.
  */
+// ============================================================
+// CLASE    : EstacionesAdapter   (extends RecyclerView.Adapter)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ADAPTADOR de la lista de ESTACIONES de una línea, con encabezados de
+// sección (por dirección en L2/L6/L7, o por ruta en L4). Solo estaciones,
+// sin unidades. (Adapter = puente datos ↔ filas del RecyclerView.)
+// ============================================================
 public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final int TIPO_HEADER = 0;

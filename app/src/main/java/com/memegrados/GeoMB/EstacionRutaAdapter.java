@@ -21,6 +21,18 @@ import java.util.List;
  * ({@link Planificador.Instruccion}). Durante el recorrido resalta la estación actual y el consumidor
  * la centra automáticamente ({@link #posDe(int)}).
  */
+// ============================================================
+// CLASE    : EstacionRutaAdapter   (extends RecyclerView.Adapter)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// ADAPTADOR del DESLIZADOR de estaciones del planificador: muestra cada
+// estación con su pictograma y chips de instrucción ("Aborda / Toma ·
+// dirección {terminal}", de Planificador.Instruccion). Durante el recorrido
+// resalta la estación actual y el consumidor la centra (posDe(int)).
+// ============================================================
 public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final int T_EST = 0, T_INSTR = 1;

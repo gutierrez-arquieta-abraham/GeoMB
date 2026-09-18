@@ -20,6 +20,16 @@ import java.util.List;
  * Listado de unidades en servicio de una línea (o todas si línea = -1),
  * respetando los filtros activos. Se refresca en vivo.
  */
+// ============================================================
+// CLASE    : UnidadesFragment   (extends Fragment)
+// PROYECTO : GeoMB
+// ============================================================
+//
+// DESCRIPCIÓN:
+//
+// Listado de las UNIDADES en servicio de una línea (o todas si línea = -1),
+// respetando los filtros activos (Filtro). Se refresca en vivo.
+// ============================================================
 public class UnidadesFragment extends Fragment {
 
     private static final String ARG_LINEA = "linea";
