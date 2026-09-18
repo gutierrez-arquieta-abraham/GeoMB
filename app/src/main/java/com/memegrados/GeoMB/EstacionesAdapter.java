@@ -100,7 +100,9 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         } else {
             EstVH v = (EstVH) h;
             v.nombre.setText(it.titulo);
-            Tipografia.aplicar(v.nombre);   // nombre de estación en Tipo Metro
+            // Tipo Metro para Metrobús/Mexicable; Mexibús imita su señalética real según
+            // línea y modo de iconografía (nueva/antigua) — ver Tipografia.fuenteEstacion().
+            Tipografia.aplicarEstacion(v.nombre, it.linea);
 
             if (it.subtitulo != null && !it.subtitulo.isEmpty()) {
                 v.sub.setText(it.subtitulo);
