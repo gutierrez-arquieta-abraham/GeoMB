@@ -227,6 +227,9 @@
     <string name="planificador_destino">To (destination station)</string>
     <string name="planificador_trazar">Plan route</string>
     <string name="intercambiar">Swap origin and destination</string>
+    <string name="planificador_contraer">Collapse the route search</string>
+    <string name="planificador_expandir">Tap to show the route search again</string>
+    <string name="planificador_resumen_od">%1$s → %2$s</string>
     <string name="recorrido_iniciar">Start trip</string>
     <string name="recorrido_detener">Stop trip</string>
     <string name="recorrido_vas">You\'re on %1$s · Next: %2$s</string>
@@ -341,6 +344,9 @@
     <string name="cerca_texto">The unit %1$s you\'re following is about to arrive (%2$s away).</string>
     <string name="seguir_activado">Following unit %1$s. I\'ll alert you at 5 km and 800 m.</string>
     <string name="seguir_permiso_ubicacion">Enable location permission to follow the unit.</string>
+    <string name="favorito_guardado">%1$s saved as favorite: it\'ll alert you when it\'s nearby even if you restart your phone.</string>
+    <string name="favorito_quitado">%1$s is no longer a favorite.</string>
+    <string name="favorito_pista">Long-press \"Follow\" to save/remove this unit from your favorites.</string>
 
     <!-- Info by unit number -->
     <string name="estado_fuera_servicio">Out of service</string>

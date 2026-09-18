@@ -72,6 +72,8 @@ public class PlanificadorFragment extends Fragment {
     private FusedLocationProviderClient loc;
     private EditText inOrigen, inDestino;
     private View panelResultado, panelEstaciones, panelOrigen;
+    private View panelOdExpandido, panelOdColapsado, btnContraerOd;
+    private TextView txtOdColapsado;
     private TextView resResumen, resAviso, resEstado;
     private android.widget.LinearLayout resPasosList;   // lista scrolleable de la descripción de ruta
     private android.widget.ScrollView resPasosScroll;
@@ -183,6 +185,12 @@ public class PlanificadorFragment extends Fragment {
         panelResultado = view.findViewById(R.id.panel_resultado);
         panelEstaciones = view.findViewById(R.id.panel_estaciones);
         panelOrigen = view.findViewById(R.id.panel_origen_destino);
+        panelOdExpandido = view.findViewById(R.id.panel_od_expandido);
+        panelOdColapsado = view.findViewById(R.id.panel_od_colapsado);
+        txtOdColapsado = view.findViewById(R.id.txt_od_colapsado);
+        btnContraerOd = view.findViewById(R.id.btn_contraer_od);
+        btnContraerOd.setOnClickListener(v -> colapsarOrigenDestino());
+        panelOdColapsado.setOnClickListener(v -> expandirOrigenDestino());
         resResumen = view.findViewById(R.id.res_resumen);
         resPasosList = view.findViewById(R.id.res_pasos_list);
         resPasosScroll = view.findViewById(R.id.res_pasos_scroll);
@@ -336,6 +344,33 @@ public class PlanificadorFragment extends Fragment {
                     if (autoTrazar) { autoTrazar = false; trazar(); }
                 })
                 .addOnFailureListener(e -> { if (autoTrazar) { autoTrazar = false; trazar(); } });
+    }
+
+    /**
+     * Contrae el buscador de origen/destino a una mini viñeta (toca para expandirla de nuevo),
+     * dejando más mapa visible para el deslizador de estaciones y el resultado. Se dispara sola al
+     * trazar una ruta (ver {@link #dibujar}); el chevron del formulario permite contraerla a mano
+     * en cualquier otro momento, sin perder lo que ya se tenía escrito.
+     */
+    private void colapsarOrigenDestino() {
+        if (panelOdExpandido == null || panelOdExpandido.getVisibility() != View.VISIBLE || !isAdded()) return;
+        String o = inOrigen.getText().toString().trim();
+        String d = inDestino.getText().toString().trim();
+        txtOdColapsado.setText(d.isEmpty() ? o
+                : (o.isEmpty() ? d : getString(R.string.planificador_resumen_od, o, d)));
+        if (getView() != null)
+            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        panelOdExpandido.setVisibility(View.GONE);
+        panelOdColapsado.setVisibility(View.VISIBLE);
+    }
+
+    /** Expande de nuevo el formulario completo desde la mini viñeta, con lo que ya se tenía. */
+    private void expandirOrigenDestino() {
+        if (panelOdColapsado == null || panelOdColapsado.getVisibility() != View.VISIBLE || !isAdded()) return;
+        if (getView() != null)
+            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) getView());
+        panelOdColapsado.setVisibility(View.GONE);
+        panelOdExpandido.setVisibility(View.VISIBLE);
     }
 
     /** Muestra el nombre SIN prefijo MXB en el campo, pero recuerda el canónico para el ruteo. */
@@ -846,6 +881,8 @@ public class PlanificadorFragment extends Fragment {
         // deslizador de estaciones (arriba) + chips de instrucción por tramo (Aborda/Toma · dirección)
         sliderAdapter.set(r.secuencia, r.instrucciones);
         panelEstaciones.setVisibility(r.secuencia.isEmpty() ? View.GONE : View.VISIBLE);
+        btnContraerOd.setVisibility(View.VISIBLE);   // ya hay ruta: se puede contraer el buscador a mano
+        colapsarOrigenDestino();                     // libera espacio de mapa automáticamente al trazar
         boolean veniaRecorrido = recorrido;
         if (recorrido) detenerRecorrido();
         resEstado.setVisibility(View.GONE);

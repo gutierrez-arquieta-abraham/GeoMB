@@ -42,6 +42,24 @@ public class ArranqueReceiver extends BroadcastReceiver {
             try {
                 if (Modos.sincronizacionFondo(context)) SincronizacionService.iniciar(context);
             } catch (Exception ignore) {}
+            // Aviso de llegada a una estación vigilada: retoma la misma parada de antes del reinicio.
+            try { LlegadaService.reanudarSiHay(context); } catch (Exception ignore) {}
+            // Económicos guardados como favoritos: retoma el aviso de cercanía de cada uno. La consulta
+            // a Room es async, así que se usa goAsync() para que el sistema no mate el proceso antes
+            // de que termine y se alcance a arrancar el foreground service.
+            try {
+                PendingResult espera = goAsync();
+                Telemetria.listaFavoritos(context, favoritos -> {
+                    for (EconomicoFavoritoEntity f : favoritos) {
+                        try {
+                            Intent i = new Intent(context, SeguimientoService.class)
+                                    .putExtra(SeguimientoService.EXTRA_ECO, f.economico);
+                            androidx.core.content.ContextCompat.startForegroundService(context, i);
+                        } catch (Exception ignore) {}
+                    }
+                    espera.finish();
+                });
+            } catch (Exception ignore) {}
         }
     }
 }

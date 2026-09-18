@@ -52,6 +52,11 @@ dependencies {
     // Traducción automática de la interfaz (motor de Google, sin conexión tras descargar modelo)
     implementation("com.google.mlkit:translate:17.0.3")
 
+    // Mini base de datos LOCAL (Room): recorridos, tiempos por estación, errores, búsquedas y
+    // económicos favoritos. Se sincroniza a Firestore (usuarios/{uid}/...) cuando hay sesión y red.
+    implementation("androidx.room:room-runtime:2.6.1")
+    annotationProcessor("androidx.room:room-compiler:2.6.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

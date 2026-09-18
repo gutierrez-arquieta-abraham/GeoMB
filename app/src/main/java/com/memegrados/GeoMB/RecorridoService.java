@@ -205,11 +205,14 @@ public class RecorridoService extends Service {
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
         persistir(c);   // guarda la ruta: si el SO mata el proceso, el servicio (START_STICKY) la restaura
+        if (seq != null && !seq.isEmpty())
+            Telemetria.iniciarRecorrido(c, seq.get(0).nombre, seq.get(seq.size() - 1).nombre, seq.size());
         ContextCompat.startForegroundService(c, new Intent(c, RecorridoService.class));
     }
 
     public static void detener(android.content.Context c) {
         limpiarPersistencia(c);
+        Telemetria.finalizarRecorrido(c);
         c.stopService(new Intent(c, RecorridoService.class));
     }
 
@@ -290,7 +293,7 @@ public class RecorridoService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACCION_DETENER.equals(intent.getAction())) { limpiarPersistencia(); stopSelf(); return START_NOT_STICKY; }
+        if (intent != null && ACCION_DETENER.equals(intent.getAction())) { limpiarPersistencia(); Telemetria.finalizarRecorrido(this); stopSelf(); return START_NOT_STICKY; }
         // Proceso revivido por el SO (intent null) sin la ruta en memoria: recárgala del disco.
         if (paradas == null && !restaurar()) { limpiarPersistencia(); stopSelf(); return START_NOT_STICKY; }
         activo = true;
@@ -509,7 +512,11 @@ public class RecorridoService extends Service {
         // línea de la ruta (≥3 estaciones después de la correspondencia), el aviso salta a esa línea. Así,
         // si te subiste directo o la línea previa cerró, el recorrido no queda clavado en la anterior.
         int salto = reanclarOtraLinea(l, seq, best);
-        if (salto > best) best = salto;
+        if (salto > best) {
+            Telemetria.registrarError(this, Telemetria.ERR_REANCLAJE, "RecorridoService.reanclarOtraLinea",
+                    "de " + seq.get(best).nombre + " a " + seq.get(salto).nombre);
+            best = salto;
+        }
 
         avanceMin = best;   // nunca retrocede
         actualIdx = best;
@@ -573,6 +580,8 @@ public class RecorridoService extends Service {
                 limpiarPersistencia();   // llegaste: no debe resumir tras muerte de proceso
                 handler.removeCallbacks(tick);
                 detenerUbicacion();      // ya llegaste: corta el GPS para ahorrar batería
+                Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
+                Telemetria.finalizarRecorrido(this);
                 alFinVoz = this::stopSelf;   // finaliza cuando acabe la voz del aviso final
                 // Mismo aviso combinado de llegada (incluye "última estación de tu recorrido").
                 sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);
@@ -581,6 +590,7 @@ public class RecorridoService extends Service {
             return;   // no se anuncian más estaciones tras el final
         } else if (ultLlegando == best && ultProxima != proxIdx && bd > radioCerca(seq.get(best)) + COBERTURA_EXTRA_M) {
             ultProxima = proxIdx;
+            Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, false);   // sales hacia "prox"
             // Te acercas a la estación de BAJADA si la parada siguiente a "prox" es un transbordo.
             boolean prepararse = proxIdx + 1 <= last && seq.get(proxIdx + 1).transbordo;
             // El jingle usa la línea que VAS VIAJANDO (la actual), no la de la próxima parada: así en
@@ -590,6 +600,7 @@ public class RecorridoService extends Service {
         } else if (bd <= radioCerca(seq.get(best)) && ultLlegando != best) {
             ultLlegando = best;
             ultProxima = -99;
+            Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
             if (best >= last && !finalizado) {
                 // Última estación: el propio aviso de llegada ya incluye "última estación de tu
                 // recorrido"; al terminar ese audio se finaliza el servicio automáticamente.
@@ -598,6 +609,7 @@ public class RecorridoService extends Service {
                 limpiarPersistencia();
                 handler.removeCallbacks(tick);
                 detenerUbicacion();
+                Telemetria.finalizarRecorrido(this);
                 alFinVoz = this::stopSelf;
                 sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);
                 handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega

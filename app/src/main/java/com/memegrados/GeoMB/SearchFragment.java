@@ -116,6 +116,22 @@ public class SearchFragment extends Fragment {
                 intentarSeguir();   // añade esta unidad (sin quitar las que ya se siguen)
             }
         });
+        // Mantener presionado "Seguir" = guardar/quitar de favoritos (persiste entre reinicios:
+        // ArranqueReceiver retoma el seguimiento de los favoritos guardados al arrancar el teléfono).
+        btnSeguir.setOnLongClickListener(v -> {
+            if (ecoActual == null || !isAdded()) return false;
+            Telemetria.esFavorito(requireContext(), ecoActual, esFav -> {
+                if (!isAdded()) return;
+                if (esFav) {
+                    Telemetria.quitarFavorito(requireContext(), ecoActual);
+                    Toast.makeText(requireContext(), getString(R.string.favorito_quitado, ecoActual), Toast.LENGTH_SHORT).show();
+                } else {
+                    Telemetria.guardarFavorito(requireContext(), ecoActual);
+                    Toast.makeText(requireContext(), getString(R.string.favorito_guardado, ecoActual), Toast.LENGTH_LONG).show();
+                }
+            });
+            return true;
+        });
     }
 
     @Override
@@ -147,6 +163,7 @@ public class SearchFragment extends Fragment {
         } catch (NumberFormatException ignore) {}
 
         final String eco = numero;
+        Telemetria.registrarBusqueda(requireContext(), eco);   // para "unidades más buscadas"
         btnBuscar.setEnabled(false);
         RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
             @Override

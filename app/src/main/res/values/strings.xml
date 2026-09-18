@@ -243,6 +243,9 @@
     <string name="planificador_destino">Hasta (estación de destino)</string>
     <string name="planificador_trazar">Trazar ruta</string>
     <string name="intercambiar">Intercambiar origen y destino</string>
+    <string name="planificador_contraer">Contraer el buscador de ruta</string>
+    <string name="planificador_expandir">Toca para volver a mostrar el buscador de ruta</string>
+    <string name="planificador_resumen_od">%1$s → %2$s</string>
     <string name="recorrido_iniciar">Iniciar recorrido</string>
     <string name="recorrido_detener">Detener recorrido</string>
     <string name="recorrido_vas">Vas en %1$s · Siguiente: %2$s</string>
@@ -361,6 +364,9 @@
     <string name="cerca_texto">El eco %1$s que estás siguiendo está por llegar (a %2$s).</string>
     <string name="seguir_activado">Siguiendo la unidad %1$s. Te aviso a 5 km y a 800 m.</string>
     <string name="seguir_permiso_ubicacion">Activa el permiso de ubicación para seguir la unidad.</string>
+    <string name="favorito_guardado">%1$s guardada como favorita: te avisará cuando esté cerca aunque reinicies el teléfono.</string>
+    <string name="favorito_quitado">%1$s ya no es favorita.</string>
+    <string name="favorito_pista">Mantén presionado \"Seguir\" para guardar/quitar esta unidad de tus favoritas.</string>
 
     <!-- Info por económico -->
     <string name="estado_fuera_servicio">Fuera de servicio</string>
