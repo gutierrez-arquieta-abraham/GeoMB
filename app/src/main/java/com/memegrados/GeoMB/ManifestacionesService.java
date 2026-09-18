@@ -391,10 +391,11 @@ public class ManifestacionesService extends Service {
                                 }
                             }
                         }
-                        // Obstrucción de carril no usa rangos "solo hay servicio de A a B" (eso bloquea
-                        // ambos sentidos); ya se bloqueó solo el carril afectado arriba.
-                        if (!obstruccionCarril)
-                            bloquearTramos(Planificador.norm(info), afect, ambos ? nlinea : 0);
+                        // Un carril obstruido puede degradar el servicio a un tramo reducido ("servicio
+                        // de A a B" en la info, p. ej. "servicio de El Caminero a Buenavista, por
+                        // operativo en Insurgentes Norte"): ahí SÍ conviene enrutar solo por ese tramo
+                        // y dejar bloqueado (inhabilitado) el resto, igual que con un corte total.
+                        bloquearTramos(Planificador.norm(info), afect, ambos ? nlinea : 0);
                     }
                 } else {
                     continue;
@@ -457,7 +458,12 @@ public class ManifestacionesService extends Service {
     private void bloquearTramos(String normFull, Set<String> afect, int cortarLineaHint) {
         boolean parcial = normFull.contains("solo hay servicio") || normFull.contains("servicio provisional")
                 || normFull.contains("servicio parcial") || normFull.contains("opera de")
-                || normFull.contains("provisional");
+                || normFull.contains("provisional")
+                // "Servicio de A a B" a secas (sin "solo hay"/"provisional" delante): también indica un
+                // tramo reducido, p. ej. una obstrucción de carril que deja el servicio "de El Caminero
+                // a Buenavista" en vez de la línea completa. Si A/B no mapean a estaciones reales de
+                // ninguna línea, el bucle de abajo no arma ningún rango y no bloquea nada (autolimitado).
+                || (normFull.contains("servicio de") && normFull.contains(" a "));
         if (!parcial) return;
 
         int idx = normFull.indexOf("servicio de");
