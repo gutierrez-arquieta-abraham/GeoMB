@@ -197,12 +197,14 @@ public class ManifestacionesService extends Service {
     }
 
     /**
-     * Registra un bloqueo por sentido: estación(norm) -> {terminal(norm) | AMBOS}. La dirección
-     * "ambos sentidos"/vacía marca la estación completa; cualquier otra se toma como el nombre
-     * de la terminal del carril afectado. Se quitan paréntesis del nombre (p. ej. "(Escaleras Sur)").
+     * Registra un bloqueo por sentido: "linea|estacion" -> {terminal(norm) | AMBOS}. La línea es
+     * SIEMPRE parte de la clave (nunca solo el nombre): dos líneas pueden compartir nombre de
+     * estación (p. ej. "La Raza" en L1 y L3) sin ser la misma parada física. La dirección "ambos
+     * sentidos"/vacía marca la estación completa; cualquier otra se toma como el nombre de la
+     * terminal del carril afectado. Se quitan paréntesis del nombre (p. ej. "(Escaleras Sur)").
      */
     private void agregarSentido(java.util.Map<String, java.util.Set<String>> mapa,
-                                String estacion, String direccion) {
+                                int linea, String estacion, String direccion) {
         if (estacion == null) return;
         String est = Planificador.norm(estacion.replaceAll("\\(.*?\\)", ""));
         if (est.length() < 3) return;
@@ -210,16 +212,18 @@ public class ManifestacionesService extends Service {
         String clave = (d.isEmpty() || d.contains("ambos") || d.contains("ambas")
                 || d.contains("todos") || d.contains("todas") || d.contains("dos sentidos"))
                 ? Manifestaciones.AMBOS : d;
-        mapa.computeIfAbsent(est, z -> new java.util.HashSet<>()).add(clave);
+        mapa.computeIfAbsent(linea + "|" + est, z -> new java.util.HashSet<>()).add(clave);
     }
 
-    /** Bloquea una estación: por sentido (hacia esa terminal) si se detectó una, o ambos si no. */
-    private void bloquearNn(String nn, String terminalSentido) {
+    /** Bloquea una estación DE ESA LÍNEA: por sentido (hacia esa terminal) si se detectó una, o
+     *  ambos si no. La clave lleva la línea para no cruzarse con otra línea del mismo nombre. */
+    private void bloquearNn(int linea, String nn, String terminalSentido) {
         if (nn == null || nn.length() < 3) return;
+        String k = linea + "|" + nn;
         if (terminalSentido != null)
-            porSentidoAcc.computeIfAbsent(nn, z -> new java.util.HashSet<>()).add(terminalSentido);
+            porSentidoAcc.computeIfAbsent(k, z -> new java.util.HashSet<>()).add(terminalSentido);
         else
-            afectAcc.add(nn);
+            afectAcc.add(k);
     }
 
     /**
@@ -268,10 +272,6 @@ public class ManifestacionesService extends Service {
         JSONArray rows = null;
         try { rows = new JSONObject(payload).optJSONArray("rows"); } catch (Exception ignore) {}
 
-        List<Estacion> catalogo = new ArrayList<>();
-        try { for (Linea l : GtfsRepository.getLineas(this)) catalogo.addAll(l.estaciones); }
-        catch (Exception ignore) {}
-
         Set<String> afect = afectAcc;
         List<Manifestaciones.Afectacion> lista = listaAcc;
         List<String> resumenLista = resumenAcc;
@@ -301,7 +301,7 @@ public class ManifestacionesService extends Service {
                     // Bloqueo de movilidad reducida SOLO en líneas con elevador (L1,2,3,5,6).
                     // L4 y L7 son de piso bajo a nivel de suelo: sin esa barrera.
                     if (nlinea == 1 || nlinea == 2 || nlinea == 3 || nlinea == 5 || nlinea == 6)
-                        agregarSentido(porSentidoMRAcc, estacion, direccion);
+                        agregarSentido(porSentidoMRAcc, nlinea, estacion, direccion);
 
                 } else if ("mantenimiento".equals(tipo)) {
                     String estacion = limpiar(r.optString("estacion", ""));
@@ -317,7 +317,7 @@ public class ManifestacionesService extends Service {
                             Manifestaciones.C_MANTENIMIENTO);
                     // Cierre por mantenimiento vigente hoy: bloquea el ruteo por sentido
                     // ("ambos sentidos" = toda la estación; una terminal = solo ese carril).
-                    agregarSentido(porSentidoAcc, estacion, direccion);
+                    agregarSentido(porSentidoAcc, nlinea, estacion, direccion);
 
                 } else if ("estado".equals(tipo)) {
                     String estado = limpiar(r.optString("estado", ""));
@@ -367,7 +367,7 @@ public class ManifestacionesService extends Service {
                                 Linea l = GtfsRepository.porNumero(this, nlinea);
                                 if (l != null) {
                                     for (Estacion e : l.estaciones)
-                                        bloquearNn(Planificador.norm(e.nombre), terminalSentido);
+                                        bloquearNn(nlinea, Planificador.norm(e.nombre), terminalSentido);
                                     // Línea completa fuera: corta todos los tramos (queda intransitable).
                                     // L4/L7 se rutean por servicios (couplet): los cortes se generan de la
                                     // secuencia real, no de la lista plana, para atrapar AMBAS ramas.
@@ -383,11 +383,17 @@ public class ManifestacionesService extends Service {
                                 }
                             }
                         } else if (!nEst.isEmpty() && !nEst.equals("ninguna")) {
-                            for (Estacion e : catalogo) {
-                                String nn = Planificador.norm(e.nombre);
-                                if (nn.length() >= 4 && nEst.contains(nn)) {
-                                    bloquearNn(nn, terminalSentido);
-                                    if (ambos) cortarAlrededor(nlinea, nn);   // parte la línea en la estación cerrada
+                            // SOLO las estaciones de ESTA línea (nlinea): antes se buscaba en el catálogo
+                            // de TODAS las líneas de Metrobús juntas, así que una afectación de L1 en
+                            // "La Raza" también bloqueaba la "La Raza" de L3 (mismo nombre, otra línea).
+                            Linea l = nlinea > 0 ? GtfsRepository.porNumero(this, nlinea) : null;
+                            if (l != null) {
+                                for (Estacion e : l.estaciones) {
+                                    String nn = Planificador.norm(e.nombre);
+                                    if (nn.length() >= 4 && nEst.contains(nn)) {
+                                        bloquearNn(nlinea, nn, terminalSentido);
+                                        if (ambos) cortarAlrededor(nlinea, nn);   // parte la línea en la estación cerrada
+                                    }
                                 }
                             }
                         }
