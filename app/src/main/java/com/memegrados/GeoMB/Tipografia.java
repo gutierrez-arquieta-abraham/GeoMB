@@ -32,6 +32,8 @@ import androidx.core.content.res.ResourcesCompat;
 public final class Tipografia {
 
     private static volatile Typeface metro;
+    private static volatile Typeface gothamBlack;
+    private static volatile Typeface roundedElegance;
 
     private Tipografia() {}
 
@@ -46,6 +48,56 @@ public final class Tipografia {
             }
         }
         return metro;
+    }
+
+    /** Gotham Black: señalética de la iconografía nueva (Movimex) del Mexibús. */
+    public static Typeface gothamBlack(Context c) {
+        if (gothamBlack == null) {
+            synchronized (Tipografia.class) {
+                if (gothamBlack == null) {
+                    try { gothamBlack = ResourcesCompat.getFont(c.getApplicationContext(), R.font.gotham_black); }
+                    catch (Throwable t) { gothamBlack = Typeface.DEFAULT_BOLD; }
+                }
+            }
+        }
+        return gothamBlack;
+    }
+
+    /** Rounded Elegance: señalética original de Mexibús L1/L2 (iconografía antigua). */
+    public static Typeface roundedElegance(Context c) {
+        if (roundedElegance == null) {
+            synchronized (Tipografia.class) {
+                if (roundedElegance == null) {
+                    try { roundedElegance = ResourcesCompat.getFont(c.getApplicationContext(), R.font.rounded_elegance); }
+                    catch (Throwable t) { roundedElegance = Typeface.DEFAULT; }
+                }
+            }
+        }
+        return roundedElegance;
+    }
+
+    /**
+     * Tipografía de nombre de estación según línea y modo de iconografía. Solo distingue
+     * dentro del Mexibús (imita su señalética real, distinta por época/línea); cualquier otra
+     * red (Metrobús, Mexicable) sigue con Tipo Metro, sin cambios.
+     *  - Iconografía nueva (Movimex, toda la red Mexibús): Gotham Black.
+     *  - Iconografía antigua, L1 (101) / L2 (102): Rounded Elegance (su tipografía original).
+     *  - Iconografía antigua, resto (L1A/L2A/L3/L3A/L4 = 111/112/103/113/104): Arial — Android no
+     *    trae esa fuente, se usa el sans-serif del sistema como equivalente más cercano.
+     */
+    public static Typeface fuenteEstacion(Context c, int linea) {
+        boolean esMexibus = (linea >= 101 && linea <= 104) || (linea >= 111 && linea <= 113);
+        if (!esMexibus) return metro(c);
+        if (Modos.iconosNuevos(c)) return gothamBlack(c);
+        if (linea == 101 || linea == 102) return roundedElegance(c);
+        return Typeface.SANS_SERIF;
+    }
+
+    /** Aplica {@link #fuenteEstacion} a un TextView de nombre de estación, respetando su estilo actual. */
+    public static void aplicarEstacion(TextView v, int linea) {
+        if (v == null) return;
+        int estilo = v.getTypeface() != null ? v.getTypeface().getStyle() : Typeface.NORMAL;
+        v.setTypeface(fuenteEstacion(v.getContext(), linea), estilo);
     }
 
     /** Aplica Tipo Metro a uno o más TextView, respetando el estilo (normal/negrita) actual. */
