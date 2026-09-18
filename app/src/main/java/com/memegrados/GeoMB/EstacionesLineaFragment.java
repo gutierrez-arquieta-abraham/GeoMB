@@ -62,7 +62,9 @@ public class EstacionesLineaFragment extends Fragment {
         rv.setAdapter(adapter);
 
         if (l == null) return;
-        titulo.setText(getString(R.string.linea_formato, l.numero) + " · " + l.nombre);
+        // Metrobús: "Línea N · nombre-de-la-ruta". Mexibús/Mexicable: su nombre ya es autodescriptivo
+        // ("Mexibús L1", "Mexicable L2"), así que no se antepone "Línea 101"/"Línea 201".
+        titulo.setText(num < 100 ? getString(R.string.linea_formato, l.numero) + " · " + l.nombre : l.nombre);
 
         List<EstacionesAdapter.Item> items = new ArrayList<>();
         if (num == 4) construirPorRutas(items, "L4", 0);
@@ -79,14 +81,18 @@ public class EstacionesLineaFragment extends Fragment {
         ((MainActivity) requireActivity()).navegarA(R.id.nav_mapa);
     }
 
-    /** Línea normal (L1/L3/L5): lista simple de estaciones. */
+    /** Línea normal (L1/L3/L5, y Mexibús/Mexicable): lista simple de estaciones. */
     private void construirPlano(List<EstacionesAdapter.Item> items, Linea l) {
         // Una sola entrada por estación: en los datos algunas traen sus 2 andenes (p. ej. Indios
         // Verdes, Deportivo 18 de Marzo) y no deben aparecer duplicadas en el listado.
         java.util.Set<String> vistas = new java.util.HashSet<>();
         for (Estacion e : l.estaciones) {
             if (!vistas.add(Planificador.norm(e.nombre))) continue;
-            items.add(EstacionesAdapter.Item.estacion(e.nombre, "", e.icono, l.color, l.numero, e.posicion));
+            // Mexibús/Mexicable: nombreMostrar() quita el prefijo "MXB "/"MXC " (no se muestra al
+            // usuario, ver CLAUDE.md) y agrega el número de línea si el nombre es ambiguo. Para
+            // Metrobús es un no-op (sin prefijo que quitar).
+            String nombre = Planificador.nombreMostrar(requireContext(), e.nombre, l.numero);
+            items.add(EstacionesAdapter.Item.estacion(nombre, "", e.icono, l.color, l.numero, e.posicion));
         }
     }
 

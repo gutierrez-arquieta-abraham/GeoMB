@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -49,7 +50,7 @@ public class LinesFragment extends Fragment {
         RecyclerView recycler = view.findViewById(R.id.recycler_lineas);
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         adapter = new LinesAdapter(
-                GtfsRepository.getLineas(requireContext()),
+                lineasAMostrar(),
                 linea -> ((MainActivity) requireActivity()).mostrarEstaciones(linea.numero));
         recycler.setAdapter(adapter);
 
@@ -60,5 +61,21 @@ public class LinesFragment extends Fragment {
             }
             @Override public void onError(String m) { }
         });
+    }
+
+    /** Metrobús 1..7 siempre; si "Mostrar Mexibús" está activo (Acerca de), agrega Mexibús
+     *  troncal/ramal (101..104, 111..113) y Mexicable (201..202). No incluye exprés (12x): no
+     *  son una línea física distinta, sino un servicio más rápido sobre la misma vía. */
+    private List<Linea> lineasAMostrar() {
+        List<Linea> res = new ArrayList<>(GtfsRepository.getLineas(requireContext()));
+        if (Modos.mostrarMexibus(requireContext())) {
+            for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+                boolean troncal = l.numero >= 101 && l.numero <= 104;
+                boolean ramal = l.numero >= 111 && l.numero <= 113;
+                boolean cable = l.numero >= 201 && l.numero <= 202;
+                if (troncal || ramal || cable) res.add(l);
+            }
+        }
+        return res;
     }
 }

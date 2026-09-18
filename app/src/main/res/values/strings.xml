@@ -388,7 +388,7 @@
     <string name="llegadas_titulo">Llegadas</string>
     <string name="estado_servicio_titulo">Estado del servicio</string>
     <string name="estado_metrobus">METROBÚS</string>
-    <string name="estado_mexibus">MEXIBÚS</string>
+    <string name="estado_mexibus">MEXIBÚS · MEXICABLE</string>
     <string name="estado_regular">Servicio regular</string>
     <string name="estado_lbl_tipo">Afectación: %1$s</string>
     <string name="estado_lbl_info">Info: %1$s</string>
