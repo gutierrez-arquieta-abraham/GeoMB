@@ -89,8 +89,14 @@ public final class Manifestaciones {
         }
     }
 
-    private static final Set<String> afectadas = ConcurrentHashMap.newKeySet();  // nombres normalizados (ambos sentidos)
-    // Bloqueo POR SENTIDO: estación(norm) -> {terminal(norm) bloqueada | AMBOS}. General y de movilidad reducida.
+    // Todas las claves de bloqueo son "linea|estacion(norm)", NUNCA solo el nombre: dos líneas (o
+    // sistemas) distintos pueden compartir el mismo nombre de estación (p. ej. "La Raza" existe en
+    // Metrobús L1 Y L3, sin ser la misma parada física) — bloquear solo por nombre haría que una
+    // afectación de UNA línea cerrara también la estación de incluso OTRO sistema con el mismo nombre.
+    private static String clave(int linea, String nn) { return linea + "|" + nn; }
+
+    private static final Set<String> afectadas = ConcurrentHashMap.newKeySet();  // "linea|nombre" (ambos sentidos)
+    // Bloqueo POR SENTIDO: "linea|estacion" -> {terminal(norm) bloqueada | AMBOS}. General y de movilidad reducida.
     private static final Map<String, Set<String>> porSentido = new ConcurrentHashMap<>();
     private static final Map<String, Set<String>> porSentidoMR = new ConcurrentHashMap<>();
     private static final Map<String, Set<String>> simulado = new ConcurrentHashMap<>();   // inyección de prueba
@@ -108,7 +114,7 @@ public final class Manifestaciones {
 
     private Manifestaciones() {}
 
-    /** Nombres de estación (normalizados) bloqueados en AMBOS sentidos (compatibilidad). */
+    /** Claves "linea|estacion" bloqueadas en AMBOS sentidos (compatibilidad; ya no solo el nombre). */
     public static Set<String> bloqueadas() {
         Set<String> s = new HashSet<>(afectadas);
         s.addAll(mexibusBloq);   // líneas Mexibús "sin servicio" (toda la línea)
@@ -119,21 +125,22 @@ public final class Manifestaciones {
     }
 
     /**
-     * ¿La estación está bloqueada para viajar HACIA la terminal indicada? Considera AMBOS
-     * (estación completa) y el sentido específico. Si movilidadReducida, suma los elevadores.
+     * ¿La estación (de ESA línea) está bloqueada para viajar HACIA la terminal indicada? Considera
+     * AMBOS (estación completa) y el sentido específico. Si movilidadReducida, suma los elevadores.
      * terminalNn = nombre normalizado de la terminal del sentido de viaje (o null).
      */
-    public static boolean bloqueadoHacia(String estacionNn, String terminalNn, boolean movilidadReducida) {
-        if (contiene(simulado, estacionNn, terminalNn)) return true;   // simulación de prueba (panel oculto)
-        if (afectadas.contains(estacionNn)) return true;   // estado en tiempo real: ambos sentidos
-        if (mexibusBloq.contains(estacionNn)) return true;   // línea Mexibús suspendida (toda la línea)
-        if (contiene(porSentido, estacionNn, terminalNn)) return true;
-        return movilidadReducida && contiene(porSentidoMR, estacionNn, terminalNn);
+    public static boolean bloqueadoHacia(int linea, String estacionNn, String terminalNn, boolean movilidadReducida) {
+        String k = clave(linea, estacionNn);
+        if (contiene(simulado, k, terminalNn)) return true;   // simulación de prueba (panel oculto)
+        if (afectadas.contains(k)) return true;   // estado en tiempo real: ambos sentidos
+        if (mexibusBloq.contains(k)) return true;   // línea Mexibús suspendida (toda la línea)
+        if (contiene(porSentido, k, terminalNn)) return true;
+        return movilidadReducida && contiene(porSentidoMR, k, terminalNn);
     }
 
     /** Simula una afectación por sentido para PROBAR el planificador (terminalNn null/"" = ambos). */
-    public static void simular(String estacionNn, String terminalNn) {
-        simulado.computeIfAbsent(estacionNn, z -> ConcurrentHashMap.newKeySet())
+    public static void simular(int linea, String estacionNn, String terminalNn) {
+        simulado.computeIfAbsent(clave(linea, estacionNn), z -> ConcurrentHashMap.newKeySet())
                 .add(terminalNn == null || terminalNn.isEmpty() ? AMBOS : terminalNn);
         actualizado = System.currentTimeMillis();
     }
@@ -192,14 +199,17 @@ public final class Manifestaciones {
         return b.toString();
     }
 
-    /** Sentidos bloqueados en una estación: terminales (norm) afectadas, o AMBOS. Vacío = libre. */
-    public static Set<String> sentidosBloqueados(String estacionNn, boolean movilidadReducida) {
+    /** Sentidos bloqueados en una estación DE ESA LÍNEA: terminales (norm) afectadas, o AMBOS. Vacío
+     *  = libre. Una afectación reportada para otra línea (aunque comparta nombre de estación, p. ej.
+     *  "La Raza" en L1 y L3) no bloquea esta. */
+    public static Set<String> sentidosBloqueados(int linea, String estacionNn, boolean movilidadReducida) {
+        String k = clave(linea, estacionNn);
         Set<String> out = new HashSet<>();
-        if (afectadas.contains(estacionNn)) out.add(AMBOS);
-        if (mexibusBloq.contains(estacionNn)) out.add(AMBOS);   // línea Mexibús suspendida
-        Set<String> a = simulado.get(estacionNn);   if (a != null) out.addAll(a);
-        Set<String> b = porSentido.get(estacionNn);  if (b != null) out.addAll(b);
-        if (movilidadReducida) { Set<String> c = porSentidoMR.get(estacionNn); if (c != null) out.addAll(c); }
+        if (afectadas.contains(k)) out.add(AMBOS);
+        if (mexibusBloq.contains(k)) out.add(AMBOS);   // línea Mexibús suspendida
+        Set<String> a = simulado.get(k);   if (a != null) out.addAll(a);
+        Set<String> b = porSentido.get(k);  if (b != null) out.addAll(b);
+        if (movilidadReducida) { Set<String> c = porSentidoMR.get(k); if (c != null) out.addAll(c); }
         return out;
     }
 

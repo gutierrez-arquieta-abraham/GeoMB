@@ -352,6 +352,7 @@ public final class Planificador {
         if (canon == null) return res;
         String cn = norm(sinMxb(canon));   // nombre LIMPIO: agrupa homónimas entre sistemas aunque el nombre completo difiera (p. ej. "Indios Verdes" Metrobús ↔ Mexibús)
         java.util.Set<Integer> vistas = new java.util.HashSet<>();
+        boolean mr = Perfil.movilidadReducida(ctx);
         for (Linea l : GtfsRepository.getRuteables(ctx)) {
             if (vistas.contains(l.numero)) continue;
             for (Estacion e : l.estaciones) {
@@ -359,7 +360,15 @@ public final class Planificador {
                 String ne = norm(sinMxb(e.nombre));
                 // Mismo nombre, o una variante que EXTIENDE el nombre con más palabras (p. ej. "Central de
                 // Abastos" ↔ "Central de Abastos Chicoloapan" de L3A). Así CEDA también ofrece la de L3A.
-                if (ne.equals(cn) || ne.startsWith(cn + " ")) { res.add(new Match(e.nombre, l.numero, e.posicion, e.icono)); vistas.add(l.numero); break; }
+                if (ne.equals(cn) || ne.startsWith(cn + " ")) {
+                    vistas.add(l.numero);
+                    // No ofrecer una estación TOTALMENTE cerrada (bloqueada en ambos sentidos) como
+                    // opción: aunque otra línea comparta el nombre (p. ej. "La Raza" en L1 y L3), cada
+                    // una se evalúa por SU PROPIA línea, nunca por la de otra homónima.
+                    if (!Manifestaciones.sentidosBloqueados(l.numero, norm(e.nombre), mr).contains(Manifestaciones.AMBOS))
+                        res.add(new Match(e.nombre, l.numero, e.posicion, e.icono));
+                    break;
+                }
             }
         }
         return res;
@@ -1245,7 +1254,7 @@ public final class Planificador {
         Route r = rutas.get(nd[0]);
         int idx = nd[1];
         Stop s = r.stops.get(idx);
-        Set<String> sentidos = Manifestaciones.sentidosBloqueados(s.nn, Perfil.movilidadReducida(ctx));
+        Set<String> sentidos = Manifestaciones.sentidosBloqueados(s.linea, s.nn, Perfil.movilidadReducida(ctx));
         if (sentidos.isEmpty()) return false;
         if (sentidos.contains(Manifestaciones.AMBOS)) return true;
         // Referencia de dirección: la parada SIGUIENTE (o la anterior si es fin de ruta).

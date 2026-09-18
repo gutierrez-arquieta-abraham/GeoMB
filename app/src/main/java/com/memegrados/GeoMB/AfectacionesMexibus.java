@@ -117,6 +117,9 @@ public final class AfectacionesMexibus {
     private static void bloqueoLinea(Linea l, String estado, JSONArray circuito, String lugar, Set<String> bloq) {
         String e = estado == null ? "" : estado.toLowerCase();
         java.util.List<Estacion> est = l.estaciones;
+        // Clave SIEMPRE "linea|estacion", nunca solo el nombre: evita que una estación de esta línea
+        // bloquee por error otra línea/sistema con el mismo nombre (ver Manifestaciones.clave()).
+        String pref = l.numero + "|";
         if (circuito != null && circuito.length() > 0) {
             boolean[] hab = new boolean[est.size()];
             for (int i = 0; i < circuito.length(); i++) {
@@ -128,9 +131,9 @@ public final class AfectacionesMexibus {
                 for (int k = Math.min(ia, ib); k <= Math.max(ia, ib); k++) hab[k] = true;
             }
             for (int i = 0; i < est.size(); i++)
-                if (!hab[i]) bloq.add(Planificador.norm(est.get(i).nombre));
+                if (!hab[i]) bloq.add(pref + Planificador.norm(est.get(i).nombre));
         } else if (e.contains("sin servicio")) {
-            for (Estacion x : est) bloq.add(Planificador.norm(x.nombre));   // toda la línea
+            for (Estacion x : est) bloq.add(pref + Planificador.norm(x.nombre));   // toda la línea
         } else if (e.contains("paso de largo") || e.contains("estación cerrada") || e.contains("estacion cerrada")) {
             // 'lugar' puede traer UNA estación ("paso de largo") o VARIAS juntas por "y"/coma
             // ("estación cerrada": p. ej. "Adolfo López Mateos y Palacio Municipal") — se bloquea
@@ -139,7 +142,7 @@ public final class AfectacionesMexibus {
                 String n = nombre.trim();
                 if (n.isEmpty()) continue;
                 int i = indiceEstacion(est, n);
-                if (i >= 0) bloq.add(Planificador.norm(est.get(i).nombre));
+                if (i >= 0) bloq.add(pref + Planificador.norm(est.get(i).nombre));
             }
         }
     }

@@ -375,7 +375,7 @@ public class AcercaFragment extends Fragment {
                 if (sentido == 1) term = Planificador.norm(l.estaciones.get(0).nombre);
                 else if (sentido == 2) term = Planificador.norm(l.estaciones.get(l.estaciones.size() - 1).nombre);
             }
-            Manifestaciones.simular(Planificador.norm(es.toString()), term);
+            Manifestaciones.simular(l.numero, Planificador.norm(es.toString()), term);
             Toast.makeText(requireContext(),
                     "Afectación simulada: " + es + (term == null ? " (ambos)" : " → " + spS.getSelectedItem()),
                     Toast.LENGTH_SHORT).show();
@@ -386,7 +386,7 @@ public class AcercaFragment extends Fragment {
             if (i1 < 0 || i2 < 0 || l.estaciones.isEmpty()) return;
             int lo = Math.min(i1, i2), hi = Math.max(i1, i2);
             for (int k = lo; k <= hi; k++)                       // todo el tramo fuera de servicio (ambos)
-                Manifestaciones.simular(Planificador.norm(l.estaciones.get(k).nombre), null);
+                Manifestaciones.simular(l.numero, Planificador.norm(l.estaciones.get(k).nombre), null);
             Toast.makeText(requireContext(),
                     "Sin servicio: " + l.estaciones.get(lo).nombre + " a " + l.estaciones.get(hi).nombre,
                     Toast.LENGTH_LONG).show();
