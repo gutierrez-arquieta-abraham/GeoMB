@@ -382,40 +382,48 @@ public class PlanificadorFragment extends Fragment {
         reajustarMapaTrasPanel();
     }
 
-    private android.view.ViewTreeObserver.OnGlobalLayoutListener ajusteMapaPendiente;
+    private android.view.ViewTreeObserver.OnGlobalLayoutListener ajusteMapaListener;
+    private static final long AJUSTE_MAPA_DEBOUNCE_MS = 150L;
+    private final Runnable ajusteMapaAccion = () -> {
+        View root = getView();
+        if (root != null && ajusteMapaListener != null) {
+            try { root.getViewTreeObserver().removeOnGlobalLayoutListener(ajusteMapaListener); }
+            catch (Exception ignore) {}
+        }
+        ajusteMapaListener = null;
+        if (!isAdded() || mapa == null) return;
+        if (recorrido && seguirCamara && RecorridoService.ultimaPos != null) {
+            centrarRecorrido(RecorridoService.ultimaPos);
+        } else if (ultimosLimites != null) {
+            encuadrarAhora(ultimosLimites);
+        }
+    };
 
     /**
      * Reajusta el mapa después de colapsar/expandir un panel (o de trazar/reactivar una ruta):
      * durante el recorrido, recentra en el usuario YA (sin esperar el próximo tick de
      * {@link #tickRecorrido}); si no, reencuadra la ruta completa en el espacio libre/ocupado.
      *
-     * Espera el layout COMPLETO del árbol (ViewTreeObserver.OnGlobalLayoutListener), no el de una
-     * sola tarjeta: cuando origen/destino Y resultado cambian de tamaño en la MISMA pasada (p. ej.
-     * al trazar, que contrae uno y puede expandir el otro), escuchar solo una de las dos podía
-     * disparar el ajuste ANTES de que la OTRA terminara su layout, leyendo un tamaño viejo — el
-     * orden entre ambas no está garantizado, y por eso salía bien a veces y mal otras según cuál
-     * terminara primero. Además se COALESCE: si ya hay un ajuste pendiente de una llamada anterior
-     * en la misma pasada, se reemplaza por este en vez de apilar dos (evita que el primero, con
-     * datos parciales, gane por casualidad al segundo).
+     * Un solo OnGlobalLayoutListener "de un disparo" (lo que se probó antes) no basta: dispara con
+     * CUALQUIER pasada de layout del árbol, no necesariamente la de la tarjeta que cambió de tamaño
+     * (p. ej. una unidad redibujándose, o -con dos tarjetas cambiando en la misma pasada- la de la
+     * OTRA tarjeta que no había terminado todavía), y entonces mide un tamaño viejo. Se cambia a
+     * "debounce": cada pasada de layout reprograma la acción {@link #AJUSTE_MAPA_DEBOUNCE_MS} ms
+     * hacia adelante, y el listener se queda escuchando hasta que el árbol de verdad deja de moverse
+     * por ese lapso sin interrupciones — recién ahí se mide y se ajusta el mapa, una sola vez.
      */
     private void reajustarMapaTrasPanel() {
         View root = getView();
         if (root == null || mapa == null) return;
-        android.view.ViewTreeObserver vto = root.getViewTreeObserver();
-        if (ajusteMapaPendiente != null) vto.removeOnGlobalLayoutListener(ajusteMapaPendiente);
-        ajusteMapaPendiente = new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override public void onGlobalLayout() {
-                vto.removeOnGlobalLayoutListener(this);
-                ajusteMapaPendiente = null;
-                if (!isAdded() || mapa == null) return;
-                if (recorrido && seguirCamara && RecorridoService.ultimaPos != null) {
-                    centrarRecorrido(RecorridoService.ultimaPos);
-                } else if (ultimosLimites != null) {
-                    encuadrarAhora(ultimosLimites);
-                }
-            }
-        };
-        vto.addOnGlobalLayoutListener(ajusteMapaPendiente);
+        if (ajusteMapaListener == null) {
+            ajusteMapaListener = () -> {
+                handler.removeCallbacks(ajusteMapaAccion);
+                handler.postDelayed(ajusteMapaAccion, AJUSTE_MAPA_DEBOUNCE_MS);
+            };
+            root.getViewTreeObserver().addOnGlobalLayoutListener(ajusteMapaListener);
+        }
+        handler.removeCallbacks(ajusteMapaAccion);
+        handler.postDelayed(ajusteMapaAccion, AJUSTE_MAPA_DEBOUNCE_MS);
     }
 
     /** Toca el resumen o el chevron del panel de resultado: alterna el detalle (pasos + aviso). */
@@ -1667,6 +1675,12 @@ public class PlanificadorFragment extends Fragment {
     @Override public void onDestroyView() {
         handler.removeCallbacks(poll);
         handler.removeCallbacks(tickRecorrido);
+        handler.removeCallbacks(ajusteMapaAccion);
+        if (ajusteMapaListener != null && getView() != null) {
+            try { getView().getViewTreeObserver().removeOnGlobalLayoutListener(ajusteMapaListener); }
+            catch (Exception ignore) {}
+        }
+        ajusteMapaListener = null;
         trazo.clear();
         rutaActiva = null;
         mapa = null;
