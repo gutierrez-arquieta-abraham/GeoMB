@@ -299,7 +299,7 @@ public class RecorridoService extends Service {
         activo = true;
         ultVoz = -99; ultLlegando = -99; ultProxima = -99; afectacionAvisada = false;
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
-        Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0);
+        Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
         } else {
@@ -565,7 +565,7 @@ public class RecorridoService extends Service {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null) nm.notify(ID, construir(vis(prox), estado, pico(prox),
                 vis(ant), pico(ant), vis(post), pico(post),
-                vis(seq.get(0)), vis(seq.get(last)), seq.get(best).color));
+                vis(seq.get(0)), vis(seq.get(last)), seq.get(best).color, prox.linea));
 
         // VOZ (precedida del "tururu"): al ARRIBAR a la estación dice "Llegando a estación: X"; si es
         // transbordo añade "Transbordo con Línea #"; si es terminal, "nadie debe permanecer a bordo"; y
@@ -1523,10 +1523,11 @@ public class RecorridoService extends Service {
 
     private Notification construir(String proxima, String estado, Bitmap picProx,
                                   String anterior, Bitmap picAnt, String posterior, Bitmap picPost,
-                                  String origenViaje, String destinoViaje, int colorLinea) {
+                                  String origenViaje, String destinoViaje, int colorLinea, int lineaProxima) {
         RemoteViews rv = new RemoteViews(getPackageName(), R.layout.notif_recorrido);
-        // Próxima estación en Tipo Metro (bitmap); el resto en texto normal.
-        Bitmap nombreBmp = Tipografia.render(this, proxima, 20f, 0xFFC8103E, true);
+        // Próxima estación (bitmap): Tipo Metro para Metrobús/Mexicable; Mexibús imita su
+        // señalética real según línea y modo de iconografía (ver Tipografia.fuenteEstacion()).
+        Bitmap nombreBmp = Tipografia.render(this, proxima, 20f, 0xFFC8103E, true, lineaProxima);
         if (nombreBmp != null) {
             rv.setImageViewBitmap(R.id.nr_estacion, nombreBmp);
             rv.setContentDescription(R.id.nr_estacion, proxima);
