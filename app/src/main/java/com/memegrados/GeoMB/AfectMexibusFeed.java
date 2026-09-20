@@ -232,12 +232,18 @@ public final class AfectMexibusFeed {
         return "(?:mexibus\\s*" + LW + "\\s*" + n + suf + "|\\b" + LW + "\\s*" + n + suf + ")";
     }
 
+    // Alias exclusivo de L1A (ninguna estación de la troncal L1 se llama así): si aparece junto con
+    // una mención genérica de "línea 1" (p. ej. el hashtag #MexibusLinea1 en un post que sí es de la
+    // AIFA), es la MISMA afectación de la ramal, no una aparte de la troncal — ver el remove(101) abajo.
+    private static final Pattern P_AIFA =
+            Pattern.compile("aifa|afia|aeropuerto|felipe angeles|terminal de pasajeros");
+
     // Códigos de la app: Mexibús 101-104, ramales 111-113, Mexicable 201-202. Orden: ramales/alias ANTES.
     private static final int[]     COD = new int[11];
     private static final Pattern[] RX  = new Pattern[11];
     static {
         int i = 0;
-        RX[i] = Pattern.compile("aifa|afia|aeropuerto|felipe angeles|terminal de pasajeros"); COD[i++] = 111;
+        RX[i] = P_AIFA;                                                                       COD[i++] = 111;
         RX[i] = Pattern.compile(pat(1, true));                                                COD[i++] = 111;
         RX[i] = Pattern.compile("servicio\\s*electric\\w*|servicioelectric\\w*");             COD[i++] = 112;
         RX[i] = Pattern.compile(pat(2, true));                                                COD[i++] = 112;
@@ -259,6 +265,9 @@ public final class AfectMexibusFeed {
             if (RX[i].matcher(tn).find() && !enc.containsKey(COD[i])) enc.put(COD[i], Boolean.TRUE);
         // "Servicio Eléctrico" = L2A: su "#MexibusLinea2" es solo la troncal → deja L2A, quita L2.
         if (P_SERVELEC.matcher(tn).find() && enc.containsKey(112)) enc.remove(102);
+        // AIFA/Terminal de Pasajeros = L1A: su "#MexibusLinea1" es solo la troncal → deja L1A, quita L1
+        // (evita que, p. ej., "Loma Bonita" -que es una estación exclusiva de L1A- salga también en L1).
+        if (P_AIFA.matcher(tn).find() && enc.containsKey(111)) enc.remove(101);
         return enc;
     }
 
