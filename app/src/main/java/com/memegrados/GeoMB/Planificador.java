@@ -936,13 +936,11 @@ public final class Planificador {
                 continue;
             }
             // L1/L3/L5: dos rutas DIRIGIDAS (ida/vuelta) para poder bloquear y desviar por sentido.
-            // L3 excluye ramales terminales que se desvían de la troncal ("buenavista": no existe hoy
-            // en los datos de L3, se deja por si se agrega un ramal futuro con ese nombre). "la raza"
-            // SÍ es una estación real de la troncal de L3 (agregada junto con Hospital la Raza, ver
-            // lineas.json): antes de esa estación existir, esta exclusión no hacía nada para L3, pero
-            // al agregarla empezó a descartarla del ruteo por el mismo nombre — quitada de aquí.
-            Set<String> excl = l.numero == 3 ? set("buenavista")
-                    : java.util.Collections.<String>emptySet();
+            // "buenavista" y "la raza" fueron en su momento exclusiones para un ramal hipotético de
+            // L3 que no existía todavía en los datos; ambos nombres ahora SÍ son estaciones reales
+            // de la troncal (Buenavista, La Raza/Hospital La Raza) y esa exclusión las descartaba
+            // silenciosamente del ruteo por coincidir el nombre — quitada por completo.
+            Set<String> excl = java.util.Collections.<String>emptySet();
             rutas.add(dirRoute(l, "L" + l.numero + ">", true, excl));
             rutas.add(dirRoute(l, "L" + l.numero + "<", false, excl));
         }
