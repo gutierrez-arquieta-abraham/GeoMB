@@ -935,11 +935,15 @@ public final class Planificador {
                 rutas.add(dirRoute(l, "L124<", false, java.util.Collections.<String>emptySet())); // sur: con La Raza (descenso)
                 continue;
             }
-            // L1/L3/L5: dos rutas DIRIGIDAS (ida/vuelta) para poder bloquear y desviar por sentido.
-            // "buenavista" y "la raza" fueron en su momento exclusiones para un ramal hipotético de
-            // L3 que no existía todavía en los datos; ambos nombres ahora SÍ son estaciones reales
-            // de la troncal (Buenavista, La Raza/Hospital La Raza) y esa exclusión las descartaba
-            // silenciosamente del ruteo por coincidir el nombre — quitada por completo.
+            if (l.numero == 3) {   // L3: "Buenavista III" es plataforma de RETORNO a Tenayuca (los
+                // camiones de vuelta corta llegan a "Buenavista II" solo a descenso y la salida hacia
+                // Tenayuca es desde "Buenavista III", un andén aparte) → se excluye del sentido SUR
+                // (L3>, Tenayuca→Pueblo Sta. Cruz Atoyac): no se aborda ahí para ir al sur.
+                rutas.add(dirRoute(l, "L3>", true, set("buenavista iii")));   // sur: sin Buenavista III
+                rutas.add(dirRoute(l, "L3<", false, java.util.Collections.<String>emptySet())); // norte: con Buenavista III
+                continue;
+            }
+            // L1/L5: dos rutas DIRIGIDAS (ida/vuelta) para poder bloquear y desviar por sentido.
             Set<String> excl = java.util.Collections.<String>emptySet();
             rutas.add(dirRoute(l, "L" + l.numero + ">", true, excl));
             rutas.add(dirRoute(l, "L" + l.numero + "<", false, excl));
