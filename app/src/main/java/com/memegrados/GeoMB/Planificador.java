@@ -1494,6 +1494,20 @@ public final class Planificador {
                 if (aero != null && aero.size() >= 2) return aero;
             }
         }
+        if (linea == 3 && grupo.size() == 2) {
+            // El PAR que toca Buenavista II o III usa el desvío dedicado (shape propio del GTFS):
+            // la troncal genérica ("L3-vuelta", vía geomSentido) pasa de largo ~500 m al este y
+            // NUNCA llega a esas 2 plataformas. El resto del tramo (Tenayuca hasta Ricardo Flores
+            // Magón) SÍ está bien resuelto en "L3-vuelta", así que solo se sustituye este último par.
+            LatLng bII = posEstacion(ctx, "buenavista ii"), bIII = posEstacion(ctx, "buenavista iii");
+            boolean tocaBuenavista = cerca(grupo.get(0), bII) || cerca(grupo.get(1), bII)
+                    || cerca(grupo.get(0), bIII) || cerca(grupo.get(1), bIII);
+            if (tocaBuenavista) {
+                boolean vuelta = seqId != null && seqId.toLowerCase().contains("vuelta");
+                List<LatLng> desvio = GtfsRepository.sublinea(ctx, vuelta ? "L3-TB-vuelta" : "L3-TB-ida");
+                if (desvio != null && desvio.size() >= 2) return desvio;
+            }
+        }
         return geomSentido(ctx, linea, grupo.get(0), grupo.get(grupo.size() - 1));
     }
 
