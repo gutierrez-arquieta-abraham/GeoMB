@@ -205,6 +205,24 @@ public final class RutasMixtas {
                 .linea(4, "Terminal 2", "Terminal 1")
                 .build());
 
+        // L3: vuelta corta Tenayuca<->Buenavista (horarios.json ya trae este servicio). La troncal de
+        // L3 (Tenayuca<->Pueblo Sta. Cruz Atoyac) NO se desvía hasta Buenavista (confirmado contra el
+        // GTFS: los camiones de largo recorrido pasan de largo ~500 m al este); solo esta vuelta corta
+        // sí llega. Ida: descenso en "Buenavista II". Vuelta: sale desde "Buenavista III" (andén aparte).
+        SECUENCIAS.add(new Seq("L3-TB-ida").visible("L3 (Tenayuca–Buenavista)").unaVia()
+                .linea(3, "Tenayuca", "San José de la Escalera", "Progreso Nacional", "Tres Anegas",
+                        "Júpiter", "La Patera", "Poniente 146", "Montevideo", "Poniente 134", "Poniente 128",
+                        "Magdalena La Salinas", "Coltongo", "Cuitláhuac", "Héroe de Nacozari", "Hospital La Raza",
+                        "La Raza", "Circuito", "Tolnáhuac", "Tlatelolco", "Ricardo Flores Magón", "Buenavista II")
+                .build());
+        SECUENCIAS.add(new Seq("L3-TB-vuelta").visible("L3 (Tenayuca–Buenavista)").unaVia()
+                .linea(3, "Buenavista III", "Ricardo Flores Magón", "Tlatelolco", "Tolnáhuac", "Circuito",
+                        "La Raza", "Hospital La Raza", "Héroe de Nacozari", "Cuitláhuac", "Coltongo",
+                        "Magdalena La Salinas", "Poniente 128", "Poniente 134", "Montevideo", "Poniente 146",
+                        "La Patera", "Júpiter", "Tres Anegas", "Progreso Nacional", "San José de la Escalera",
+                        "Tenayuca")
+                .build());
+
         // L7 por sus 4 servicios (couplet norte: hacia Campo Marte va por "De los Misterios";
         // hacia el norte va por "Delegación Gustavo A. Madero"). Secuencias en sentido de viaje.
         SECUENCIAS.add(new Seq("L7-IC").visible("L7").unaVia()   // Indios Verdes → Campo Marte (sur por De Los Misterios)
