@@ -1013,9 +1013,9 @@ public class RecorridoService extends Service {
         if (lineal && Horarios.tieneLinea(this, base)) {
             Linea l = GtfsRepository.porNumero(this, base);
             if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
-                int ia = idxEnLinea(l, seq.get(i).nombre);
-                int ib = idxEnLinea(l, seq.get(fin).nombre);
-                if (ia >= 0 && ib >= 0 && ia != ib) t = terminalHorario(base, l, ia, ib);
+                int ia = Horarios.idxEnLinea(l, seq.get(i).nombre);
+                int ib = Horarios.idxEnLinea(l, seq.get(fin).nombre);
+                if (ia >= 0 && ib >= 0 && ia != ib) t = Horarios.terminalHorario(this, base, l, ia, ib);
             }
         }
         // Couplets de Metrobús (L2/L4/L7): su línea base no es lineal, así que se usa la terminal que ya
@@ -1024,51 +1024,9 @@ public class RecorridoService extends Service {
         if (t == null) t = terminalSentido(seq, i);
         // Salvaguarda: la dirección nunca debe ser la MISMA estación donde vas/abordas; si lo fuera
         // (datos raros), usa el final del tramo (tu destino en esta línea).
-        String aqui = nomNombre(seq.get(i).nombre);
-        if (t == null || Planificador.norm(t).equals(Planificador.norm(aqui))) t = nomNombre(seq.get(fin).nombre);
+        String aqui = Horarios.nomNombre(seq.get(i).nombre);
+        if (t == null || Planificador.norm(t).equals(Planificador.norm(aqui))) t = Horarios.nomNombre(seq.get(fin).nombre);
         return t;
-    }
-
-    /**
-     * Terminal(es) de dirección para tu parada, según las rutas de horarios. Recolecta las rutas que
-     * CUBREN tu parada (ia) y toma, de cada una, su extremo en tu sentido de viaje (por índice; no se
-     * asume que {@code destino} sea el extremo mayor). Devuelve las terminales DISTINTAS de la más
-     * cercana a la más lejana, unidas con " o " (p. ej. "Instituto Politécnico Nacional o El Rosario").
-     * Si MÁS DE 3 rutas cubren la parada, devuelve solo la más cercana. null si ninguna aplica.
-     */
-    private String terminalHorario(int base, Linea l, int ia, int ib) {
-        boolean forward = ib > ia;               // hacia el extremo de índice MAYOR de la línea
-        int last = l.estaciones.size() - 1;
-        java.util.List<Integer> idxs = new java.util.ArrayList<>();
-        java.util.List<String> nombres = new java.util.ArrayList<>();
-        int rutasCubren = 0;
-        for (Horarios.Ruta r : Horarios.deLinea(this, base)) {
-            int oi = idxEnLinea(l, r.origen), di = idxEnLinea(l, r.destino);
-            if (oi < 0 && di < 0) continue;
-            if (oi < 0) oi = (di <= last - di) ? last : 0;   // extremo mixto (fuera de la línea): al extremo opuesto
-            if (di < 0) di = (oi <= last - oi) ? last : 0;
-            int lo = Math.min(oi, di), hi = Math.max(oi, di);
-            if (ia < lo || ia > hi) continue;                // esta ruta no cubre tu parada
-            rutasCubren++;
-            int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
-            String nombre = (termIdx == oi) ? r.origen : r.destino;
-            if (nombre == null || nombre.isEmpty() || idxEnLinea(l, nombre) < 0)
-                nombre = l.estaciones.get(termIdx).nombre;   // respaldo (mixta): nombre de la estación extrema
-            nombre = nomNombre(nombre);
-            if (!idxs.contains(termIdx)) { idxs.add(termIdx); nombres.add(nombre); }
-        }
-        if (idxs.isEmpty()) return null;
-        // ordena por cercanía a tu parada (ia)
-        for (int a = 0; a < idxs.size(); a++)
-            for (int b = a + 1; b < idxs.size(); b++)
-                if (Math.abs(idxs.get(b) - ia) < Math.abs(idxs.get(a) - ia)) {
-                    int ti = idxs.get(a); idxs.set(a, idxs.get(b)); idxs.set(b, ti);
-                    String tn = nombres.get(a); nombres.set(a, nombres.get(b)); nombres.set(b, tn);
-                }
-        if (rutasCubren > 3) return nombres.get(0);          // demasiadas rutas: solo la más cercana
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < nombres.size(); i++) sb.append(i > 0 ? " o " : "").append(nombres.get(i));
-        return sb.toString();
     }
 
     /** Terminal del SENTIDO de viaje del tramo que empieza en i: la estación extrema de la línea hacia la
@@ -1080,34 +1038,14 @@ public class RecorridoService extends Service {
         while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
         Linea l = GtfsRepository.porNumero(this, p.linea);
         if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
-            int ia = idxEnLinea(l, seq.get(i).nombre);
-            int ib = idxEnLinea(l, seq.get(fin).nombre);
+            int ia = Horarios.idxEnLinea(l, seq.get(i).nombre);
+            int ib = Horarios.idxEnLinea(l, seq.get(fin).nombre);
             if (ia >= 0 && ib >= 0 && ia != ib) {
                 Estacion term = ib > ia ? l.estaciones.get(l.estaciones.size() - 1) : l.estaciones.get(0);
-                return nomNombre(term.nombre);
+                return Horarios.nomNombre(term.nombre);
             }
         }
-        return nomNombre(seq.get(fin).nombre);   // respaldo: última parada del tramo
-    }
-
-    /** Índice en la línea de la estación cuyo nombre (normalizado, sin MXB, con alias) coincide con el de
-     *  la parada. Aplica alias para siglas comunes de horarios (p. ej. "IPN" → Instituto Politécnico). */
-    private static int idxEnLinea(Linea l, String nombreParada) {
-        String q = aliasEst(Planificador.norm(Planificador.sinMxb(nombreParada)));
-        for (int k = 0; k < l.estaciones.size(); k++)
-            if (aliasEst(Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre))).equals(q)) return k;
-        for (int k = 0; k < l.estaciones.size(); k++) {
-            String nn = aliasEst(Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre)));
-            if (!nn.isEmpty() && !q.isEmpty() && (nn.contains(q) || q.contains(nn))) return k;
-        }
-        return -1;
-    }
-
-    /** Alias de nombres de estación para casar horarios ↔ datos de línea (siglas/abreviaturas). */
-    private static String aliasEst(String q) {
-        if (q.equals("ipn") || q.equals("i p n") || q.contains("politecnico")) return "instituto politecnico nacional";
-        if (q.contains("18 de marzo") || q.contains("18 mzo") || q.contains("18 mar")) return "dep 18 mzo";
-        return q;
+        return Horarios.nomNombre(seq.get(fin).nombre);   // respaldo: última parada del tramo
     }
 
     /** Terminal (dirección) que el planificador calculó para el tramo que contiene la parada i. El índice
@@ -1118,14 +1056,6 @@ public class RecorridoService extends Service {
         int leg = 0;
         for (int k = 1; k <= i && k < seq.size(); k++) if (seq.get(k).transbordo) leg++;
         return (leg >= 0 && leg < ts.size()) ? ts.get(leg) : null;
-    }
-
-    /** Nombre para HABLAR desde un String de estación (sin "MXB " ni el paréntesis de conexión). */
-    private static String nomNombre(String nombre) {
-        if (nombre == null) return "";
-        String s = Planificador.sinMxb(nombre);
-        int par = s.indexOf('(');
-        return par >= 0 ? s.substring(0, par).trim() : s;
     }
 
     /**

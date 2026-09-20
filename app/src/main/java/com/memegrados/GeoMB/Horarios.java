@@ -204,4 +204,81 @@ public final class Horarios {
         int h = (min / 60) % 24, m = min % 60;
         return String.format(Locale.US, "%02d:%02d", h, m);
     }
+
+    // ---------------------------------------------------------------- terminal por dirección
+    // (compartido por RecorridoService -- voz -- y Planificador -- chip "Aborda · Dirección").
+
+    /** Alias de nombres de estación para casar horarios ↔ datos de línea (siglas/abreviaturas). */
+    private static String aliasEst(String q) {
+        if (q.equals("ipn") || q.equals("i p n") || q.contains("politecnico")) return "instituto politecnico nacional";
+        if (q.contains("18 de marzo") || q.contains("18 mzo") || q.contains("18 mar")) return "dep 18 mzo";
+        return q;
+    }
+
+    /** Índice en la línea de la estación cuyo nombre (normalizado, sin MXB, con alias) coincide con el de
+     *  la parada. Aplica alias para siglas comunes de horarios (p. ej. "IPN" → Instituto Politécnico). */
+    public static int idxEnLinea(Linea l, String nombreParada) {
+        String q = aliasEst(Planificador.norm(Planificador.sinMxb(nombreParada)));
+        for (int k = 0; k < l.estaciones.size(); k++)
+            if (aliasEst(Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre))).equals(q)) return k;
+        for (int k = 0; k < l.estaciones.size(); k++) {
+            String nn = aliasEst(Planificador.norm(Planificador.sinMxb(l.estaciones.get(k).nombre)));
+            if (!nn.isEmpty() && !q.isEmpty() && (nn.contains(q) || q.contains(nn))) return k;
+        }
+        return -1;
+    }
+
+    /** Nombre para mostrar/hablar desde un String de estación (sin "MXB " ni el paréntesis de conexión). */
+    public static String nomNombre(String nombre) {
+        if (nombre == null) return "";
+        String s = Planificador.sinMxb(nombre);
+        int par = s.indexOf('(');
+        return par >= 0 ? s.substring(0, par).trim() : s;
+    }
+
+    /**
+     * Terminal(es) de dirección para tu parada, según las rutas de horarios. Recolecta las rutas que
+     * CUBREN tu parada (ia) y toma, de cada una, su extremo en tu sentido de viaje (por índice; no se
+     * asume que {@code destino} sea el extremo mayor). Devuelve las terminales DISTINTAS de la más
+     * cercana a la más lejana, unidas con " o " (p. ej. "Instituto Politécnico Nacional o El Rosario").
+     * Si MÁS DE 3 rutas cubren la parada, devuelve solo la más cercana. null si ninguna aplica.
+     *
+     * Así una vuelta corta documentada (p. ej. L3 Tenayuca↔La Raza) sale como el destino real de la
+     * unidad en vez del extremo absoluto de la troncal (Pueblo Sta. Cruz Atoyac), tanto en la voz del
+     * recorrido (RecorridoService) como en el chip "Aborda · Dirección" del Planificador.
+     */
+    public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib) {
+        boolean forward = ib > ia;               // hacia el extremo de índice MAYOR de la línea
+        int last = l.estaciones.size() - 1;
+        List<Integer> idxs = new ArrayList<>();
+        List<String> nombres = new ArrayList<>();
+        int rutasCubren = 0;
+        for (Ruta r : deLinea(ctx, base)) {
+            int oi = idxEnLinea(l, r.origen), di = idxEnLinea(l, r.destino);
+            if (oi < 0 && di < 0) continue;
+            if (oi < 0) oi = (di <= last - di) ? last : 0;   // extremo mixto (fuera de la línea): al extremo opuesto
+            if (di < 0) di = (oi <= last - oi) ? last : 0;
+            int lo = Math.min(oi, di), hi = Math.max(oi, di);
+            if (ia < lo || ia > hi) continue;                // esta ruta no cubre tu parada
+            rutasCubren++;
+            int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
+            String nombre = (termIdx == oi) ? r.origen : r.destino;
+            if (nombre == null || nombre.isEmpty() || idxEnLinea(l, nombre) < 0)
+                nombre = l.estaciones.get(termIdx).nombre;   // respaldo (mixta): nombre de la estación extrema
+            nombre = nomNombre(nombre);
+            if (!idxs.contains(termIdx)) { idxs.add(termIdx); nombres.add(nombre); }
+        }
+        if (idxs.isEmpty()) return null;
+        // ordena por cercanía a tu parada (ia)
+        for (int a = 0; a < idxs.size(); a++)
+            for (int b = a + 1; b < idxs.size(); b++)
+                if (Math.abs(idxs.get(b) - ia) < Math.abs(idxs.get(a) - ia)) {
+                    int ti = idxs.get(a); idxs.set(a, idxs.get(b)); idxs.set(b, ti);
+                    String tn = nombres.get(a); nombres.set(a, nombres.get(b)); nombres.set(b, tn);
+                }
+        if (rutasCubren > 3) return nombres.get(0);          // demasiadas rutas: solo la más cercana
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < nombres.size(); i++) sb.append(i > 0 ? " o " : "").append(nombres.get(i));
+        return sb.toString();
+    }
 }

@@ -1226,7 +1226,20 @@ public final class Planificador {
             Stop finStop = siB >= siA ? r.stops.get(r.stops.size() - 1) : r.stops.get(0);
             String terminal = finStop.nombre;
             String tc = terminalCanonico(r.id);   // L2/L6/L7: terminal real (p. ej. Tacubaya, no Parque Lira)
-            if (tc != null) terminal = tc;
+            if (tc != null) {
+                terminal = tc;
+            } else if (r.linea != null && r.linea.numero < 100) {
+                // Metrobús de troncal lineal SIN couplet (L1/L3/L5): el destino real de la unidad puede
+                // ser una vuelta corta documentada en horarios.json (p. ej. L3 Tenayuca↔La Raza) en vez
+                // del extremo absoluto de toda la línea (Pueblo Sta. Cruz Atoyac) -- mismo criterio que
+                // ya usa la voz del recorrido (RecorridoService.direccionTerminal → Horarios.terminalHorario).
+                int ia = Horarios.idxEnLinea(r.linea, a.nombre);
+                int ib = Horarios.idxEnLinea(r.linea, b.nombre);
+                if (ia >= 0 && ib >= 0 && ia != ib) {
+                    String th = Horarios.terminalHorario(ctx, r.linea.numero, r.linea, ia, ib);
+                    if (th != null) terminal = th;
+                }
+            }
             // Mexibús (ordinario/exprés): usa la terminal OFICIAL del sentido (p. ej. L4 sur = La Raza,
             // no "Indios Verdes" donde la exprés recorta su lista de paradas).
             if (r.linea != null && r.linea.numero >= 100) {
