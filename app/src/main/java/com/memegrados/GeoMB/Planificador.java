@@ -1456,6 +1456,20 @@ public final class Planificador {
     private static List<LatLng> geomLinea(Context ctx, int linea, String seqId, List<LatLng> grupo) {
         if (linea == 7) return GtfsRepository.sublinea(ctx, claveSublineaL7(seqId, grupo));
         if (linea == 4) {
+            // El PAR T1<->T2 siempre usa la lanzadera dedicada (shape con buena resolución en AMBOS
+            // extremos), sin importar qué servicio ganó el Dijkstra para esa arista: el shape crudo
+            // de "L4-AA-ida" sí toca T1 pero se queda a ~1.5 km de T2 (nunca llega), así que si
+            // Dijkstra elige AA-ida para el brinco final San Lázaro-T1-T2, la rebanada T1->T2 salía
+            // trunca (el trazo se cortaba antes de llegar a Terminal 2).
+            if (grupo.size() == 2) {
+                LatLng t1 = posEstacion(ctx, "terminal 1"), t2 = posEstacion(ctx, "terminal 2");
+                boolean t1aT2 = cerca(grupo.get(0), t1) && cerca(grupo.get(1), t2);
+                boolean t2aT1 = cerca(grupo.get(0), t2) && cerca(grupo.get(1), t1);
+                if (t1aT2 || t2aT1) {
+                    List<LatLng> directo = GtfsRepository.sublinea(ctx, t1aT2 ? "L4-T1T2-ida" : "L4-T1T2-vuelta");
+                    if (directo != null && directo.size() >= 2) return directo;
+                }
+            }
             // Cada servicio de L4 tiene su shape PROPIO del GTFS (Ruta Norte/Sur, Hidalgo–Alameda
             // Oriente, Aeropuerto–Amajac): se prueba PRIMERO porque es la geometría exacta de ESE
             // tramo. Se quita el sufijo "<" del sentido invertido (p. ej. "L4-RN<") para hallar la
@@ -1479,6 +1493,11 @@ public final class Planificador {
             }
         }
         return geomSentido(ctx, linea, grupo.get(0), grupo.get(grupo.size() - 1));
+    }
+
+    /** ¿El punto está a menos de 300 m de la referencia (p. ej. Terminal 1/2)? */
+    private static boolean cerca(LatLng p, LatLng ref) {
+        return ref != null && p != null && Linea.distancia(p, ref) < 300;
     }
 
     /** ¿El tramo pasa por la zona del aeropuerto (cerca de Terminal 1/2)? */
