@@ -143,7 +143,7 @@ public class PlanificadorFragment extends Fragment {
             if (Manifestaciones.actualizado() != ultimaManifest) {
                 ultimaManifest = Manifestaciones.actualizado();
                 if (rutaActiva != null && resAviso != null) {
-                    boolean afect = Manifestaciones.hay();
+                    boolean afect = rutaTieneAfectacion(rutaActiva);
                     resAviso.setVisibility(afect ? View.VISIBLE : View.GONE);
                     if (afect) resAviso.setText(getString(R.string.ruta_alterna));
                 }
@@ -963,9 +963,10 @@ public class PlanificadorFragment extends Fragment {
 
         resResumen.setText(getString(R.string.ruta_resumen, r.paradas, r.transbordos, r.minutos));
         pintarPasos(r);
-        // Aviso combinado: afectaciones (si hay) + ventana de servicio de hoy y "podría no circular".
+        // Aviso combinado: afectaciones que tocan ESTA ruta (si hay) + ventana de servicio de hoy
+        // y "podría no circular". Que el sistema tenga afectaciones no basta (ver rutaTieneAfectacion).
         StringBuilder aviso = new StringBuilder();
-        if (Manifestaciones.hay()) aviso.append(getString(R.string.ruta_alterna));
+        if (rutaTieneAfectacion(r)) aviso.append(getString(R.string.ruta_alterna));
         String hor = infoHorario(r);
         if (hor != null) { if (aviso.length() > 0) aviso.append("\n"); aviso.append(hor); }
         resAviso.setVisibility(aviso.length() > 0 ? View.VISIBLE : View.GONE);
@@ -1057,6 +1058,23 @@ public class PlanificadorFragment extends Fragment {
         for (String n : nombresRuta) {
             if (n.length() < 3) continue;
             if (lugarNorm.contains(n) || n.contains(lugarNorm)) return true;
+        }
+        return false;
+    }
+
+    /** ¿Alguna afectación ACTIVA toca esta ruta en particular (por línea usada o por estación de su
+     *  secuencia)? Que el sistema tenga afectaciones no basta: p. ej. un corte en L2 no debe marcar
+     *  como "ruta alterna" un viaje que solo usa la lanzadera L4 Terminal 1↔Terminal 2. */
+    private static boolean rutaTieneAfectacion(Planificador.Ruta r) {
+        if (r == null) return false;
+        java.util.Set<Integer> lineasRuta = new java.util.HashSet<>();
+        if (r.instrucciones != null)
+            for (Planificador.Instruccion ins : r.instrucciones) lineasRuta.add(ins.linea);
+        java.util.Set<String> nombresRuta = new java.util.HashSet<>();
+        for (Planificador.Parada p : r.secuencia) nombresRuta.add(Planificador.norm(p.nombre));
+        for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
+            if (lineasRuta.contains(a.lineaNum) || tocaLugarRuta(Planificador.norm(a.lugar), nombresRuta))
+                return true;
         }
         return false;
     }
