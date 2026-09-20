@@ -935,12 +935,15 @@ public final class Planificador {
                 rutas.add(dirRoute(l, "L124<", false, java.util.Collections.<String>emptySet())); // sur: con La Raza (descenso)
                 continue;
             }
-            if (l.numero == 3) {   // L3: "Buenavista III" es plataforma de RETORNO a Tenayuca (los
-                // camiones de vuelta corta llegan a "Buenavista II" solo a descenso y la salida hacia
-                // Tenayuca es desde "Buenavista III", un andén aparte) → se excluye del sentido SUR
-                // (L3>, Tenayuca→Pueblo Sta. Cruz Atoyac): no se aborda ahí para ir al sur.
-                rutas.add(dirRoute(l, "L3>", true, set("buenavista iii")));   // sur: sin Buenavista III
-                rutas.add(dirRoute(l, "L3<", false, java.util.Collections.<String>emptySet())); // norte: con Buenavista III
+            if (l.numero == 3) {   // L3: Buenavista II es en realidad plataforma de L1; los camiones
+                // de L3 solo llegan ahí a DESCENSO (nunca se aborda). El ascenso hacia Tenayuca es
+                // aparte, en "Buenavista III". Ninguna de las 2 es parte de la troncal base en NINGÚN
+                // sentido — se excluyen de L3>/L3< por completo y se rutean solo por el servicio
+                // dedicado L3-TB-ida/vuelta (evita además la ambigüedad de Dijkstra entre 2 formas de
+                // llegar al mismo punto, como pasó con la lanzadera T1↔T2 vs L4-AA-ida).
+                Set<String> exclBuenavista = set("buenavista ii", "buenavista iii");
+                rutas.add(dirRoute(l, "L3>", true, exclBuenavista));
+                rutas.add(dirRoute(l, "L3<", false, exclBuenavista));
                 continue;
             }
             // L1/L5: dos rutas DIRIGIDAS (ida/vuelta) para poder bloquear y desviar por sentido.
@@ -1205,9 +1208,7 @@ public final class Planificador {
                 // estar desfasada: p. ej. L3 llega a Tenayuca solo en la sublínea, no en la ruta base,
                 // y eso hacía caer TODO el tramo a líneas rectas). Si no cubre, va por las estaciones.
                 List<LatLng> geo = geomSentido(ctx, r.linea.numero, aPos, bPos);
-                List<LatLng> conDesvio = r.linea.numero == 3 ? trazoL3Buenavista(ctx, geo, aPos, bPos) : null;
-                pts = conDesvio != null ? conDesvio
-                        : (geo != null && geo.size() >= 2 && cercaDeRuta(geo, aPos) && cercaDeRuta(geo, bPos))
+                pts = (geo != null && geo.size() >= 2 && cercaDeRuta(geo, aPos) && cercaDeRuta(geo, bPos))
                         ? subRuta(geo, aPos, bPos) : paradasPos;
             } else {
                 pts = paradasPos;                            // sin geometría: por las estaciones
@@ -1516,36 +1517,6 @@ public final class Planificador {
     /** ¿El punto está a menos de 300 m de la referencia (p. ej. Terminal 1/2)? */
     private static boolean cerca(LatLng p, LatLng ref) {
         return ref != null && p != null && Linea.distancia(p, ref) < 300;
-    }
-
-    /**
-     * Empalma el desvío dedicado a Buenavista II/III con la troncal de L3, para el tramo BASE (no
-     * mixto: "L3>"/"L3<", que también incluyen esas 2 estaciones normalmente). geomLinea() ya cubre
-     * el caso del servicio L3-TB (mixta), pero Dijkstra suele preferir la ruta base para llegar a
-     * Buenavista II/III al ser más directa — sin esto, ese caso nunca pasaba por el desvío y el
-     * trazo se cortaba en la recta de respaldo. Devuelve null si ninguno de los 2 extremos es
-     * Buenavista (caller sigue con su lógica normal) o si falta algo para empalmar bien.
-     */
-    private static List<LatLng> trazoL3Buenavista(Context ctx, List<LatLng> troncal, LatLng aPos, LatLng bPos) {
-        LatLng bII = posEstacion(ctx, "buenavista ii"), bIII = posEstacion(ctx, "buenavista iii");
-        boolean aEsBuena = cerca(aPos, bII) || cerca(aPos, bIII);
-        boolean bEsBuena = cerca(bPos, bII) || cerca(bPos, bIII);
-        if (aEsBuena == bEsBuena) return null;   // ninguno (sigue normal) o ambos (caso raro, no se maneja)
-        boolean vuelta = aEsBuena;   // sale DE Buenavista hacia la troncal (en vez de llegar a ella)
-        List<LatLng> desvio = GtfsRepository.sublinea(ctx, vuelta ? "L3-TB-vuelta" : "L3-TB-ida");
-        if (desvio == null || desvio.size() < 2 || troncal == null || troncal.size() < 2) return null;
-        LatLng conexion = vuelta ? desvio.get(desvio.size() - 1) : desvio.get(0);   // extremo hacia la troncal
-        LatLng otroPos = vuelta ? bPos : aPos;
-        if (!cercaDeRuta(troncal, otroPos) || !cercaDeRuta(troncal, conexion)) return null;
-        List<LatLng> out = new ArrayList<>();
-        if (vuelta) {
-            out.addAll(subRuta(desvio, aPos, conexion));
-            out.addAll(subRuta(troncal, conexion, bPos));
-        } else {
-            out.addAll(subRuta(troncal, aPos, conexion));
-            out.addAll(subRuta(desvio, conexion, bPos));
-        }
-        return out;
     }
 
     /** ¿El tramo pasa por la zona del aeropuerto (cerca de Terminal 1/2)? */
