@@ -195,6 +195,15 @@ public final class RutasMixtas {
                         "San Pablo", "Pino Suárez Sur", "20 de Noviembre", "Isabel La Católica", "El Salvador",
                         "Eje Central", "Mercados San Juan", "Vocacional 5", "Defensoría Pública", "Amajac")
                 .build());
+        // Lanzadera directa entre las 2 terminales del AICM (no pasa por San Lázaro/Amajac): es la
+        // ÚNICA forma real de ir de Terminal 2 a Terminal 1, ya que L4-AA-vuelta no toca T1. Circula
+        // ~04:30–00:05 todos los días (horarios.json: "Terminal 2" → "Terminal 1").
+        SECUENCIAS.add(new Seq("L4-T1T2-ida").visible("L4 (Terminal 1–Terminal 2)").unaVia()
+                .linea(4, "Terminal 1", "Terminal 2")
+                .build());
+        SECUENCIAS.add(new Seq("L4-T1T2-vuelta").visible("L4 (Terminal 1–Terminal 2)").unaVia()
+                .linea(4, "Terminal 2", "Terminal 1")
+                .build());
 
         // L7 por sus 4 servicios (couplet norte: hacia Campo Marte va por "De los Misterios";
         // hacia el norte va por "Delegación Gustavo A. Madero"). Secuencias en sentido de viaje.
