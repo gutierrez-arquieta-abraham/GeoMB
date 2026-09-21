@@ -82,11 +82,13 @@ public final class Tipografia {
      * red (Metrobús, Mexicable) sigue con Tipo Metro, sin cambios.
      *  - Iconografía nueva (Movimex, toda la red Mexibús): Gotham Black.
      *  - Iconografía antigua, L1 (101) / L2 (102): Rounded Elegance (su tipografía original).
-     *  - Iconografía antigua, resto (L1A/L2A/L3/L3A/L4 = 111/112/103/113/104): Arial — Android no
-     *    trae esa fuente, se usa el sans-serif del sistema como equivalente más cercano.
+     *  - Iconografía antigua, resto (ramales L1A/L2A/L3A = 111/112/113, L3/L4 = 103/104, y
+     *    exprés L1–L4 = 121–124): Arial — Android no trae esa fuente, se usa el sans-serif del
+     *    sistema como equivalente más cercano.
      */
     public static Typeface fuenteEstacion(Context c, int linea) {
-        boolean esMexibus = (linea >= 101 && linea <= 104) || (linea >= 111 && linea <= 113);
+        boolean esMexibus = (linea >= 101 && linea <= 104) || (linea >= 111 && linea <= 113)
+                || (linea >= 121 && linea <= 124);
         if (!esMexibus) return metro(c);
         if (Modos.iconosNuevos(c)) return gothamBlack(c);
         if (linea == 101 || linea == 102) return roundedElegance(c);
