@@ -53,8 +53,10 @@ public class SincronizacionService extends Service {
 
     /** Arranca el servicio (si el usuario lo habilitó). */
     public static void iniciar(Context c) {
-        Intent i = new Intent(c, SincronizacionService.class);
-        ContextCompat.startForegroundService(c, i);
+        try {
+            Intent i = new Intent(c, SincronizacionService.class);
+            ContextCompat.startForegroundService(c, i);
+        } catch (Exception ignore) {}   // Android puede negar el arranque del foreground service
     }
 
     /** Detiene el servicio. */

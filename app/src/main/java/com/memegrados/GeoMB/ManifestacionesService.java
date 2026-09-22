@@ -115,8 +115,10 @@ public class ManifestacionesService extends Service {
     private final Runnable tick = this::revisar;
 
     public static void iniciar(android.content.Context c) {
-        androidx.core.content.ContextCompat.startForegroundService(
-                c, new Intent(c, ManifestacionesService.class));
+        try {
+            androidx.core.content.ContextCompat.startForegroundService(
+                    c, new Intent(c, ManifestacionesService.class));
+        } catch (Exception ignore) {}   // Android puede negar el arranque del foreground service
     }
 
     @Override

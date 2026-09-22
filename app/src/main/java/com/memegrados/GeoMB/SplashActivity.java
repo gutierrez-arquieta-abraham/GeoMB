@@ -112,6 +112,10 @@ public class SplashActivity extends AppCompatActivity {
     private boolean continuado = false;
 
     private void continuar() {
+        // video.setOnCompletionListener y el Handler.postDelayed de animacionSimple() son
+        // asíncronos: si la Activity ya terminó/se destruyó antes de que disparen, mostrarAviso()
+        // no debe intentar dlg.show() sobre ella.
+        if (isFinishing() || isDestroyed()) return;
         if (continuado) return;   // evita doble disparo (video + timeout)
         continuado = true;
 

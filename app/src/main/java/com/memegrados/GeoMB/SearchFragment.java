@@ -202,7 +202,7 @@ public class SearchFragment extends Fragment {
         if (!isAdded() || ecoActual == null) return;
         Intent i = new Intent(requireContext(), SeguimientoService.class)
                 .putExtra(SeguimientoService.EXTRA_ECO, ecoActual);
-        ContextCompat.startForegroundService(requireContext(), i);
+        try { ContextCompat.startForegroundService(requireContext(), i); } catch (Exception ignore) {}
         SeguimientoService.ecosSeguidos.add(ecoActual);   // reflejo inmediato en la UI
         actualizarBotonSeguir();
         Toast.makeText(requireContext(),

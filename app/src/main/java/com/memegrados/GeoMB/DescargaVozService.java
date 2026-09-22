@@ -75,7 +75,7 @@ public class DescargaVozService extends Service {
         Intent i = new Intent(c, DescargaVozService.class)
                 .putExtra(EXTRA_LINEAS, arr)
                 .putExtra(EXTRA_NOMBRE, nombre);
-        ContextCompat.startForegroundService(c, i);
+        try { ContextCompat.startForegroundService(c, i); } catch (Exception ignore) {}
     }
 
     /** Cancela la descarga en curso (botón "Cancelar" del diálogo o de la notificación). */
