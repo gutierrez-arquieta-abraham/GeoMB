@@ -53,9 +53,14 @@ public class MainActivity extends AppCompatActivity {
         // Carga el catálogo de rutas (route_id → línea, origen, destino).
         RutasRepository.init();
         // Reanuda la sincronización en segundo plano si el usuario la dejó activa.
-        if (Modos.sincronizacionFondo(this)) SincronizacionService.iniciar(this);
+        // Android 12+ puede negar el arranque del foreground service (p. ej. justo tras un
+        // timeout del FGS anterior); sin este try-catch, ForegroundServiceStartNotAllowedException
+        // tumbaba la app en CADA apertura (MainActivity.onCreate corre siempre al abrir).
+        try {
+            if (Modos.sincronizacionFondo(this)) SincronizacionService.iniciar(this);
+        } catch (Exception ignore) {}
         // Vigila afectaciones del servicio (manifestaciones) cada minuto.
-        ManifestacionesService.iniciar(this);
+        try { ManifestacionesService.iniciar(this); } catch (Exception ignore) {}
         // Suscribe a los temas de push (FCM) para recibir afectaciones y avisos de actualización.
         try {
             com.google.firebase.messaging.FirebaseMessaging fm =
@@ -118,14 +123,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** Carga el fragmento de la pestaña y actualiza el resaltado de la barra. */
+    /** Carga el fragmento de la pestaña y actualiza el resaltado de la barra.
+     *  commitAllowingStateLoss(): un listener o notificación puede llamar a esto justo cuando la
+     *  Activity ya guardó su estado (p. ej. al volver de segundo plano); commit() normal lanza
+     *  IllegalStateException en ese caso. Perder esta transacción puntual es inofensivo. */
     private void seleccionar(int id) {
         if (id == seleccionadoId) return;
         seleccionadoId = id;
         getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.fragment_container, fragmentDe(id))
-                .commit();
+                .commitAllowingStateLoss();
         pintarBarra(id);
     }
 
@@ -162,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, new RutasFragment())
                 .addToBackStack("rutas")
-                .commit();
+                .commitAllowingStateLoss();
     }
 
     /** Abre el listado de estaciones de una línea (con botón atrás). */
@@ -171,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, EstacionesLineaFragment.nueva(linea))
                 .addToBackStack("estaciones")
-                .commit();
+                .commitAllowingStateLoss();
     }
 
     /** Abre el listado de unidades de una ruta concreta (con botón atrás). */
@@ -180,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, UnidadesFragment.nuevaRuta(linea, codigo, recorrido))
                 .addToBackStack("unidades_ruta")
-                .commit();
+                .commitAllowingStateLoss();
     }
 
     /** Abre el listado de unidades de una línea (con botón atrás). */
@@ -189,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, UnidadesFragment.nueva(linea))
                 .addToBackStack("unidades")
-                .commit();
+                .commitAllowingStateLoss();
     }
 
     /** Abre el planificador de ruta hacia una estación (con botón atrás). */
@@ -198,6 +206,6 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, PlanificadorFragment.nuevo(destino))
                 .addToBackStack("planificador")
-                .commit();
+                .commitAllowingStateLoss();
     }
 }
