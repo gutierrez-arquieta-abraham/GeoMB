@@ -191,7 +191,11 @@ public class ReporteFragment extends Fragment {
     }
 
     private void pollVerificacion() {
-        if (!isAdded() || Verificacion.verificado(requireContext())) { actualizarVerificado(); return; }
+        // isAdded() se revisa APARTE: actualizarVerificado() llama a requireContext(), que lanza
+        // IllegalStateException si el fragment ya se desprendió (p. ej. el Handler.postDelayed de
+        // este mismo método dispara 3s después de que el usuario ya salió de la pantalla).
+        if (!isAdded()) return;
+        if (Verificacion.verificado(requireContext())) { actualizarVerificado(); return; }
         String uid = uidUsuario();
         if (uid == null || !DiditKYC.configurado()) return;
         DiditKYC.consultarEstado(uid, (verif, nombre) -> {

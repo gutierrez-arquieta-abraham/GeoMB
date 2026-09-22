@@ -180,6 +180,12 @@ public class SincronizacionService extends Service {
         stopSelf();
     }
 
+    /** Android 15+ (API 35): mismo timeout que arriba, con la firma nueva de dos argumentos. */
+    @Override
+    public void onTimeout(int startId, int fgsType) {
+        onTimeout(startId);
+    }
+
     @Override
     public void onDestroy() {
         activo = false;
