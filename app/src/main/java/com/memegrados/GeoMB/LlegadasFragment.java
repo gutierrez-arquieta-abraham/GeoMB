@@ -480,7 +480,7 @@ public class LlegadasFragment extends Fragment {
                 .putExtra(LlegadaService.EXTRA_LAT, e.posicion.latitude)
                 .putExtra(LlegadaService.EXTRA_LON, e.posicion.longitude)
                 .putExtra(LlegadaService.EXTRA_SENTIDO, sentidoSel());
-        ContextCompat.startForegroundService(requireContext(), i);
+        try { ContextCompat.startForegroundService(requireContext(), i); } catch (Exception ignore) {}
         LlegadaService.paradaSeguida = e.nombre;
         actualizarBoton();
     }

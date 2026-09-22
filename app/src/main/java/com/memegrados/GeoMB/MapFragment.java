@@ -192,7 +192,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             getChildFragmentManager()
                     .beginTransaction()
                     .replace(R.id.map_container, mapFragment)
-                    .commit();
+                    .commitAllowingStateLoss();
         }
         mapFragment.getMapAsync(this::alMapaListo);
 
@@ -364,6 +364,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     private void alMapaListo(GoogleMap googleMap) {
+        // getMapAsync() es asíncrono (el SDK de Maps puede tardar en inicializar): si el usuario
+        // sale de esta pestaña antes de que responda, el fragment ya no está adjunto y
+        // requireContext()/getViewLifecycleOwner() más abajo lanzarían IllegalStateException.
+        if (!isAdded()) return;
         mapa = googleMap;
         mapa.getUiSettings().setZoomControlsEnabled(false);   // usamos botones propios
         mapa.getUiSettings().setCompassEnabled(false);        // reemplazada por btn_norte (brújula propia)

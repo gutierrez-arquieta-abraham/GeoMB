@@ -260,9 +260,13 @@ public class PlanificadorFragment extends Fragment {
         if (mf == null) {
             mf = SupportMapFragment.newInstance();
             getChildFragmentManager().beginTransaction()
-                    .replace(R.id.map_ruta_container, mf).commit();
+                    .replace(R.id.map_ruta_container, mf).commitAllowingStateLoss();
         }
         mf.getMapAsync(m -> {
+            // getMapAsync() es asíncrono: si el usuario sale de esta pestaña antes de que el SDK de
+            // Maps responda, el fragment ya no está adjunto y requireContext() más abajo lanzaría
+            // IllegalStateException.
+            if (!isAdded()) return;
             mapa = m;
             mapa.getUiSettings().setMapToolbarEnabled(false);
             mapa.getUiSettings().setZoomControlsEnabled(false);

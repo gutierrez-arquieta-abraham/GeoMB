@@ -207,7 +207,8 @@ public class RecorridoService extends Service {
         persistir(c);   // guarda la ruta: si el SO mata el proceso, el servicio (START_STICKY) la restaura
         if (seq != null && !seq.isEmpty())
             Telemetria.iniciarRecorrido(c, seq.get(0).nombre, seq.get(seq.size() - 1).nombre, seq.size());
-        ContextCompat.startForegroundService(c, new Intent(c, RecorridoService.class));
+        try { ContextCompat.startForegroundService(c, new Intent(c, RecorridoService.class)); }
+        catch (Exception ignore) {}   // Android puede negar el arranque del foreground service
     }
 
     public static void detener(android.content.Context c) {
