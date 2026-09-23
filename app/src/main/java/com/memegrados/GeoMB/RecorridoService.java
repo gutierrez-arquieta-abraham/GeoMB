@@ -325,7 +325,7 @@ public class RecorridoService extends Service {
         activo = true;
         ultVoz = -99; ultLlegando = -99; ultProxima = -99; afectacionAvisada = false;
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
-        Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0);
+        Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
         } else {
@@ -615,7 +615,8 @@ public class RecorridoService extends Service {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null) nm.notify(ID, construir(vis(prox), estado, pico(prox),
                 vis(ant), pico(ant), vis(post), pico(post),
-                vis(seq.get(0)), vis(seq.get(last)), seq.get(best).color, prox.linea));
+                vis(seq.get(0)), vis(seq.get(last)), seq.get(best).color, prox.linea,
+                ant.linea, post.linea));
 
         // VOZ (precedida del "tururu"): al ARRIBAR a la estación dice "Llegando a estación: X"; si es
         // transbordo añade "Transbordo con Línea #"; si es terminal, "nadie debe permanecer a bordo"; y
@@ -1503,24 +1504,30 @@ public class RecorridoService extends Service {
 
     private Notification construir(String proxima, String estado, Bitmap picProx,
                                   String anterior, Bitmap picAnt, String posterior, Bitmap picPost,
-                                  String origenViaje, String destinoViaje, int colorLinea, int lineaProxima) {
+                                  String origenViaje, String destinoViaje, int colorLinea, int lineaProxima,
+                                  int lineaAnterior, int lineaPosterior) {
         RemoteViews rv = new RemoteViews(getPackageName(), R.layout.notif_recorrido);
-        // Próxima estación (bitmap): Tipo Metro para Metrobús/Mexicable; Mexibús imita su
-        // señalética real según línea y modo de iconografía (ver Tipografia.fuenteEstacion()).
-        // SIN negrita: Gotham Black ya es un peso muy grueso de por sí, y pedirle además la
-        // negrita SINTÉTICA de Android (Typeface.create(tf, BOLD) sobre una fuente que no trae
-        // una variante "bold" propia) hace que algunos fabricantes (Xiaomi/MIUI en particular)
-        // descarten la tipografía personalizada y caigan de vuelta a su propia fuente del
-        // sistema -- de ahí que se viera "MI" en vez de Gotham/Rounded Elegance.
+        // Nombres de estación (bitmap, no TextView de RemoteViews): Tipo Metro para Metrobús/
+        // Mexicable; Mexibús imita su señalética real según línea y modo de iconografía (ver
+        // Tipografia.fuenteEstacion()), igual en el nombre grande de arriba y en las 3 etiquetas
+        // anterior/próxima/posterior bajo cada pictograma -- así el nombre siempre combina con
+        // el icono que tiene encima. SIN negrita: Gotham Black ya es un peso muy grueso de por
+        // sí, y pedirle además la negrita SINTÉTICA de Android (Typeface.create(tf, BOLD) sobre
+        // una fuente que no trae una variante "bold" propia) hace que algunos fabricantes
+        // (Xiaomi/MIUI en particular) descarten la tipografía personalizada y caigan de vuelta a
+        // su propia fuente del sistema -- de ahí que se viera "MI" en vez de Gotham/Rounded Elegance.
         Bitmap nombreBmp = Tipografia.render(this, proxima, 20f, 0xFFC8103E, false, lineaProxima);
         if (nombreBmp != null) {
             rv.setImageViewBitmap(R.id.nr_estacion, nombreBmp);
             rv.setContentDescription(R.id.nr_estacion, proxima);
         }
-        rv.setTextViewText(R.id.nr_nom_prox, proxima);
+        Bitmap nomProxBmp = Tipografia.render(this, proxima, 9f, 0xFFC8103E, false, lineaProxima);
+        Bitmap nomAntBmp = Tipografia.render(this, anterior, 9f, 0xFF8A8A8A, false, lineaAnterior);
+        Bitmap nomPostBmp = Tipografia.render(this, posterior, 9f, 0xFF8A8A8A, false, lineaPosterior);
+        if (nomProxBmp != null) { rv.setImageViewBitmap(R.id.nr_nom_prox, nomProxBmp); rv.setContentDescription(R.id.nr_nom_prox, proxima); }
+        if (nomAntBmp != null) { rv.setImageViewBitmap(R.id.nr_nom_ant, nomAntBmp); rv.setContentDescription(R.id.nr_nom_ant, anterior); }
+        if (nomPostBmp != null) { rv.setImageViewBitmap(R.id.nr_nom_post, nomPostBmp); rv.setContentDescription(R.id.nr_nom_post, posterior); }
         rv.setTextViewText(R.id.nr_estado, estado);
-        rv.setTextViewText(R.id.nr_nom_ant, anterior);
-        rv.setTextViewText(R.id.nr_nom_post, posterior);
         rv.setTextViewText(R.id.nr_origen, getString(R.string.notif_origen_fmt, origenViaje));
         rv.setTextViewText(R.id.nr_destino, getString(R.string.notif_destino_fmt, destinoViaje));
         if (picProx != null) rv.setImageViewBitmap(R.id.nr_ic_prox, picProx);

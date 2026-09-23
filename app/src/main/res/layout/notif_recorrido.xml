@@ -44,15 +44,15 @@
                 android:layout_height="24dp"
                 android:contentDescription="@string/notif_anterior" />
 
-            <TextView
+            <!-- Nombre en bitmap (ver nr_estacion): imita la tipografía real del icono/sistema. -->
+            <ImageView
                 android:id="@+id/nr_nom_ant"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:maxLines="1"
-                android:textColor="#8A8A8A"
-                android:textSize="9sp" />
+                android:layout_marginTop="2dp"
+                android:adjustViewBounds="true"
+                android:maxHeight="14dp"
+                android:scaleType="centerInside" />
         </LinearLayout>
 
         <LinearLayout
@@ -68,17 +68,15 @@
                 android:layout_height="40dp"
                 android:contentDescription="@string/notif_proxima" />
 
-            <TextView
+            <!-- Nombre en bitmap (ver nr_estacion): imita la tipografía real del icono/sistema. -->
+            <ImageView
                 android:id="@+id/nr_nom_prox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:maxLines="1"
-                android:text="@string/notif_proxima_corto"
-                android:textColor="#C8103E"
-                android:textSize="9sp"
-                android:textStyle="bold" />
+                android:layout_marginTop="2dp"
+                android:adjustViewBounds="true"
+                android:maxHeight="14dp"
+                android:scaleType="centerInside" />
         </LinearLayout>
 
         <LinearLayout
@@ -94,15 +92,15 @@
                 android:layout_height="24dp"
                 android:contentDescription="@string/notif_posterior" />
 
-            <TextView
+            <!-- Nombre en bitmap (ver nr_estacion): imita la tipografía real del icono/sistema. -->
+            <ImageView
                 android:id="@+id/nr_nom_post"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:maxLines="1"
-                android:textColor="#8A8A8A"
-                android:textSize="9sp" />
+                android:layout_marginTop="2dp"
+                android:adjustViewBounds="true"
+                android:maxHeight="14dp"
+                android:scaleType="centerInside" />
         </LinearLayout>
     </LinearLayout>
 
