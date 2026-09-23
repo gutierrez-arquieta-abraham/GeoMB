@@ -16,5 +16,10 @@ public class GeoMBApplication extends Application {
         super.onCreate();
         instancia = this;
         Telemetria.instalarCapturaErrores(this);
+        // Precarga en segundo plano (hilo de baja prioridad, ver GtfsRepository) los datos que usa
+        // el Planificador (lineas.json/mexibus.json/sublíneas), para que el primer "Trazar" no
+        // tenga que parsearlos en frío. Cualquier error se registra sin tumbar la app (ver
+        // GtfsRepository.precargar()); no hay callback porque aquí nadie espera el resultado.
+        GtfsRepository.precargar(this, null);
     }
 }
