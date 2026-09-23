@@ -873,7 +873,14 @@ public class RecorridoService extends Service {
         if (p == null) return null;
         String s = Planificador.sinMxb(p.nombre);
         int par = s.indexOf('(');
-        return par >= 0 ? s.substring(0, par).trim() : s;
+        return respellVoz(par >= 0 ? s.substring(0, par).trim() : s);
+    }
+
+    /** Respeta el nombre EXACTO para mostrar, pero corrige la ortografía SOLO para la voz de siglas que
+     *  el TTS lee mal (p. ej. "ISSEMYM" sonaba con "e" donde va "i"): debe mantenerse en sincronía con
+     *  Locuciones.nom() y DescargaVoz.nomDe(), sus réplicas para pre-descargar/cachear el mismo audio. */
+    private static String respellVoz(String nombre) {
+        return "issemym".equals(Planificador.norm(nombre)) ? "Isemim" : nombre;
     }
 
     /** Nombre para MOSTRAR (notificación): sin MXB y con nº de línea si el nombre se repite. */
