@@ -1016,10 +1016,13 @@ public final class Planificador {
                 boolean mismoSis = sistemaLinea(sa.linea) == sistemaLinea(sb.linea);
                 boolean liga;
                 if (mismoSis) {
-                    // MISMO sistema (Metrobús, Mexibús o Mexicable): MISMO nombre pero además CO-UBICADAS
-                    // (≤ RADIO_CORRESP). Puente de Fierro L2↔L4 está en el mismo punto → transbordo; pero
-                    // "San Cristóbal" existe en L2 y L4 a ~1.2 km con el mismo nombre → NO es correspondencia.
-                    liga = (sa.nn.equals(sb.nn) && dpar <= RADIO_CORRESP)
+                    // MISMO sistema (Metrobús, Mexibús o Mexicable): MISMO nombre, o mismo NÚCLEO como
+                    // respaldo (p. ej. Buenavista L1/L4 vs "Buenavista II"/"Buenavista III" de L3, o
+                    // "Etiopía" vs "Etiopía-Plaza de la Transparencia": mismo andén, nombre con sufijo
+                    // distinto), además CO-UBICADAS (≤ RADIO_CORRESP). Puente de Fierro L2↔L4 está en el
+                    // mismo punto → transbordo; pero "San Cristóbal" existe en L2 y L4 a ~1.2 km con el
+                    // mismo nombre → NO es correspondencia (el radio ya lo descarta).
+                    liga = ((sa.nn.equals(sb.nn) || nucleoCoincide(sa.nn, sb.nn)) && dpar <= RADIO_CORRESP)
                             || corrManual(sa.linea, sa.nn, sb.linea, sb.nn);
                 } else {
                     // Entre sistemas (Mexibús↔Mexicable/Metrobús): cercanía Y núcleo del nombre coincidente,
