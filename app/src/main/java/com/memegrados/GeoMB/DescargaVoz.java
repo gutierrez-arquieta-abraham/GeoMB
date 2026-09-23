@@ -196,9 +196,15 @@ public final class DescargaVoz {
         return respellVoz(par >= 0 ? s.substring(0, par).trim() : s);
     }
 
-    /** Corrige la ortografía SOLO para la voz de siglas que el TTS lee mal (p. ej. "ISSEMYM" sonaba con
-     *  "e" donde va "i"). Debe mantenerse en sincronía con RecorridoService.nom() y Locuciones.nom(). */
+    /** Corrige la ortografía SOLO para la voz de siglas/palabras que el TTS lee mal (acrónimos sin vocales
+     *  que pronunciar, o palabras en inglés leídas con reglas fonéticas del español). Debe mantenerse en
+     *  sincronía con RecorridoService.nom() y Locuciones.nom(). */
     private static String respellVoz(String nombre) {
-        return "issemym".equals(Planificador.norm(nombre)) ? "Isemim" : nombre;
+        if (nombre == null) return null;
+        return nombre
+                .replace("ISSEMYM", "Isemim")
+                .replace("CCH", "Cecehache")
+                .replace("SCOP", "Escop")
+                .replace("New's Divine", "Niuz Diváin");
     }
 }
