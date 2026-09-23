@@ -1192,32 +1192,15 @@ public class RecorridoService extends Service {
         boolean term = esTerminal(p);
         StringBuilder v = new StringBuilder(getString(
                 term ? R.string.voz_llegando_terminal : R.string.voz_llegando_est, nom(p)));
-        String tb = transbordoTexto(p);   // usa p.nombre canónico (con MXB) para las correspondencias
-        if (tb != null) v.append(tb);   // "Transbordo con Línea(s) ..." (correspondencias, orden numérico)
+        // transferenciaTexto() elige la palabra correcta según los sistemas (transbordo Metrobús↔Metrobús,
+        // correspondencia Mexibús/Mexicable↔Mexibús/Mexicable, conexión Metrobús↔Edomex); antes se usaba
+        // transbordoTexto(), que decía siempre "Correspondencia con..." sin importar el sistema.
+        String tf = transferenciaTexto(p.linea, basesCorresp(p));
+        if (!tf.isEmpty()) v.append(tf);
         if (term) v.append(". ").append(getString(R.string.voz_terminal));
         String tip = tipAleatorio(p.linea);
         if (tip != null) v.append(". ").append(tip);
         return v.toString();
-    }
-
-    /**
-     * Texto de transbordo de la estación: TODAS las líneas que la sirven (correspondencia), en orden
-     * numérico y QUITANDO la línea por la que vienes. Ej. Buenavista (L1+L3+L4): si vienes por L3 dice
-     * "Líneas 1 y 4"; por L1 "Líneas 3 y 4"; por L4 "Líneas 1 y 3". Devuelve null si no hay otras.
-     */
-    private String transbordoTexto(Planificador.Parada p) {
-        java.util.TreeSet<Integer> lineas = lineasEnEstacion(p);
-        lineas.remove(p.linea);
-        if (lineas.isEmpty()) return null;
-        java.util.List<String> ls = new java.util.ArrayList<>();
-        for (int n : lineas) ls.add(etiquetaLinea(n, p.nombre));   // "Línea 3", "Línea 4 Ruta Norte", …
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < ls.size(); i++) {
-            if (i == 0) sb.append(ls.get(i));
-            else if (i == ls.size() - 1) sb.append(" y ").append(ls.get(i));
-            else sb.append(", ").append(ls.get(i));
-        }
-        return getString(R.string.voz_transbordo, sb.toString());
     }
 
     /** Palabra del cambio de servicio según sistemas: Metrobús=transbordo, Mexibús/Mexicable=correspondencia, mixto=conexión. */
@@ -1343,11 +1326,13 @@ public class RecorridoService extends Service {
                 boolean mismoSistema = sistemaDe(l.numero) == sisP;
                 for (Estacion e : l.estaciones) {
                     if (e.soloMapa) continue;
-                    // Mismo sistema: exige MISMO nombre. Entre sistemas (Mexibús↔Mexicable/Metrobús): exige que
-                    // el NÚCLEO del nombre coincida (Santa Clara↔Santa Clara, Periférico↔Periférico), NO solo
-                    // cercanía — así Cerro Gordo ya no inventa correspondencia con un Mexicable a 500 m.
+                    // Mismo sistema: MISMO nombre, o mismo NÚCLEO como respaldo (p. ej. Buenavista L1/L4 vs
+                    // "Buenavista II"/"Buenavista III" de L3: mismo andén, nombre con sufijo distinto). Entre
+                    // sistemas (Mexibús↔Mexicable/Metrobús): exige que el NÚCLEO del nombre coincida (Santa
+                    // Clara↔Santa Clara, Periférico↔Periférico), NO solo cercanía — así Cerro Gordo ya no
+                    // inventa correspondencia con un Mexicable a 500 m.
                     boolean nombreOk = mismoSistema
-                            ? Planificador.norm(Planificador.sinMxb(e.nombre)).equals(pn)
+                            ? (Planificador.norm(Planificador.sinMxb(e.nombre)).equals(pn) || nucleoCoincide(p.nombre, e.nombre))
                             : nucleoCoincide(p.nombre, e.nombre);
                     if (!nombreOk) continue;
                     double d = haversine(p.pos.latitude, p.pos.longitude,
