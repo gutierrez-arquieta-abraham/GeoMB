@@ -97,11 +97,17 @@ public final class Modelos {
 
         // 2) Remoto (segundo plano): reemplaza cuando llega.
         new Thread(() -> {
-            Map<Integer, Ficha> remoto = descargarRemoto();
-            if (remoto != null && !remoto.isEmpty()) {
-                Map<Integer, Ficha> combinado = new HashMap<>(base);
-                combinado.putAll(remoto);   // el remoto manda
-                tabla = combinado;
+            try {
+                Map<Integer, Ficha> remoto = descargarRemoto();
+                if (remoto != null && !remoto.isEmpty()) {
+                    Map<Integer, Ficha> combinado = new HashMap<>(base);
+                    combinado.putAll(remoto);   // el remoto manda
+                    tabla = combinado;
+                }
+            } catch (Throwable t) {
+                // descargarRemoto() ya atajaba sus propios errores de red; esto cubre el combinado.
+                // Una falla aquí no debe tumbar la app, solo dejar la tabla en su versión empaquetada.
+                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "Modelos.init", String.valueOf(t));
             }
         }, "modelos-fetch").start();
     }

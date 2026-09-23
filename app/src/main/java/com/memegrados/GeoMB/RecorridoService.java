@@ -690,10 +690,17 @@ public class RecorridoService extends Service {
     }
 
     private void hablar(String t) {
-        if (ttsListo && tts != null && t != null) {
-            android.os.Bundle p = new android.os.Bundle();
-            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VOZ_VOL * volumenSistema());   // respeta el volumen de medios puesto por el usuario
-            tts.speak(t, TextToSpeech.QUEUE_FLUSH, p, "geomb");
+        // Se llama desde el hilo PRINCIPAL en varios puntos del recorrido (aviso normal, respaldo
+        // por timeout de la voz Mia, etc.); una falla del motor TTS (algunos fabricantes fallan al
+        // recibir un Bundle o un idioma no instalado) no debe tumbar el recorrido activo.
+        try {
+            if (ttsListo && tts != null && t != null) {
+                android.os.Bundle p = new android.os.Bundle();
+                p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VOZ_VOL * volumenSistema());   // respeta el volumen de medios puesto por el usuario
+                tts.speak(t, TextToSpeech.QUEUE_FLUSH, p, "geomb");
+            }
+        } catch (Throwable ex) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "RecorridoService.hablar", String.valueOf(ex));
         }
     }
 

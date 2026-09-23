@@ -68,11 +68,16 @@ public class RedViewModel extends AndroidViewModel {
         if (metrobus.getValue() != null || cargando) return;   // ya cargado o en curso
         cargando = true;
         io.execute(() -> {
-            List<Linea> mb = GtfsRepository.getLineas(getApplication());   // parseo en streaming (2º plano)
-            List<Linea> mx = GtfsRepository.getMexibus(getApplication());
-            metrobus.postValue(mb);   // postValue publica en el hilo principal: la UI solo dibuja
-            mexibus.postValue(mx);
-            cargando = false;
+            try {
+                List<Linea> mb = GtfsRepository.getLineas(getApplication());   // parseo en streaming (2º plano)
+                List<Linea> mx = GtfsRepository.getMexibus(getApplication());
+                metrobus.postValue(mb);   // postValue publica en el hilo principal: la UI solo dibuja
+                mexibus.postValue(mx);
+            } catch (Throwable t) {
+                Telemetria.registrarError(getApplication(), Telemetria.ERR_EXCEPCION, "RedViewModel.cargar", String.valueOf(t));
+            } finally {
+                cargando = false;
+            }
         });
     }
 
