@@ -96,11 +96,16 @@ public final class Tipografia {
         return Typeface.SANS_SERIF;
     }
 
+    /** Espaciado entre letras (en EM) para nombres de estación: sin esto, Gotham Black y Rounded
+     *  Elegance se ven amontonados a los tamaños chicos en que se usan (filas de lista, notificación). */
+    private static final float ESPACIADO_ESTACION = 0.03f;
+
     /** Aplica {@link #fuenteEstacion} a un TextView de nombre de estación, respetando su estilo actual. */
     public static void aplicarEstacion(TextView v, int linea) {
         if (v == null) return;
         int estilo = v.getTypeface() != null ? v.getTypeface().getStyle() : Typeface.NORMAL;
         v.setTypeface(fuenteEstacion(v.getContext(), linea), estilo);
+        v.setLetterSpacing(ESPACIADO_ESTACION);
     }
 
     /** Aplica Tipo Metro a uno o más TextView, respetando el estilo (normal/negrita) actual. */
@@ -142,6 +147,7 @@ public final class Tipografia {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTypeface(negrita ? Typeface.create(tf, Typeface.BOLD) : tf);
         p.setColor(color);
+        p.setLetterSpacing(ESPACIADO_ESTACION);
         float px = spSize * c.getResources().getDisplayMetrics().scaledDensity;
         p.setTextSize(px);
         Paint.FontMetrics fm = p.getFontMetrics();
