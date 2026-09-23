@@ -274,6 +274,7 @@
     <string name="afect_lbl_direccion">Dirección</string>
     <string name="afect_lbl_info">Información adicional</string>
     <string name="afect_lbl_estaciones">Estaciones afectadas</string>
+    <string name="afect_lbl_incidencia">Incidencia</string>
     <string name="perfil_titulo">Personaliza tu experiencia</string>
     <string name="perfil_tipo_label">¿Qué tipo de usuario eres?</string>
     <string name="perfil_normal">Usuario normal</string>

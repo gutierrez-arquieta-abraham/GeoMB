@@ -252,6 +252,7 @@
     <string name="push_actualizar_texto">A new version of GeoMB is available. Tap to update.</string>
     <string name="afect_lbl_direccion">Direction</string>
     <string name="afect_lbl_estaciones">Affected stations</string>
+    <string name="afect_lbl_incidencia">Incident</string>
     <string name="afect_lbl_info">Additional information</string>
     <string name="perfil_titulo">Personalize your experience</string>
     <string name="perfil_tipo_label">What type of user are you?</string>
