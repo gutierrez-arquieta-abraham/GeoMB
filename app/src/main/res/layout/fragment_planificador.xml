@@ -156,6 +156,18 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/planificador_trazar" />
+
+            <!-- Se muestra mientras se calcula la ruta en segundo plano (Dijkstra + grafo de
+                 correspondencias puede tardar); sin esto la pantalla se quedaba sin ningún
+                 indicador y el resultado (con sus pictogramas) parecía tardar sin motivo. -->
+            <ProgressBar
+                android:id="@+id/progress_trazando"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
         </LinearLayout>
 
         <!-- Mini viñeta COLAPSADA: cabe en cualquier tamaño de pantalla; toca para volver a expandir
