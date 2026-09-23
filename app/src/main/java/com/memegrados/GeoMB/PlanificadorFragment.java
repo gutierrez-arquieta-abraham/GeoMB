@@ -80,6 +80,7 @@ public class PlanificadorFragment extends Fragment {
     private android.widget.LinearLayout resPasosList;   // lista scrolleable de la descripción de ruta
     private android.widget.ScrollView resPasosScroll;
     private MaterialButton btnRecorrido;
+    private android.widget.ProgressBar progressTrazando;   // visible mientras calcularAsync() trabaja en segundo plano
     private androidx.appcompat.widget.SwitchCompat swExpress;   // Ordinario/Express (viaje por una sola línea Mexibús)
     private int svcBase = 0;   // base Mexibús (101..104) si hay elección Ordinario/Express; 0 si no
     private RecyclerView rvEstaciones;
@@ -118,15 +119,21 @@ public class PlanificadorFragment extends Fragment {
     // y disparaba ANR ("GeoMB no responde"). Se corre en un hilo aparte y el resultado se publica en UI.
     private final java.util.concurrent.ExecutorService calcExec = java.util.concurrent.Executors.newSingleThreadExecutor();
 
-    /** Ejecuta Planificador.calcular en segundo plano y entrega la ruta en el hilo principal. */
+    /** Ejecuta Planificador.calcular en segundo plano y entrega la ruta en el hilo principal.
+     *  Muestra progressTrazando mientras tanto: antes no había ningún indicador y la pantalla
+     *  se quedaba "congelada" (sin el trazo ni sus pictogramas) mientras el cálculo tardaba. */
     private void calcularAsync(java.util.concurrent.Callable<Planificador.Ruta> tarea,
                                androidx.core.util.Consumer<Planificador.Ruta> alTerminar) {
+        if (progressTrazando != null) progressTrazando.setVisibility(View.VISIBLE);
         calcExec.execute(() -> {
             Planificador.Ruta r;
             try { r = tarea.call(); } catch (Exception e) { r = null; }
             final Planificador.Ruta res = r;
             if (!isAdded()) return;
-            handler.post(() -> { if (isAdded()) alTerminar.accept(res); });
+            handler.post(() -> {
+                if (progressTrazando != null) progressTrazando.setVisibility(View.GONE);
+                if (isAdded()) alTerminar.accept(res);
+            });
         });
     }
 
@@ -205,6 +212,7 @@ public class PlanificadorFragment extends Fragment {
         resAviso.setOnClickListener(v -> mostrarCartaAfectaciones());
         resEstado = view.findViewById(R.id.res_estado);
         btnRecorrido = view.findViewById(R.id.btn_recorrido);
+        progressTrazando = view.findViewById(R.id.progress_trazando);
         swExpress = view.findViewById(R.id.sw_express);
 
         rvEstaciones = view.findViewById(R.id.rv_estaciones);
