@@ -89,6 +89,15 @@ public class RecorridoService extends Service {
     // (Indios Verdes) son 2 andenes y la unidad avanza hasta el fondo rebasando el punto → radio normal.
     private static final float FIN_M = 30f;
     private static final long INTERVALO_MS = 1000L;   // revisa la ubicación cada 1 s durante el recorrido
+    // Cadencia de GPS ADAPTATIVA: a más de CADENCIA_LEJOS_M de la próxima parada a anunciar (normalmente
+    // varias cuadras, no unos pasos) se relaja el muestreo a INTERVALO_LEJOS_MS en vez de INTERVALO_MS.
+    // El GPS de alta precisión encendido de forma continua es lo que más batería consume y calienta el
+    // equipo en recorridos largos; la mayor parte del trayecto NO necesita precisión al segundo, solo el
+    // tramo final de acercamiento (donde SÍ se vuelve a INTERVALO_MS para no perder el aviso "casi
+    // instantáneo"). Se usan 500 m porque a la velocidad típica de un camión eso son varias decenas de
+    // segundos: de sobra para volver a cadencia rápida antes de necesitar precisión real.
+    private static final float CADENCIA_LEJOS_M = 500f;
+    private static final long INTERVALO_LEJOS_MS = 3000L;
     private static final float TURURU_VOL = 0.7f;     // volumen del "tururu" (70% del real)
     /** Volumen relativo de la VOZ (Mia/TTS) dentro del volumen de medios del dispositivo. Antes se
      *  forzaba a 1.0 (máximo) sin importar el volumen que el usuario tuviera puesto: como el audio
@@ -157,6 +166,8 @@ public class RecorridoService extends Service {
     private final AudioManager.OnAudioFocusChangeListener focusListener = f -> {};
     private boolean ciclando = false;
     private boolean recibiendo = false;   // ya se pidió el stream continuo de ubicación
+    private boolean cadenciaRapida = true;   // modo GPS actual (rápido cerca de una parada, relajado lejos)
+    private boolean cadenciaIniciada = false;   // ya se registró un request de ubicación (permite el primero)
     private final Runnable tick = this::ciclo;
 
     /** Stream continuo de ubicación (como Google Maps): entrega en cuanto el GPS tiene un fix. */
@@ -318,17 +329,36 @@ public class RecorridoService extends Service {
     }
 
     /**
-     * Pide actualizaciones de ubicación CONTINUAS (alta precisión, ~1 s / mín 500 ms), en vez de
-     * un fix por ciclo. El GPS entrega en cuanto tiene una lectura, igual que Google Maps, así el
-     * puntero y la detección Haversine de la estación se refrescan sin retraso.
+     * Pide actualizaciones de ubicación CONTINUAS (alta precisión), en vez de un fix por ciclo. El GPS
+     * entrega en cuanto tiene una lectura, igual que Google Maps, así el puntero y la detección Haversine
+     * de la estación se refrescan sin retraso. Arranca en cadencia RÁPIDA (~1 s) porque aún no se conoce
+     * la distancia a la próxima parada; procesar() la ajusta cada fix según {@link #CADENCIA_LEJOS_M}.
      */
     @SuppressLint("MissingPermission")
     private void pedirUbicacion() {
         if (recibiendo || !tienePermiso()) return;
         recibiendo = true;
-        LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, INTERVALO_MS)
-                .setMinUpdateIntervalMillis(500L)   // acepta lecturas tan rápido como cada 0.5 s
-                .setMaxUpdateDelayMillis(INTERVALO_MS)
+        aplicarCadencia(true);
+    }
+
+    /** Cambia la frecuencia de las actualizaciones de ubicación entre RÁPIDA (~1 s / mín 0.5 s, igual que
+     *  antes) y RELAJADA (~3 s / mín 2 s) según qué tan lejos esté la próxima parada a anunciar. El GPS de
+     *  alta precisión encendido de forma continua es lo que más batería consume y calienta el equipo en
+     *  recorridos largos; relajar la cadencia mientras se está a media cuadra de cualquier parada ahorra
+     *  batería sin afectar el aviso "casi instantáneo" (que solo necesita la cadencia rápida cerca de la
+     *  parada, momento en el que ya se vuelve a activar). Solo re-registra el request si el modo cambió,
+     *  para no pedirle de más al proveedor de ubicación en cada fix. */
+    @SuppressLint("MissingPermission")
+    private void aplicarCadencia(boolean rapida) {
+        if (loc == null || !tienePermiso()) return;
+        if (cadenciaIniciada && rapida == cadenciaRapida) return;   // ya está en ese modo: no re-registrar
+        cadenciaRapida = rapida;
+        cadenciaIniciada = true;
+        long intervalo = rapida ? INTERVALO_MS : INTERVALO_LEJOS_MS;
+        long minIntervalo = rapida ? 500L : 2000L;
+        LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalo)
+                .setMinUpdateIntervalMillis(minIntervalo)
+                .setMaxUpdateDelayMillis(intervalo)
                 .build();
         loc.requestLocationUpdates(req, locCb, Looper.getMainLooper());
     }
@@ -552,6 +582,11 @@ public class RecorridoService extends Service {
         int antIdx = Math.max(0, proxIdx - 1);     // estación anterior a la próxima
         int postIdx = Math.min(last, proxIdx + 1); // estación posterior a la próxima
         Planificador.Parada prox = seq.get(proxIdx), ant = seq.get(antIdx), post = seq.get(postIdx);
+
+        // Cadencia adaptativa de GPS: cerca de la próxima parada se necesita precisión al segundo para no
+        // perder el aviso "casi instantáneo"; lejos (a varias cuadras) se relaja el muestreo para ahorrar
+        // batería y no calentar el equipo en tramos largos entre estaciones.
+        aplicarCadencia(fin || distParada(l, prox) <= CADENCIA_LEJOS_M);
 
         String estado;
         if (fin) {
@@ -1499,6 +1534,8 @@ public class RecorridoService extends Service {
     private void detenerUbicacion() {
         if (!recibiendo) return;
         recibiendo = false;
+        cadenciaIniciada = false;   // el próximo pedirUbicacion() debe arrancar de nuevo en modo rápido
+        cadenciaRapida = true;
         if (loc != null) loc.removeLocationUpdates(locCb);
     }
 
