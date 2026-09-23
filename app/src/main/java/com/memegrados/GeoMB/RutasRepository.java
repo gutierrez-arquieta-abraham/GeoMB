@@ -47,15 +47,23 @@ public final class RutasRepository {
     public static void init() {
         if (cargado) return;
         new Thread(() -> {
-            List<Ruta> lista = descargar();
-            lista.addAll(RutasMixtas.comoRutas());   // rutas mixtas (no vienen del backend)
-            if (!lista.isEmpty()) {
-                asignarCodigos(lista);
-                Map<String, Ruta> mapa = new HashMap<>();
-                for (Ruta r : lista) mapa.put(r.routeId, r);
-                rutas = lista;
-                porId = mapa;
-                cargado = true;
+            try {
+                List<Ruta> lista = descargar();
+                lista.addAll(RutasMixtas.comoRutas());   // rutas mixtas (no vienen del backend)
+                if (!lista.isEmpty()) {
+                    asignarCodigos(lista);
+                    Map<String, Ruta> mapa = new HashMap<>();
+                    for (Ruta r : lista) mapa.put(r.routeId, r);
+                    rutas = lista;
+                    porId = mapa;
+                    cargado = true;
+                }
+            } catch (Throwable t) {
+                // descargar() ya atajaba sus propios errores de red; esto cubre asignarCodigos()
+                // y RutasMixtas.comoRutas(), que no lo hacían -- una falla aquí no debe tumbar la
+                // app, solo dejar el catálogo de rutas sin cargar (se reintenta en el próximo init()).
+                GeoMBApplication app = GeoMBApplication.get();
+                if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "RutasRepository.init", String.valueOf(t));
             }
         }, "rutas-fetch").start();
     }

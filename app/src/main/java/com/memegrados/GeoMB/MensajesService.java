@@ -53,16 +53,22 @@ public class MensajesService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(RemoteMessage msg) {
-        crearCanales();
-        Map<String, String> d = msg.getData();
-        String tipo = d.get("tipo");
+        // Un payload inesperado del backend (campo faltante, formato distinto) no debe tumbar la
+        // app con solo recibir un push -- eso está totalmente fuera del control del usuario.
+        try {
+            crearCanales();
+            Map<String, String> d = msg.getData();
+            String tipo = d.get("tipo");
 
-        if ("actualizacion".equals(tipo)) {
-            notificarActualizacion(d.get("titulo"), d.get("texto"), largo(d.get("version_code")));
-            return;
+            if ("actualizacion".equals(tipo)) {
+                notificarActualizacion(d.get("titulo"), d.get("texto"), largo(d.get("version_code")));
+                return;
+            }
+            // Por defecto: afectación al servicio.
+            notificarAfectacion(d);
+        } catch (Throwable t) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "MensajesService.onMessageReceived", String.valueOf(t));
         }
-        // Por defecto: afectación al servicio.
-        notificarAfectacion(d);
     }
 
     @Override
@@ -125,26 +131,32 @@ public class MensajesService extends FirebaseMessagingService {
                         emitirAfectacion(tituloT, cuerpoT, lineaFin, id)));
     }
 
-    /** Arma y lanza la notificación de afectación con textos ya resueltos (traducidos o no). */
+    /** Arma y lanza la notificación de afectación con textos ya resueltos (traducidos o no).
+     *  Corre en el callback ASÍNCRONO de Traductor.traducirTexto, fuera del try/catch de
+     *  onMessageReceived, así que necesita su propia protección. */
     private void emitirAfectacion(String titulo, String cuerpo, int lineaNum, int id) {
-        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL)
-                .setSmallIcon(R.drawable.ic_bus)
-                .setContentTitle(titulo)
-                .setContentText(cuerpo.replace('\n', ' '))
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(cuerpo))
-                .setAutoCancel(true)
-                .setCategory(NotificationCompat.CATEGORY_STATUS)
-                .setContentIntent(piApp())
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-        if (lineaNum > 0) {
-            Linea l = GtfsRepository.porNumero(this, lineaNum);
-            int color = l != null ? l.color : 0xFFD40D0D;
-            b.setColor(color);
-            Bitmap logo = Tipografia.bitmapLineaLogo(this, lineaNum, color);   // ícono PROPIO de la línea
-            if (logo != null) b.setLargeIcon(logo);
+        try {
+            NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL)
+                    .setSmallIcon(R.drawable.ic_bus)
+                    .setContentTitle(titulo)
+                    .setContentText(cuerpo.replace('\n', ' '))
+                    .setStyle(new NotificationCompat.BigTextStyle().bigText(cuerpo))
+                    .setAutoCancel(true)
+                    .setCategory(NotificationCompat.CATEGORY_STATUS)
+                    .setContentIntent(piApp())
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+            if (lineaNum > 0) {
+                Linea l = GtfsRepository.porNumero(this, lineaNum);
+                int color = l != null ? l.color : 0xFFD40D0D;
+                b.setColor(color);
+                Bitmap logo = Tipografia.bitmapLineaLogo(this, lineaNum, color);   // ícono PROPIO de la línea
+                if (logo != null) b.setLargeIcon(logo);
+            }
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.notify(id, b.build());
+        } catch (Throwable t) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "MensajesService.emitirAfectacion", String.valueOf(t));
         }
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) nm.notify(id, b.build());
     }
 
     /** Etiqueta de línea para la notificación: "Línea N" (Metrobús), "Mexibús L2"/"Mexibús L2A", "Mexicable L1". */

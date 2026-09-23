@@ -36,11 +36,21 @@ public final class Telemetria {
 
     private static AppDatabase db(Context c) { return AppDatabase.get(c); }
 
+    /** Ejecuta 'r' en el hilo de E/S, atajando cualquier excepción (Room/SQLite, IO, etc.): esta
+     *  clase es el mecanismo de RESPALDO para errores de toda la app (ver registrarError), así que
+     *  ella misma nunca debe poder tumbarla -- si algo aquí falla, se descarta con un Log.e y ya
+     *  (no se llama a registrarError desde aquí para no arriesgar una recursión si eso también falla). */
+    private static void ioSeguro(Runnable r) {
+        IO.execute(() -> {
+            try { r.run(); } catch (Throwable t) { android.util.Log.e("Telemetria", "fallo interno", t); }
+        });
+    }
+
     // ---------------------------------------------------------------- recorridos
 
     public static void iniciarRecorrido(Context c, String origen, String destino, int totalEstaciones) {
         Context app = c.getApplicationContext();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             RecorridoEntity r = new RecorridoEntity();
             r.origen = origen != null ? origen : "";
             r.destino = destino != null ? destino : "";
@@ -54,7 +64,7 @@ public final class Telemetria {
         long rid = recorridoActivoId;
         if (rid < 0 || estacion == null) return;
         Context app = c.getApplicationContext();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             EventoEstacionEntity e = new EventoEstacionEntity();
             e.recorridoId = rid;
             e.estacion = estacion;
@@ -71,7 +81,7 @@ public final class Telemetria {
         recorridoActivoId = -1;
         Context app = c.getApplicationContext();
         long finTs = System.currentTimeMillis();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             db(app).recorridoDao().finalizar(rid, finTs);
             TelemetriaSync.sincronizar(app);
         });
@@ -82,7 +92,7 @@ public final class Telemetria {
     public static void registrarError(Context c, int tipo, String contexto, String mensaje) {
         Context app = c.getApplicationContext();
         Long rid = recorridoActivoId >= 0 ? recorridoActivoId : null;
-        IO.execute(() -> {
+        ioSeguro(() -> {
             ErrorEventoEntity e = new ErrorEventoEntity();
             e.recorridoId = rid;
             e.tipo = tipo;
@@ -91,6 +101,16 @@ public final class Telemetria {
             e.ts = System.currentTimeMillis();
             db(app).errorEventoDao().insertar(e);
         });
+    }
+
+    /** Igual que {@link #registrarError}, pero además avisa al usuario con un Toast breve y sin
+     *  jerga técnica: para los pocos catch que evitan una caída real de la app (servicios en
+     *  primer plano, notificaciones push, etc.), donde quedarse callado se sentiría como que la
+     *  función simplemente dejó de funcionar sin explicación. */
+    public static void avisarError(Context c, int tipo, String contexto, String mensaje) {
+        registrarError(c, tipo, contexto, mensaje);
+        Context app = c.getApplicationContext();
+        MAIN.post(() -> android.widget.Toast.makeText(app, R.string.aviso_error_generico, android.widget.Toast.LENGTH_SHORT).show());
     }
 
     private static final String PREFS_CRASH = "geomb_crashes_pendientes";
@@ -129,7 +149,7 @@ public final class Telemetria {
         String s = p.getString("lista", "");
         if (s.isEmpty()) return;
         p.edit().remove("lista").apply();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             try {
                 JSONArray arr = new JSONArray(s);
                 for (int i = 0; i < arr.length(); i++) {
@@ -152,7 +172,7 @@ public final class Telemetria {
     public static void registrarBusqueda(Context c, String economico) {
         if (economico == null || economico.isEmpty()) return;
         Context app = c.getApplicationContext();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             BusquedaUnidadEntity b = new BusquedaUnidadEntity();
             b.economico = economico;
             b.ts = System.currentTimeMillis();
@@ -167,7 +187,7 @@ public final class Telemetria {
     public static void guardarFavorito(Context c, String economico) {
         if (economico == null || economico.isEmpty()) return;
         Context app = c.getApplicationContext();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             EconomicoFavoritoEntity f = new EconomicoFavoritoEntity();
             f.economico = economico;
             f.fechaGuardado = System.currentTimeMillis();
@@ -180,12 +200,12 @@ public final class Telemetria {
     public static void quitarFavorito(Context c, String economico) {
         if (economico == null) return;
         Context app = c.getApplicationContext();
-        IO.execute(() -> db(app).economicoFavoritoDao().borrar(economico));
+        ioSeguro(() -> db(app).economicoFavoritoDao().borrar(economico));
     }
 
     public static void listaFavoritos(Context c, OnFavoritos cb) {
         Context app = c.getApplicationContext();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             List<EconomicoFavoritoEntity> lista = db(app).economicoFavoritoDao().listar();
             MAIN.post(() -> cb.listo(lista));
         });
@@ -193,7 +213,7 @@ public final class Telemetria {
 
     public static void esFavorito(Context c, String economico, Consumer<Boolean> cb) {
         Context app = c.getApplicationContext();
-        IO.execute(() -> {
+        ioSeguro(() -> {
             boolean si = economico != null && db(app).economicoFavoritoDao().existe(economico);
             MAIN.post(() -> cb.accept(si));
         });

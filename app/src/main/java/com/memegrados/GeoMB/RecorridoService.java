@@ -478,7 +478,19 @@ public class RecorridoService extends Service {
         return d <= RADIO_ENLACE_M;
     }
 
+    /** Envoltura de {@link #procesarInterno}: se llama en CADA fix de GPS de un recorrido activo
+     *  (navegación en primer plano), así que una excepción sin atrapar aquí mataría la app a media
+     *  ruta. Cualquier falla se registra y se descarta -- el siguiente fix de GPS simplemente
+     *  reintenta desde cero, en vez de tumbar el servicio. */
     private void procesar(android.location.Location l) {
+        try {
+            procesarInterno(l);
+        } catch (Throwable t) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "RecorridoService.procesar", String.valueOf(t));
+        }
+    }
+
+    private void procesarInterno(android.location.Location l) {
         // ========================================================
         // "QUÉ AVISO TOCA": se llama en CADA fix de GPS. Mapa del método:
         // ========================================================

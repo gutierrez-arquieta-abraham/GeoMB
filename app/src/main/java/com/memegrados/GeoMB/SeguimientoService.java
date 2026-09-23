@@ -134,15 +134,23 @@ public class SeguimientoService extends Service {
         }
         locationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                 .addOnSuccessListener(loc -> {
-                    if (loc != null) {
-                        for (String e : ecosSeguidos) {
-                            UnidadReal u = RealtimeRepository.get().buscar(e);
-                            if (u == null) actualizarOngoing(e, getString(R.string.siguiendo_fuera, e), -1);
-                            else manejarDistancia(e, u, loc);
+                    // Una unidad con datos corruptos/inesperados en el feed en vivo no debe tumbar
+                    // este servicio en primer plano (el usuario lo inició para seguir su unidad);
+                    // se registra y se sigue con el siguiente ciclo (finally -> reprogramar()).
+                    try {
+                        if (loc != null) {
+                            for (String e : ecosSeguidos) {
+                                UnidadReal u = RealtimeRepository.get().buscar(e);
+                                if (u == null) actualizarOngoing(e, getString(R.string.siguiendo_fuera, e), -1);
+                                else manejarDistancia(e, u, loc);
+                            }
+                            actualizarResumen();
                         }
-                        actualizarResumen();
+                    } catch (Throwable t) {
+                        Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "SeguimientoService.procesarTodas", String.valueOf(t));
+                    } finally {
+                        reprogramar();
                     }
-                    reprogramar();
                 })
                 .addOnFailureListener(e -> reprogramar());
     }

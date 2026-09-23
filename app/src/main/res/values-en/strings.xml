@@ -419,6 +419,11 @@
     <string name="login_sub">Sign in with Google to continue.\n\nThis data will be used solely for our users\' security purposes and will not be used for anything else.</string>
     <string name="login_error">Could not sign in. Try again.</string>
 
+    <!-- Generic notice for a caught error that didn't crash the app (see Telemetria.avisarError):
+         no technical details, since the user can't act on them; the full detail is already
+         logged for review (Telemetria.registrarError). -->
+    <string name="aviso_error_generico">An error occurred, but the app is still working</string>
+
     <!-- Idioma / Language -->
     <string name="app_name">GeoMB</string>
     <string name="idioma_menu">🌐 Language / Idioma</string>

@@ -438,4 +438,9 @@
     <!-- Login -->
     <string name="login_sub">Inicia sesión con Google para continuar.\n\nEstos datos seran ocupados unicamente para fines de seguridad de nuestros usuarios y no se usaran para fines ajenos a los mencionados.</string>
     <string name="login_error">No se pudo iniciar sesión. Intenta de nuevo.</string>
+
+    <!-- Aviso genérico cuando algo falla mas se atrapó a tiempo (ver Telemetria.avisarError):
+         no dice detalles técnicos porque el usuario no puede hacer nada con ellos; el detalle
+         completo ya se guardó para revisión (Telemetria.registrarError). -->
+    <string name="aviso_error_generico">Ha ocurrido un error, pero la app sigue funcionando</string>
 </resources>
