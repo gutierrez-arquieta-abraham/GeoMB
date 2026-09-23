@@ -105,11 +105,21 @@ public class LlegadaService extends Service {
         if (detenido || ciclando) return;
         ciclando = true;
         RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
-            @Override public void onData(List<UnidadReal> unidades) { evaluar(unidades); reprogramar(); }
+            @Override public void onData(List<UnidadReal> unidades) {
+                try {
+                    evaluar(unidades);
+                } catch (Throwable t) {
+                    Telemetria.registrarError(LlegadaService.this, Telemetria.ERR_EXCEPCION, "LlegadaService.evaluar", String.valueOf(t));
+                } finally {
+                    reprogramar();
+                }
+            }
             @Override public void onError(String mensaje) { reprogramar(); }
         });
     }
 
+    // Una unidad con datos inesperados en el feed en vivo (fuente externa) no debe tumbar este
+    // servicio en primer plano; el llamador (ciclo()) ya la protege con try/finally -> reprogramar().
     private void evaluar(List<UnidadReal> unidades) {
         List<Llegadas.Prox> prox = Llegadas.proximas(this, linea, pos, sentido, unidades);
 

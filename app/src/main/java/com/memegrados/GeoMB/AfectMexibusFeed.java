@@ -83,7 +83,8 @@ public final class AfectMexibusFeed {
     public static void procesar(Context ctx) {
         final Context app = ctx.getApplicationContext();
         EXEC.execute(() -> {
-            try { procesarSync(app); } catch (Exception ignore) {}
+            try { procesarSync(app); }
+            catch (Exception e) { Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "AfectMexibusFeed.procesar", String.valueOf(e)); }
         });
     }
 

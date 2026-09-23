@@ -188,7 +188,11 @@ public final class GtfsRepository {
             }
             jr.endObject();
             cargarSegmentos(ctx, res);
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            // lineas.json es obligatorio y va empaquetado en el APK: una falla aquí es un bug real
+            // (JSON corrupto/malformado), no una condición esperada -- sí vale la pena registrarla.
+            Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "GtfsRepository.cargarLineas", String.valueOf(e));
+        }
         return Collections.unmodifiableList(res);
     }
 
@@ -204,7 +208,10 @@ public final class GtfsRepository {
                 jr.endArray();
             }
             jr.endObject();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            // archivo (p. ej. mexibus.json) también es obligatorio y va en el APK -- mismo caso.
+            Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "GtfsRepository.cargarArchivo:" + archivo, String.valueOf(e));
+        }
         return Collections.unmodifiableList(res);
     }
 
