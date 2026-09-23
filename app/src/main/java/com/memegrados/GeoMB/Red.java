@@ -101,4 +101,26 @@ public final class Red {
     public static boolean ahorrarAhora(Context c) {
         return Modos.ahorroDatos(c) && datosMoviles(c);
     }
+
+    /** ¿La red activa tiene INTERNET REAL confirmado por Android (NET_CAPABILITY_VALIDATED)?
+     *  Una Wi-Fi "conectada" pero sin salida a internet (router sin servicio, portal cautivo) sigue
+     *  siendo la red ACTIVA para el sistema aunque no sirva de nada -- y si además hay datos móviles
+     *  encendidos de respaldo, Android puede no cambiarse solo. Sin este chequeo, código que decide
+     *  "hay Wi-Fi, descargo" (p. ej. la voz Mia del recorrido) intenta la descarga sobre una red
+     *  muerta: la petición tarda mucho más de lo esperado en fallar (o se cuelga) en vez de fallar
+     *  rápido como con "sin red" de plano, dejando avisos varados esperando esa descarga. */
+    public static boolean hayInternetReal(Context c) {
+        if (c == null) return true;   // ante cualquier duda, comportamiento normal (no bloquear)
+        try {
+            ConnectivityManager cm = (ConnectivityManager)
+                    c.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return true;
+            Network n = cm.getActiveNetwork();
+            NetworkCapabilities caps = n != null ? cm.getNetworkCapabilities(n) : null;
+            if (caps == null) return true;   // sin info: no bloquear por las dudas
+            return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+        } catch (Throwable t) {
+            return true;
+        }
+    }
 }

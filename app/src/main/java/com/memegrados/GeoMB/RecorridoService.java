@@ -828,7 +828,12 @@ public class RecorridoService extends Service {
         // Modo ahorro de datos (activo por defecto en datos móviles, desactivable en "Acerca de"):
         // si esta frase no está ya cacheada, no se descarga la voz Mia -se habla directo con la voz
         // local del teléfono (TTS, sin conexión, cero datos).
-        if (Red.ahorrarAhora(this)) { hablar(texto); return; }
+        // Wi-Fi "conectada" pero sin internet real (router sin servicio, portal cautivo) con datos
+        // móviles también encendidos: Android puede seguir marcando la Wi-Fi muerta como red activa,
+        // así que sin este chequeo se intentaba la descarga sobre una red que nunca va a responder
+        // -tardando mucho más en fallar (o colgándose) que "sin red" de plano, y dejando el aviso
+        // varado sin avanzar a los siguientes de la cola.
+        if (Red.ahorrarAhora(this) || !Red.hayInternetReal(this)) { hablar(texto); return; }
         // Descarga la voz Mia PERO con un límite (VOZ_TIMEOUT_MS): si no llega a tiempo, se habla ya
         // con el TTS de Google para no dejar esperando; la descarga sigue y queda cacheada para la
         // próxima. Este aviso YA está "en curso" (vozOcupada=true): el siguiente de la cola espera.
