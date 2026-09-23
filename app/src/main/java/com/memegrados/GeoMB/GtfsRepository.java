@@ -66,7 +66,15 @@ public final class GtfsRepository {
     // Un único candado SOLO para la construcción (no para las lecturas ya publicadas).
     private static final Object lock = new Object();
     private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "gtfs-io"); t.setDaemon(true); return t;
+        Thread t = new Thread(() -> {
+            // Prioridad BACKGROUND: la precarga al arrancar la app (ver precargar()) no debe competir
+            // por CPU con el arranque de la UI (mapa, splash); mejor que tarde un poco más a que se
+            // sienta la app lenta justo al abrir.
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+            r.run();
+        }, "gtfs-io");
+        t.setDaemon(true);
+        return t;
     });
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
@@ -135,6 +143,12 @@ public final class GtfsRepository {
      * Precarga TODO (Metrobús, Mexibús, sublíneas) en un hilo de E/S y avisa en el hilo PRINCIPAL
      * cuando ya está en memoria, sin bloquear la UI. La pantalla del mapa la usa antes de dibujar,
      * de modo que dibujarRed() ya encuentre las listas cacheadas (getLineas() es instantáneo).
+     * GeoMBApplication también la llama al arrancar la app, para que el primer "Trazar" del
+     * Planificador no cargue todo en frío (antes eso hacía que el primer toque del botón pareciera
+     * no responder, cuando en realidad estaba parseando lineas.json/mexibus.json por primera vez).
+     * Cualquier falla aquí se registra y se descarta -- es solo una optimización especulativa, así
+     * que un error jamás debe tumbar la app; getLineas()/getMexibus() se volverán a intentar solas
+     * la próxima vez que alguien las pida.
      */
     public static void precargar(Context c, Runnable onReady) {
         final Context app = c.getApplicationContext();
@@ -143,9 +157,14 @@ public final class GtfsRepository {
             return;
         }
         IO.execute(() -> {
-            getLineas(app); getMexibus(app);
-            if (sublineas == null) synchronized (lock) { if (sublineas == null) sublineas = cargarSublineas(app); }
-            if (onReady != null) MAIN.post(onReady);
+            try {
+                getLineas(app); getMexibus(app);
+                if (sublineas == null) synchronized (lock) { if (sublineas == null) sublineas = cargarSublineas(app); }
+            } catch (Throwable t) {
+                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "GtfsRepository.precargar", String.valueOf(t));
+            } finally {
+                if (onReady != null) MAIN.post(onReady);
+            }
         });
     }
 
