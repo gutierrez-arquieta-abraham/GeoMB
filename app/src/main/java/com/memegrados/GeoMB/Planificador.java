@@ -516,7 +516,7 @@ public final class Planificador {
             case 104: return new String[]{"MXB La Raza", "MXB Universidad Mexiquense del Bicentenario"};      // L4
             // Mexibús exprés (span principal; algunos servicios tienen terminal intermedia)
             case 121: return new String[]{"MXB Ojo de Agua", "MXB Ciudad Azteca"};                            // L1 Exprés (TR3/TR4; TR4 sale de Central de Abastos)
-            case 122: return new String[]{"MXB Ecatepec", "MXB Lechería Express"};                            // L2 Exprés (ERO)
+            case 122: return new String[]{"MXB Ecatepec", "MXB Lechería"};                                    // L2 Exprés (ERO)
             case 123: return new String[]{"Pantitlán (conexión Metrobús L4)", "MXB Chimalhuacán"};           // L3 Exprés
             case 124: return new String[]{"Indios Verdes", "MXB Universidad Mexiquense del Bicentenario"};    // L4 Exprés (sur en Indios Verdes)
             default: return null;
