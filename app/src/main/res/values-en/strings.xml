@@ -185,7 +185,7 @@
     <string name="voz_lleg_transf_hace">Arriving at %1$s, make your %2$s with %3$s</string>
     <string name="voz_lleg_transf_paso">Arriving at %1$s, %2$s with %3$s</string>
     <string name="voz_baja_realiza">Get off and make your %1$s</string>
-    <string name="voz_ultima_est">Last station of your route</string>
+    <string name="voz_ultima_est">Last station of your route. Get off the unit to continue on your way, and have a great trip</string>
     <string name="voz_term_lleg">Arriving at terminal station, %1$s</string>
     <string name="voz_term_prox">Next station, terminal, %1$s</string>
     <string name="voz_lleg_base">Arriving at station, %1$s</string>
