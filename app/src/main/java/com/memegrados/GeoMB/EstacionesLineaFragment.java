@@ -65,6 +65,7 @@ public class EstacionesLineaFragment extends Fragment {
         // Metrobús: "Línea N · nombre-de-la-ruta". Mexibús/Mexicable: su nombre ya es autodescriptivo
         // ("Mexibús L1", "Mexicable L2"), así que no se antepone "Línea 101"/"Línea 201".
         titulo.setText(num < 100 ? getString(R.string.linea_formato, l.numero) + " · " + l.nombre : l.nombre);
+        Tipografia.aplicarEstacion(titulo, l.numero);   // sigue el modo de iconografía, igual que cada fila
 
         List<EstacionesAdapter.Item> items = new ArrayList<>();
         if (num == 4) construirPorRutas(items, "L4", 0);
