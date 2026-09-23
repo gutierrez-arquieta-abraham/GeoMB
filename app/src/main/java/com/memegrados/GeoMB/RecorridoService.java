@@ -106,6 +106,20 @@ public class RecorridoService extends Service {
      *  mucho más arriba (p. ej. 80%), obligando a bajarle manualmente durante el aviso. Se atenúa
      *  igual que el "tururu" para que respete proporcionalmente el volumen ya puesto por el usuario. */
     private static final float VOZ_VOL = 0.7f;
+
+    /** Volumen ACTUAL del stream de medios (0..1), para escalar la voz/tururu nosotros mismos: el
+     *  parámetro KEY_PARAM_VOLUME de TextToSpeech (motor de respaldo, sin Mia) no sigue de forma
+     *  confiable el volumen de medios que el usuario ya tiene puesto en varios motores/fabricantes
+     *  (se queda en un nivel fijo alto sin importar el volumen del sistema); MediaPlayer.setVolume()
+     *  sí es proporcional al volumen del stream, pero se aplica igual aquí por consistencia. */
+    private float volumenSistema() {
+        if (audioManager == null) return 1f;
+        try {
+            int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+            int cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+            return max > 0 ? (float) cur / max : 1f;
+        } catch (Exception ignore) { return 1f; }
+    }
     private static final long VOZ_TIMEOUT_MS = 4000L; // margen para descargar la voz Mia antes de caer al TTS
 
     // Andenes con ZONA de cobertura (Indios Verdes) miden ~100 m de largo. Como la distancia se mide al
@@ -665,7 +679,7 @@ public class RecorridoService extends Service {
     private void hablar(String t) {
         if (ttsListo && tts != null && t != null) {
             android.os.Bundle p = new android.os.Bundle();
-            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VOZ_VOL);   // respeta el volumen de medios puesto por el usuario
+            p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VOZ_VOL * volumenSistema());   // respeta el volumen de medios puesto por el usuario
             tts.speak(t, TextToSpeech.QUEUE_FLUSH, p, "geomb");
         }
     }
@@ -711,7 +725,8 @@ public class RecorridoService extends Service {
                 android.media.MediaPlayer mp = android.media.MediaPlayer.create(this, id);
                 if (mp != null) {
                     mpActual = mp;
-                    mp.setVolume(TURURU_VOL, TURURU_VOL);   // ~70% para que no reviente los oídos
+                    float vs = volumenSistema();
+                    mp.setVolume(TURURU_VOL * vs, TURURU_VOL * vs);   // ~70% para que no reviente los oídos
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (Exception ignore) {}
                         if (mpActual == m) mpActual = null;
@@ -854,7 +869,8 @@ public class RecorridoService extends Service {
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build());
             mp.setDataSource(f.getAbsolutePath());
-            mp.setVolume(VOZ_VOL, VOZ_VOL);   // respeta el volumen de medios puesto por el usuario
+            float vs = volumenSistema();
+            mp.setVolume(VOZ_VOL * vs, VOZ_VOL * vs);   // respeta el volumen de medios puesto por el usuario
             mp.setOnCompletionListener(m -> {
                 try { m.release(); } catch (Exception ignore) {}
                 if (mpActual == m) mpActual = null;
