@@ -114,6 +114,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final List<Polyline> mexibusLineas = new ArrayList<>();
     private final List<EstMapa> mexibusEst = new ArrayList<>();
     private LatLng centroCarga = null;   // centro del área cargada (null = aún sin ubicar)
+    private com.google.android.gms.maps.model.Circle destelloResidual;   // aro tenue que deja destelloEstacion()
     private boolean trafico = false;
     private boolean mostrarEstaciones = true;
     private boolean mostrarUnidades = true;
@@ -799,36 +800,45 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     /**
      * "Destello" para ubicar una estación: un aro (Circle, coordenadas reales) del color de su
-     * línea que crece y se desvanece alrededor del punto, un par de veces, y luego se quita solo.
+     * línea que crece y se desvanece alrededor del punto varias veces y, al terminar, en vez de
+     * quitarse por completo, se deja como un aro tenue y fijo (estado de transparencia) marcando
+     * la estación -- así sigue siendo visible un momento después de que dejó de parpadear.
      * Se usa un Circle (no un Marker con bitmap animado) porque escala con el zoom del mapa y no
      * hace falta redibujar bitmaps en cada frame.
      */
     private void destelloEstacion(LatLng pos, int color) {
         if (mapa == null) return;
+        if (destelloResidual != null) { try { destelloResidual.remove(); } catch (Exception ignore) {} }
         final com.google.android.gms.maps.model.Circle circulo = mapa.addCircle(
                 new com.google.android.gms.maps.model.CircleOptions()
                         .center(pos)
-                        .radius(12)
-                        .strokeWidth(6f)
+                        .radius(14)
+                        .strokeWidth(8f)
                         .strokeColor(color)
-                        .fillColor(colorConAlfa(color, 70))
+                        .fillColor(colorConAlfa(color, 90))
                         .zIndex(20f));
         android.animation.ValueAnimator anim = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        anim.setDuration(900);
-        anim.setRepeatCount(2);
+        anim.setDuration(1100);
+        anim.setRepeatCount(3);
         anim.setRepeatMode(android.animation.ValueAnimator.RESTART);
         anim.addUpdateListener(a -> {
             float t = (float) a.getAnimatedValue();
             try {
-                circulo.setRadius(12 + t * 48);              // 12 m -> 60 m
-                int alfa = Math.round(180 * (1 - t));         // se desvanece según crece
+                circulo.setRadius(14 + t * 70);               // 14 m -> 84 m: más notorio
+                int alfa = Math.round(220 * (1 - t));          // se desvanece según crece
                 circulo.setStrokeColor(colorConAlfa(color, alfa));
                 circulo.setFillColor(colorConAlfa(color, Math.round(alfa * 0.35f)));
-            } catch (Exception ignore) {}                     // el fragment pudo cerrarse a medio camino
+            } catch (Exception ignore) {}                      // el fragment pudo cerrarse a medio camino
         });
         anim.addListener(new android.animation.AnimatorListenerAdapter() {
             @Override public void onAnimationEnd(android.animation.Animator animation) {
-                try { circulo.remove(); } catch (Exception ignore) {}
+                try {
+                    // No se quita: queda un aro pequeño y muy transparente marcando la estación.
+                    circulo.setRadius(16);
+                    circulo.setStrokeColor(colorConAlfa(color, 90));
+                    circulo.setFillColor(colorConAlfa(color, 25));
+                    destelloResidual = circulo;
+                } catch (Exception ignore) {}
             }
         });
         anim.start();
