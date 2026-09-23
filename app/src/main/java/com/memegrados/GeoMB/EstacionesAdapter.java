@@ -111,13 +111,21 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
                 v.sub.setVisibility(View.GONE);
             }
 
-            int id = 0;
-            if (it.icono != null && !it.icono.isEmpty()) {
-                id = v.itemView.getResources().getIdentifier(
-                        it.icono, "drawable", v.itemView.getContext().getPackageName());
+            // Pictograma de la estación (misma lógica que el resto de la app: respeta nuevo/antiguo
+            // vía Iconos.pictograma() y, si no hay pictograma antiguo, cae a un punto del color de
+            // la línea). Antes se resolvía el drawable directo por nombre, así que nunca cambiaba
+            // con el botón de iconos aunque la tipografía sí lo hiciera.
+            int px = Math.round(34 * v.itemView.getResources().getDisplayMetrics().density);
+            android.graphics.Bitmap bmp = Iconos.pictograma(v.itemView.getContext(), it.icono, px);
+            if (bmp != null) {
+                v.ic.setImageBitmap(bmp);
+            } else {
+                GradientDrawable dot = new GradientDrawable();
+                dot.setShape(GradientDrawable.OVAL);
+                dot.setColor(it.color);
+                dot.setSize(px, px);
+                v.ic.setImageDrawable(dot);
             }
-            if (id != 0) v.ic.setImageResource(id);
-            else v.ic.setImageDrawable(null);
 
             // Acento vertical del color de la línea (sustituye al punto lateral).
             v.barra.setBackgroundTintList(android.content.res.ColorStateList.valueOf(it.color));
