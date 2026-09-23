@@ -876,11 +876,17 @@ public class RecorridoService extends Service {
         return respellVoz(par >= 0 ? s.substring(0, par).trim() : s);
     }
 
-    /** Respeta el nombre EXACTO para mostrar, pero corrige la ortografía SOLO para la voz de siglas que
-     *  el TTS lee mal (p. ej. "ISSEMYM" sonaba con "e" donde va "i"): debe mantenerse en sincronía con
-     *  Locuciones.nom() y DescargaVoz.nomDe(), sus réplicas para pre-descargar/cachear el mismo audio. */
+    /** Respeta el nombre EXACTO para mostrar, pero corrige la ortografía SOLO para la voz de siglas/
+     *  palabras que el TTS lee mal (acrónimos sin vocales que pronunciar, o palabras en inglés leídas con
+     *  reglas fonéticas del español): debe mantenerse en sincronía con Locuciones.nom() y
+     *  DescargaVoz.nomDe(), sus réplicas para pre-descargar/cachear el mismo audio. */
     private static String respellVoz(String nombre) {
-        return "issemym".equals(Planificador.norm(nombre)) ? "Isemim" : nombre;
+        if (nombre == null) return null;
+        return nombre
+                .replace("ISSEMYM", "Isemim")        // "esemim" en vez de "isemim"
+                .replace("CCH", "Cecehache")          // sin vocales que leer: intentaba deletrearlo mal
+                .replace("SCOP", "Escop")             // el español no empieza palabra con "sc-"
+                .replace("New's Divine", "Niuz Diváin");   // nombre en inglés leído letra por letra
     }
 
     /** Nombre para MOSTRAR (notificación): sin MXB y con nº de línea si el nombre se repite. */
