@@ -786,28 +786,34 @@ public class ManifestacionesService extends Service {
 
         // Contenido dinámico (español): se traduce al idioma efectivo con el motor de Google
         // (ML Kit). Para es/náhuatl/no soportado queda en español. Al terminar, notifica.
+        // Corre en el callback ASÍNCRONO de Traductor.traducirTexto (ML Kit); una falla ahí no debe
+        // tumbar este servicio en primer plano.
         Traductor.traducirTexto(this, tituloEs, tituloT ->
                 Traductor.traducirTexto(this, infoEs, infoT -> {
-                    StringBuilder texto = new StringBuilder(prefijo);
-                    if (infoT != null && !infoT.isEmpty())
-                        texto.append(texto.length() > 0 ? "\n" : "").append(infoT);
-                    NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL_AVISO)
-                            .setSmallIcon(R.drawable.ic_bus)
-                            .setContentTitle(tituloT)
-                            .setContentText(texto.toString().replace('\n', ' '))
-                            .setStyle(new NotificationCompat.BigTextStyle().bigText(texto.toString()))
-                            .setAutoCancel(true)
-                            .setContentIntent(piAbrir())
-                            .setCategory(NotificationCompat.CATEGORY_STATUS)
-                            .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-                    if (lineaNum > 0) {
-                        Linea l = GtfsRepository.porNumero(this, lineaNum);
-                        int color = l != null ? l.color : 0xFFD40D0D;
-                        b.setColor(color);
-                        android.graphics.Bitmap logo = Tipografia.bitmapLineaLogo(this, lineaNum, color);
-                        if (logo != null) b.setLargeIcon(logo);
+                    try {
+                        StringBuilder texto = new StringBuilder(prefijo);
+                        if (infoT != null && !infoT.isEmpty())
+                            texto.append(texto.length() > 0 ? "\n" : "").append(infoT);
+                        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL_AVISO)
+                                .setSmallIcon(R.drawable.ic_bus)
+                                .setContentTitle(tituloT)
+                                .setContentText(texto.toString().replace('\n', ' '))
+                                .setStyle(new NotificationCompat.BigTextStyle().bigText(texto.toString()))
+                                .setAutoCancel(true)
+                                .setContentIntent(piAbrir())
+                                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+                        if (lineaNum > 0) {
+                            Linea l = GtfsRepository.porNumero(this, lineaNum);
+                            int color = l != null ? l.color : 0xFFD40D0D;
+                            b.setColor(color);
+                            android.graphics.Bitmap logo = Tipografia.bitmapLineaLogo(this, lineaNum, color);
+                            if (logo != null) b.setLargeIcon(logo);
+                        }
+                        nm.notify(id, b.build());
+                    } catch (Throwable t) {
+                        Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ManifestacionesService.emitirTarjeta", String.valueOf(t));
                     }
-                    nm.notify(id, b.build());
                 }));
     }
 
@@ -839,16 +845,20 @@ public class ManifestacionesService extends Service {
             // Traduce estado (título) e info (cuerpo) al idioma efectivo; estaciones quedan igual.
             Traductor.traducirTexto(this, a.estado, estadoT ->
                     Traductor.traducirTexto(this, infoEs, infoT -> {
-                        String txt = (lugar.isEmpty() ? "" : lugar)
-                                + (infoT == null || infoT.isEmpty() ? "" : " · " + infoT);
-                        Notification card = new NotificationCompat.Builder(this, CANAL_AVISO)
-                                .setSmallIcon(R.drawable.ic_bus)
-                                .setContentTitle(prefijoLinea + estadoT)
-                                .setContentText(txt)
-                                .setStyle(new NotificationCompat.BigTextStyle().bigText(txt))
-                                .setGroup(GRUPO_OTROS).setAutoCancel(true).setContentIntent(piAbrir())
-                                .setPriority(NotificationCompat.PRIORITY_DEFAULT).build();
-                        nm.notify(ID_OTROS_BASE + idx, card);
+                        try {
+                            String txt = (lugar.isEmpty() ? "" : lugar)
+                                    + (infoT == null || infoT.isEmpty() ? "" : " · " + infoT);
+                            Notification card = new NotificationCompat.Builder(this, CANAL_AVISO)
+                                    .setSmallIcon(R.drawable.ic_bus)
+                                    .setContentTitle(prefijoLinea + estadoT)
+                                    .setContentText(txt)
+                                    .setStyle(new NotificationCompat.BigTextStyle().bigText(txt))
+                                    .setGroup(GRUPO_OTROS).setAutoCancel(true).setContentIntent(piAbrir())
+                                    .setPriority(NotificationCompat.PRIORITY_DEFAULT).build();
+                            nm.notify(ID_OTROS_BASE + idx, card);
+                        } catch (Throwable t) {
+                            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ManifestacionesService.notificarOtros", String.valueOf(t));
+                        }
                     }));
             resumen.add(prefijoLinea + a.lugar);
             i++;

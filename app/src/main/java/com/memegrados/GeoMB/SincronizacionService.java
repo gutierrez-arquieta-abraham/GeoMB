@@ -93,17 +93,27 @@ public class SincronizacionService extends Service {
                 // El servidor (EC2/SONDA) respondió bien. Si el usuario NO activó la sincronización
                 // manual, este servicio solo era un RESPALDO temporal: se apaga para no gastar batería.
                 if (!Modos.sincronizacionFondo(SincronizacionService.this)) { stopSelf(); return; }
-                String txt = getString(R.string.sincro_texto, unidades.size());
-                if (Manifestaciones.hay()) txt += " · ⚠ " + getString(R.string.sincro_afectacion);
-                actualizar(txt);
-                reprogramar();
+                try {
+                    String txt = getString(R.string.sincro_texto, unidades.size());
+                    if (Manifestaciones.hay()) txt += " · ⚠ " + getString(R.string.sincro_afectacion);
+                    actualizar(txt);
+                } catch (Throwable t) {
+                    Telemetria.registrarError(SincronizacionService.this, Telemetria.ERR_EXCEPCION, "SincronizacionService.onData", String.valueOf(t));
+                } finally {
+                    reprogramar();
+                }
             }
 
             @Override
             public void onError(String mensaje) {
                 // El servidor falló: se mantiene el sondeo de respaldo hasta que vuelva (o el usuario lo apague).
-                actualizar(getString(R.string.sincro_sin_conexion));
-                reprogramar();
+                try {
+                    actualizar(getString(R.string.sincro_sin_conexion));
+                } catch (Throwable t) {
+                    Telemetria.registrarError(SincronizacionService.this, Telemetria.ERR_EXCEPCION, "SincronizacionService.onError", String.valueOf(t));
+                } finally {
+                    reprogramar();
+                }
             }
         });
     }

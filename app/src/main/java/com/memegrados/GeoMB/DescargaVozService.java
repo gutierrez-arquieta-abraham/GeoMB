@@ -108,18 +108,29 @@ public class DescargaVozService extends Service {
 
         List<Integer> ls = new ArrayList<>();
         for (int ln : lineas) ls.add(ln);
+        // avance()/fin() corren en el hilo de descarga de DescargaVoz; una excepción sin atrapar ahí
+        // (notificación, o el callback 'escucha' de un diálogo en un estado inesperado) tumbaría
+        // este servicio en primer plano a media descarga.
         DescargaVoz.descargarVarias(this, ls, new DescargaVoz.Progreso() {
             @Override public void avance(int h, int t) {
-                hechos = h; total = t;
-                actualizar(h, t);
-                Escucha e = escucha;
-                if (e != null) e.avance(h, t);
+                try {
+                    hechos = h; total = t;
+                    actualizar(h, t);
+                    Escucha e = escucha;
+                    if (e != null) e.avance(h, t);
+                } catch (Throwable ex) {
+                    Telemetria.registrarError(DescargaVozService.this, Telemetria.ERR_EXCEPCION, "DescargaVozService.avance", String.valueOf(ex));
+                }
             }
             @Override public void fin(int ok, int t) {
                 corriendo = false;
-                terminar(ok, t);
-                Escucha e = escucha;
-                if (e != null) e.fin(ok, t);
+                try {
+                    terminar(ok, t);
+                    Escucha e = escucha;
+                    if (e != null) e.fin(ok, t);
+                } catch (Throwable ex) {
+                    Telemetria.registrarError(DescargaVozService.this, Telemetria.ERR_EXCEPCION, "DescargaVozService.fin", String.valueOf(ex));
+                }
             }
             @Override public void error(String msg) {}
         });
