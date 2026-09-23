@@ -46,7 +46,13 @@ public final class Locuciones {
         if (nombre == null) return null;
         String s = Planificador.sinMxb(nombre);
         int par = s.indexOf('(');
-        return par >= 0 ? s.substring(0, par).trim() : s;
+        return respellVoz(par >= 0 ? s.substring(0, par).trim() : s);
+    }
+
+    /** Corrige la ortografía SOLO para la voz de siglas que el TTS lee mal (p. ej. "ISSEMYM" sonaba con
+     *  "e" donde va "i"). Debe mantenerse en sincronía con RecorridoService.nom() y DescargaVoz.nomDe(). */
+    private static String respellVoz(String nombre) {
+        return "issemym".equals(Planificador.norm(nombre)) ? "Isemim" : nombre;
     }
 
     static int baseLinea(int n) {
