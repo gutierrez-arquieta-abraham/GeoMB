@@ -3,6 +3,7 @@ package com.memegrados.GeoMB;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -12,6 +13,7 @@ import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -164,6 +166,22 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 }
             });
 
+    // ---- Tarjeta de resultado del buscador inline (unidad/estación), flotando sobre el mapa ----
+    // (misma ficha que SearchFragment vía CartaUnidad; ver mostrarCartaUnidad()).
+    private ViewGroup cartaContainer;
+    private CartaUnidad.Vistas cartaVistas;
+    private String ecoCartaActual;   // económico mostrado en la tarjeta flotante
+
+    private final ActivityResultLauncher<String> permisoUbicacionCarta =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> {
+                if (ok) intentarSeguirCarta();
+                else if (isAdded()) Toast.makeText(requireContext(),
+                        getString(R.string.seguir_permiso_ubicacion), Toast.LENGTH_LONG).show();
+            });
+
+    private final ActivityResultLauncher<String> permisoNotifCarta =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> arrancarSeguimientoCarta());
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -198,6 +216,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapFragment.getMapAsync(this::alMapaListo);
 
         view.findViewById(R.id.btn_ubicacion).setOnClickListener(v -> irAMiUbicacion());
+
+        cartaContainer = view.findViewById(R.id.map_carta_container);
 
         // Buscador inline: busca el económico y centra el mapa en la unidad.
         EditText inputMapa = view.findViewById(R.id.input_mapa);
@@ -399,6 +419,23 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 else s.setVisibility(View.GONE);
                 return v;
             }
+        });
+
+        // Tocar un marcador muestra su TARJETA (unidad o estación) flotando sobre el mapa, en vez
+        // del tooltip genérico de arriba -- unifica el resultado con el buscador de la pestaña
+        // Buscar (CartaUnidad) y le da a las estaciones el mismo trato (CartaEstacion).
+        mapa.setOnMarkerClickListener(m -> {
+            String eco = numeroDeMarcador(m);
+            if (eco != null) {
+                mostrarCartaUnidad(eco, RealtimeRepository.get().buscar(eco));
+                return true;
+            }
+            EstMapa em = estacionDeMarcador(m);
+            if (em != null) {
+                mostrarCartaEstacion(em);
+                return true;
+            }
+            return false;   // marcador no reconocido: comportamiento por defecto (tooltip)
         });
 
         // El trazado se hace cuando la red ya está en memoria, observando el LiveData del ViewModel.
@@ -798,6 +835,108 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return c != null ? c : ContextCompat.getColor(requireContext(), R.color.mb_gray);
     }
 
+    /** ¿Qué unidad corresponde a este marcador? (recorre marcadoresUnidad; null si no es de unidad). */
+    private String numeroDeMarcador(Marker m) {
+        for (Map.Entry<String, Marker> e : marcadoresUnidad.entrySet())
+            if (e.getValue().equals(m)) return e.getKey();
+        return null;
+    }
+
+    /** ¿Qué estación corresponde a este marcador? (Metrobús o Mexibús; null si no es de estación). */
+    private EstMapa estacionDeMarcador(Marker m) {
+        for (EstMapa em : estaciones) if (m.equals(em.marker)) return em;
+        for (EstMapa em : mexibusEst) if (m.equals(em.marker)) return em;
+        return null;
+    }
+
+    /** Oculta la tarjeta flotante (unidad o estación) sobre el mapa. */
+    private void ocultarCarta() {
+        if (cartaContainer != null) cartaContainer.setVisibility(View.GONE);
+    }
+
+    /**
+     * Muestra la tarjeta de UNIDAD flotando sobre el mapa (misma ficha que la pestaña Buscar, vía
+     * {@link CartaUnidad}): reemplaza el tooltip genérico de 2 líneas y unifica el resultado con
+     * el buscador inline de arriba (antes reimplementaba su propia validación/consulta y a veces
+     * solo mandaba a la pestaña Buscar en vez de mostrar algo aquí mismo).
+     */
+    private void mostrarCartaUnidad(String eco, UnidadReal u) {
+        if (!isAdded() || cartaContainer == null) return;
+        ecoCartaActual = eco;
+        cartaContainer.removeAllViews();
+        View v = getLayoutInflater().inflate(R.layout.view_carta_unidad, cartaContainer, false);
+        cartaContainer.addView(v);
+        cartaVistas = new CartaUnidad.Vistas(v);
+        CartaUnidad.bind(requireContext(), cartaVistas, eco, u, () -> ecoCartaActual);
+        cartaVistas.btnVerMapa.setVisibility(View.GONE);        // ya estás viéndola en el mapa
+        cartaVistas.filaSeguirMulti.setVisibility(View.GONE);   // gestión de varias unidades: solo en Buscar
+        actualizarBotonSeguirCarta();
+        cartaVistas.btnSeguir.setOnClickListener(b -> {
+            if (ecoCartaActual == null) return;
+            if (SeguimientoService.sigue(ecoCartaActual)) {
+                Intent i = new Intent(requireContext(), SeguimientoService.class)
+                        .setAction(SeguimientoService.ACCION_DETENER)
+                        .putExtra(SeguimientoService.EXTRA_ECO, ecoCartaActual);
+                requireContext().startService(i);
+                SeguimientoService.ecosSeguidos.remove(ecoCartaActual);
+                actualizarBotonSeguirCarta();
+            } else {
+                intentarSeguirCarta();
+            }
+        });
+        View btnCerrar = v.findViewById(R.id.btn_cerrar_carta);
+        btnCerrar.setVisibility(View.VISIBLE);
+        btnCerrar.setOnClickListener(b -> ocultarCarta());
+        cartaContainer.setVisibility(View.VISIBLE);
+    }
+
+    private void actualizarBotonSeguirCarta() {
+        if (cartaVistas == null) return;
+        boolean sigue = ecoCartaActual != null && SeguimientoService.sigue(ecoCartaActual);
+        cartaVistas.btnSeguir.setText(sigue ? R.string.dejar_de_seguir : R.string.seguir);
+    }
+
+    /** Verifica permisos y arranca el seguimiento de la unidad de la tarjeta (mismo flujo de
+     *  SearchFragment.intentarSeguir, pero sobre la tarjeta flotante del mapa). */
+    private void intentarSeguirCarta() {
+        if (ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permisoUbicacionCarta.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            permisoNotifCarta.launch(Manifest.permission.POST_NOTIFICATIONS);
+            return;
+        }
+        arrancarSeguimientoCarta();
+    }
+
+    private void arrancarSeguimientoCarta() {
+        if (!isAdded() || ecoCartaActual == null) return;
+        Intent i = new Intent(requireContext(), SeguimientoService.class)
+                .putExtra(SeguimientoService.EXTRA_ECO, ecoCartaActual);
+        try { ContextCompat.startForegroundService(requireContext(), i); } catch (Exception ignore) {}
+        SeguimientoService.ecosSeguidos.add(ecoCartaActual);
+        actualizarBotonSeguirCarta();
+        Toast.makeText(requireContext(),
+                getString(R.string.seguir_activado, ecoCartaActual), Toast.LENGTH_LONG).show();
+    }
+
+    /** Muestra la tarjeta de ESTACIÓN flotando sobre el mapa (vía {@link CartaEstacion}): reemplaza
+     *  el tooltip genérico de 2 líneas, dándole a las estaciones el mismo trato que a las unidades. */
+    private void mostrarCartaEstacion(EstMapa em) {
+        if (!isAdded() || cartaContainer == null) return;
+        cartaContainer.removeAllViews();
+        View v = getLayoutInflater().inflate(R.layout.view_carta_estacion, cartaContainer, false);
+        cartaContainer.addView(v);
+        CartaEstacion.Vistas vistas = new CartaEstacion.Vistas(v);
+        CartaEstacion.bind(requireContext(), vistas, em.e, em.linea, em.color);
+        v.findViewById(R.id.btn_cerrar_carta_estacion).setOnClickListener(b -> ocultarCarta());
+        cartaContainer.setVisibility(View.VISIBLE);
+    }
+
     /**
      * "Destello" para ubicar una estación: un aro (Circle, coordenadas reales) del color de su
      * línea que crece y se desvanece alrededor del punto varias veces y, al terminar, en vez de
@@ -863,7 +1002,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
         if (destino == null) return;   // aún no llega el dato; se reintenta en el próximo refresco
         mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(destino, 15f));
-        if (m != null) m.showInfoWindow();
+        mostrarCartaUnidad(eco, RealtimeRepository.get().buscar(eco));   // misma tarjeta que "Ver en mapa" mostraba en Buscar
         RealtimeRepository.unidadSeleccionada = null;
     }
 
@@ -1062,25 +1201,20 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             public void onData(List<UnidadReal> unidades) {
                 if (!isAdded() || mapa == null) return;
                 UnidadReal u = RealtimeRepository.get().buscar(eco);
-                if (u == null) {
-                    // No está en vivo: mándala al buscador de unidades (ficha offline).
-                    RealtimeRepository.ecoParaBuscar = eco;
-                    if (getActivity() instanceof MainActivity) {
-                        ((MainActivity) getActivity()).navegarA(R.id.nav_buscar);
-                    }
-                    return;
+                if (u != null) {
+                    actualizarUnidades(unidades, u.posicion);   // crea el marcador aunque esté lejos
+                    centroCarga = u.posicion;
+                    mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(u.posicion, 15f));
                 }
-                actualizarUnidades(unidades, u.posicion);   // crea el marcador aunque esté lejos
-                centroCarga = u.posicion;
-                mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(u.posicion, 15f));
-                Marker m = marcadoresUnidad.get(u.numero);
-                if (m != null) m.showInfoWindow();
+                // Con u==null (no está en vivo) muestra la ficha del catálogo (offline), igual que
+                // la pestaña Buscar -- ya no manda a otra pestaña para verla.
+                mostrarCartaUnidad(eco, u);
             }
 
             @Override
             public void onError(String mensaje) {
-                if (isAdded()) Toast.makeText(requireContext(),
-                        "Sin conexión con el servidor de unidades", Toast.LENGTH_SHORT).show();
+                if (!isAdded()) return;
+                mostrarCartaUnidad(eco, null);   // sin conexión: ficha del catálogo (offline)
             }
         });
     }
@@ -1139,6 +1273,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         coloresLinea.clear();
         animToken.clear();
         mapa = null;
+        cartaContainer = null;
+        cartaVistas = null;
+        ecoCartaActual = null;
         super.onDestroyView();
     }
 }

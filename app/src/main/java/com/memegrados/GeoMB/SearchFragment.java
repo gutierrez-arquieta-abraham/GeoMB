@@ -4,22 +4,13 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
-
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -29,7 +20,6 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.List;
@@ -46,19 +36,15 @@ import java.util.List;
 // DESCRIPCIÓN:
 //
 // Buscador de UNIDAD por número económico. Permite ver la unidad en el mapa
-// o "Seguir" (aviso de cercanía mediante SeguimientoService).
+// o "Seguir" (aviso de cercanía mediante SeguimientoService). La tarjeta de
+// resultado (view_carta_unidad.xml) la rellena CartaUnidad -- compartida con
+// el buscador inline del mapa (MapFragment) para no duplicar esa lógica.
 // ============================================================
 public class SearchFragment extends Fragment {
 
-    private MaterialButton btnSeguir;
-    private MaterialButton btnVerMapa;
     private MaterialButton btnBuscar;
-    private MaterialButton btnAnadir, btnDetenerTodos;
-    private View filaSeguirMulti;
     private TextInputEditText inputUnidad;
-    private MaterialCardView cardResultado;
-    private TextView txtUnidad, txtLinea, txtFicha, txtRuta, txtActualizacion, badgeEstado, txtCredito, txtTagline;
-    private ImageView imgUnidad;
+    private CartaUnidad.Vistas carta;
     private String ecoActual;   // económico mostrado en la tarjeta
 
     private final ActivityResultLauncher<String> permisoUbicacion =
@@ -85,30 +71,16 @@ public class SearchFragment extends Fragment {
 
         inputUnidad = view.findViewById(R.id.input_unidad);
         btnBuscar = view.findViewById(R.id.btn_buscar);
-        cardResultado = view.findViewById(R.id.card_resultado);
-        txtUnidad = view.findViewById(R.id.txt_unidad);
-        txtLinea = view.findViewById(R.id.txt_linea);
-        txtFicha = view.findViewById(R.id.txt_ficha);
-        txtRuta = view.findViewById(R.id.txt_ruta);
-        txtActualizacion = view.findViewById(R.id.txt_actualizacion);
-        badgeEstado = view.findViewById(R.id.badge_estado);
-        imgUnidad = view.findViewById(R.id.img_unidad);
-        txtCredito = view.findViewById(R.id.txt_credito);
-        txtTagline = view.findViewById(R.id.txt_tagline);
-        btnVerMapa = view.findViewById(R.id.btn_ver_mapa);
-        btnSeguir = view.findViewById(R.id.btn_seguir);
-        filaSeguirMulti = view.findViewById(R.id.fila_seguir_multi);
-        btnAnadir = view.findViewById(R.id.btn_anadir_seguir);
-        btnDetenerTodos = view.findViewById(R.id.btn_detener_todos);
-        btnAnadir.setOnClickListener(v -> { if (ecoActual != null && !SeguimientoService.sigue(ecoActual)) intentarSeguir(); });
-        btnDetenerTodos.setOnClickListener(v -> detenerTodos());
+        carta = new CartaUnidad.Vistas(view);
+        carta.btnAnadirSeguir.setOnClickListener(v -> { if (ecoActual != null && !SeguimientoService.sigue(ecoActual)) intentarSeguir(); });
+        carta.btnDetenerTodos.setOnClickListener(v -> detenerTodos());
 
-        cardResultado.setVisibility(View.GONE);
+        carta.card.setVisibility(View.GONE);
 
         btnBuscar.setOnClickListener(v -> ejecutarBusqueda(
                 inputUnidad.getText() != null ? inputUnidad.getText().toString().trim() : ""));
 
-        btnSeguir.setOnClickListener(v -> {
+        carta.btnSeguir.setOnClickListener(v -> {
             if (ecoActual == null) return;
             if (SeguimientoService.sigue(ecoActual)) {
                 detenerSeguimiento();
@@ -118,7 +90,7 @@ public class SearchFragment extends Fragment {
         });
         // Mantener presionado "Seguir" = guardar/quitar de favoritos (persiste entre reinicios:
         // ArranqueReceiver retoma el seguimiento de los favoritos guardados al arrancar el teléfono).
-        btnSeguir.setOnLongClickListener(v -> {
+        carta.btnSeguir.setOnLongClickListener(v -> {
             if (ecoActual == null || !isAdded()) return false;
             Telemetria.esFavorito(requireContext(), ecoActual, esFav -> {
                 if (!isAdded()) return;
@@ -138,13 +110,6 @@ public class SearchFragment extends Fragment {
     public void onResume() {
         super.onResume();
         actualizarBotonSeguir();
-        // Si el buscador del mapa mandó un económico (no estaba en vivo), búscalo aquí.
-        if (RealtimeRepository.ecoParaBuscar != null) {
-            String eco = RealtimeRepository.ecoParaBuscar;
-            RealtimeRepository.ecoParaBuscar = null;
-            if (inputUnidad != null) inputUnidad.setText(eco);
-            ejecutarBusqueda(eco);
-        }
     }
 
     /** Busca un económico: valida el límite y consulta el feed (o muestra la ficha offline). */
@@ -229,150 +194,30 @@ public class SearchFragment extends Fragment {
     }
 
     private void actualizarBotonSeguir() {
-        if (btnSeguir == null) return;
+        if (carta == null) return;
         boolean sigueEsta = ecoActual != null && SeguimientoService.sigue(ecoActual);
-        btnSeguir.setText(sigueEsta ? R.string.dejar_de_seguir : R.string.seguir);
+        carta.btnSeguir.setText(sigueEsta ? R.string.dejar_de_seguir : R.string.seguir);
         // Fila de acciones múltiples: solo cuando ya hay unidad(es) en seguimiento en curso.
-        if (filaSeguirMulti != null) {
-            boolean hay = !SeguimientoService.ecosSeguidos.isEmpty();
-            filaSeguirMulti.setVisibility(hay ? View.VISIBLE : View.GONE);
-            if (btnAnadir != null) btnAnadir.setEnabled(ecoActual != null && !sigueEsta);   // añadir la actual
-        }
+        boolean hay = !SeguimientoService.ecosSeguidos.isEmpty();
+        carta.filaSeguirMulti.setVisibility(hay ? View.VISIBLE : View.GONE);
+        carta.btnAnadirSeguir.setEnabled(ecoActual != null && !sigueEsta);   // añadir la actual
     }
 
     /**
-     * Muestra la ficha del económico. Si {@code u} viene del feed, agrega los
-     * datos en vivo (línea, ruta, placa) y habilita Ver en mapa / Seguir; si es
-     * null (no en servicio o sin conexión), muestra solo el catálogo.
+     * Muestra la ficha del económico (CartaUnidad.bind se encarga de los campos). Si {@code u}
+     * viene del feed, agrega el listener de "Ver en mapa" (navega a la pestaña Mapa); si es
+     * null (no en servicio o sin conexión), CartaUnidad ya deja ese botón oculto.
      */
     private void mostrarInfo(String numero, UnidadReal u) {
         ecoActual = numero;
-        txtUnidad.setText(getString(R.string.unidad_numero, numero));
-
-        // Ficha del catálogo (Drive) — disponible siempre, aunque no esté en servicio.
-        Modelos.Ficha ficha = Modelos.paraEconomico(numero);
-        String empresa = ficha.empresa;
-        String mm = ficha.etiqueta();
-        txtFicha.setText(Modelos.DESCONOCIDO.equals(mm) ? empresa : empresa + " · " + mm);
-
-        mostrarImagen(ficha, numero);
-
-        badgeEstado.setVisibility(View.VISIBLE);
+        CartaUnidad.bind(requireContext(), carta, numero, u, () -> ecoActual);
         if (u != null) {
-            badgeEstado.setText(R.string.estado_en_ruta);
-            txtLinea.setText(descripcionLinea(u));
-            Ruta r = RutasRepository.porRouteId(u.ruta);
-            if (r != null) {
-                txtRuta.setText(getString(R.string.ruta_codigo_formato, r.codigo) + " · " + r.recorrido());
-            } else if (u.destino != null && !u.destino.isEmpty()) {
-                txtRuta.setText(getString(R.string.destino_formato, u.destino));
-            } else {
-                txtRuta.setText(R.string.estado_en_ruta);
-            }
-            txtRuta.setVisibility(View.VISIBLE);
-            txtActualizacion.setText(u.placa != null && !u.placa.isEmpty()
-                    ? getString(R.string.placa_formato, u.placa) : getString(R.string.estado_en_ruta));
-            btnVerMapa.setVisibility(View.VISIBLE);
-            btnSeguir.setVisibility(View.VISIBLE);
-            btnVerMapa.setOnClickListener(b -> {
+            carta.btnVerMapa.setOnClickListener(b -> {
                 RealtimeRepository.unidadSeleccionada = numero;
                 ((MainActivity) requireActivity()).navegarA(R.id.nav_mapa);
             });
-        } else {
-            badgeEstado.setText(R.string.estado_fuera_servicio);
-            txtLinea.setText(R.string.sin_ubicacion_vivo);
-            txtRuta.setVisibility(View.GONE);
-            txtActualizacion.setText(R.string.info_catalogo);
-            btnVerMapa.setVisibility(View.GONE);
-            btnSeguir.setVisibility(View.GONE);
         }
-
-        aplicarTagline(u);
-
-        cardResultado.setVisibility(View.VISIBLE);
         actualizarBotonSeguir();
-    }
-
-    /** Modo coqueto (búsqueda): reemplaza el tono por uno insinuante suave. */
-    private void aplicarTagline(UnidadReal u) {
-        if (!Modos.cachondo(requireContext())) {
-            txtTagline.setVisibility(View.GONE);
-            return;
-        }
-        if (u != null) {
-            String dest = (u.destino != null && !u.destino.isEmpty()) ? u.destino : "algún lugar";
-            txtTagline.setText(getString(R.string.cachondo_tagline, dest));
-        } else {
-            txtTagline.setText(R.string.cachondo_tagline_off);
-        }
-        txtTagline.setVisibility(View.VISIBLE);
-    }
-
-    private String descripcionLinea(UnidadReal u) {
-        if (u.linea == null) return "Sin línea asignada";
-        Linea l = GtfsRepository.porNumero(requireContext(), u.linea);
-        String nombre = l != null ? l.nombre : "";
-        return getString(R.string.linea_formato, u.linea) + (nombre.isEmpty() ? "" : " · " + nombre);
-    }
-
-    /** Muestra la foto de la unidad (si el CSV trae URL) y sus créditos. */
-    private void mostrarImagen(Modelos.Ficha ficha, String eco) {
-        imgUnidad.setVisibility(View.GONE);
-        txtCredito.setVisibility(View.GONE);
-        String url = ficha.imagen;
-        if (url == null || url.isEmpty()) return;
-
-        txtCredito.setText(ficha.credito != null && !ficha.credito.isEmpty()
-                ? getString(R.string.creditos_imagen_formato, ficha.credito)
-                : getString(R.string.creditos_imagen_sin));
-        txtCredito.setVisibility(View.VISIBLE);
-
-        new Thread(() -> {
-            Bitmap bmp = descargarBitmap(url);
-            if (bmp == null || imgUnidad == null) return;
-            imgUnidad.post(() -> {
-                if (!isAdded() || !eco.equals(ecoActual)) return;   // resultado viejo
-                imgUnidad.setImageBitmap(bmp);
-                imgUnidad.setVisibility(View.VISIBLE);
-            });
-        }, "img-unidad").start();
-    }
-
-    /** Tamaño máximo (px) al que se reduce la foto para no gastar memoria de más. */
-    private static final int IMG_MAX_PX = 1080;
-
-    private static Bitmap descargarBitmap(String url) {
-        HttpURLConnection c = null;
-        try {
-            c = (HttpURLConnection) new URL(url).openConnection();
-            c.setConnectTimeout(10000);
-            c.setReadTimeout(15000);
-            c.setInstanceFollowRedirects(true);
-            if (c.getResponseCode() / 100 != 2) return null;
-
-            byte[] datos;
-            try (InputStream is = c.getInputStream();
-                 ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-                byte[] buf = new byte[8192];
-                int n;
-                while ((n = is.read(buf)) != -1) bos.write(buf, 0, n);
-                datos = bos.toByteArray();
-            }
-
-            // 1) Lee solo las dimensiones. 2) Decodifica reducido (downsampling).
-            BitmapFactory.Options o = new BitmapFactory.Options();
-            o.inJustDecodeBounds = true;
-            BitmapFactory.decodeByteArray(datos, 0, datos.length, o);
-            int s = 1;
-            while (o.outWidth / s > IMG_MAX_PX || o.outHeight / s > IMG_MAX_PX) s *= 2;
-            o.inSampleSize = s;
-            o.inJustDecodeBounds = false;
-            return BitmapFactory.decodeByteArray(datos, 0, datos.length, o);
-        } catch (Exception e) {
-            return null;
-        } finally {
-            if (c != null) c.disconnect();
-        }
     }
 
     private void ocultarTeclado(View v) {

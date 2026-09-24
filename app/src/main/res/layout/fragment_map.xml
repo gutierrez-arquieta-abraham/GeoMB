@@ -262,4 +262,17 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- Tarjeta de resultado del buscador inline (unidad o estación): se infla dinámicamente
+         (view_carta_unidad.xml / view_carta_estacion.xml) sobre este contenedor. -->
+    <FrameLayout
+        android:id="@+id/map_carta_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="10dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/panel_mapa"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
