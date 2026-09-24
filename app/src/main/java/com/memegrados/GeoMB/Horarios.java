@@ -246,6 +246,42 @@ public final class Horarios {
         return (v[0] != null && v[0].contiene(m)) || (v[1] != null && v[1].contiene(m));
     }
 
+    /** Rango [lo,hi] (índices en {@code l}) que cubre la ruta {@code r}, o null si ninguno de sus
+     *  extremos casa con una estación de esta línea (compartido por terminalHorario/estacionAbierta). */
+    private static int[] rangoDe(Linea l, Ruta r, int last) {
+        int oi = idxEnLinea(l, r.origen), di = idxEnLinea(l, r.destino);
+        if (oi < 0 && di < 0) return null;
+        if (oi < 0) oi = (di <= last - di) ? last : 0;   // extremo mixto (fuera de la línea): al extremo opuesto
+        if (di < 0) di = (oi <= last - oi) ? last : 0;
+        return new int[]{Math.min(oi, di), Math.max(oi, di)};
+    }
+
+    /**
+     * ¿Sigue circulando, en {@code momento}, ALGÚN patrón de la línea que cubra ESTA estación en
+     * particular? A diferencia de {@link #lineaCircula} (que basta con que CUALQUIER ruta de la línea
+     * siga abierta -- correcto para el aviso general "Servicio hoy", y para líneas troncales lineales
+     * donde cada patrón es solo un tramo del mismo corredor), esto es necesario para decidir si se
+     * puede ABORDAR esa línea en ESA estación exacta: p. ej. Metrobús L4 agrupa bajo el mismo número
+     * patrones con recorridos FÍSICAMENTE DISTINTOS (Ruta Norte, Ruta Sur, Aeropuerto–Amajac, Terminal
+     * 1–Terminal 2) -- que la lanzadera del aeropuerto siga circulando no significa que también lo haga
+     * la Ruta Norte en una estación que solo ella sirve. Si NINGÚN patrón documentado cubre esa
+     * estación (sin datos), se asume permisivo (true), igual que el resto de esta clase.
+     */
+    public static boolean estacionAbierta(Context ctx, int linea, Linea l, String nombreEstacion, Calendar momento) {
+        if (l == null) return lineaCircula(ctx, linea, momento);
+        int idx = idxEnLinea(l, nombreEstacion);
+        if (idx < 0) return lineaCircula(ctx, linea, momento);
+        int last = l.estaciones.size() - 1;
+        boolean algunaCubre = false;
+        for (Ruta r : deLinea(ctx, linea)) {
+            int[] rango = rangoDe(l, r, last);
+            if (rango == null || idx < rango[0] || idx > rango[1]) continue;
+            algunaCubre = true;
+            if (rutaAbierta(r, momento)) return true;
+        }
+        return !algunaCubre;   // ningún patrón documentado cubre esta estación: permisivo
+    }
+
     /** Como {@link #terminalHorario(Context, int, Linea, int, int, Calendar)}, evaluando "ahora". */
     public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib) {
         return terminalHorario(ctx, base, l, ia, ib, Calendar.getInstance());
