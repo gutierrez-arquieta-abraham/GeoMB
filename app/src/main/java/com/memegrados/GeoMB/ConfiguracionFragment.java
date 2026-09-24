@@ -3,7 +3,10 @@ package com.memegrados.GeoMB;
 import android.content.pm.PackageInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,26 +29,32 @@ import java.util.List;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.graphics.drawable.RoundedBitmapDrawable;
+import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.io.InputStream;
 
 // ============================================================
-// CLASE    : AcercaFragment   (extends Fragment)
+// CLASE    : ConfiguracionFragment   (extends Fragment)
 // PROYECTO : GeoMB
 // ============================================================
 //
 // DESCRIPCIÓN:
 //
-// Pantalla "Acerca de": información general de la app, agradecimientos, los
-// ajustes (idioma, ahorro de datos, refresco del mapa, Mostrar Mexibús,
-// notificaciones, descarga de voz offline) y el "modo personalizado" OCULTO
-// (5 toques al logo). Es el panel de configuración que lee/escribe en Modos.
+// Pantalla "Configuración" (antes "Acerca de"): organizada en 2 MÓDULOS
+// visuales -- Personalización (perfil de Google, idioma, ahorro de datos,
+// refresco del mapa, Mostrar Mexibús, sincronización, notificaciones,
+// descarga de voz offline) y Agradecimientos (info de la app) -- más el
+// "modo personalizado" OCULTO (5 toques al logo). Es el panel de
+// configuración que lee/escribe en Modos.
 // ============================================================
-/** Información general de la app, agradecimientos y el "modo personalizado" oculto. */
-public class AcercaFragment extends Fragment {
+/** Configuración (perfil + ajustes) y agradecimientos, en 2 módulos, más el "modo personalizado" oculto. */
+public class ConfiguracionFragment extends Fragment {
 
     private View panel;
     private SwitchMaterial swCachondo, swPbs;
@@ -55,13 +64,14 @@ public class AcercaFragment extends Fragment {
     private final java.util.LinkedHashMap<Integer, CheckBox> chkTodas = new java.util.LinkedHashMap<>();  // Metrobús + Mexibús
     private int taps = 0;
     private long ultimoTap = 0;
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_acerca, container, false);
+        return inflater.inflate(R.layout.fragment_configuracion, container, false);
     }
 
     /** Evita dejar la "carta" de progreso colgada (window leak) si el fragmento se destruye a
@@ -80,9 +90,11 @@ public class AcercaFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Excepción: en "Acerca de" solo el nombre de la app y "Agradecimientos" usan Tipo Metro.
+        // Excepción: en Configuración solo el nombre de la app y "Agradecimientos" usan Tipo Metro.
         Tipografia.aplicar((TextView) view.findViewById(R.id.txt_app_nombre));
         Tipografia.aplicar((TextView) view.findViewById(R.id.txt_agradecimientos));
+
+        cargarPerfilGoogle(view);
 
         TextView txtVersion = view.findViewById(R.id.txt_version);
         String v = "1.0";
@@ -190,6 +202,69 @@ public class AcercaFragment extends Fragment {
         });
 
         refrescar();
+    }
+
+    /** Encabezado de perfil (módulo Personalización): nombre/correo/foto de la cuenta de Google con
+     *  la que se inició sesión ({@link LoginActivity}). La foto se descarga aparte (URL remota de
+     *  Google) y se recorta en círculo; si algo falla, se queda el icono genérico de la plantilla. */
+    private void cargarPerfilGoogle(View view) {
+        TextView txtNombre = view.findViewById(R.id.txt_perfil_nombre);
+        TextView txtEmail = view.findViewById(R.id.txt_perfil_email);
+        ImageView imgFoto = view.findViewById(R.id.img_perfil_foto);
+        FirebaseUser u;
+        try {
+            u = FirebaseAuth.getInstance().getCurrentUser();
+        } catch (Throwable ex) {
+            u = null;   // sin Firebase disponible (p. ej. sin Google Play Services): se queda el respaldo
+        }
+        if (u == null) {
+            txtNombre.setText(R.string.config_perfil_sin_nombre);
+            txtEmail.setVisibility(View.GONE);
+            return;
+        }
+        String nombre = u.getDisplayName();
+        txtNombre.setText(nombre != null && !nombre.isEmpty() ? nombre : getString(R.string.config_perfil_sin_nombre));
+        String email = u.getEmail();
+        if (email != null && !email.isEmpty()) {
+            txtEmail.setText(email);
+            txtEmail.setVisibility(View.VISIBLE);
+        } else {
+            txtEmail.setVisibility(View.GONE);
+        }
+        cargarFotoPerfil(imgFoto, u.getPhotoUrl());
+    }
+
+    /** Descarga (hilo aparte) la foto de perfil de Google y la aplica recortada en círculo. Cualquier
+     *  falla (sin red, URL vencida, etc.) simplemente deja el icono genérico de la plantilla. */
+    private void cargarFotoPerfil(ImageView iv, Uri photoUrl) {
+        if (photoUrl == null) return;
+        new Thread(() -> {
+            Bitmap bmp = null;
+            java.net.HttpURLConnection c = null;
+            try {
+                c = (java.net.HttpURLConnection) new java.net.URL(photoUrl.toString()).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(8000);
+                try (InputStream in = c.getInputStream()) {
+                    bmp = BitmapFactory.decodeStream(in);
+                }
+            } catch (Throwable ignore) {
+                // sin red, URL vencida, etc.: se queda el icono genérico
+            } finally {
+                if (c != null) c.disconnect();
+            }
+            if (bmp == null) return;
+            Bitmap fondo = bmp;
+            handler.post(() -> {
+                if (!isAdded()) return;   // el fragmento ya no está en pantalla
+                RoundedBitmapDrawable rd = RoundedBitmapDrawableFactory.create(getResources(), fondo);
+                rd.setCircular(true);
+                iv.setPadding(0, 0, 0, 0);
+                iv.setBackground(null);
+                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                iv.setImageDrawable(rd);
+            });
+        }).start();
     }
 
     /**
@@ -421,9 +496,44 @@ public class AcercaFragment extends Fragment {
     }
 
     /**
-     * Cambio de tipo de usuario y movilidad reducida desde Acerca de. Pensado para quien
+     * Cambio de tipo de usuario y movilidad reducida desde Configuración. Pensado para quien
      * eligió mal en el mini-formulario de inicio. Reajusta la suscripción de avisos de elevadores.
      */
+    private void editarPerfil() {
+        View v = getLayoutInflater().inflate(R.layout.dialog_perfil, null, false);
+        RadioGroup rg = v.findViewById(R.id.rg_tipo);
+        RadioGroup rgGen = v.findViewById(R.id.rg_genero);
+        CheckBox cb = v.findViewById(R.id.cb_movilidad);
+        // Preselecciona el perfil actual.
+        ((RadioButton) v.findViewById(
+                Perfil.tipo(requireContext()) == Perfil.AFICIONADO ? R.id.rb_aficionado : R.id.rb_normal))
+                .setChecked(true);
+        ((RadioButton) v.findViewById(
+                Perfil.genero(requireContext()) == Perfil.MUJER ? R.id.rb_mujer : R.id.rb_hombre))
+                .setChecked(true);
+        cb.setChecked(Perfil.movilidadReducida(requireContext()));
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.perfil_titulo)
+                .setView(v)
+                .setPositiveButton(R.string.perfil_continuar, (d, w) -> {
+                    int tipo = rg.getCheckedRadioButtonId() == R.id.rb_aficionado
+                            ? Perfil.AFICIONADO : Perfil.NORMAL;
+                    int genero = rgGen.getCheckedRadioButtonId() == R.id.rb_mujer
+                            ? Perfil.MUJER : Perfil.HOMBRE;
+                    boolean movilidad = cb.isChecked();
+                    Perfil.guardar(requireContext(), tipo, movilidad, genero);
+                    // Los avisos de elevadores solo aplican con movilidad reducida.
+                    com.google.firebase.messaging.FirebaseMessaging fm =
+                            com.google.firebase.messaging.FirebaseMessaging.getInstance();
+                    if (movilidad) fm.subscribeToTopic("elevadores");
+                    else fm.unsubscribeFromTopic("elevadores");
+                    Toast.makeText(requireContext(), R.string.perfil_guardado, Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     /** Menú de descarga de audios offline: elige línea (o borra todo). */
     private void menuAudios() {
         final java.util.List<Integer> cod = new java.util.ArrayList<>();
@@ -497,40 +607,5 @@ public class AcercaFragment extends Fragment {
             }
         });
         DescargaVozService.iniciar(requireContext(), lineas, nombre);
-    }
-
-    private void editarPerfil() {
-        View v = getLayoutInflater().inflate(R.layout.dialog_perfil, null, false);
-        RadioGroup rg = v.findViewById(R.id.rg_tipo);
-        RadioGroup rgGen = v.findViewById(R.id.rg_genero);
-        CheckBox cb = v.findViewById(R.id.cb_movilidad);
-        // Preselecciona el perfil actual.
-        ((RadioButton) v.findViewById(
-                Perfil.tipo(requireContext()) == Perfil.AFICIONADO ? R.id.rb_aficionado : R.id.rb_normal))
-                .setChecked(true);
-        ((RadioButton) v.findViewById(
-                Perfil.genero(requireContext()) == Perfil.MUJER ? R.id.rb_mujer : R.id.rb_hombre))
-                .setChecked(true);
-        cb.setChecked(Perfil.movilidadReducida(requireContext()));
-
-        new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.perfil_titulo)
-                .setView(v)
-                .setPositiveButton(R.string.perfil_continuar, (d, w) -> {
-                    int tipo = rg.getCheckedRadioButtonId() == R.id.rb_aficionado
-                            ? Perfil.AFICIONADO : Perfil.NORMAL;
-                    int genero = rgGen.getCheckedRadioButtonId() == R.id.rb_mujer
-                            ? Perfil.MUJER : Perfil.HOMBRE;
-                    boolean movilidad = cb.isChecked();
-                    Perfil.guardar(requireContext(), tipo, movilidad, genero);
-                    // Los avisos de elevadores solo aplican con movilidad reducida.
-                    com.google.firebase.messaging.FirebaseMessaging fm =
-                            com.google.firebase.messaging.FirebaseMessaging.getInstance();
-                    if (movilidad) fm.subscribeToTopic("elevadores");
-                    else fm.unsubscribeFromTopic("elevadores");
-                    Toast.makeText(requireContext(), R.string.perfil_guardado, Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
     }
 }

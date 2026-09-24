@@ -294,6 +294,9 @@
     <string name="idioma_nah">Náhuatl</string>
     <string name="perfil_editar">Editar perfil / tipo de usuario</string>
     <string name="perfil_guardado">Perfil actualizado</string>
+    <string name="config_personalizacion_titulo">Personalización</string>
+    <string name="config_perfil_foto_desc">Foto de perfil</string>
+    <string name="config_perfil_sin_nombre">Usuario de GeoMB</string>
     <string name="traduccion_auto_titulo">Traducción automática</string>
     <string name="traduccion_auto_aviso">Este idioma se traduce automáticamente con el motor de Google. La traducción puede estar incompleta o contener errores, y la primera vez se descarga un paquete de idioma. Puedes volver a Español o cambiar de idioma cuando quieras.</string>
 
