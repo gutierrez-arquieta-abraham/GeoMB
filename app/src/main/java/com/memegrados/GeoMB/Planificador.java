@@ -892,15 +892,19 @@ public final class Planificador {
         return pref.containsKey(b) && baseLinea(lineaNodo) == b;
     }
 
-    /** ¿La línea sigue en servicio en el MOMENTO ESTIMADO de abordarla (no necesariamente ahora)?
-     *  Sin datos de horario para esa línea (Horarios.tieneLinea == false) se asume que sí -- permisivo,
-     *  sin horario documentado no se bloquea nada. Para Metrobús (que agrupa varias rutas/patrones bajo
-     *  el mismo número, p. ej. L1 corto Indios Verdes-Insurgentes + ruta completa Indios Verdes-El
-     *  Caminero), Horarios.lineaCircula ya considera la línea abierta mientras CUALQUIER patrón siga
-     *  circulando -- así que esto solo bloquea Mexibús exprés/ramal (línea propia, sin alterno) una vez
-     *  cerrado su único horario, empujando al Dijkstra hacia el ordinario. */
-    private static boolean lineaAbierta(Context ctx, int linea, Calendar momento) {
-        return !Horarios.tieneLinea(ctx, linea) || Horarios.lineaCircula(ctx, linea, momento);
+    /** ¿La línea de {@code s} sigue en servicio, EN ESA ESTACIÓN exacta, en el MOMENTO ESTIMADO de
+     *  abordarla (no necesariamente ahora)? Sin datos de horario para esa línea (Horarios.tieneLinea ==
+     *  false) se asume que sí -- permisivo, sin horario documentado no se bloquea nada.
+     *
+     *  OJO: se checa por ESTACIÓN (Horarios.estacionAbierta), no por línea en general -- algunas líneas
+     *  Metrobús agrupan bajo el mismo número patrones con recorridos FÍSICAMENTE DISTINTOS (p. ej. L4:
+     *  Ruta Norte, Ruta Sur, Aeropuerto-Amajac, Terminal 1-Terminal 2); que la lanzadera del aeropuerto
+     *  siga circulando no significa que también lo haga la Ruta Norte en una estación que solo ella
+     *  sirve. Para Mexibús esto bloquea el exprés/ramal (línea propia, sin alterno) una vez cerrado su
+     *  único horario, empujando al Dijkstra hacia el ordinario. */
+    private static boolean lineaAbierta(Context ctx, Stop s, Calendar momento) {
+        if (!Horarios.tieneLinea(ctx, s.linea)) return true;
+        return Horarios.estacionAbierta(ctx, s.linea, GtfsRepository.porNumero(ctx, s.linea), s.nombre, momento);
     }
 
     /** Calendario proyectado {@code segundos} adelante de {@code base}, para estimar si una línea de
@@ -1138,9 +1142,10 @@ public final class Planificador {
                 // Espera inicial por abordar en origen: 0 para Metrobús, más para líneas de baja frecuencia.
                 if (s.nn.equals(on) && okLineaPref(lineaO, s.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i))) {
                     double e0 = esperaExtra(s.linea) + penalServicio(s.linea, svcPref);   // sesgo por servicio al abordar
-                    // No sembrar el abordaje si esta línea (exprés/ramal de horario propio) ya habrá
-                    // cerrado para cuando de verdad pasarías a tomarla (proyectado, no "ahora" a secas).
-                    if (!lineaAbierta(ctx, s.linea, proyectar(ahoraBase, e0))) continue;
+                    // No sembrar el abordaje si esta línea (exprés/ramal de horario propio, o un patrón
+                    // Metrobús que no cubre esta estación) ya habrá cerrado para cuando de verdad
+                    // pasarías a tomarla (proyectado, no "ahora" a secas).
+                    if (!lineaAbierta(ctx, s, proyectar(ahoraBase, e0))) continue;
                     dist[i] = e0; pq.add(new double[]{e0, i});
                 }
             }
@@ -1165,11 +1170,12 @@ public final class Planificador {
                     if (transbordo) nd += penalServicio(stopDe(rutas, node.get(v)).linea, svcPref);
                     // Al VIAJAR un tramo, sesga por cada segmento en el servicio no preferido (acumulativo).
                     else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref);
-                    // Al TRANSBORDAR (abordar una línea distinta), no permitirlo si para cuando de verdad
-                    // llegarías ahí (nd proyectado) ya habrá cerrado su horario (exprés/ramal Mexibús):
-                    // el Dijkstra cae solo al ordinario, que sigue abierto. Viajar (tipo 0) no se checa:
-                    // ya ibas a bordo, esa unidad termina su corrida aunque el horario nominal ya pasara.
-                    if (transbordo && !lineaAbierta(ctx, stopDe(rutas, node.get(v)).linea, proyectar(ahoraBase, nd))) continue;
+                    // Al TRANSBORDAR (abordar una línea distinta EN ESA ESTACIÓN), no permitirlo si para
+                    // cuando de verdad llegarías ahí (nd proyectado) ya habrá cerrado su horario (exprés/
+                    // ramal Mexibús, o un patrón Metrobús que no cubre esa estación): el Dijkstra cae al
+                    // ordinario/otro patrón que siga abierto. Viajar (tipo 0) no se checa: ya ibas a
+                    // bordo, esa unidad termina su corrida aunque el horario nominal ya pasara.
+                    if (transbordo && !lineaAbierta(ctx, stopDe(rutas, node.get(v)), proyectar(ahoraBase, nd))) continue;
                     if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd, v}); }
                 }
             }
