@@ -175,16 +175,25 @@ public final class Planificador {
     private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(
             "mxb", "mxc", "mb", "conexion", "mexibus", "meksibus", "mexicable", "meksicable",
             "metrobus", "linea", "y", "e"));
+    // Igual que P_ACENTOS/P_NO_ALNUM/P_ESPACIOS arriba: precompilado para no disparar ANR, ya que
+    // nucleoNombre() se invoca por cada PAR de andenes al construir el grafo de correspondencias (O(n²)).
+    private static final Pattern P_TOKEN_LINEA = Pattern.compile("l[0-9]+a?");
+    // Cache de resultados: los mismos nombres de andén se comparan una y otra vez en ese bucle O(n²).
+    private static final Map<String, String> CACHE_NUCLEO = new HashMap<>();
 
     /** Núcleo del nombre (sin prefijos de sistema, "conexión" ni tokens de línea l1/l4/l1a). */
     private static String nucleoNombre(String nombre) {
+        String cached = CACHE_NUCLEO.get(nombre);
+        if (cached != null) return cached;
         StringBuilder sb = new StringBuilder();
         for (String w : norm(nombre).split(" ")) {
-            if (w.isEmpty() || STOP_NUCLEO.contains(w) || w.matches("l[0-9]+a?")) continue;
+            if (w.isEmpty() || STOP_NUCLEO.contains(w) || P_TOKEN_LINEA.matcher(w).matches()) continue;
             if (sb.length() > 0) sb.append(' ');
             sb.append(w);
         }
-        return sb.toString();
+        String n = sb.toString();
+        if (CACHE_NUCLEO.size() < 4000) CACHE_NUCLEO.put(nombre, n);
+        return n;
     }
 
     /** ¿Coinciden los núcleos (igual o uno contiene al otro)? Para correspondencias reales entre sistemas. */
