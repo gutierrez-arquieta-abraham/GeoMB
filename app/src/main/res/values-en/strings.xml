@@ -269,6 +269,9 @@
     <string name="idioma_dialogo">Choose language</string>
     <string name="perfil_editar">Edit profile / user type</string>
     <string name="perfil_guardado">Profile updated</string>
+    <string name="config_personalizacion_titulo">Personalization</string>
+    <string name="config_perfil_foto_desc">Profile photo</string>
+    <string name="config_perfil_sin_nombre">GeoMB user</string>
     <string name="traduccion_auto_titulo">Automatic translation</string>
     <string name="traduccion_auto_aviso">This language is translated automatically by Google\'s engine. The translation may be incomplete or contain errors, and a language pack is downloaded the first time. You can switch back to Spanish or change language whenever you want.</string>
 

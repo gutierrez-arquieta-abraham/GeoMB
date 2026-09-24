@@ -143,7 +143,7 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.nav_ruta) return new PlanificadorFragment();
         if (id == R.id.nav_llegadas) return new LlegadasFragment();
         if (id == R.id.nav_reporte) return new ReporteFragment();
-        if (id == R.id.nav_acerca) return new AcercaFragment();
+        if (id == R.id.nav_acerca) return new ConfiguracionFragment();
         return new MapFragment();
     }
 
