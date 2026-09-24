@@ -314,9 +314,14 @@ public final class Horarios {
             if (di < 0) di = (oi <= last - oi) ? last : 0;
             int lo = Math.min(oi, di), hi = Math.max(oi, di);
             if (ia < lo || ia > hi) continue;                // esta ruta no cubre tu parada
+            int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
+            // Si el extremo EN TU SENTIDO es tu propia parada (ia), esta ruta no te sirve de nada para
+            // saber hacia dónde ir: es un patrón corto cuyo límite coincide con donde ya estás (p. ej.
+            // "Buenavista → El Caminero" cubre [8,45] y tú abordas justo en el 8 yendo HACIA ABAJO, fuera
+            // de ese rango) -- mostrar tu propia estación como "dirección" no tiene sentido. Se descarta.
+            if (termIdx == ia) continue;
             if (!rutaAbierta(r, momento)) continue;          // este patrón ya cerró por hoy: no lo propongas
             rutasCubren++;
-            int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
             // Nombre REAL de la estación (l.estaciones), nunca el crudo de horarios.json: origen/destino
             // ahí puede venir abreviado (p. ej. "Dep. 18 de marzo", "IPN") porque solo sirve para
             // IDENTIFICAR el extremo por alias (idxEnLinea) -- una vez resuelto el índice, se muestra
