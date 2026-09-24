@@ -44,8 +44,6 @@ public final class RealtimeRepository {
     /** Selección hecha desde el buscador (número económico) o -1/null si ninguna. */
     public static String unidadSeleccionada = null;
     public static int lineaSeleccionada = -1;
-    /** Económico que el buscador del mapa manda al buscador de unidades si no está en vivo. */
-    public static String ecoParaBuscar = null;
     /** Estación elegida en el listado de una línea (pestaña Líneas): el mapa la centra y la
      *  destella al llegar. Se sabe la posición exacta de antemano (viene del propio listado),
      *  a diferencia de unidadSeleccionada que necesita esperar el feed en vivo. */
