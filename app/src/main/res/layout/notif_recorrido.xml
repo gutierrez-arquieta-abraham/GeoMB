@@ -118,7 +118,7 @@
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="#116633"
+            android:textColor="@color/mb_exito"
             android:textSize="10sp" />
 
         <TextView
@@ -129,7 +129,7 @@
             android:ellipsize="end"
             android:gravity="end"
             android:maxLines="1"
-            android:textColor="#116633"
+            android:textColor="@color/mb_exito"
             android:textSize="10sp" />
     </LinearLayout>
 

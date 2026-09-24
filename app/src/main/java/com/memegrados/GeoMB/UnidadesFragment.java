@@ -92,6 +92,7 @@ public class UnidadesFragment extends Fragment {
         if (titulo != null && !titulo.isEmpty()) tituloView.setText(titulo);
         else tituloView.setText(linea > 0 ? getString(R.string.unidades_de_linea, linea)
                 : getString(R.string.unidades_en_servicio));
+        Tipografia.aplicarEstacion(tituloView, linea);   // igual que EstacionesLineaFragment (pantalla gemela)
         vacio = view.findViewById(R.id.txt_vacio);
 
         RecyclerView rv = view.findViewById(R.id.recycler_unidades);

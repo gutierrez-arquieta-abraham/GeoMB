@@ -54,6 +54,7 @@ public class RutasFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        Tipografia.aplicar((TextView) view.findViewById(R.id.txt_rutas_titulo));
         recycler = view.findViewById(R.id.recycler_rutas);
         estado = view.findViewById(R.id.txt_rutas_estado);
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));

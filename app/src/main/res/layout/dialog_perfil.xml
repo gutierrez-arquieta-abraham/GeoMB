@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/perfil_tipo_label"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="14sp"
         android:textStyle="bold" />
 
@@ -39,7 +39,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="@string/perfil_genero_label"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="14sp"
         android:textStyle="bold" />
 
@@ -70,7 +70,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:text="@string/perfil_genero_ayuda"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/mb_gray"
         android:textSize="12sp" />
 
     <CheckBox
@@ -85,6 +85,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:text="@string/perfil_movilidad_ayuda"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/mb_gray"
         android:textSize="12sp" />
 </LinearLayout>
