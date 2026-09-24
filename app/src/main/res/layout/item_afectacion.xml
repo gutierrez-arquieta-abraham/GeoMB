@@ -84,19 +84,19 @@
                 </HorizontalScrollView>
 
                 <TextView
-                    android:id="@+id/ia_lugar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="2"
+                    android:text="@string/afect_lbl_estaciones"
                     android:textColor="#111111"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/ia_lugar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/afect_lbl_estaciones"
+                    android:ellipsize="end"
+                    android:maxLines="2"
                     android:textColor="#777777"
                     android:textSize="11sp" />
             </LinearLayout>
@@ -126,17 +126,17 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/ia_direccion"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:text="@string/afect_lbl_direccion"
                     android:textColor="#111111"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/ia_direccion"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/afect_lbl_direccion"
                     android:textColor="#777777"
                     android:textSize="11sp" />
             </LinearLayout>
@@ -165,19 +165,19 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/ia_estado"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="2"
+                    android:text="@string/afect_lbl_incidencia"
                     android:textColor="#111111"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/ia_estado"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/afect_lbl_incidencia"
+                    android:ellipsize="end"
+                    android:maxLines="2"
                     android:textColor="#777777"
                     android:textSize="11sp" />
             </LinearLayout>
