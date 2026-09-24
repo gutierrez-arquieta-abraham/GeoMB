@@ -61,7 +61,7 @@
                 android:layout_marginTop="2dp"
                 android:contentDescription="@string/afect_lbl_estaciones"
                 android:src="@drawable/ic_estaciones"
-                app:tint="#777777" />
+                app:tint="@color/mb_gray" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -87,7 +87,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/afect_lbl_estaciones"
-                    android:textColor="#111111"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -97,7 +97,7 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="2"
-                    android:textColor="#777777"
+                    android:textColor="@color/mb_gray"
                     android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
@@ -116,7 +116,7 @@
                 android:layout_height="20dp"
                 android:contentDescription="@string/afect_lbl_direccion"
                 android:src="@drawable/ic_swap"
-                app:tint="#777777" />
+                app:tint="@color/mb_gray" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -129,7 +129,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/afect_lbl_direccion"
-                    android:textColor="#111111"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -137,7 +137,7 @@
                     android:id="@+id/ia_direccion"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="#777777"
+                    android:textColor="@color/mb_gray"
                     android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
@@ -155,7 +155,7 @@
                 android:layout_height="20dp"
                 android:contentDescription="@string/afect_lbl_incidencia"
                 android:src="@drawable/ic_warning"
-                app:tint="#777777" />
+                app:tint="@color/mb_gray" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -168,7 +168,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/afect_lbl_incidencia"
-                    android:textColor="#111111"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -178,7 +178,7 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="2"
-                    android:textColor="#777777"
+                    android:textColor="@color/mb_gray"
                     android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
@@ -192,7 +192,7 @@
             android:ellipsize="end"
             android:maxLines="4"
             android:tag="largo"
-            android:textColor="#333333"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="13sp"
             android:visibility="gone" />
     </LinearLayout>

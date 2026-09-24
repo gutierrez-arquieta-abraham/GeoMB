@@ -90,9 +90,11 @@ public class ConfiguracionFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Excepción: en Configuración solo el nombre de la app y "Agradecimientos" usan Tipo Metro.
+        // Excepción: en Configuración solo el nombre de la app y los títulos de módulo
+        // ("Personalización"/"Agradecimientos") usan Tipo Metro.
         Tipografia.aplicar((TextView) view.findViewById(R.id.txt_app_nombre));
         Tipografia.aplicar((TextView) view.findViewById(R.id.txt_agradecimientos));
+        Tipografia.aplicar((TextView) view.findViewById(R.id.txt_personalizacion_titulo));
 
         cargarPerfilGoogle(view);
 

@@ -4,12 +4,9 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/card_estacion"
+    style="@style/Widget.GeoMB.Card.Lista"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="2dp"
-    app:strokeColor="@color/mb_outline"
-    app:strokeWidth="1dp">
+    android:layout_height="wrap_content">
 
     <FrameLayout
         android:layout_width="match_parent"

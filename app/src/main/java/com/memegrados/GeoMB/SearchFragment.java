@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -68,6 +69,8 @@ public class SearchFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
+        Tipografia.aplicar((TextView) view.findViewById(R.id.txt_buscar_titulo));
 
         inputUnidad = view.findViewById(R.id.input_unidad);
         btnBuscar = view.findViewById(R.id.btn_buscar);

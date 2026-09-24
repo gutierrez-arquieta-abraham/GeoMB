@@ -28,4 +28,9 @@
     <color name="unidad_en_ruta">#2E7D32</color>
     <color name="unidad_detenida">#F9A825</color>
     <color name="unidad_sin_senal">#9E9E9E</color>
+
+    <!-- Acento de éxito/confirmación (verde oscuro): antes repetido como literal suelto en
+         fragment_reporte.xml y notif_recorrido.xml, sin nombre ni relación real con linea_7
+         (coincidencia de copiar/pegar, no la misma intención de color). -->
+    <color name="mb_exito">#116633</color>
 </resources>

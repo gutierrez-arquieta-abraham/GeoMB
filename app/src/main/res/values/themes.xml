@@ -47,4 +47,14 @@
         <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
     </style>
+
+    <!-- Tarjeta "de lista/resultado" (líneas, llegadas, unidades, rutas, buscador): contorno
+         sutil + elevación mínima, la familia más usada en la app. Antes cada layout repetía
+         estos mismos 4 atributos por su cuenta, y con valores ligeramente distintos entre sí. -->
+    <style name="Widget.GeoMB.Card.Lista" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardCornerRadius">14dp</item>
+        <item name="cardElevation">1dp</item>
+        <item name="strokeColor">@color/mb_outline</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
 </resources>

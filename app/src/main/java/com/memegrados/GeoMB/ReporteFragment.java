@@ -99,6 +99,7 @@ public class ReporteFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View v, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(v, savedInstanceState);
+        Tipografia.aplicar((TextView) v.findViewById(R.id.txt_reporte_titulo));
         spTipo = v.findViewById(R.id.sp_tipo);
         spCargo = v.findViewById(R.id.sp_cargo);
         inEco = v.findViewById(R.id.in_eco);

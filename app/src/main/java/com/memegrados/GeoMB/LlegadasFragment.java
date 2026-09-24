@@ -99,6 +99,7 @@ public class LlegadasFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        Tipografia.aplicar((TextView) view.findViewById(R.id.txt_llegadas_titulo));
         spLinea = view.findViewById(R.id.spinner_linea);
         spEstacion = view.findViewById(R.id.spinner_estacion);
         spSentido = view.findViewById(R.id.spinner_sentido);
