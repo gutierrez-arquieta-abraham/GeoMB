@@ -317,10 +317,11 @@ public final class Horarios {
             if (!rutaAbierta(r, momento)) continue;          // este patrón ya cerró por hoy: no lo propongas
             rutasCubren++;
             int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
-            String nombre = (termIdx == oi) ? r.origen : r.destino;
-            if (nombre == null || nombre.isEmpty() || idxEnLinea(l, nombre) < 0)
-                nombre = l.estaciones.get(termIdx).nombre;   // respaldo (mixta): nombre de la estación extrema
-            nombre = nomNombre(nombre);
+            // Nombre REAL de la estación (l.estaciones), nunca el crudo de horarios.json: origen/destino
+            // ahí puede venir abreviado (p. ej. "Dep. 18 de marzo", "IPN") porque solo sirve para
+            // IDENTIFICAR el extremo por alias (idxEnLinea) -- una vez resuelto el índice, se muestra
+            // siempre el nombre completo tal como lo tiene la línea (p. ej. "Deportivo 18 de Marzo").
+            String nombre = nomNombre(l.estaciones.get(termIdx).nombre);
             if (!idxs.contains(termIdx)) { idxs.add(termIdx); nombres.add(nombre); }
         }
         if (idxs.isEmpty()) return null;
