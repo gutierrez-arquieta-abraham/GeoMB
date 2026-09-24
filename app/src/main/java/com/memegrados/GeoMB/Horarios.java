@@ -236,18 +236,36 @@ public final class Horarios {
         return par >= 0 ? s.substring(0, par).trim() : s;
     }
 
+    /** ¿La ruta de horarios sigue circulando (en ida o vuelta) en el momento dado? Filtra los
+     *  patrones ya cerrados (p. ej. una vuelta corta que dejó de circular) de {@link #terminalHorario},
+     *  para que este devuelva la RUTA COMPLETA (o el que siga siendo) en vez de uno ya fuera de horario. */
+    private static boolean rutaAbierta(Ruta r, Calendar momento) {
+        Ventana[] v = ventanasHoy(r, momento);
+        if (v == null) return false;
+        int m = momento.get(Calendar.HOUR_OF_DAY) * 60 + momento.get(Calendar.MINUTE);
+        return (v[0] != null && v[0].contiene(m)) || (v[1] != null && v[1].contiene(m));
+    }
+
+    /** Como {@link #terminalHorario(Context, int, Linea, int, int, Calendar)}, evaluando "ahora". */
+    public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib) {
+        return terminalHorario(ctx, base, l, ia, ib, Calendar.getInstance());
+    }
+
     /**
      * Terminal(es) de dirección para tu parada, según las rutas de horarios. Recolecta las rutas que
-     * CUBREN tu parada (ia) y toma, de cada una, su extremo en tu sentido de viaje (por índice; no se
-     * asume que {@code destino} sea el extremo mayor). Devuelve las terminales DISTINTAS de la más
-     * cercana a la más lejana, unidas con " o " (p. ej. "Instituto Politécnico Nacional o El Rosario").
-     * Si MÁS DE 3 rutas cubren la parada, devuelve solo la más cercana. null si ninguna aplica.
+     * CUBREN tu parada (ia) Y siguen circulando en {@code momento} (una vuelta corta ya cerrada por hoy
+     * no cuenta, así de noche esto cae en la RUTA COMPLETA que siga abierta), y toma, de cada una, su
+     * extremo en tu sentido de viaje (por índice; no se asume que {@code destino} sea el extremo mayor).
+     * Devuelve las terminales DISTINTAS de la más cercana a la más lejana, unidas con " o " (p. ej.
+     * "Instituto Politécnico Nacional o El Rosario"). Si MÁS DE 3 rutas cubren la parada, devuelve solo
+     * la más cercana. null si ninguna aplica (incluye: todas las que cubren la parada ya cerraron).
      *
      * Así una vuelta corta documentada (p. ej. L3 Tenayuca↔La Raza) sale como el destino real de la
      * unidad en vez del extremo absoluto de la troncal (Pueblo Sta. Cruz Atoyac), tanto en la voz del
-     * recorrido (RecorridoService) como en el chip "Aborda · Dirección" del Planificador.
+     * recorrido (RecorridoService, con {@code momento} = ahora) como en el chip "Aborda · Dirección" del
+     * Planificador (con {@code momento} = la hora estimada en que de verdad abordarías ese tramo).
      */
-    public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib) {
+    public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib, Calendar momento) {
         boolean forward = ib > ia;               // hacia el extremo de índice MAYOR de la línea
         int last = l.estaciones.size() - 1;
         List<Integer> idxs = new ArrayList<>();
@@ -260,6 +278,7 @@ public final class Horarios {
             if (di < 0) di = (oi <= last - oi) ? last : 0;
             int lo = Math.min(oi, di), hi = Math.max(oi, di);
             if (ia < lo || ia > hi) continue;                // esta ruta no cubre tu parada
+            if (!rutaAbierta(r, momento)) continue;          // este patrón ya cerró por hoy: no lo propongas
             rutasCubren++;
             int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
             String nombre = (termIdx == oi) ? r.origen : r.destino;

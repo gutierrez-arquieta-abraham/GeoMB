@@ -6,6 +6,7 @@ import com.google.android.gms.maps.model.LatLng;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -891,6 +892,25 @@ public final class Planificador {
         return pref.containsKey(b) && baseLinea(lineaNodo) == b;
     }
 
+    /** ¿La línea sigue en servicio en el MOMENTO ESTIMADO de abordarla (no necesariamente ahora)?
+     *  Sin datos de horario para esa línea (Horarios.tieneLinea == false) se asume que sí -- permisivo,
+     *  sin horario documentado no se bloquea nada. Para Metrobús (que agrupa varias rutas/patrones bajo
+     *  el mismo número, p. ej. L1 corto Indios Verdes-Insurgentes + ruta completa Indios Verdes-El
+     *  Caminero), Horarios.lineaCircula ya considera la línea abierta mientras CUALQUIER patrón siga
+     *  circulando -- así que esto solo bloquea Mexibús exprés/ramal (línea propia, sin alterno) una vez
+     *  cerrado su único horario, empujando al Dijkstra hacia el ordinario. */
+    private static boolean lineaAbierta(Context ctx, int linea, Calendar momento) {
+        return !Horarios.tieneLinea(ctx, linea) || Horarios.lineaCircula(ctx, linea, momento);
+    }
+
+    /** Calendario proyectado {@code segundos} adelante de {@code base}, para estimar si una línea de
+     *  horario limitado seguirá circulando cuando el viaje realmente llegue a abordarla (no "ahora"). */
+    private static Calendar proyectar(Calendar base, double segundos) {
+        Calendar c = (Calendar) base.clone();
+        c.add(Calendar.SECOND, (int) Math.round(segundos));
+        return c;
+    }
+
     /**
      * Como {@link #calcular(Context, String, String, int, int)}, pero con una PREFERENCIA de servicio por
      * línea troncal Mexibús: {@code svcPref} mapea base (101..104) → true (exprés) / false (ordinario).
@@ -1063,6 +1083,9 @@ public final class Planificador {
 
         // 3. Dijkstra desde cualquier nodo del origen a cualquiera del destino.
         String on = norm(origen), dn = norm(destino);
+        // Momento de salida (ahora): sirve para proyectar, al abordar cada línea de horario limitado
+        // (exprés/ramal Mexibús), si seguirá circulando cuando el viaje realmente llegue a ese punto.
+        Calendar ahoraBase = Calendar.getInstance();
         double[] dist = new double[n];
         int[] prev = new int[n];
         boolean[] esDest = new boolean[n];
@@ -1115,6 +1138,9 @@ public final class Planificador {
                 // Espera inicial por abordar en origen: 0 para Metrobús, más para líneas de baja frecuencia.
                 if (s.nn.equals(on) && okLineaPref(lineaO, s.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i))) {
                     double e0 = esperaExtra(s.linea) + penalServicio(s.linea, svcPref);   // sesgo por servicio al abordar
+                    // No sembrar el abordaje si esta línea (exprés/ramal de horario propio) ya habrá
+                    // cerrado para cuando de verdad pasarías a tomarla (proyectado, no "ahora" a secas).
+                    if (!lineaAbierta(ctx, s.linea, proyectar(ahoraBase, e0))) continue;
                     dist[i] = e0; pq.add(new double[]{e0, i});
                 }
             }
@@ -1139,6 +1165,11 @@ public final class Planificador {
                     if (transbordo) nd += penalServicio(stopDe(rutas, node.get(v)).linea, svcPref);
                     // Al VIAJAR un tramo, sesga por cada segmento en el servicio no preferido (acumulativo).
                     else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref);
+                    // Al TRANSBORDAR (abordar una línea distinta), no permitirlo si para cuando de verdad
+                    // llegarías ahí (nd proyectado) ya habrá cerrado su horario (exprés/ramal Mexibús):
+                    // el Dijkstra cae solo al ordinario, que sigue abierto. Viajar (tipo 0) no se checa:
+                    // ya ibas a bordo, esa unidad termina su corrida aunque el horario nominal ya pasara.
+                    if (transbordo && !lineaAbierta(ctx, stopDe(rutas, node.get(v)).linea, proyectar(ahoraBase, nd))) continue;
                     if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd, v}); }
                 }
             }
@@ -1248,7 +1279,10 @@ public final class Planificador {
                 int ia = Horarios.idxEnLinea(r.linea, a.nombre);
                 int ib = Horarios.idxEnLinea(r.linea, b.nombre);
                 if (ia >= 0 && ib >= 0 && ia != ib) {
-                    String th = Horarios.terminalHorario(ctx, r.linea.numero, r.linea, ia, ib);
+                    // Momento en que de verdad abordarías este tramo (no "ahora" a secas): así, si ya es
+                    // tarde y la vuelta corta cerró, esto cae en la ruta completa que siga circulando.
+                    String th = Horarios.terminalHorario(ctx, r.linea.numero, r.linea, ia, ib,
+                            proyectar(ahoraBase, dist[camino.get(i)]));
                     if (th != null) terminal = th;
                 }
             }
