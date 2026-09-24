@@ -12,6 +12,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -186,9 +190,10 @@
                 android:text="@string/dejar_todo" />
         </LinearLayout>
     </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-    <!-- Cerrar (solo cuando la tarjeta flota sobre el mapa; MapFragment la hace visible y le pone
-         el listener; en SearchFragment se queda oculta, no hace falta ahí). -->
+    <!-- Cerrar (siempre visible aunque el contenido haga scroll; MapFragment la hace visible y le
+         pone el listener). -->
     <ImageButton
         android:id="@+id/btn_cerrar_carta"
         android:layout_width="32dp"

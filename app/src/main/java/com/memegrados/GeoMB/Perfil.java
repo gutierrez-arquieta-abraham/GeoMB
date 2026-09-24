@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 
 /**
  * Perfil del usuario capturado en el mini-formulario de login. Personaliza la app:
- * - Tipo (Normal / Aficionado): ninguno ve el buscador de unidades históricas.
  * - Movilidad reducida: solo entonces se muestran avisos de elevadores afectados.
  */
 // ============================================================
@@ -17,7 +16,6 @@ import android.content.SharedPreferences;
 //
 // Perfil del usuario capturado en el mini-formulario de login. PERSONALIZA
 // la app según sus datos:
-//   - Tipo (Normal / Aficionado): quién ve el buscador de unidades históricas.
 //   - Movilidad reducida: solo entonces se muestran avisos de elevadores
 //     fuera de servicio.
 //
@@ -73,11 +71,6 @@ public final class Perfil {
                 .putInt(K_GENERO, genero)
                 .putBoolean(K_CONFIG, true)
                 .apply();
-    }
-
-    /** El buscador de unidades históricas: solo el Aficionado tiene todos los módulos. */
-    public static boolean muestraBuscador(Context c) {
-        return tipo(c) == AFICIONADO;
     }
 
     /** Los avisos de elevadores solo aplican con movilidad reducida. */

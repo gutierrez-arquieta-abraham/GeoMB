@@ -21,14 +21,13 @@ import java.util.function.Supplier;
  * ficha del catálogo, ruta/destino, badge de estado, foto+créditos) a partir de un UnidadReal
  * (o null si no está en servicio / sin conexión, mostrando solo el catálogo offline).
  *
- * Compartida por SearchFragment (buscador por número económico) y MapFragment (buscador inline
- * del mapa), para no reimplementar la misma lógica dos veces: antes MapFragment tenía su propia
- * validación/consulta del feed y mostraba solo el tooltip genérico de Google Maps en vez de esta
- * ficha, mandando al usuario a la pestaña Buscar para verla de verdad.
+ * Usada por MapFragment (buscador inline del mapa, único lugar de la app para buscar/seguir
+ * unidades) para no reimplementar esta lógica: antes MapFragment tenía su propia validación/
+ * consulta del feed y mostraba solo el tooltip genérico de Google Maps en vez de esta ficha.
  *
  * Los botones "Ver en mapa"/"Seguir" solo se muestran/ocultan aquí según haya o no unidad en vivo;
- * el LISTENER de cada uno lo pone quien use la tarjeta (SearchFragment/MapFragment), porque su
- * acción depende del contexto (navegar de pestaña, permisos, servicio de seguimiento).
+ * el LISTENER de cada uno lo pone MapFragment, porque su acción depende del contexto (permisos,
+ * servicio de seguimiento).
  */
 // ============================================================
 // CLASE    : CartaUnidad   (subclase Vistas)

@@ -1146,9 +1146,16 @@ public class PlanificadorFragment extends Fragment {
             // Ordinario↔exprés de la misma troncal es el MISMO trazo → no genera fila.
             if (t > 0 && !mismoTrazo(pasos.get(t - 1).linea, paso.linea)) {
                 Planificador.Paso prev = pasos.get(t - 1);
-                boolean camina = prev.destino != null && paso.origen != null
-                        && !Planificador.norm(Planificador.sinMxb(prev.destino))
-                                .equals(Planificador.norm(Planificador.sinMxb(paso.origen)));
+                // Misma estación si el nombre coincide EXACTO (tras quitar "MXB "/paréntesis) o, como
+                // respaldo, por NÚCLEO: entre sistemas el nombre puede diferir en forma (p. ej. "Indios
+                // Verdes" del Metrobús vs "Indios Verdes (conexión Metrobús L1 y L7)" del Mexibús) sin
+                // dejar de ser la misma interconexión física -- si no, se mostraba "Camina hacia..." en
+                // vez del transbordo/correspondencia/conexión real.
+                boolean mismaEstacion = prev.destino != null && paso.origen != null
+                        && (Planificador.norm(Planificador.sinMxb(prev.destino))
+                                .equals(Planificador.norm(Planificador.sinMxb(paso.origen)))
+                            || Planificador.nucleoCoincide(prev.destino, paso.origen));
+                boolean camina = prev.destino != null && paso.origen != null && !mismaEstacion;
                 String texto;
                 if (camina) {
                     texto = getString(R.string.ruta_camina,
