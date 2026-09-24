@@ -107,17 +107,46 @@ public class RecorridoService extends Service {
      *  igual que el "tururu" para que respete proporcionalmente el volumen ya puesto por el usuario. */
     private static final float VOZ_VOL = 0.7f;
 
+    /** Atenuación extra cuando el audio sale por el ALTAVOZ interno (sin audífonos/bluetooth): a un
+     *  mismo índice de volumen de medios, el altavoz suena bastante más fuerte que unos audífonos, así
+     *  que el 0.7 de VOZ_VOL/TURURU_VOL (pensado para audífonos) no basta ahí y el aviso sale exagerado
+     *  -- el usuario reportó tener que bajarle manualmente al volumen justo al iniciar el recorrido sin
+     *  nada conectado. Se atenúa un poco más solo en ese caso. */
+    private static final float ALTAVOZ_ATENUACION = 0.55f;
+
+    /** ¿La salida de audio ahora mismo es el altavoz interno (o el auricular de llamada), SIN audífonos
+     *  ni bluetooth conectado? Sin esa info (o ante cualquier duda) se asume que sí -- el altavoz es el
+     *  caso más ruidoso, y atenuar de más es preferible a dejar un aviso exagerado. */
+    private boolean salidaEsAltavoz() {
+        if (audioManager == null) return true;
+        try {
+            for (android.media.AudioDeviceInfo d : audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+                switch (d.getType()) {
+                    case android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET:
+                    case android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
+                    case android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:
+                    case android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
+                    case android.media.AudioDeviceInfo.TYPE_USB_HEADSET:
+                        return false;   // hay un dispositivo externo real conectado
+                }
+            }
+        } catch (Throwable ignore) {}
+        return true;
+    }
+
     /** Volumen ACTUAL del stream de medios (0..1), para escalar la voz/tururu nosotros mismos: el
      *  parámetro KEY_PARAM_VOLUME de TextToSpeech (motor de respaldo, sin Mia) no sigue de forma
      *  confiable el volumen de medios que el usuario ya tiene puesto en varios motores/fabricantes
      *  (se queda en un nivel fijo alto sin importar el volumen del sistema); MediaPlayer.setVolume()
-     *  sí es proporcional al volumen del stream, pero se aplica igual aquí por consistencia. */
+     *  sí es proporcional al volumen del stream, pero se aplica igual aquí por consistencia. Incluye la
+     *  atenuación extra del altavoz interno (ver {@link #salidaEsAltavoz()}). */
     private float volumenSistema() {
         if (audioManager == null) return 1f;
         try {
             int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
             int cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-            return max > 0 ? (float) cur / max : 1f;
+            float v = max > 0 ? (float) cur / max : 1f;
+            return salidaEsAltavoz() ? v * ALTAVOZ_ATENUACION : v;
         } catch (Exception ignore) { return 1f; }
     }
     private static final long VOZ_TIMEOUT_MS = 4000L; // margen para descargar la voz Mia antes de caer al TTS
