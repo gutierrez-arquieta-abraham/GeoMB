@@ -19,8 +19,8 @@ import androidx.fragment.app.Fragment;
 // DESCRIPCIÓN:
 //
 // La pantalla PRINCIPAL de la app: hospeda la barra de navegación inferior
-// y va intercambiando los FRAGMENTS (Mapa, Buscar, Líneas, Ruta, Llegadas,
-// Reporte, Acerca de) según lo que toque el usuario.
+// y va intercambiando los FRAGMENTS (Mapa, Líneas, Ruta, Servicio [Llegadas +
+// Reportar], Configuración) según lo que toque el usuario.
 //
 // PUNTOS CLAVE:
 //   - NAV_IDS : los ítems del menú inferior.
@@ -37,8 +37,8 @@ public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_ABRIR_RUTA = "abrir_ruta";
 
     private static final int[] NAV_IDS = {
-            R.id.nav_mapa, R.id.nav_buscar, R.id.nav_lineas,
-            R.id.nav_ruta, R.id.nav_llegadas, R.id.nav_reporte, R.id.nav_acerca
+            R.id.nav_mapa, R.id.nav_lineas,
+            R.id.nav_ruta, R.id.nav_llegadas, R.id.nav_acerca
     };
     private int seleccionadoId = -1;
 
@@ -101,10 +101,6 @@ public class MainActivity extends AppCompatActivity {
         for (int navId : NAV_IDS) {
             findViewById(navId).setOnClickListener(v -> seleccionar(v.getId()));
         }
-        // Personalización por perfil: el buscador de unidades históricas se oculta
-        // para usuarios Normal y Aficionado (el resto de pestañas queda igual).
-        findViewById(R.id.nav_buscar).setVisibility(
-                Perfil.muestraBuscador(this) ? android.view.View.VISIBLE : android.view.View.GONE);
         if (savedInstanceState == null) {
             if (getIntent() != null && getIntent().getBooleanExtra(EXTRA_ABRIR_RUTA, false)) {
                 seleccionar(R.id.nav_ruta);
@@ -138,11 +134,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Fragment fragmentDe(int id) {
-        if (id == R.id.nav_buscar) return new SearchFragment();
         if (id == R.id.nav_lineas) return new LinesFragment();
         if (id == R.id.nav_ruta) return new PlanificadorFragment();
-        if (id == R.id.nav_llegadas) return new LlegadasFragment();
-        if (id == R.id.nav_reporte) return new ReporteFragment();
+        if (id == R.id.nav_llegadas) return new ServicioFragment();
         if (id == R.id.nav_acerca) return new ConfiguracionFragment();
         return new MapFragment();
     }

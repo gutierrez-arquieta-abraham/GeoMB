@@ -167,7 +167,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             });
 
     // ---- Tarjeta de resultado del buscador inline (unidad/estación), flotando sobre el mapa ----
-    // (misma ficha que SearchFragment vía CartaUnidad; ver mostrarCartaUnidad()).
+    // (única vista de búsqueda/seguimiento de unidades de la app; ver mostrarCartaUnidad()).
     private ViewGroup cartaContainer;
     private CartaUnidad.Vistas cartaVistas;
     private String ecoCartaActual;   // económico mostrado en la tarjeta flotante
@@ -855,10 +855,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     /**
-     * Muestra la tarjeta de UNIDAD flotando sobre el mapa (misma ficha que la pestaña Buscar, vía
-     * {@link CartaUnidad}): reemplaza el tooltip genérico de 2 líneas y unifica el resultado con
-     * el buscador inline de arriba (antes reimplementaba su propia validación/consulta y a veces
-     * solo mandaba a la pestaña Buscar en vez de mostrar algo aquí mismo).
+     * Muestra la tarjeta de UNIDAD flotando sobre el mapa (vía {@link CartaUnidad}): reemplaza el
+     * tooltip genérico de 2 líneas y es el ÚNICO lugar de la app para buscar/seguir unidades (la
+     * pestaña Buscar se eliminó; su seguimiento múltiple vive aquí).
      */
     private void mostrarCartaUnidad(String eco, UnidadReal u) {
         if (!isAdded() || cartaContainer == null) return;
@@ -869,7 +868,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cartaVistas = new CartaUnidad.Vistas(v);
         CartaUnidad.bind(requireContext(), cartaVistas, eco, u, () -> ecoCartaActual);
         cartaVistas.btnVerMapa.setVisibility(View.GONE);        // ya estás viéndola en el mapa
-        cartaVistas.filaSeguirMulti.setVisibility(View.GONE);   // gestión de varias unidades: solo en Buscar
         actualizarBotonSeguirCarta();
         cartaVistas.btnSeguir.setOnClickListener(b -> {
             if (ecoCartaActual == null) return;
@@ -884,20 +882,61 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 intentarSeguirCarta();
             }
         });
+        // Mantener presionado "Seguir" = guardar/quitar de favoritos (persiste entre reinicios:
+        // ArranqueReceiver retoma el seguimiento de los favoritos guardados al arrancar el teléfono).
+        cartaVistas.btnSeguir.setOnLongClickListener(b -> {
+            if (ecoCartaActual == null || !isAdded()) return false;
+            String favEco = ecoCartaActual;
+            Telemetria.esFavorito(requireContext(), favEco, esFav -> {
+                if (!isAdded()) return;
+                if (esFav) {
+                    Telemetria.quitarFavorito(requireContext(), favEco);
+                    Toast.makeText(requireContext(), getString(R.string.favorito_quitado, favEco), Toast.LENGTH_SHORT).show();
+                } else {
+                    Telemetria.guardarFavorito(requireContext(), favEco);
+                    Toast.makeText(requireContext(), getString(R.string.favorito_guardado, favEco), Toast.LENGTH_LONG).show();
+                }
+            });
+            return true;
+        });
+        // Fila de seguimiento múltiple ("Seguir también"/"Detener todos"): antes exclusiva de la
+        // pestaña Buscar (ya eliminada), ahora vive aquí para no perder esa función.
+        cartaVistas.btnAnadirSeguir.setOnClickListener(b -> {
+            if (ecoCartaActual != null && !SeguimientoService.sigue(ecoCartaActual)) intentarSeguirCarta();
+        });
+        cartaVistas.btnDetenerTodos.setOnClickListener(b -> detenerTodosCarta());
         View btnCerrar = v.findViewById(R.id.btn_cerrar_carta);
         btnCerrar.setVisibility(View.VISIBLE);
         btnCerrar.setOnClickListener(b -> ocultarCarta());
         cartaContainer.setVisibility(View.VISIBLE);
+        LatLng posUnidad = u != null ? u.posicion : null;
+        if (posUnidad == null) {
+            Marker mUnidad = marcadoresUnidad.get(eco);
+            if (mUnidad != null) posUnidad = mUnidad.getPosition();
+        }
+        if (posUnidad != null) destelloUnidad(posUnidad, ContextCompat.getColor(requireContext(), R.color.mb_red));
     }
 
     private void actualizarBotonSeguirCarta() {
         if (cartaVistas == null) return;
         boolean sigue = ecoCartaActual != null && SeguimientoService.sigue(ecoCartaActual);
         cartaVistas.btnSeguir.setText(sigue ? R.string.dejar_de_seguir : R.string.seguir);
+        // Fila de acciones múltiples: solo cuando ya hay unidad(es) en seguimiento en curso.
+        boolean hay = !SeguimientoService.ecosSeguidos.isEmpty();
+        cartaVistas.filaSeguirMulti.setVisibility(hay ? View.VISIBLE : View.GONE);
+        cartaVistas.btnAnadirSeguir.setEnabled(ecoCartaActual != null && !sigue);
     }
 
-    /** Verifica permisos y arranca el seguimiento de la unidad de la tarjeta (mismo flujo de
-     *  SearchFragment.intentarSeguir, pero sobre la tarjeta flotante del mapa). */
+    /** Detiene el seguimiento de TODAS las unidades (antes exclusivo de la pestaña Buscar). */
+    private void detenerTodosCarta() {
+        Intent i = new Intent(requireContext(), SeguimientoService.class)
+                .setAction(SeguimientoService.ACCION_DETENER);   // sin económico = todas
+        requireContext().startService(i);
+        SeguimientoService.ecosSeguidos.clear();
+        actualizarBotonSeguirCarta();
+    }
+
+    /** Verifica permisos y arranca el seguimiento de la unidad de la tarjeta. */
     private void intentarSeguirCarta() {
         if (ContextCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -935,6 +974,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         CartaEstacion.bind(requireContext(), vistas, em.e, em.linea, em.color);
         v.findViewById(R.id.btn_cerrar_carta_estacion).setOnClickListener(b -> ocultarCarta());
         cartaContainer.setVisibility(View.VISIBLE);
+        if (em.pos != null) destelloEstacion(em.pos, em.color);   // resalta el marcador seleccionado
     }
 
     /**
@@ -946,6 +986,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      * hace falta redibujar bitmaps en cada frame.
      */
     private void destelloEstacion(LatLng pos, int color) {
+        destello(pos, color, true);
+    }
+
+    /** Igual que {@link #destelloEstacion}, pero sin dejar aro residual: para la unidad
+     *  seleccionada, cuyo marcador se mueve y un aro fijo quedaría desactualizado. */
+    private void destelloUnidad(LatLng pos, int color) {
+        destello(pos, color, false);
+    }
+
+    private void destello(LatLng pos, int color, boolean dejarResidual) {
         if (mapa == null) return;
         if (destelloResidual != null) { try { destelloResidual.remove(); } catch (Exception ignore) {} }
         final com.google.android.gms.maps.model.Circle circulo = mapa.addCircle(
@@ -972,11 +1022,15 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         anim.addListener(new android.animation.AnimatorListenerAdapter() {
             @Override public void onAnimationEnd(android.animation.Animator animation) {
                 try {
-                    // No se quita: queda un aro pequeño y muy transparente marcando la estación.
-                    circulo.setRadius(16);
-                    circulo.setStrokeColor(colorConAlfa(color, 90));
-                    circulo.setFillColor(colorConAlfa(color, 25));
-                    destelloResidual = circulo;
+                    if (dejarResidual) {
+                        // No se quita: queda un aro pequeño y muy transparente marcando la estación.
+                        circulo.setRadius(16);
+                        circulo.setStrokeColor(colorConAlfa(color, 90));
+                        circulo.setFillColor(colorConAlfa(color, 25));
+                        destelloResidual = circulo;
+                    } else {
+                        circulo.remove();
+                    }
                 } catch (Exception ignore) {}
             }
         });

@@ -183,7 +183,7 @@ public final class Planificador {
     private static final Map<String, String> CACHE_NUCLEO = new HashMap<>();
 
     /** Núcleo del nombre (sin prefijos de sistema, "conexión" ni tokens de línea l1/l4/l1a). */
-    private static String nucleoNombre(String nombre) {
+    static String nucleoNombre(String nombre) {
         String cached = CACHE_NUCLEO.get(nombre);
         if (cached != null) return cached;
         StringBuilder sb = new StringBuilder();
@@ -198,7 +198,7 @@ public final class Planificador {
     }
 
     /** ¿Coinciden los núcleos (igual o uno contiene al otro)? Para correspondencias reales entre sistemas. */
-    private static boolean nucleoCoincide(String a, String b) {
+    static boolean nucleoCoincide(String a, String b) {
         String na = nucleoNombre(a), nb = nucleoNombre(b);
         if (na.isEmpty() || nb.isEmpty()) return false;
         return na.equals(nb) || na.contains(nb) || nb.contains(na);

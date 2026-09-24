@@ -368,6 +368,7 @@
     <string name="ruta_unidades_formato">%1$d in service</string>
 
     <!-- Arrival alert by direction -->
+    <string name="nav_servicio">Service</string>
     <string name="nav_llegadas">Arrivals</string>
     <string name="llegadas_titulo">Arrivals</string>
     <string name="estado_servicio_titulo">Service status</string>

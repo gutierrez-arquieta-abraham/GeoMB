@@ -5,19 +5,15 @@
         android:icon="@drawable/ic_map"
         android:title="@string/nav_mapa" />
     <item
-        android:id="@+id/nav_buscar"
-        android:icon="@drawable/ic_search"
-        android:title="@string/nav_buscar" />
-    <item
         android:id="@+id/nav_lineas"
         android:icon="@drawable/ic_bus"
         android:title="@string/nav_lineas" />
     <item
         android:id="@+id/nav_llegadas"
         android:icon="@drawable/ic_bell"
-        android:title="@string/nav_llegadas" />
+        android:title="@string/nav_servicio" />
     <item
         android:id="@+id/nav_acerca"
-        android:icon="@drawable/ic_info"
+        android:icon="@drawable/ic_settings"
         android:title="@string/nav_acerca" />
 </menu>

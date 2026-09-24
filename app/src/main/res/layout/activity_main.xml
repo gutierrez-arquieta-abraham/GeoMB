@@ -33,11 +33,6 @@
             <TextView style="@style/NavItemText" android:text="@string/nav_mapa" />
         </LinearLayout>
 
-        <LinearLayout android:id="@+id/nav_buscar" style="@style/NavItem">
-            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_search" android:contentDescription="@string/nav_buscar" />
-            <TextView style="@style/NavItemText" android:text="@string/nav_buscar" />
-        </LinearLayout>
-
         <LinearLayout android:id="@+id/nav_lineas" style="@style/NavItem">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_bus" android:contentDescription="@string/nav_lineas" />
             <TextView style="@style/NavItemText" android:text="@string/nav_lineas" />
@@ -49,17 +44,12 @@
         </LinearLayout>
 
         <LinearLayout android:id="@+id/nav_llegadas" style="@style/NavItem">
-            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_bell" android:contentDescription="@string/nav_llegadas" />
-            <TextView style="@style/NavItemText" android:text="@string/nav_llegadas" />
-        </LinearLayout>
-
-        <LinearLayout android:id="@+id/nav_reporte" style="@style/NavItem">
-            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_report" android:contentDescription="@string/nav_reporte" />
-            <TextView style="@style/NavItemText" android:text="@string/nav_reporte" />
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_bell" android:contentDescription="@string/nav_servicio" />
+            <TextView style="@style/NavItemText" android:text="@string/nav_servicio" />
         </LinearLayout>
 
         <LinearLayout android:id="@+id/nav_acerca" style="@style/NavItem">
-            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_info" android:contentDescription="@string/nav_acerca" />
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_settings" android:contentDescription="@string/nav_acerca" />
             <TextView style="@style/NavItemText" android:text="@string/nav_acerca" />
         </LinearLayout>
 
