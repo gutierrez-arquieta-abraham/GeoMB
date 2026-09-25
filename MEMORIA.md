@@ -71,7 +71,8 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
 ## Recorrido con voz — `RecorridoService.java`
 - Foreground service; ubicación continua (~1 s / mín 0.5 s). Sigue en segundo plano al cerrar (`onTaskRemoved`). Puntero pegado
   al trazo (snap) + brújula propia (`ic_compass`).
-- Voz **Mia** (AWS Polly) cacheada `getCacheDir()/voz/` (`Integer.toHexString(("Mia|"+texto).hashCode())+".mp3"`), endpoint
+- Voz **Mia** (AWS Polly) guardada en almacenamiento interno `getFilesDir()/voz/` (NO caché: el sistema podía borrarla bajo presión
+  de espacio) (`Integer.toHexString(("Mia|"+texto).hashCode())+".mp3"`), endpoint
   `/api/tts?voz=Mia&texto=`, timeout ~4 s → respaldo TTS Android (connect 3 s/read 8 s). **Tururu 70%**; jingle `tururu_mxb`(≥100)
   /`tururu_mb`, elegido por la **línea que VAS VIAJANDO** (`seq.get(best).linea`), no la de la próxima parada.
 - **Radios (Haversine), valores actuales:** `CERCA_M=50`/`PASO_M=100` (Metrobús) y `CERCA_MXB_M=50`/`PASO_MXB_M=100` (Mexibús),

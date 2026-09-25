@@ -894,9 +894,12 @@ public class RecorridoService extends Service {
         }, "voz-mia").start();
     }
 
+    // Almacenamiento interno (getFilesDir(), NO getCacheDir()): el sistema puede borrar la caché en
+    // cualquier momento bajo presión de espacio, lo que tumbaba audios ya descargados a media
+    // reproducción o forzaba redescargas silenciosas. getFilesDir()/voz/ solo lo borra la propia app.
     private java.io.File archivoVoz(String texto) {
         try {
-            java.io.File dir = new java.io.File(getCacheDir(), "voz");
+            java.io.File dir = new java.io.File(getFilesDir(), "voz");
             if (!dir.exists()) dir.mkdirs();
             return new java.io.File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
         } catch (Exception e) { return null; }

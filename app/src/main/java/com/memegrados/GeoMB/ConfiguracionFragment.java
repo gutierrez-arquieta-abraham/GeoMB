@@ -577,6 +577,13 @@ public class ConfiguracionFragment extends Fragment {
      * segundo plano. La "carta" solo REFLEJA el avance mientras está visible: cerrarla (o que la
      * app se vaya a segundo plano) no cancela nada, solo deja de actualizarse; el progreso real
      * se sigue viendo en la notificación hasta terminar.
+     *
+     * NO se precalcula aquí el total de textos (DescargaVoz.textosLinea() de TODAS las líneas):
+     * eso recorre estaciones de todas las líneas cruzándolas entre sí para las correspondencias
+     * (Locuciones.basesCorresp()), cientos de comparaciones para "descargar todas", y hacerlo en el
+     * hilo principal antes de mostrar la carta bloqueaba la UI el tiempo suficiente para que Android
+     * la reportara como "no responde" y la cerrara -- exactamente el mismo cálculo YA lo hace
+     * DescargaVozService en su hilo de 2º plano; aquí solo se refleja cuando llegue el primer avance().
      */
     private void descargarAudios(java.util.List<Integer> lineas, String nombre) {
         if (DescargaVozService.corriendo) {
@@ -587,10 +594,7 @@ public class ConfiguracionFragment extends Fragment {
         final TextView tv = new TextView(requireContext());
         int p = Math.round(22 * dp);
         tv.setPadding(p, p, p, p);
-        java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
-        for (int ln : lineas) set.addAll(DescargaVoz.textosLinea(requireContext(), ln));
-        int total = set.size();
-        tv.setText(getString(R.string.audios_descargando, 0, total));
+        tv.setText(R.string.audios_preparando);
         final AlertDialog dlg = new AlertDialog.Builder(requireContext())
                 .setTitle(nombre).setView(tv)
                 .setNegativeButton(android.R.string.cancel, (d, w) -> DescargaVozService.cancelar(requireContext()))
