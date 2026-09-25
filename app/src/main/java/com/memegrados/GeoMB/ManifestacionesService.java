@@ -221,7 +221,9 @@ public class ManifestacionesService extends Service {
      *  ambos si no. La clave lleva la línea para no cruzarse con otra línea del mismo nombre. */
     private void bloquearNn(int linea, String nn, String terminalSentido) {
         if (nn == null || nn.length() < 3) return;
-        String k = linea + "|" + nn;
+        // claveTerminal(): sin efecto en Metrobús (1..7, sin variantes), pero mantiene la clave
+        // consistente con Manifestaciones.clave()/AfectacionesMexibus (ordinario↔exprés normalizado).
+        String k = Planificador.claveTerminal(linea) + "|" + nn;
         if (terminalSentido != null)
             porSentidoAcc.computeIfAbsent(k, z -> new java.util.HashSet<>()).add(terminalSentido);
         else
