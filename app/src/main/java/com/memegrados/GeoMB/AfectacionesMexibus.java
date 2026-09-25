@@ -119,7 +119,9 @@ public final class AfectacionesMexibus {
         java.util.List<Estacion> est = l.estaciones;
         // Clave SIEMPRE "linea|estacion", nunca solo el nombre: evita que una estación de esta línea
         // bloquee por error otra línea/sistema con el mismo nombre (ver Manifestaciones.clave()).
-        String pref = l.numero + "|";
+        // claveTerminal() normaliza exprés a su troncal (124→104): ordinario y exprés corren por la
+        // MISMA vía/estaciones, así que un aviso reportado contra cualquiera de los dos bloquea ambos.
+        String pref = Planificador.claveTerminal(l.numero) + "|";
         if (circuito != null && circuito.length() > 0) {
             boolean[] hab = new boolean[est.size()];
             for (int i = 0; i < circuito.length(); i++) {

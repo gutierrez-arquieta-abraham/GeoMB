@@ -613,7 +613,7 @@ public final class Planificador {
 
     /** Clave de terminales de una línea Mexibús: la exprés (12X) usa la de su troncal; ramales (11X) y
      *  troncales (10X) usan su propio número (¡NO {@code Servicios.base}, que mapea 111→101!). */
-    private static int claveTerminal(int linea) {
+    static int claveTerminal(int linea) {
         return (linea >= 121 && linea <= 129) ? (100 + linea % 10) : linea;
     }
 

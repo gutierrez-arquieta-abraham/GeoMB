@@ -93,7 +93,10 @@ public final class Manifestaciones {
     // sistemas) distintos pueden compartir el mismo nombre de estación (p. ej. "La Raza" existe en
     // Metrobús L1 Y L3, sin ser la misma parada física) — bloquear solo por nombre haría que una
     // afectación de UNA línea cerrara también la estación de incluso OTRO sistema con el mismo nombre.
-    private static String clave(int linea, String nn) { return linea + "|" + nn; }
+    // Planificador.claveTerminal() normaliza exprés (12X) a su troncal (10X): ordinario y exprés
+    // corren por la MISMA vía/estaciones, así que un aviso (real o simulado) en una afecta a la otra
+    // -- pero NO junta ramales (11X), que son un trazado físicamente distinto tras el desvío.
+    private static String clave(int linea, String nn) { return Planificador.claveTerminal(linea) + "|" + nn; }
 
     private static final Set<String> afectadas = ConcurrentHashMap.newKeySet();  // "linea|nombre" (ambos sentidos)
     // Bloqueo POR SENTIDO: "linea|estacion" -> {terminal(norm) bloqueada | AMBOS}. General y de movilidad reducida.

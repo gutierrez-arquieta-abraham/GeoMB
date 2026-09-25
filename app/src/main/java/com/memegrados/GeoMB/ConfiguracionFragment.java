@@ -422,10 +422,14 @@ public class ConfiguracionFragment extends Fragment {
         final Spinner spE = v.findViewById(R.id.sp_sim_estacion);
         final Spinner spE2 = v.findViewById(R.id.sp_sim_estacion2);
         final Spinner spS = v.findViewById(R.id.sp_sim_sentido);
-        // Metrobús (1..7) + Mexibús/Mexicable (troncal/ramal/exprés/Mexicable): el simulador es de
-        // prueba (Modo personalizado), así que siempre incluye Mexibús aunque el toggle esté apagado.
+        // Metrobús (1..7) + Mexibús/Mexicable (troncal/ramal/Mexicable): el simulador es de prueba
+        // (Modo personalizado), así que siempre incluye Mexibús aunque el toggle esté apagado. Se
+        // OMITE el exprés (12X) de la lista: corre por la MISMA vía/estaciones que su troncal, y ahora
+        // un bloqueo/simulación en el troncal ya afecta también al exprés (Manifestaciones.clave()),
+        // así que tenerlos por separado aquí solo duplicaría la línea sin ningún efecto adicional.
         final List<Linea> lineas = new ArrayList<>(GtfsRepository.getLineas(requireContext()));
-        lineas.addAll(GtfsRepository.getMexibus(requireContext()));
+        for (Linea l : GtfsRepository.getMexibus(requireContext()))
+            if (l.numero < 121 || l.numero > 129) lineas.add(l);
 
         // Mexibús/Mexicable: su nombre ya es autodescriptivo ("Mexibús L4", "Mexicable L2"), no se
         // antepone "Línea 104" (mismo criterio que LinesAdapter).
