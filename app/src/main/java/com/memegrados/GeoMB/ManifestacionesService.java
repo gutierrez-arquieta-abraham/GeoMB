@@ -124,7 +124,7 @@ public class ManifestacionesService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        crearCanal();
+        crearCanal(this);
         web = new WebView(getApplicationContext());
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -637,23 +637,25 @@ public class ManifestacionesService extends Service {
 
     // ---- notificaciones ----
 
-    private void crearCanal() {
+    /** Estático (recibe el Context) para que también lo pueda invocar {@link #emitirAvisoPrueba}
+     *  desde el panel de simulación sin necesitar que el servicio esté corriendo. */
+    private static void crearCanal(android.content.Context ctx) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager nm = getSystemService(NotificationManager.class);
+            NotificationManager nm = ctx.getSystemService(NotificationManager.class);
             NotificationChannel ong = new NotificationChannel(CANAL,
-                    getString(R.string.canal_manifestaciones), NotificationManager.IMPORTANCE_MIN);
+                    ctx.getString(R.string.canal_manifestaciones), NotificationManager.IMPORTANCE_MIN);
             ong.setShowBadge(false);
             nm.createNotificationChannel(ong);
 
             NotificationChannel avi = new NotificationChannel(CANAL_AVISO,
-                    getString(R.string.canal_manifestaciones_avisos), NotificationManager.IMPORTANCE_DEFAULT);
+                    ctx.getString(R.string.canal_manifestaciones_avisos), NotificationManager.IMPORTANCE_DEFAULT);
             nm.createNotificationChannel(avi);
         }
     }
 
-    private PendingIntent piAbrir() {
-        Intent i = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        return PendingIntent.getActivity(this, 0, i,
+    private static PendingIntent piAbrir(android.content.Context ctx) {
+        Intent i = new Intent(ctx, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        return PendingIntent.getActivity(ctx, 0, i,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
@@ -663,7 +665,7 @@ public class ManifestacionesService extends Service {
                 .setContentTitle(getString(R.string.manifest_ongoing))
                 .setOngoing(true).setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_MIN)
-                .setContentIntent(piAbrir())
+                .setContentIntent(piAbrir(this))
                 .build();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
@@ -744,7 +746,7 @@ public class ManifestacionesService extends Service {
             // Nuevas (clave que no se había avisado)
             for (java.util.Map.Entry<String, Manifestaciones.Afectacion> e : estadoActual.entrySet()) {
                 if (notifClaves.add(e.getKey())) {   // add() = true solo si es nueva
-                    emitirTarjeta(nm, idClave(e.getKey()), e.getValue());
+                    emitirTarjeta(this, nm, idClave(e.getKey()), e.getValue());
                 }
             }
             // Restablecidas (estaban avisadas y ya no aparecen)
@@ -754,7 +756,7 @@ public class ManifestacionesService extends Service {
                     Manifestaciones.Afectacion ok = new Manifestaciones.Afectacion(
                             ln > 0 ? getString(R.string.manifest_linea_fmt, String.valueOf(ln)) : "", ln, "",
                             getString(R.string.afect_restablecido), "", "", false);
-                    emitirTarjeta(nm, idClave(clave), ok);
+                    emitirTarjeta(this, nm, idClave(clave), ok);
                     notifClaves.remove(clave);
                 }
             }
@@ -803,12 +805,14 @@ public class ManifestacionesService extends Service {
     /**
      * Notificación de una afectación: TEXTO PLANO (tipografía del sistema) + logo de la línea, sin
      * layout personalizado, para que se lea igual en el teléfono, el reloj (Wear) y la isla dinámica.
+     * Estático (recibe el Context) para que también la use {@link #emitirAvisoPrueba} desde el panel
+     * de simulación, con la MISMA lógica que una afectación real (nada que mantener duplicado).
      */
-    private void emitirTarjeta(NotificationManager nm, int id, Manifestaciones.Afectacion a) {
+    private static void emitirTarjeta(android.content.Context ctx, NotificationManager nm, int id, Manifestaciones.Afectacion a) {
         // Partes fijas (línea, estaciones) + descripción dinámica.
         final String prefijo = a.linea.isEmpty() ? "" : a.linea
                 + (a.lugar.isEmpty() ? "" : " · " + a.lugar);
-        final String tituloEs = a.estado.isEmpty() ? getString(R.string.manifest_generico) : a.estado;
+        final String tituloEs = a.estado.isEmpty() ? ctx.getString(R.string.manifest_generico) : a.estado;
         final int lineaNum = a.lineaNum;
         final String infoEs = a.info;
 
@@ -816,33 +820,46 @@ public class ManifestacionesService extends Service {
         // (ML Kit). Para es/náhuatl/no soportado queda en español. Al terminar, notifica.
         // Corre en el callback ASÍNCRONO de Traductor.traducirTexto (ML Kit); una falla ahí no debe
         // tumbar este servicio en primer plano.
-        Traductor.traducirTexto(this, tituloEs, tituloT ->
-                Traductor.traducirTexto(this, infoEs, infoT -> {
+        Traductor.traducirTexto(ctx, tituloEs, tituloT ->
+                Traductor.traducirTexto(ctx, infoEs, infoT -> {
                     try {
                         StringBuilder texto = new StringBuilder(prefijo);
                         if (infoT != null && !infoT.isEmpty())
                             texto.append(texto.length() > 0 ? "\n" : "").append(infoT);
-                        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL_AVISO)
+                        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CANAL_AVISO)
                                 .setSmallIcon(R.drawable.ic_bus)
                                 .setContentTitle(tituloT)
                                 .setContentText(texto.toString().replace('\n', ' '))
                                 .setStyle(new NotificationCompat.BigTextStyle().bigText(texto.toString()))
                                 .setAutoCancel(true)
-                                .setContentIntent(piAbrir())
+                                .setContentIntent(piAbrir(ctx))
                                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
                         if (lineaNum > 0) {
-                            Linea l = GtfsRepository.porNumero(this, lineaNum);
+                            Linea l = GtfsRepository.porNumero(ctx, lineaNum);
                             int color = l != null ? l.color : 0xFFD40D0D;
                             b.setColor(color);
-                            android.graphics.Bitmap logo = Tipografia.bitmapLineaLogo(this, lineaNum, color);
+                            android.graphics.Bitmap logo = Tipografia.bitmapLineaLogo(ctx, lineaNum, color);
                             if (logo != null) b.setLargeIcon(logo);
                         }
                         nm.notify(id, b.build());
                     } catch (Throwable t) {
-                        Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ManifestacionesService.emitirTarjeta", String.valueOf(t));
+                        Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "ManifestacionesService.emitirTarjeta", String.valueOf(t));
                     }
                 }));
+    }
+
+    /**
+     * Dispara la MISMA tarjeta de notificación que produciría una afectación real, para que el panel
+     * de simulación ("Modo personalizado") pueda probar el flujo de avisos sin esperar una afectación
+     * real. Crea el canal si aún no existe (el servicio en primer plano pudo no haber arrancado nunca).
+     */
+    public static void emitirAvisoPrueba(android.content.Context ctx, Manifestaciones.Afectacion a) {
+        android.content.Context app = ctx.getApplicationContext();
+        crearCanal(app);
+        NotificationManager nm = app.getSystemService(NotificationManager.class);
+        if (nm == null) return;
+        emitirTarjeta(app, nm, idClave(a.clave()), a);
     }
 
     /** Elevadores + mantenimiento: un lote al entrar a la ventana de las 05:00 y otra a las 13:00. */
@@ -881,7 +898,7 @@ public class ManifestacionesService extends Service {
                                     .setContentTitle(prefijoLinea + estadoT)
                                     .setContentText(txt)
                                     .setStyle(new NotificationCompat.BigTextStyle().bigText(txt))
-                                    .setGroup(GRUPO_OTROS).setAutoCancel(true).setContentIntent(piAbrir())
+                                    .setGroup(GRUPO_OTROS).setAutoCancel(true).setContentIntent(piAbrir(this))
                                     .setPriority(NotificationCompat.PRIORITY_DEFAULT).build();
                             nm.notify(ID_OTROS_BASE + idx, card);
                         } catch (Throwable t) {
@@ -898,7 +915,7 @@ public class ManifestacionesService extends Service {
                 .setContentTitle(getString(R.string.manifest_alerta_titulo))
                 .setContentText(recortar(join(resumen), 120))
                 .setStyle(inbox).setGroup(GRUPO_OTROS).setGroupSummary(true)
-                .setNumber(i).setAutoCancel(true).setContentIntent(piAbrir())
+                .setNumber(i).setAutoCancel(true).setContentIntent(piAbrir(this))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT).build());
     }
 

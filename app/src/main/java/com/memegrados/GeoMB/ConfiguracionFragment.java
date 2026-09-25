@@ -422,6 +422,8 @@ public class ConfiguracionFragment extends Fragment {
         final Spinner spE = v.findViewById(R.id.sp_sim_estacion);
         final Spinner spE2 = v.findViewById(R.id.sp_sim_estacion2);
         final Spinner spS = v.findViewById(R.id.sp_sim_sentido);
+        final TextView tvEstado = v.findViewById(R.id.tv_sim_estado);
+        final View btnQuitarSim = v.findViewById(R.id.btn_quitar_sim);
         // Metrobús (1..7) + Mexibús/Mexicable (troncal/ramal/Mexicable): el simulador es de prueba
         // (Modo personalizado), así que siempre incluye Mexibús aunque el toggle esté apagado. Se
         // OMITE el exprés (12X) de la lista: corre por la MISMA vía/estaciones que su troncal, y ahora
@@ -462,9 +464,10 @@ public class ConfiguracionFragment extends Fragment {
                 else if (sentido == 2) term = Planificador.norm(l.estaciones.get(l.estaciones.size() - 1).nombre);
             }
             Manifestaciones.simular(l.numero, Planificador.norm(es.toString()), term);
-            Toast.makeText(requireContext(),
-                    "Afectación simulada: " + es + (term == null ? " (ambos)" : " → " + spS.getSelectedItem()),
-                    Toast.LENGTH_SHORT).show();
+            String direccion = term == null ? "Ambos sentidos" : spS.getSelectedItem().toString();
+            simularYAvisar(l, es.toString(), "Afectación simulada", direccion,
+                    "Afectación simulada: " + es + (term == null ? " (ambos)" : " → " + direccion),
+                    tvEstado, btnQuitarSim);
         });
         v.findViewById(R.id.btn_sin_servicio).setOnClickListener(x -> {
             Linea l = lineas.get(spL.getSelectedItemPosition());
@@ -473,9 +476,9 @@ public class ConfiguracionFragment extends Fragment {
             int lo = Math.min(i1, i2), hi = Math.max(i1, i2);
             for (int k = lo; k <= hi; k++)                       // todo el tramo fuera de servicio (ambos)
                 Manifestaciones.simular(l.numero, Planificador.norm(l.estaciones.get(k).nombre), null);
-            Toast.makeText(requireContext(),
-                    "Sin servicio: " + l.estaciones.get(lo).nombre + " a " + l.estaciones.get(hi).nombre,
-                    Toast.LENGTH_LONG).show();
+            String lugar = l.estaciones.get(lo).nombre + " a " + l.estaciones.get(hi).nombre;
+            simularYAvisar(l, lugar, "Sin servicio", "Ambos sentidos",
+                    "Sin servicio: " + lugar, tvEstado, btnQuitarSim);
         });
         v.findViewById(R.id.btn_cortar).setOnClickListener(x -> {
             Linea l = lineas.get(spL.getSelectedItemPosition());
@@ -489,14 +492,43 @@ public class ConfiguracionFragment extends Fragment {
             }
             Estacion a = l.estaciones.get(ep), b = l.estaciones.get(vecino);
             Manifestaciones.cortar(l.numero, Planificador.norm(a.nombre), Planificador.norm(b.nombre));
-            Toast.makeText(requireContext(),
-                    "L" + l.numero + " cortada entre " + a.nombre + " y " + b.nombre,
-                    Toast.LENGTH_LONG).show();
+            String lugar = a.nombre + " y " + b.nombre;
+            simularYAvisar(l, lugar, "Corte de vía (prueba)", "Ambos sentidos",
+                    "L" + l.numero + " cortada entre " + lugar, tvEstado, btnQuitarSim);
         });
         v.findViewById(R.id.btn_quitar_sim).setOnClickListener(x -> {
             Manifestaciones.limpiarSimulado();
+            actualizarEstadoSim(tvEstado, btnQuitarSim);
             Toast.makeText(requireContext(), "Simulación / corte quitado", Toast.LENGTH_SHORT).show();
         });
+        actualizarEstadoSim(tvEstado, btnQuitarSim);   // estado inicial (por si ya había una simulación activa)
+    }
+
+    /**
+     * Lógica COMÚN a los 3 botones que inyectan una simulación: dispara la MISMA notificación (local)
+     * que produciría una afectación real (para probar el flujo completo, no solo el bloqueo de ruteo),
+     * muestra el Toast de confirmación y refresca el estado "consciente" del panel (botón Quitar /
+     * texto de estado). Evita repetir esta secuencia en cada botón.
+     */
+    private void simularYAvisar(Linea l, String lugar, String estado, String direccion,
+                                 String toast, TextView tvEstado, View btnQuitarSim) {
+        Manifestaciones.Afectacion a = new Manifestaciones.Afectacion(
+                l.numero < 100 ? "Línea " + l.numero : l.nombre, l.numero, lugar, estado, direccion, "", false);
+        ManifestacionesService.emitirAvisoPrueba(requireContext(), a);
+        Toast.makeText(requireContext(), toast, Toast.LENGTH_LONG).show();
+        actualizarEstadoSim(tvEstado, btnQuitarSim);
+    }
+
+    /** Refleja si hay una simulación/corte activo: habilita "Quitar" solo si hay algo que quitar y
+     *  muestra un texto de estado, en vez de dejar los botones ciegos al estado real. */
+    private void actualizarEstadoSim(TextView tvEstado, View btnQuitarSim) {
+        boolean activo = Manifestaciones.haySimulado();
+        btnQuitarSim.setEnabled(activo);
+        if (tvEstado != null) {
+            tvEstado.setText(activo
+                    ? "Simulación activa (ver pestaña de Estado del servicio)"
+                    : "Sin simulación activa");
+        }
     }
 
     private ArrayAdapter<String> adaptador(List<String> items) {
