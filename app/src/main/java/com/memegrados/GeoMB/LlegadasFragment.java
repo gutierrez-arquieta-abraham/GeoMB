@@ -437,7 +437,9 @@ public class LlegadasFragment extends Fragment {
         est.setLayoutParams(ep);
         row.addView(est);
 
-        // Cicla entre los aspectos (tipo → info → estaciones) con desvanecer-aparecer.
+        // Cicla entre los aspectos (tipo → info → estaciones) con desvanecer-aparecer. La espera es
+        // proporcional al largo del texto QUE SE VA A MOSTRAR (mínimo 4 s): el aspecto "info" puede
+        // traer varias oraciones largas y 4 s fijos no alcanzaban a leerlo antes de que cambiara.
         if (aspectos.size() > 1) {
             final int[] idx = {0};
             Runnable ciclo = new Runnable() {
@@ -448,7 +450,9 @@ public class LlegadasFragment extends Fragment {
                         est.setText(aspectos.get(idx[0]));
                         est.animate().alpha(1f).setDuration(280).start();
                     }).start();
-                    animHandler.postDelayed(this, 4000);
+                    int siguiente = (idx[0] + 1) % aspectos.size();
+                    long espera = Math.max(4000L, aspectos.get(siguiente).length() * 60L);
+                    animHandler.postDelayed(this, espera);
                 }
             };
             estadoAnims.add(ciclo);
