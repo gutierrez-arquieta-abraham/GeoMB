@@ -422,10 +422,15 @@ public class ConfiguracionFragment extends Fragment {
         final Spinner spE = v.findViewById(R.id.sp_sim_estacion);
         final Spinner spE2 = v.findViewById(R.id.sp_sim_estacion2);
         final Spinner spS = v.findViewById(R.id.sp_sim_sentido);
-        final List<Linea> lineas = GtfsRepository.getLineas(requireContext());
+        // Metrobús (1..7) + Mexibús/Mexicable (troncal/ramal/exprés/Mexicable): el simulador es de
+        // prueba (Modo personalizado), así que siempre incluye Mexibús aunque el toggle esté apagado.
+        final List<Linea> lineas = new ArrayList<>(GtfsRepository.getLineas(requireContext()));
+        lineas.addAll(GtfsRepository.getMexibus(requireContext()));
 
+        // Mexibús/Mexicable: su nombre ya es autodescriptivo ("Mexibús L4", "Mexicable L2"), no se
+        // antepone "Línea 104" (mismo criterio que LinesAdapter).
         List<String> nombresL = new ArrayList<>();
-        for (Linea l : lineas) nombresL.add("Línea " + l.numero);
+        for (Linea l : lineas) nombresL.add(l.numero < 100 ? "Línea " + l.numero : l.nombre);
         spL.setAdapter(adaptador(nombresL));
 
         spL.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {

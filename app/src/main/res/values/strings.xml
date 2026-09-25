@@ -189,6 +189,9 @@
          se descarga como voz Mia pregrabada (ver DescargaVoz.textosLinea()): un solo audio fijo,
          no puede variar según cuándo termine el viaje. -->
     <string name="voz_ultima_est">Última estación de tu recorrido. Baja de la unidad para continuar tu camino y que tengas un buen viaje</string>
+    <!-- Mexicable (teleférico): se viaja en CABINA, no "unidad" (variantes de voz_ultima_est/voz_terminal/
+         voz_aborda/voz_toma_unidad/voz_baja_unidad_dir para línea >= 200). -->
+    <string name="voz_ultima_est_cabina">Última estación de tu recorrido. Baja de la cabina para continuar tu camino y que tengas un buen viaje</string>
     <!-- Aviso de dirección/sentido del tramo + total de estaciones del viaje (%1$s=terminal, %2$d=estaciones). -->
     <string name="voz_direccion">Dirección %1$s. %2$d estaciones</string>
     <!-- Cambio de unidad (ordinario↔exprés) o de ruta (L4 Norte↔Sur), antepuesto al aviso de dirección. -->
@@ -196,15 +199,18 @@
     <string name="voz_cambio_ruta">Cambias de ruta</string>
     <!-- Aviso de abordaje inicial: destino (terminal del sentido) + servicio + rosa + total de estaciones. -->
     <string name="voz_aborda">Aborda una unidad con destino a %1$s</string>
+    <string name="voz_aborda_cabina">Aborda una cabina con destino a %1$s</string>
     <string name="voz_aborda_servicio">, servicio %1$s</string>
     <string name="voz_unidad_rosa">, en unidad rosa exclusiva para mujeres, niñas y niños</string>
     <string name="voz_n_estaciones">%1$d estaciones</string>
     <!-- Cambios de tramo: bajada (instrucción) y abordaje (dirección). -->
     <string name="voz_baja_servicio">Baja y toma el servicio %1$s con dirección a %2$s</string>
     <string name="voz_baja_unidad_dir">Baja y toma la unidad con dirección a %1$s</string>
+    <string name="voz_baja_cabina_dir">Baja y toma la cabina con dirección a %1$s</string>
     <string name="voz_camina_conexion">Camina hasta llegar a la conexión con %1$s</string>
     <string name="voz_toma_autobus">Toma el autobús con dirección %1$s</string>
     <string name="voz_toma_unidad">Toma la unidad con dirección %1$s</string>
+    <string name="voz_toma_cabina">Toma la cabina con dirección %1$s</string>
     <!-- Estación TERMINAL de línea: "estación terminal, X, transbordo con {Metrobús}. conexión con {Mexibús/Mexicable}".
          El bloque de conexión solo aparece si el usuario tiene habilitada la capa Mexibús/Mexicable. -->
     <string name="voz_term_lleg">Llegando a estación terminal, %1$s</string>
@@ -224,6 +230,7 @@
     <string name="voz_ruta_norte">Ruta Norte</string>
     <string name="voz_ruta_sur">Ruta Sur</string>
     <string name="voz_terminal">Última estación del recorrido. Ninguna persona deberá permanecer a bordo de la unidad</string>
+    <string name="voz_terminal_cabina">Última estación del recorrido. Ninguna persona deberá permanecer a bordo de la cabina</string>
     <string name="voz_tip_espacios">Respeta los espacios exclusivos de la unidad</string>
     <string name="voz_tip_objetos">Mantén tus objetos de valor en un lugar seguro</string>
     <string name="voz_tip_correr">Evita correr en la estación para abordar la unidad</string>

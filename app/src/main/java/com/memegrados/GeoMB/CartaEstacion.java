@@ -42,11 +42,19 @@ public final class CartaEstacion {
         v.txtNombre.setText(Planificador.sinMxb(e.nombre));
         Linea l = GtfsRepository.porNumero(ctx, linea);
         String nombreLinea = l != null ? l.nombre : "";
-        // Número PÚBLICO de la línea (Metrobús 1..7 tal cual; Mexibús/Mexicable sin el prefijo
-        // interno: 104→"4", 111→"1A", 202→"2"), no el numero interno crudo (p. ej. "Línea 104").
-        // linea_formato_txt recibe texto (%s), no dígito (%d): los ramales dan letra ("1A").
-        v.txtLinea.setText(ctx.getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(linea))
-                + (nombreLinea.isEmpty() ? "" : " · " + nombreLinea));
+        String texto;
+        if (linea < 100) {
+            // Metrobús: "Línea N · nombre-de-la-ruta". Número PÚBLICO (no el interno crudo).
+            texto = ctx.getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(linea))
+                    + (nombreLinea.isEmpty() ? "" : " · " + nombreLinea);
+        } else {
+            // Mexibús/Mexicable: su nombre ya es autodescriptivo ("Mexibús L4"), no se antepone
+            // "Línea 104" (mismo criterio que LinesAdapter); además muestra el par de terminales
+            // oficial ("UMB Tecámac – La Raza") en vez de solo repetir "Mexibús L4".
+            String par = Planificador.terminalesMexibusPar(linea);
+            texto = nombreLinea + (par != null ? " · " + par : "");
+        }
+        v.txtLinea.setText(texto);
 
         Bitmap pic = (e.icono != null && !e.icono.isEmpty())
                 ? Iconos.pictograma(ctx, e.icono, Math.round(44 * ctx.getResources().getDisplayMetrics().density))

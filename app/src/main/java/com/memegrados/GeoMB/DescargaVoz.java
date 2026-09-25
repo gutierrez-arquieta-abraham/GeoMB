@@ -65,7 +65,8 @@ public final class DescargaVoz {
         Linea l = GtfsRepository.porNumero(ctx, linea);
         if (l == null) return new ArrayList<>(t);
         String prep = ctx.getString(R.string.voz_transbordo_prep);
-        String ult  = ctx.getString(R.string.voz_ultima_est);
+        // Mexicable (teleférico): se viaja en CABINA, no "unidad" (debe coincidir con RecorridoService).
+        String ult  = ctx.getString(linea >= 200 ? R.string.voz_ultima_est_cabina : R.string.voz_ultima_est);
         int[] palabras = {R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia, R.string.voz_palabra_conexion};
         for (Estacion e : l.estaciones) {
             if (e.soloMapa) continue;
