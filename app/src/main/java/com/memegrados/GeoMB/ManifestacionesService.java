@@ -344,16 +344,23 @@ public class ManifestacionesService extends Service {
                     // 'retraso' se checa contra sev (estado+info+estaciones), NO solo el estado: el
                     // "Estado" puede venir como "Intervención en la estación" (categoría genérica de la
                     // página oficial) mientras la columna "info" aclara que es solo demora ("retraso en
-                    // el servicio por congestionamiento vial... servicio lento"; caso real observado en
-                    // Indios Verdes/Deportivo 18 de Marzo con la L1 dando servicio normal) -- si solo se
-                    // mirara el estado, "intervención en la estación" bloqueaba la estación de más.
+                    // el servicio por congestionamiento vial... servicio lento").
                     String sev = Planificador.norm(estado + " " + info + " " + estaciones);
                     boolean retraso = sev.contains("retraso") || sev.contains("demora")
                             || sev.contains("lento") || ne.contains("regular");
+                    // OJO: "intervención en la estación" YA NO cuenta como cierre por sí sola. La página
+                    // oficial suele partir un solo incidente en VARIAS filas (una por estación/aspecto):
+                    // la fila con esa etiqueta puede no traer su propia explicación de que es demora (esa
+                    // vive en OTRA fila del mismo ciclo, p. ej. "Obstrucción de carril"/"Retraso en el
+                    // servicio") -- caso real: Indios Verdes/Deportivo 18 de Marzo con L1 en servicio
+                    // normal, bloqueada de más y partiendo la línea (impedía CUALQUIER ruta por ahí, ni
+                    // siquiera las que no necesitan el tramo realmente afectado). Nunca fue parte de la
+                    // lista oficial de cierres reales (ver comentario de arriba: Manifestación/Sin
+                    // servicio/Cerrado/Suspendido/bloqueo/plantón) y es demasiado ambigua para bloquear
+                    // sola: puede ser desde una intervención médica hasta un objeto olvidado.
                     boolean sinServicio = !retraso && (
                                sev.contains("sin servicio") || sev.contains("cerrad")
                             || sev.contains("suspend") || sev.contains("no hay servicio")
-                            || sev.contains("intervencion en la estacion")
                             || ne.contains("manifestacion")        // Manifestación como ESTADO = corta
                             || sev.contains("bloqueo") || sev.contains("bloquead")
                             || sev.contains("planton"));
