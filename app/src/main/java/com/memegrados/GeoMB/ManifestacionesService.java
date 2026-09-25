@@ -341,9 +341,15 @@ public class ManifestacionesService extends Service {
                     // OJO: "Retraso en el servicio ... por manifestantes" = la línea SIGUE corriendo
                     // (solo con demora) → NO se corta. Solo se corta cuando el ESTADO es Manifestación /
                     // Sin servicio / Cerrado / Suspendido, o el texto dice explícitamente sin servicio.
-                    boolean retraso = ne.contains("retraso") || ne.contains("demora")
-                            || ne.contains("lento") || ne.contains("regular");
+                    // 'retraso' se checa contra sev (estado+info+estaciones), NO solo el estado: el
+                    // "Estado" puede venir como "Intervención en la estación" (categoría genérica de la
+                    // página oficial) mientras la columna "info" aclara que es solo demora ("retraso en
+                    // el servicio por congestionamiento vial... servicio lento"; caso real observado en
+                    // Indios Verdes/Deportivo 18 de Marzo con la L1 dando servicio normal) -- si solo se
+                    // mirara el estado, "intervención en la estación" bloqueaba la estación de más.
                     String sev = Planificador.norm(estado + " " + info + " " + estaciones);
+                    boolean retraso = sev.contains("retraso") || sev.contains("demora")
+                            || sev.contains("lento") || ne.contains("regular");
                     boolean sinServicio = !retraso && (
                                sev.contains("sin servicio") || sev.contains("cerrad")
                             || sev.contains("suspend") || sev.contains("no hay servicio")

@@ -28,7 +28,7 @@
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:contentDescription="@string/mapa_estaciones"
-                    android:padding="10dp" />
+                    android:padding="2dp" />
             </FrameLayout>
 
             <LinearLayout
