@@ -483,6 +483,15 @@
                 android:layout_marginTop="4dp"
                 android:text="Cortar línea aquí (parte en 2)" />
 
+            <TextView
+                android:id="@+id/tv_sim_estado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Sin simulación activa"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="13sp" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_quitar_sim"
                 style="@style/Widget.Material3.Button.TextButton"
