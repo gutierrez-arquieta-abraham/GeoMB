@@ -42,7 +42,10 @@ public final class CartaEstacion {
         v.txtNombre.setText(Planificador.sinMxb(e.nombre));
         Linea l = GtfsRepository.porNumero(ctx, linea);
         String nombreLinea = l != null ? l.nombre : "";
-        v.txtLinea.setText(ctx.getString(R.string.linea_formato, linea)
+        // Número PÚBLICO de la línea (Metrobús 1..7 tal cual; Mexibús/Mexicable sin el prefijo
+        // interno: 104→"4", 111→"1A", 202→"2"), no el numero interno crudo (p. ej. "Línea 104").
+        // linea_formato_txt recibe texto (%s), no dígito (%d): los ramales dan letra ("1A").
+        v.txtLinea.setText(ctx.getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(linea))
                 + (nombreLinea.isEmpty() ? "" : " · " + nombreLinea));
 
         GradientDrawable fondo = new GradientDrawable();

@@ -287,6 +287,7 @@
     <!-- Lines -->
     <string name="lineas_titulo">Metrobús lines</string>
     <string name="linea_formato">Line %1$d</string>
+    <string name="linea_formato_txt">Line %1$s</string>
     <string name="estaciones_formato">%1$d stations</string>
 
     <!-- Filters -->

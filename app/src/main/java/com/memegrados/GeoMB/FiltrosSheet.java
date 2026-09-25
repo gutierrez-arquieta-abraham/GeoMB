@@ -69,7 +69,8 @@ public class FiltrosSheet extends BottomSheetDialogFragment {
         // Línea (números)
         List<String> lineasTxt = new ArrayList<>();
         lineasTxt.add(getString(R.string.filtro_todas));
-        for (Integer l : lineas) lineasTxt.add(getString(R.string.linea_formato, l));
+        // Número PÚBLICO (Mexibús/Mexicable sin el prefijo interno: 104→"4"), no el crudo ("Línea 104").
+        for (Integer l : lineas) lineasTxt.add(getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(l)));
         poblar(spLinea, lineasTxt);
 
         poblarConTodos(spDestino, destinos);

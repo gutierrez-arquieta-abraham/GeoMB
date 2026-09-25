@@ -312,6 +312,7 @@
     <!-- Líneas -->
     <string name="lineas_titulo">Líneas del Metrobús</string>
     <string name="linea_formato">Línea %1$d</string>
+    <string name="linea_formato_txt">Línea %1$s</string>
     <string name="estaciones_formato">%1$d estaciones</string>
 
     <!-- Filtros -->

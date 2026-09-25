@@ -130,7 +130,9 @@ public final class CartaUnidad {
         if (u.linea == null) return "Sin línea asignada";
         Linea l = GtfsRepository.porNumero(ctx, u.linea);
         String nombre = l != null ? l.nombre : "";
-        return ctx.getString(R.string.linea_formato, u.linea) + (nombre.isEmpty() ? "" : " · " + nombre);
+        // Número PÚBLICO (Mexibús/Mexicable sin el prefijo interno: 104→"4"), no el crudo ("Línea 104").
+        return ctx.getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(u.linea))
+                + (nombre.isEmpty() ? "" : " · " + nombre);
     }
 
     /** Muestra la foto de la unidad (si el CSV trae URL) y sus créditos; descarga en hilo aparte. */
