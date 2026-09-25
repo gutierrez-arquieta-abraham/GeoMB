@@ -1010,7 +1010,7 @@ public class RecorridoService extends Service {
         boolean esFinal = best == seq.size() - 1;   // última estación del recorrido
         if (esTerminal(p) && !esAbordaje(seq, best)) {
             String vt = vozTerminal(p, true);
-            if (esFinal) vt += ". " + getString(R.string.voz_ultima_est);
+            if (esFinal) vt += ". " + getString(ultimaEst(p.linea));
             return vt;
         }
         // ¿Bajas aquí a cambiar? La parada siguiente arranca otro tramo (línea/conexión, unidad o ruta).
@@ -1020,7 +1020,7 @@ public class RecorridoService extends Service {
         if (tf.isEmpty() && !bajas) {
             StringBuilder v = new StringBuilder(getString(R.string.voz_llegando_est, nom(p)));
             if (esFinal) {
-                v.append(". ").append(getString(R.string.voz_ultima_est));   // "última estación de tu recorrido"
+                v.append(". ").append(getString(ultimaEst(p.linea)));   // "última estación de tu recorrido"
             } else {
                 String tip = tipAleatorio(p.linea);
                 if (tip != null) v.append(". ").append(tip);
@@ -1033,7 +1033,7 @@ public class RecorridoService extends Service {
             // cambio de servicio/ruta (baja y toma el servicio con dirección).
             v.append(". ").append(instruccionBajada(seq, best, tcSig != 0 ? tcSig : 1));
         }
-        if (esFinal) v.append(". ").append(getString(R.string.voz_ultima_est));
+        if (esFinal) v.append(". ").append(getString(ultimaEst(p.linea)));
         return v.toString();
     }
 
@@ -1062,21 +1062,33 @@ public class RecorridoService extends Service {
         return 0;
     }
 
-    /** Sufijo al ABORDAR el nuevo tramo (primera parada de la línea nueva): "Toma la unidad/el autobús
-     *  con dirección {terminal}". Solo para cambio de LÍNEA (transbordo/correspondencia/conexión); los
-     *  cambios de unidad/ruta ya se anuncian en la bajada. "" si aquí no empieza otra línea. */
-    private String sufijoCambio(List<Planificador.Parada> seq, int i) {
-        if (tipoCambio(seq, i) != 1) return "";
-        boolean conexion = palabraTransferencia(seq.get(i - 1).linea, seq.get(i).linea)
-                == R.string.voz_palabra_conexion;
-        String terminal = direccionTerminal(seq, i);
-        return ". " + getString(conexion ? R.string.voz_toma_autobus : R.string.voz_toma_unidad, terminal);
+    /** Mexicable (línea >= 200) se viaja en CABINA (teleférico), no "unidad": elige el string correcto. */
+    private static int ultimaEst(int linea) {
+        return linea >= 200 ? R.string.voz_ultima_est_cabina : R.string.voz_ultima_est;
+    }
+    private static int terminalEst(int linea) {
+        return linea >= 200 ? R.string.voz_terminal_cabina : R.string.voz_terminal;
     }
 
-    /** Aviso inicial de abordaje: "Aborda una unidad con destino a {terminal}[, servicio {X}]
+    /** Sufijo al ABORDAR el nuevo tramo (primera parada de la línea nueva): "Toma la unidad/el autobús/
+     *  la cabina con dirección {terminal}". Solo para cambio de LÍNEA (transbordo/correspondencia/
+     *  conexión); los cambios de unidad/ruta ya se anuncian en la bajada. "" si aquí no empieza otra línea. */
+    private String sufijoCambio(List<Planificador.Parada> seq, int i) {
+        if (tipoCambio(seq, i) != 1) return "";
+        int lineaNueva = seq.get(i).linea;
+        boolean conexion = palabraTransferencia(seq.get(i - 1).linea, lineaNueva)
+                == R.string.voz_palabra_conexion;
+        String terminal = direccionTerminal(seq, i);
+        int str = lineaNueva >= 200 ? R.string.voz_toma_cabina        // Mexicable: cabina, no unidad
+                : conexion ? R.string.voz_toma_autobus : R.string.voz_toma_unidad;
+        return ". " + getString(str, terminal);
+    }
+
+    /** Aviso inicial de abordaje: "Aborda una unidad/cabina con destino a {terminal}[, servicio {X}]
      *  [, en unidad rosa…]. {N} estaciones." */
     private String avisoAbordaje(List<Planificador.Parada> seq, int i) {
-        StringBuilder v = new StringBuilder(getString(R.string.voz_aborda, direccionTerminal(seq, i)));
+        int str = seq.get(i).linea >= 200 ? R.string.voz_aborda_cabina : R.string.voz_aborda;   // Mexicable: cabina
+        StringBuilder v = new StringBuilder(getString(str, direccionTerminal(seq, i)));
         String svc = servicioNombre(seq, i, esRosa());
         if (!svc.isEmpty()) v.append(getString(R.string.voz_aborda_servicio, svc));
         if (esRosa()) v.append(getString(R.string.voz_unidad_rosa));
@@ -1120,7 +1132,8 @@ public class RecorridoService extends Service {
         if (i >= seq.size()) return "";
         String terminal = direccionTerminal(seq, i);
         if (tc == 2) return getString(R.string.voz_baja_servicio, servicioNombre(seq, i, esRosa()), terminal);
-        if (tc == 3) return getString(R.string.voz_baja_unidad_dir, terminal);
+        if (tc == 3) return getString(seq.get(i).linea >= 200   // Mexicable: cabina, no unidad
+                ? R.string.voz_baja_cabina_dir : R.string.voz_baja_unidad_dir, terminal);
         int palabra = palabraTransferencia(seq.get(best).linea, seq.get(i).linea);
         if (palabra == R.string.voz_palabra_conexion)
             return getString(R.string.voz_camina_conexion, nombreConexion(seq, i));
@@ -1329,7 +1342,7 @@ public class RecorridoService extends Service {
         // transbordoTexto(), que decía siempre "Correspondencia con..." sin importar el sistema.
         String tf = transferenciaTexto(p.linea, basesCorresp(p));
         if (!tf.isEmpty()) v.append(tf);
-        if (term) v.append(". ").append(getString(R.string.voz_terminal));
+        if (term) v.append(". ").append(getString(terminalEst(p.linea)));
         String tip = tipAleatorio(p.linea);
         if (tip != null) v.append(". ").append(tip);
         return v.toString();

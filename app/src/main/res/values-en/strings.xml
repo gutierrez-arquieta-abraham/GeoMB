@@ -187,6 +187,7 @@
     <string name="voz_lleg_transf_paso">Arriving at %1$s, %2$s with %3$s</string>
     <string name="voz_baja_realiza">Get off and make your %1$s</string>
     <string name="voz_ultima_est">Last station of your route. Get off the unit to continue on your way, and have a great trip</string>
+    <string name="voz_ultima_est_cabina">Last station of your route. Get off the cabin to continue on your way, and have a great trip</string>
     <string name="voz_term_lleg">Arriving at terminal station, %1$s</string>
     <string name="voz_term_prox">Next station, terminal, %1$s</string>
     <string name="voz_lleg_base">Arriving at station, %1$s</string>
@@ -203,6 +204,7 @@
     <string name="voz_ruta_norte">North Route</string>
     <string name="voz_ruta_sur">South Route</string>
     <string name="voz_terminal">Last stop of the route. No one may remain on board the vehicle</string>
+    <string name="voz_terminal_cabina">Last stop of the route. No one may remain on board the cabin</string>
     <string name="voz_tip_espacios">Respect the vehicle\'s exclusive spaces</string>
     <string name="voz_tip_objetos">Keep your valuables in a safe place</string>
     <string name="voz_tip_correr">Do not run in the station to board the vehicle</string>

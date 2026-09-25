@@ -130,7 +130,13 @@ public final class CartaUnidad {
         if (u.linea == null) return "Sin línea asignada";
         Linea l = GtfsRepository.porNumero(ctx, u.linea);
         String nombre = l != null ? l.nombre : "";
-        // Número PÚBLICO (Mexibús/Mexicable sin el prefijo interno: 104→"4"), no el crudo ("Línea 104").
+        if (u.linea >= 100) {
+            // Mexibús/Mexicable: su nombre ya es autodescriptivo ("Mexibús L4"), no se antepone
+            // "Línea 104"; se muestra además el par de terminales oficial en vez de repetir el nombre.
+            String par = Planificador.terminalesMexibusPar(u.linea);
+            return nombre + (par != null ? " · " + par : "");
+        }
+        // Metrobús: número PÚBLICO (no el crudo, "Línea 104") + nombre de la ruta.
         return ctx.getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(u.linea))
                 + (nombre.isEmpty() ? "" : " · " + nombre);
     }
