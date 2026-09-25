@@ -459,9 +459,11 @@ public class RecorridoService extends Service {
         return base;
     }
 
-    /** Nº mínimo de estaciones dentro de una línea (tras la correspondencia) para dar por hecho que ya
-     *  vas en ella y saltar el aviso a esa línea. */
-    private static final int SALTO_MIN_ESTACIONES = 3;
+    /** Distancia mínima recorrida dentro del trazo (tras la correspondencia, sumando tramos entre
+     *  paradas consecutivas) para dar por hecho que ya vas en él y saltar el aviso a esa línea. Antes
+     *  eran "3 estaciones", pero el espaciado entre estaciones varía mucho entre sistemas (Metrobús
+     *  vs. Mexibús L4), así que un umbral de distancia es más consistente. */
+    private static final float SALTO_MIN_METROS = 800f;
     // Sin esto, el reanclaje solo exigía estar PARADO sobre una estación de otro trazo, sin verificar
     // que hubiera un enlace real (correspondencia/conexión/transbordo, por nombre o "sistemático"
     // declarado, p. ej. Delegación Cuauhtémoc↔El Chopo) cerca de tu posición que explicara cómo
@@ -471,11 +473,11 @@ public class RecorridoService extends Service {
     private static final float RADIO_ENLACE_M = 700f;
 
     /**
-     * Si la ubicación está sobre una parada de OTRA línea de la ruta, situada al menos
-     * {@link #SALTO_MIN_ESTACIONES} estaciones dentro de esa línea (después de la correspondencia), Y
-     * además tu posición está a ≤{@link #RADIO_ENLACE_M} del punto real donde la ruta entra a ese
-     * trazo (el enlace ya construido por el planificador, sea por nombre/cercanía o declarado
-     * manualmente), devuelve su índice para reanclar ahí. Si no, devuelve {@code best}.
+     * Si la ubicación está sobre una parada de OTRA línea de la ruta, a ≥{@link #SALTO_MIN_METROS}
+     * de recorrido dentro de esa línea (después de la correspondencia), Y además tu posición está a
+     * ≤{@link #RADIO_ENLACE_M} del punto real donde la ruta entra a ese trazo (el enlace ya construido
+     * por el planificador, sea por nombre/cercanía o declarado manualmente), devuelve su índice para
+     * reanclar ahí. Si no, devuelve {@code best}.
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
@@ -484,18 +486,27 @@ public class RecorridoService extends Service {
             Planificador.Parada pj = seq.get(j);
             if (pj.linea == trazoBest) continue;                       // mismo trazo/servicio que el actual: no aplica
             if (distParada(l, pj) > radioCerca(pj)) continue;          // no estás sobre esa parada
-            // ¿Cuántas estaciones consecutivas de ESE trazo terminan en j? (profundidad tras el cambio)
-            // Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS también cuente como
-            // cambio de trazo: si ya avanzaste ≥3 estaciones en el exprés, el aviso salta a ese trazo.
-            // 'inicio' queda en el primer índice de esa racha: el nodo donde la ruta ABORDA ese trazo
-            // (el propio punto de correspondencia/conexión/transbordo que construyó el planificador).
-            int dentro = 0, inicio = j;
-            for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) { dentro++; inicio = k; }
-            if (dentro < SALTO_MIN_ESTACIONES) continue;
+            // 'inicio' = primer índice de la racha de ESE trazo que termina en j (el nodo donde la ruta
+            // ABORDA ese trazo: el propio punto de correspondencia/conexión/transbordo que construyó el
+            // planificador). Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS
+            // también cuente como cambio de trazo.
+            int inicio = j;
+            for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) inicio = k;
+            if (distanciaTrazo(seq, inicio, j) < SALTO_MIN_METROS) continue;
             if (!enlaceCerca(l, seq, inicio)) continue;                // sin un enlace real cerca: no reanclar
             mejor = j;                                                 // toma la más adelantada válida
         }
         return mejor;
+    }
+
+    /** Distancia recorrida (m) sumando los tramos entre paradas consecutivas de 'inicio' a 'j'. */
+    private static double distanciaTrazo(List<Planificador.Parada> seq, int inicio, int j) {
+        double d = 0;
+        for (int k = inicio; k < j; k++) {
+            com.google.android.gms.maps.model.LatLng a = seq.get(k).pos, b = seq.get(k + 1).pos;
+            if (a != null && b != null) d += haversine(a.latitude, a.longitude, b.latitude, b.longitude);
+        }
+        return d;
     }
 
     /** ¿Hay un enlace real (correspondencia/conexión/transbordo) cerca de tu posición, en el punto

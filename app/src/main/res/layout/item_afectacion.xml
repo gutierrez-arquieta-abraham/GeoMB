@@ -95,8 +95,6 @@
                     android:id="@+id/ia_lugar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="2"
                     android:textColor="@color/mb_gray"
                     android:textSize="11sp" />
             </LinearLayout>
@@ -176,8 +174,6 @@
                     android:id="@+id/ia_estado"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="2"
                     android:textColor="@color/mb_gray"
                     android:textSize="11sp" />
             </LinearLayout>
@@ -189,8 +185,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:ellipsize="end"
-            android:maxLines="4"
             android:tag="largo"
             android:textColor="?attr/colorOnSurface"
             android:textSize="13sp"
