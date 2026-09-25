@@ -1143,27 +1143,37 @@ public class PlanificadorFragment extends Fragment {
         for (int t = 0; t < n; t++) {
             Planificador.Paso paso = pasos.get(t);
             // Entre tramos de TRAZO distinto (transbordo/correspondencia/conexión): fila de transferencia.
-            // Ordinario↔exprés de la misma troncal es el MISMO trazo → no genera fila.
-            if (t > 0 && !mismoTrazo(pasos.get(t - 1).linea, paso.linea)) {
+            // Ordinario↔exprés de la misma troncal es el MISMO trazo → no genera fila. EXCEPCIÓN:
+            // pasajeExtra (vuelta pagada en estación de 2 plataformas) SIEMPRE genera fila, aunque sea
+            // la misma línea/trazo, porque implica salir y pagar de nuevo -- hay que avisarlo.
+            if (t > 0 && (paso.pasajeExtra || !mismoTrazo(pasos.get(t - 1).linea, paso.linea))) {
                 Planificador.Paso prev = pasos.get(t - 1);
-                // Misma estación si el nombre coincide EXACTO (tras quitar "MXB "/paréntesis) o, como
-                // respaldo, por NÚCLEO: entre sistemas el nombre puede diferir en forma (p. ej. "Indios
-                // Verdes" del Metrobús vs "Indios Verdes (conexión Metrobús L1 y L7)" del Mexibús) sin
-                // dejar de ser la misma interconexión física -- si no, se mostraba "Camina hacia..." en
-                // vez del transbordo/correspondencia/conexión real.
-                boolean mismaEstacion = prev.destino != null && paso.origen != null
-                        && (Planificador.norm(Planificador.sinMxb(prev.destino))
-                                .equals(Planificador.norm(Planificador.sinMxb(paso.origen)))
-                            || Planificador.nucleoCoincide(prev.destino, paso.origen));
-                boolean camina = prev.destino != null && paso.origen != null && !mismaEstacion;
-                String texto;
-                if (camina) {
-                    texto = getString(R.string.ruta_camina,
+                String texto; boolean camina;
+                if (paso.pasajeExtra) {
+                    // Vuelta con pasaje extra: hay que salir de la estación y pagar de nuevo (no es un
+                    // transbordo/correspondencia normal ni una caminata a otra estación).
+                    camina = true;
+                    texto = getString(R.string.ruta_pasaje_extra,
                             Planificador.nombreMostrar(requireContext(), paso.origen, paso.linea));
                 } else {
-                    String verbo = getString(verboTransferencia(prev.linea, paso.linea));
-                    if (!verbo.isEmpty()) verbo = Character.toUpperCase(verbo.charAt(0)) + verbo.substring(1);
-                    texto = verbo + " · L" + Planificador.etiquetaLineaCortaPub(paso.linea);
+                    // Misma estación si el nombre coincide EXACTO (tras quitar "MXB "/paréntesis) o, como
+                    // respaldo, por NÚCLEO: entre sistemas el nombre puede diferir en forma (p. ej. "Indios
+                    // Verdes" del Metrobús vs "Indios Verdes (conexión Metrobús L1 y L7)" del Mexibús) sin
+                    // dejar de ser la misma interconexión física -- si no, se mostraba "Camina hacia..." en
+                    // vez del transbordo/correspondencia/conexión real.
+                    boolean mismaEstacion = prev.destino != null && paso.origen != null
+                            && (Planificador.norm(Planificador.sinMxb(prev.destino))
+                                    .equals(Planificador.norm(Planificador.sinMxb(paso.origen)))
+                                || Planificador.nucleoCoincide(prev.destino, paso.origen));
+                    camina = prev.destino != null && paso.origen != null && !mismaEstacion;
+                    if (camina) {
+                        texto = getString(R.string.ruta_camina,
+                                Planificador.nombreMostrar(requireContext(), paso.origen, paso.linea));
+                    } else {
+                        String verbo = getString(verboTransferencia(prev.linea, paso.linea));
+                        if (!verbo.isEmpty()) verbo = Character.toUpperCase(verbo.charAt(0)) + verbo.substring(1);
+                        texto = verbo + " · L" + Planificador.etiquetaLineaCortaPub(paso.linea);
+                    }
                 }
                 resPasosList.addView(filaTransfer(camina, texto));
             }

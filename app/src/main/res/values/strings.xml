@@ -129,6 +129,7 @@
     <string name="transf_correspondencia">realiza correspondencia</string>
     <string name="transf_conexion">realiza conexión</string>
     <string name="ruta_camina">Camina hasta llegar a %1$s</string>
+    <string name="ruta_pasaje_extra">Sal y paga otro pasaje en %1$s (vuelta de sentido)</string>
     <string name="desamb_sistema_titulo">%1$s: ¿qué sistema?</string>
     <string name="desamb_metrobus">Metrobús L%1$s</string>
     <string name="desamb_mexibus">Mexibús L%1$s</string>
