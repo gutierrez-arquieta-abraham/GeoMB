@@ -133,6 +133,7 @@
     <string name="transf_correspondencia">transfer</string>
     <string name="transf_conexion">connect</string>
     <string name="ruta_camina">Walk until you reach %1$s</string>
+    <string name="ruta_pasaje_extra">Exit and pay another fare at %1$s (direction change)</string>
     <string name="ruta_toma3">Take %1$s toward %2$s</string>
     <string name="ruta_luego3">Then %1$s to %2$s toward %3$s</string>
     <string name="desamb_sistema_titulo">%1$s: which system?</string>

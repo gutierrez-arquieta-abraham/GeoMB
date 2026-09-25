@@ -56,6 +56,11 @@ public final class Planificador {
 
     private static final double SEG_PARADA = 100.0;
     private static final double SEG_TRANSBORDO = 300.0;
+    // Penalización de la "vuelta" en estaciones de 2 plataformas (DOS_PLATAFORMAS): en la vida real
+    // cuesta SALIR y pagar otro pasaje, no solo caminar. El algoritmo no modela dinero, así que se
+    // traduce en un tiempo grande para que Dijkstra la evite si hay una ruta normal, pero SÍ la
+    // ofrezca como último recurso en vez de fallar con "no hay ruta" cuando de verdad hace falta.
+    private static final double PENAL_PASAJE_EXTRA = 1200.0;
     private static final double VEL_MS = 6.0;      // velocidad media del BRT (~21.6 km/h) para el costo por distancia
     private static final double DWELL_S = 20.0;    // parada en estación (subir/bajar)
 
@@ -229,9 +234,13 @@ public final class Planificador {
         public final int paradas;
         public final List<LatLng> puntos;
         public final boolean mixta;
-        Paso(int linea, int color, String origen, String destino, int paradas, List<LatLng> puntos, boolean mixta) {
+        /** true si para ABORDAR este tramo hubo que salir y pagar otro pasaje (vuelta en estación de
+         *  2 plataformas, ver {@link #dosPlataformas}): la UI debe avisarlo explícitamente. */
+        public final boolean pasajeExtra;
+        Paso(int linea, int color, String origen, String destino, int paradas, List<LatLng> puntos,
+             boolean mixta, boolean pasajeExtra) {
             this.linea = linea; this.color = color; this.origen = origen; this.destino = destino;
-            this.paradas = paradas; this.puntos = puntos; this.mixta = mixta;
+            this.paradas = paradas; this.puntos = puntos; this.mixta = mixta; this.pasajeExtra = pasajeExtra;
         }
     }
 
@@ -1066,17 +1075,20 @@ public final class Planificador {
                 if (!liga) continue;
                 // Vuelta (ida↔vuelta de la MISMA línea): GRATIS solo en estaciones de una sola
                 // plataforma (bidireccionales), donde tomas el otro sentido sin salir. En las de
-                // 2 plataformas hay que salir y pagar OTRO pasaje → ahí NO se ofrece la vuelta.
+                // 2 plataformas hay que SALIR y pagar OTRO pasaje -- no es gratis, pero SÍ se ofrece
+                // como último recurso (PENAL_PASAJE_EXTRA) en vez de fallar con "no hay ruta" cuando
+                // de verdad hace falta (p. ej. un corte solo en un sentido); el Paso resultante se
+                // marca (pasajeExtra) para que la UI avise en vez de mostrarlo como una vuelta normal.
                 Route ra = rutas.get(node.get(a)[0]), rb = rutas.get(node.get(b)[0]);
-                if (ra.linea != null && ra.linea == rb.linea
-                        && dosPlataformas(ra.linea.numero, sa.nn)) continue;
+                boolean pasajeExtra = ra.linea != null && ra.linea == rb.linea
+                        && dosPlataformas(ra.linea.numero, sa.nn);
                 // L7 (estela, cobro a bordo): los 2 andenes de una estación son de sentidos opuestos
                 // y cada uno es OTRO cobro; no hay vuelta gratis entre ellos. (L4 no: tiene 1 andén
                 // por estación y sus servicios sí requieren transbordo entre sí.)
                 if (sa.linea == sb.linea && sa.linea == 7 && sa.nn.equals(sb.nn)) continue;
                 // Costo del transbordo = overhead base + caminata (según distancia, hasta 800 m) +
                 // espera por frecuencia de la línea que se ABORDA (ramales Mexibús pasan menos seguido).
-                double cam = caminata(dpar);
+                double cam = caminata(dpar) + (pasajeExtra ? PENAL_PASAJE_EXTRA : 0);
                 adj.get(a).add(new double[]{b, SEG_TRANSBORDO + cam + esperaExtra(sb.linea) + penalConexion(sb), 1});
                 adj.get(b).add(new double[]{a, SEG_TRANSBORDO + cam + esperaExtra(sa.linea) + penalConexion(sa), 1});
             }
@@ -1298,7 +1310,11 @@ public final class Planificador {
                 String tm = terminalMexibus(ctx, r.linea.numero, finStop.pos);
                 if (tm != null) terminal = tm;
             }
-            pasos.add(new Paso(a.linea, r.color, a.nombre, b.nombre, paradas, pts, r.mixta));
+            // ¿Este tramo se abordó tras una "vuelta" pagada en una estación de 2 plataformas? (mismo
+            // número de línea que el tramo anterior, en una estación de la lista DOS_PLATAFORMAS).
+            boolean pasajeExtra = !pasos.isEmpty() && pasos.get(pasos.size() - 1).linea == a.linea
+                    && dosPlataformas(a.linea, a.nn);
+            pasos.add(new Paso(a.linea, r.color, a.nombre, b.nombre, paradas, pts, r.mixta, pasajeExtra));
             instrucciones.add(new Instruccion(terminal, r.nombreVisible, a.linea, r.color, paradas, i > 0));
             i = j + 1;
         }
