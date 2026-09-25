@@ -48,15 +48,20 @@ public final class CartaEstacion {
         v.txtLinea.setText(ctx.getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(linea))
                 + (nombreLinea.isEmpty() ? "" : " · " + nombreLinea));
 
-        GradientDrawable fondo = new GradientDrawable();
-        fondo.setShape(GradientDrawable.OVAL);
-        fondo.setColor(color);
-        v.imgEstacion.setBackground(fondo);
-
         Bitmap pic = (e.icono != null && !e.icono.isEmpty())
-                ? Iconos.pictograma(ctx, e.icono, Math.round(28 * ctx.getResources().getDisplayMetrics().density))
+                ? Iconos.pictograma(ctx, e.icono, Math.round(44 * ctx.getResources().getDisplayMetrics().density))
                 : null;
-        v.imgEstacion.setImageBitmap(pic);   // null: se queda solo el círculo de color (sin pictograma)
+        if (pic != null) {
+            // Con pictograma: sin círculo de fondo, el icono se ve grande y a tamaño completo.
+            v.imgEstacion.setBackground(null);
+        } else {
+            // Sin pictograma: círculo del color de la línea como respaldo (no queda en blanco).
+            GradientDrawable fondo = new GradientDrawable();
+            fondo.setShape(GradientDrawable.OVAL);
+            fondo.setColor(color);
+            v.imgEstacion.setBackground(fondo);
+        }
+        v.imgEstacion.setImageBitmap(pic);
 
         v.card.setVisibility(View.VISIBLE);
     }
