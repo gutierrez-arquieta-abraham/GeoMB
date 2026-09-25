@@ -17,11 +17,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Pre-descarga (Fase 1) los audios base del recorrido de una LÍNEA a la MISMA caché que usa
- * {@link RecorridoService} ({@code getCacheDir()/voz/}, nombre {@code hash("Mia|"+texto).mp3}),
- * para que el recorrido los reproduzca offline. Fase 1 = por cada estación: "Llegando a
- * estación: X" y "Próxima estación: X" (los strings exactos del recorrido). Las variantes de
- * correspondencia/conexión son Fase 2.
+ * Pre-descarga (Fase 1) los audios base del recorrido de una LÍNEA al MISMO almacenamiento interno
+ * que usa {@link RecorridoService} ({@code getFilesDir()/voz/}, nombre {@code hash("Mia|"+texto).mp3}
+ * -- NO caché, para que no se borren solos bajo presión de espacio), para que el recorrido los
+ * reproduzca offline. Fase 1 = por cada estación: "Llegando a estación: X" y "Próxima estación: X"
+ * (los strings exactos del recorrido). Las variantes de correspondencia/conexión son Fase 2.
  */
 // ============================================================
 // CLASE    : DescargaVoz   (interfaz Progreso)
@@ -30,9 +30,10 @@ import java.util.concurrent.Executors;
 //
 // DESCRIPCIÓN:
 //
-// Pre-descarga (Fase 1) los audios base del recorrido de UNA línea a la
-// MISMA caché que usa RecorridoService (getCacheDir()/voz/, nombre
-// hash("Mia|"+texto).mp3), para que el recorrido se oiga OFFLINE.
+// Pre-descarga (Fase 1) los audios base del recorrido de UNA línea al
+// MISMO almacenamiento interno que usa RecorridoService (getFilesDir()/voz/,
+// nombre hash("Mia|"+texto).mp3 -- NO caché), para que el recorrido se oiga
+// OFFLINE sin que el sistema borre los audios ya descargados.
 //
 // Fase 1 = por cada estación: "Llegando a estación: X" y "Próxima
 // estación: X" (los textos EXACTOS del recorrido). Las variantes de
@@ -158,10 +159,10 @@ public final class DescargaVoz {
         return n;
     }
 
-    /** Borra TODOS los audios cacheados (toda la carpeta de voz). Devuelve cuántos borró. */
+    /** Borra TODOS los audios descargados (toda la carpeta de voz). Devuelve cuántos borró. */
     public static int borrarTodo(Context ctx) {
         int n = 0;
-        File dir = new File(ctx.getCacheDir(), "voz");
+        File dir = new File(ctx.getFilesDir(), "voz");
         File[] fs = dir.listFiles();
         if (fs != null) for (File f : fs) if (f.delete()) n++;
         return n;
@@ -177,10 +178,13 @@ public final class DescargaVoz {
         return n;
     }
 
-    // --- MISMO esquema de caché que RecorridoService.archivoVoz (para que coincidan los hashes) ---
+    // --- MISMO esquema que RecorridoService.archivoVoz (para que coincidan los hashes). Almacenamiento
+    // INTERNO (getFilesDir(), NO getCacheDir()): el sistema puede borrar la caché en cualquier momento
+    // bajo presión de espacio, tumbando audios ya descargados sin avisar; getFilesDir()/voz/ solo lo
+    // borra la propia app (borrarLinea()/borrarTodo()). ---
     private static File archivoVoz(Context ctx, String texto) {
         try {
-            File dir = new File(ctx.getCacheDir(), "voz");
+            File dir = new File(ctx.getFilesDir(), "voz");
             if (!dir.exists()) dir.mkdirs();
             return new File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
         } catch (Exception e) {

@@ -232,6 +232,7 @@
     <string name="afectaciones_carta_vacio">Hay afectaciones activas en el servicio, pero ninguna coincide con esta ruta en particular.</string>
     <string name="audios_descargar">Descargar audios (offline)</string>
     <string name="audios_titulo">Descargar audios del recorrido</string>
+    <string name="audios_preparando">Preparando descarga…</string>
     <string name="audios_descargando">Descargando %1$d/%2$d…</string>
     <string name="audios_listo">Audios listos (%1$d)</string>
     <string name="audios_todas">⬇ Descargar TODAS las líneas</string>
