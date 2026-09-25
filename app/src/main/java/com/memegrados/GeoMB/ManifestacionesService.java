@@ -367,6 +367,15 @@ public class ManifestacionesService extends Service {
                     // Obstrucción de carril: afecta UN solo sentido (un carril), NO toda la estación ni
                     // parte la línea. Sin dirección clara en el texto, no se bloquea nada.
                     boolean obstruccionCarril = !retraso && sev.contains("obstru") && sev.contains("carril");
+                    // Solo un bloqueo FÍSICO real (manifestación/bloqueo/plantón: gente/objetos en la
+                    // vía) justifica PARTIR la línea (cortarAlrededor/cortarLineaServicios): ahí la
+                    // unidad literalmente no puede pasar. "Sin servicio"/"cerrada"/"suspendida" en una
+                    // estación puntual normalmente solo impide SUBIR/BAJAR ahí -- el camión puede seguir
+                    // de largo hacia las demás estaciones sin problema, así que NO debe desconectar el
+                    // resto de la línea (caso real: "Ayuntamiento" sin servicio hacia El Caminero volvía
+                    // "no hay ruta" incluso viajes que ni pasaban por ese tramo).
+                    boolean bloqueoFisico = !retraso && (ne.contains("manifestacion")
+                            || sev.contains("bloqueo") || sev.contains("bloquead") || sev.contains("planton"));
                     if (sinServicio || obstruccionCarril) {
                         // El sentido va en el TEXTO (p. ej. "sin servicio en sentido a Indios Verdes"):
                         // si menciona una terminal, se bloquea SOLO ese carril; si no, ambos sentidos
@@ -386,7 +395,8 @@ public class ManifestacionesService extends Service {
                                     // Línea completa fuera: corta todos los tramos (queda intransitable).
                                     // L4/L7 se rutean por servicios (couplet): los cortes se generan de la
                                     // secuencia real, no de la lista plana, para atrapar AMBAS ramas.
-                                    if (ambos) {
+                                    // Solo si es un bloqueo FÍSICO real (ver bloqueoFisico arriba).
+                                    if (ambos && bloqueoFisico) {
                                         if (porServicios(nlinea)) cortarLineaServicios(nlinea);
                                         else for (int k = 0; k + 1 < l.estaciones.size(); k++) {
                                             String key = Manifestaciones.claveCorte(nlinea,
@@ -407,7 +417,10 @@ public class ManifestacionesService extends Service {
                                     String nn = Planificador.norm(e.nombre);
                                     if (nn.length() >= 4 && nEst.contains(nn)) {
                                         bloquearNn(nlinea, nn, terminalSentido);
-                                        if (ambos) cortarAlrededor(nlinea, nn);   // parte la línea en la estación cerrada
+                                        // Parte la línea SOLO si es un bloqueo físico real (ver bloqueoFisico
+                                        // arriba); una estación "sin servicio"/cerrada normal se puede
+                                        // seguir de largo sin bajar/subir, así que no se desconecta el resto.
+                                        if (ambos && bloqueoFisico) cortarAlrededor(nlinea, nn);
                                     }
                                 }
                             }
