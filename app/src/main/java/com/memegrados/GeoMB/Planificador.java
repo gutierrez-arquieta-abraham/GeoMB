@@ -167,6 +167,7 @@ public final class Planificador {
             {"1", "revolucion",            "4", "mexico tenochtitlan"},
             {"101", "mxb 1 de mayo",       "102", "mxb las americas"},   // transbordo real Mexibús L1 (1° de Mayo) – L2 (Las Américas), 288 m
             {"101", "mxb 1 de mayo",       "112", "mxb las americas"},   // transbordo real Mexibús L1 (1° de Mayo) – L2A (Las Américas)
+            {"5", "rio de los remedios",   "112", "mxb rio de los remedios"},   // transbordo real Metrobús L5 – Mexibús L2A (Río de los Remedios)
     };
 
     /** Pares que NUNCA forman correspondencia/transbordo aunque queden cerca (nombres normalizados con
@@ -492,7 +493,8 @@ public final class Planificador {
      */
     private static final Map<Integer, Set<String>> DOS_PLATAFORMAS = new HashMap<>();
     static {
-        DOS_PLATAFORMAS.put(1, set("indios verdes", "deportivo 18 de marzo", "euzkaro", "potrero", "la raza",
+        // "La Raza" es de UNA sola plataforma (cambio de sentido gratis): no va en esta lista.
+        DOS_PLATAFORMAS.put(1, set("indios verdes", "deportivo 18 de marzo", "euzkaro", "potrero",
                 "insurgentes"));
         DOS_PLATAFORMAS.put(2, set("tacubaya", "parque lira", "antonio maceo", "rio frio", "del moral",
                 "canal de san juan", "nicolas bravo", "gral antonio de leon", "general antonio de leon",
