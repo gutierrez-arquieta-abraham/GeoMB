@@ -199,6 +199,30 @@ public class ManifestacionesService extends Service {
     }
 
     /**
+     * Dirección real de un cierre de elevador/mantenimiento, para no bloquear AMBOS sentidos de más.
+     * La columna "Dirección" de esas tablas suele traer YA el nombre de una terminal (p. ej. "Hacia
+     * El Caminero" o solo "El Caminero"): si lo reconocemos, se usa esa terminal tal cual. Si la
+     * columna viene vacía (caso real: un mismo cierre aparece en Estado del Servicio CON dirección en
+     * el texto —"Sin servicio hacia El Caminero..."— pero la fila de Mantenimiento/Elevador no repite
+     * esa dirección en su propia columna), se intenta leer la terminal del texto libre del "motivo"
+     * con la misma heurística que {@link #terminalEnTexto}; sin eso, se cae al valor original (vacío
+     * o "ambos" = cierra la estación completa, como antes). Evita que la tabla de mantenimiento
+     * bloquee TODA la estación cuando el propio Estado del Servicio ya aclaró que es solo un sentido.
+     */
+    private String direccionEfectiva(int nlinea, String direccion, String motivo) {
+        Linea l = GtfsRepository.porNumero(this, nlinea);
+        if (l != null && !l.estaciones.isEmpty()) {
+            String nd = Planificador.norm(direccion);
+            String t1 = Planificador.norm(l.estaciones.get(0).nombre);
+            String t2 = Planificador.norm(l.estaciones.get(l.estaciones.size() - 1).nombre);
+            if (t1.length() >= 4 && nd.contains(t1)) return t1;
+            if (t2.length() >= 4 && nd.contains(t2)) return t2;
+        }
+        String t = terminalEnTexto(nlinea, Planificador.norm(motivo));
+        return t != null ? t : direccion;
+    }
+
+    /**
      * Registra un bloqueo por sentido: "linea|estacion" -> {terminal(norm) | AMBOS}. La línea es
      * SIEMPRE parte de la clave (nunca solo el nombre): dos líneas pueden compartir nombre de
      * estación (p. ej. "La Raza" en L1 y L3) sin ser la misma parada física. La dirección "ambos
@@ -305,7 +329,7 @@ public class ManifestacionesService extends Service {
                     // Bloqueo de movilidad reducida SOLO en líneas con elevador (L1,2,3,5,6).
                     // L4 y L7 son de piso bajo a nivel de suelo: sin esa barrera.
                     if (nlinea == 1 || nlinea == 2 || nlinea == 3 || nlinea == 5 || nlinea == 6)
-                        agregarSentido(porSentidoMRAcc, nlinea, estacion, direccion);
+                        agregarSentido(porSentidoMRAcc, nlinea, estacion, direccionEfectiva(nlinea, direccion, motivo));
 
                 } else if ("mantenimiento".equals(tipo)) {
                     String estacion = limpiar(r.optString("estacion", ""));
@@ -321,7 +345,7 @@ public class ManifestacionesService extends Service {
                             Manifestaciones.C_MANTENIMIENTO);
                     // Cierre por mantenimiento vigente hoy: bloquea el ruteo por sentido
                     // ("ambos sentidos" = toda la estación; una terminal = solo ese carril).
-                    agregarSentido(porSentidoAcc, nlinea, estacion, direccion);
+                    agregarSentido(porSentidoAcc, nlinea, estacion, direccionEfectiva(nlinea, direccion, motivo));
 
                 } else if ("estado".equals(tipo)) {
                     String estado = limpiar(r.optString("estado", ""));
