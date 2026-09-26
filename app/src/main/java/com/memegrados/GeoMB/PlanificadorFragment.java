@@ -513,7 +513,6 @@ public class PlanificadorFragment extends Fragment {
         calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld), r -> {
             if (r == null) {
                 Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show();
-                mostrarDebugEstacionCerradaSiAplica(fd);
                 return;
             }
             // nombres canónicos ya resueltos (el campo se muestra con nº de línea si estaba fijada)
@@ -574,7 +573,6 @@ public class PlanificadorFragment extends Fragment {
             calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, fpref), r -> {
                 if (r == null) {
                     Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show();
-                    mostrarDebugEstacionCerradaSiAplica(fd);
                     return;
                 }
                 finalizarTraza(r, fd);
@@ -937,40 +935,6 @@ public class PlanificadorFragment extends Fragment {
             return getString(R.string.ruta_corte_bloqueo);
         }
         return getString(R.string.ruta_sin_ruta, destino);
-    }
-
-    /**
-     * DIAGNÓSTICO TEMPORAL (caso Euzkaro/El Caminero): si el fallo fue "estación fuera de servicio",
-     * muestra un diálogo (no un Toast, que se corta con "...") con el texto EXACTO que evaluó el
-     * planificador para decidir AMBOS vs un solo sentido. Quitar junto con
-     * Manifestaciones.origenAmbos()/setDebugSev() una vez resuelto.
-     */
-    private void mostrarDebugEstacionCerradaSiAplica(String destino) {
-        if (Planificador.motivoFallo != Planificador.MOTIVO_ESTACION_CERRADA) return;
-        String est = Planificador.estacionCerrada != null ? Planificador.estacionCerrada : destino;
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Debug: " + est)
-                .setMessage(depurarBloqueo(est))
-                .setPositiveButton(android.R.string.ok, null)
-                .show();
-    }
-
-    /** DIAGNÓSTICO TEMPORAL: para cada línea donde exista una estación con este nombre, muestra el
-     *  Set<String> de sentidos bloqueados que ve el planificador (AMBOS = "*", o terminal(es) norm). */
-    private String depurarBloqueo(String nombreEstacion) {
-        String nn = Planificador.norm(nombreEstacion);
-        StringBuilder b = new StringBuilder();
-        java.util.Set<Integer> lineasVistas = new java.util.HashSet<>();   // evita repetir si hay 2 andenes con el mismo nombre
-        for (Linea l : GtfsRepository.getRuteables(requireContext())) {
-            for (Estacion e : l.estaciones) {
-                if (!Planificador.norm(e.nombre).equals(nn) || !lineasVistas.add(l.numero)) continue;
-                java.util.Set<String> s = Manifestaciones.sentidosBloqueados(l.numero, nn, false);
-                if (!s.isEmpty())
-                    b.append(b.length() > 0 ? "; " : "").append("L").append(l.numero).append("=").append(s)
-                            .append("(").append(Manifestaciones.origenAmbos(l.numero, nn)).append(")");
-            }
-        }
-        return b.length() > 0 ? b.toString() : "sin bloqueo detectado(!)";
     }
 
     private void dibujar(Planificador.Ruta r, String destino) {
