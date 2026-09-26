@@ -714,6 +714,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         c.drawCircle(px / 2f, px / 2f, px * 0.30f, p);        // centro blanco
         p.setColor(disco);
         c.drawCircle(px / 2f, px / 2f, px * 0.16f, p);        // punto interno (estilo estación)
+        if (fueraDeServicio) dibujarBadgeAfectacion(c, px);
         BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
         cacheIco.put(key, bd);
         return bd;
@@ -727,7 +728,29 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     private boolean fueraDeServicio(EstMapa em, java.util.Set<String> bloqueadas) {
         String k = Planificador.claveTerminal(em.linea) + "|" + Planificador.norm(em.e.nombre);
-        return bloqueadas.contains(k);
+        if (!bloqueadas.contains(k)) return false;
+        // Aunque la troncal (p. ej. L1) no pare ahí, un recorrido MIXTO real (RutasMixtas: A31, H72…)
+        // puede seguir sirviendo la MISMA estación por su tramo de la OTRA línea (p. ej. H72 llega a
+        // "Reforma"/"Hamburgo" por L7, aunque L1 las tenga fuera por un circuito de emergencia) -- ahí
+        // no está realmente fuera de servicio, solo la troncal pura. Si esa otra línea TAMBIÉN está
+        // bloqueada en esta estación, no se exime (ambos caminos están cortados).
+        return !sirveRutaMixtaAlterna(em.linea, em.e.nombre, bloqueadas);
+    }
+
+    /** ¿Hay un recorrido mixto (RutasMixtas.SECUENCIAS) que sirva esta MISMA estación por OTRA línea
+     *  que sigue en servicio ahí? Ver {@link #fueraDeServicio}. */
+    private boolean sirveRutaMixtaAlterna(int lineaBloqueada, String nombreEstacion, java.util.Set<String> bloqueadas) {
+        String nn = Planificador.norm(nombreEstacion);
+        int lineaBloqueadaN = Planificador.claveTerminal(lineaBloqueada);
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+            for (int i = 0; i < sm.estaciones.length; i++) {
+                int ln = sm.lineas[i];
+                if (Planificador.claveTerminal(ln) == lineaBloqueadaN) continue;   // mismo trazado cerrado: no cuenta
+                if (!Planificador.norm(sm.estaciones[i]).equals(nn)) continue;
+                if (!bloqueadas.contains(Planificador.claveTerminal(ln) + "|" + nn)) return true;
+            }
+        }
+        return false;
     }
 
     /** Aplica la visibilidad del Mexibús según el ajuste "Mostrar Mexibús" (Acerca de). */
@@ -1134,7 +1157,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     /** Icono de estación. {@code fueraDeServicio} lo pinta en gris (pictograma desaturado, o punto
-     *  gris si no hay pictograma) para que se note en el mapa general cuál estación no opera. */
+     *  gris si no hay pictograma) y le agrega el badge de afectación, para que se note en el mapa
+     *  general cuál estación no opera sin tener que tocarla. */
     private BitmapDescriptor iconoEstacion(Estacion e, int color, boolean fueraDeServicio) {
         boolean nuevos = Modos.iconosNuevos(requireContext());
         String key = "E|" + (e.icono == null ? "" : e.icono) + "|" + color + "|" + (nuevos ? 1 : 0)
@@ -1156,9 +1180,29 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             p.setColor(fueraDeServicio ? GRIS_FUERA_SERVICIO : color);
             c.drawCircle(px / 2f, px / 2f, px * 0.26f, p);
         }
+        if (fueraDeServicio) dibujarBadgeAfectacion(c, px);
         BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
         cacheIco.put(key, bd);
         return bd;
+    }
+
+    /** Badge rojo con "!" en la esquina superior derecha del icono, para marcar visualmente que la
+     *  estación tiene una afectación activa (no solo el color gris, que por sí solo no explica por qué). */
+    private void dibujarBadgeAfectacion(Canvas c, int px) {
+        float r = px * 0.20f;
+        float cx = px - r * 0.95f;
+        float cy = r * 0.95f;
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(Color.WHITE);
+        c.drawCircle(cx, cy, r * 1.15f, p);   // borde blanco: que resalte sobre cualquier fondo
+        p.setColor(0xFFC8103E);   // mb_red
+        c.drawCircle(cx, cy, r, p);
+        p.setColor(Color.WHITE);
+        p.setTextAlign(Paint.Align.CENTER);
+        p.setFakeBoldText(true);
+        p.setTextSize(r * 1.5f);
+        Paint.FontMetrics fm = p.getFontMetrics();
+        c.drawText("!", cx, cy - (fm.ascent + fm.descent) / 2f, p);
     }
 
 
