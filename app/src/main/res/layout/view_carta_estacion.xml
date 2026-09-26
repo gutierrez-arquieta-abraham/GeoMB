@@ -49,12 +49,19 @@
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
+                <!-- singleLine (no maxLines) + ellipsize="marquee" es el combo que Android realmente
+                     anima como letrero de LED; requiere foco/selección, forzada en código
+                     (CartaEstacion.bind() llama setSelected(true)) para que ruede sin que el
+                     usuario tenga que tocarla. -->
                 <TextView
                     android:id="@+id/txt_estacion_linea"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
                     android:textColor="@color/mb_gray"
                     android:textSize="14sp" />
 
