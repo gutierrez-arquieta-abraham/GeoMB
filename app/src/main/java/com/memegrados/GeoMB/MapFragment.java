@@ -8,6 +8,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
@@ -127,6 +129,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private boolean avisoError = false;
+    private long ultimaManifestMapa = -1;   // último Manifestaciones.actualizado() ya pintado en el mapa
 
     /** Ciclo de actualización: pide el feed, actualiza marcadores y se reprograma. */
     private final Runnable poll = new Runnable() {
@@ -137,6 +140,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 public void onData(List<UnidadReal> unidades) {
                     avisoError = false;   // servidor OK de nuevo: permite reactivar el respaldo si vuelve a fallar
                     if (mapa != null) actualizarUnidades(unidades);
+                    if (mapa != null) actualizarEstadoEstaciones();
                 }
 
                 @Override
@@ -542,7 +546,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     .position(em.e.posicion)
                     .title(em.e.nombre)
                     .snippet("Línea " + em.linea)
-                    .icon(iconoEstacion(em.e, em.color))
+                    .icon(iconoEstacion(em.e, em.color, fueraDeServicio(em)))
                     .anchor(0.5f, 0.5f)
                     .visible(visibles));
             if (m != null) { em.marker = m; marcadoresEstacion.add(m); }
@@ -661,30 +665,69 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
     }
 
+    /**
+     * Repinta en gris (o de vuelta a su color) los marcadores YA CREADOS cuya estación quedó fuera
+     * de servicio (afectación real o simulada en AMBOS sentidos), para que el mapa general muestre
+     * de un vistazo qué estaciones no operan. Solo repinta cuando cambió algo (compara contra el
+     * último Manifestaciones.actualizado() ya pintado) — se llama en cada ciclo de refresco de
+     * unidades, que ya corre con la misma cadencia.
+     */
+    private void actualizarEstadoEstaciones() {
+        long act = Manifestaciones.actualizado();
+        if (act == ultimaManifestMapa) return;
+        ultimaManifestMapa = act;
+        java.util.Set<String> bloqueadas = Manifestaciones.bloqueadas();
+        for (EstMapa em : estaciones) {
+            if (em.marker == null) continue;
+            em.marker.setIcon(iconoEstacion(em.e, em.color, fueraDeServicio(em, bloqueadas)));
+        }
+        for (EstMapa em : mexibusEst) {
+            if (em.marker == null) continue;
+            em.marker.setIcon(iconoMexibus(em, bloqueadas));
+        }
+    }
+
     /** Icono de un marcador Mexibús: pictograma si lo hay y el modo es "nuevos"; si no, punto/anillo. */
     private BitmapDescriptor iconoMexibus(EstMapa em) {
+        return iconoMexibus(em, Manifestaciones.bloqueadas());
+    }
+
+    private BitmapDescriptor iconoMexibus(EstMapa em, java.util.Set<String> bloqueadas) {
+        boolean fuera = fueraDeServicio(em, bloqueadas);
         return (em.e.icono != null && !em.e.icono.isEmpty())
-                ? iconoEstacion(em.e, em.color) : iconoEstacionMexibus(em.color);
+                ? iconoEstacion(em.e, em.color, fuera) : iconoEstacionMexibus(em.color, fuera);
     }
 
     /** Icono de estación del Mexibús: anillo del color de la línea (los KML no traen pictogramas). */
-    private BitmapDescriptor iconoEstacionMexibus(int color) {
-        String key = "MXdot|" + color;
+    private BitmapDescriptor iconoEstacionMexibus(int color, boolean fueraDeServicio) {
+        String key = "MXdot|" + color + "|" + (fueraDeServicio ? 1 : 0);
         BitmapDescriptor cached = cacheIco.get(key);
         if (cached != null) return cached;
+        int disco = fueraDeServicio ? GRIS_FUERA_SERVICIO : color;
         int px = Math.round(20 * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(color);
+        p.setColor(disco);
         c.drawCircle(px / 2f, px / 2f, px * 0.46f, p);        // disco del color de la línea
         p.setColor(Color.WHITE);
         c.drawCircle(px / 2f, px / 2f, px * 0.30f, p);        // centro blanco
-        p.setColor(color);
+        p.setColor(disco);
         c.drawCircle(px / 2f, px / 2f, px * 0.16f, p);        // punto interno (estilo estación)
         BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
         cacheIco.put(key, bd);
         return bd;
+    }
+
+    /** ¿Esta estación está fuera de servicio en AMBOS sentidos ahora mismo? (afectación real o
+     *  simulada que la bloquea por completo, no un solo sentido/andén — ver Manifestaciones.bloqueadas()). */
+    private boolean fueraDeServicio(EstMapa em) {
+        return fueraDeServicio(em, Manifestaciones.bloqueadas());
+    }
+
+    private boolean fueraDeServicio(EstMapa em, java.util.Set<String> bloqueadas) {
+        String k = Planificador.claveTerminal(em.linea) + "|" + Planificador.norm(em.e.nombre);
+        return bloqueadas.contains(k);
     }
 
     /** Aplica la visibilidad del Mexibús según el ajuste "Mostrar Mexibús" (Acerca de). */
@@ -708,7 +751,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // Solo se refrescan los marcadores VISIBLES (los ocultos por zoom se actualizan al reaparecer):
         // así el cambio es liviano y no se reconstruyen cientos de bitmaps de golpe (evita OOM/ANR).
         try {
-            for (EstMapa em : estaciones) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoEstacion(em.e, em.color));
+            for (EstMapa em : estaciones) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoEstacion(em.e, em.color, fueraDeServicio(em)));
             for (EstMapa em : mexibusEst) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoMexibus(em));
         } catch (Throwable t) {
             android.util.Log.e("MapFragment", "Error al alternar iconos", t);
@@ -1078,9 +1121,24 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     // de Google Maps → OOM) cada vez que se alterna entre iconos nuevos y antiguos.
     private final java.util.Map<String, BitmapDescriptor> cacheIco = new java.util.HashMap<>();
 
-    private BitmapDescriptor iconoEstacion(Estacion e, int color) {
+    /** Gris neutro (Material Grey 500) para estaciones fuera de servicio en el mapa general. */
+    private static final int GRIS_FUERA_SERVICIO = 0xFF9E9E9E;
+
+    /** Paint con filtro de saturación 0: pinta un pictograma en escala de grises sin recrearlo. */
+    private static Paint paintGris() {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        ColorMatrix cm = new ColorMatrix();
+        cm.setSaturation(0f);
+        p.setColorFilter(new ColorMatrixColorFilter(cm));
+        return p;
+    }
+
+    /** Icono de estación. {@code fueraDeServicio} lo pinta en gris (pictograma desaturado, o punto
+     *  gris si no hay pictograma) para que se note en el mapa general cuál estación no opera. */
+    private BitmapDescriptor iconoEstacion(Estacion e, int color, boolean fueraDeServicio) {
         boolean nuevos = Modos.iconosNuevos(requireContext());
-        String key = "E|" + (e.icono == null ? "" : e.icono) + "|" + color + "|" + (nuevos ? 1 : 0);
+        String key = "E|" + (e.icono == null ? "" : e.icono) + "|" + color + "|" + (nuevos ? 1 : 0)
+                + "|" + (fueraDeServicio ? 1 : 0);
         BitmapDescriptor cached = cacheIco.get(key);
         if (cached != null) return cached;
 
@@ -1090,12 +1148,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
         Bitmap escalado = Iconos.pictograma(requireContext(), e.icono, px);
         if (escalado != null) {
-            c.drawBitmap(escalado, 0, 0, null);
+            c.drawBitmap(escalado, 0, 0, fueraDeServicio ? paintGris() : null);
         } else {
             Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
             p.setColor(Color.WHITE);
             c.drawCircle(px / 2f, px / 2f, px * 0.34f, p);
-            p.setColor(color);
+            p.setColor(fueraDeServicio ? GRIS_FUERA_SERVICIO : color);
             c.drawCircle(px / 2f, px / 2f, px * 0.26f, p);
         }
         BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
