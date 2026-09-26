@@ -540,14 +540,20 @@ public class ManifestacionesService extends Service {
      * (las estaciones del tramo sin servicio) en la línea correspondiente.
      */
     private void bloquearTramos(String normFull, Set<String> afect, int cortarLineaHint) {
+        // "Servicio de A a B" a secas (sin "solo hay"/"provisional" delante) SOLO cuenta como tramo
+        // reducido si el texto también describe un circuito/servicio emergente real (congestionamiento
+        // vial, evento temporal, manifestación): de lo contrario es demasiado genérico -- cualquier
+        // texto que mencione "servicio de X" y, en otra parte no relacionada, la palabra "a" (p. ej.
+        // "estación cerrada" con dos nombres separados por "y"/"-") lo disparaba de más y bloqueaba
+        // media línea sin que hubiera un tramo reducido real (caso real: "Indios Verdes a Deportivo 18
+        // de Marzo" tratado como "estas 2 son las ÚNICAS en servicio" en vez de solo informativo).
+        boolean contextoCircuito = normFull.contains("circuito") || normFull.contains("servicio emergente")
+                || normFull.contains("congestionamiento") || normFull.contains("evento")
+                || normFull.contains("manifestacion") || normFull.contains("planton");
         boolean parcial = normFull.contains("solo hay servicio") || normFull.contains("servicio provisional")
                 || normFull.contains("servicio parcial") || normFull.contains("opera de")
                 || normFull.contains("provisional")
-                // "Servicio de A a B" a secas (sin "solo hay"/"provisional" delante): también indica un
-                // tramo reducido, p. ej. una obstrucción de carril que deja el servicio "de El Caminero
-                // a Buenavista" en vez de la línea completa. Si A/B no mapean a estaciones reales de
-                // ninguna línea, el bucle de abajo no arma ningún rango y no bloquea nada (autolimitado).
-                || (normFull.contains("servicio de") && normFull.contains(" a "));
+                || (contextoCircuito && normFull.contains("servicio de") && normFull.contains(" a "));
         if (!parcial) return;
 
         int idx = normFull.indexOf("servicio de");
