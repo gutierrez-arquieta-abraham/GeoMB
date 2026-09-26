@@ -107,6 +107,10 @@ public class ManifestacionesService extends Service {
     // (tablas de calendario, que suelen traer "Dirección" vacía → AMBOS por defecto) tumben ese
     // sentido específico y bloqueen la estación completa por el MISMO cierre real.
     private Set<String> direccionEspecificaAcc = new HashSet<>();
+    // DIAGNÓSTICO TEMPORAL (caso Euzkaro/El Caminero): guarda el texto ("sev") que llevó a un bloqueo
+    // AMBOS, para poder ver en el toast de depuración qué texto real NO logró reconocerse como
+    // direccional. Quitar junto con Manifestaciones.origenAmbos()/debugSev() una vez resuelto.
+    private java.util.Map<String, String> sevAmbosAcc = new java.util.HashMap<>();
     private List<Manifestaciones.Afectacion> listaAcc = new ArrayList<>();
     private List<String> resumenAcc = new ArrayList<>();
     private Set<String> cortesAcc = new HashSet<>();             // cortes reales (partición de línea) del ciclo
@@ -170,6 +174,7 @@ public class ManifestacionesService extends Service {
             porSentidoAcc = new java.util.HashMap<>();
             porSentidoMRAcc = new java.util.HashMap<>();
             direccionEspecificaAcc = new HashSet<>();
+            sevAmbosAcc = new java.util.HashMap<>();
             listaAcc = new ArrayList<>();
             resumenAcc = new ArrayList<>();
             cortesAcc = new HashSet<>();
@@ -211,6 +216,7 @@ public class ManifestacionesService extends Service {
         }
         Manifestaciones.actualizar(afectAcc, porSentidoAcc, porSentidoMRAcc, listaAcc, join(resumenAcc));
         Manifestaciones.reemplazarCortesReales(cortesAcc);   // parte la(s) línea(s) donde hay cierre total
+        Manifestaciones.setDebugSev(sevAmbosAcc);   // DIAGNÓSTICO TEMPORAL: ver origenAmbos()/debugSev()
         ultimaLista = listaAcc;
     }
 
@@ -270,6 +276,15 @@ public class ManifestacionesService extends Service {
         } else {
             afectAcc.add(k);
         }
+    }
+
+    /** DIAGNÓSTICO TEMPORAL: como {@link #bloquearNn}, pero si termina en AMBOS (terminalSentido nulo)
+     *  guarda el texto ("sev") que se evaluó, para mostrarlo en el toast de depuración del planificador
+     *  y ver por qué no se reconoció como direccional. Quitar junto con el resto del diagnóstico. */
+    private void bloquearNnDebug(int linea, String nn, String terminalSentido, String sevOrigen) {
+        if (terminalSentido == null && nn != null && nn.length() >= 3)
+            sevAmbosAcc.put(Planificador.claveTerminal(linea) + "|" + nn, sevOrigen);
+        bloquearNn(linea, nn, terminalSentido);
     }
 
     /**
@@ -435,7 +450,7 @@ public class ManifestacionesService extends Service {
                                 Linea l = GtfsRepository.porNumero(this, nlinea);
                                 if (l != null) {
                                     for (Estacion e : l.estaciones)
-                                        bloquearNn(nlinea, Planificador.norm(e.nombre), terminalSentido);
+                                        bloquearNnDebug(nlinea, Planificador.norm(e.nombre), terminalSentido, sev);
                                     // Línea completa fuera: corta todos los tramos (queda intransitable).
                                     // L4/L7 se rutean por servicios (couplet): los cortes se generan de la
                                     // secuencia real, no de la lista plana, para atrapar AMBAS ramas.
@@ -460,7 +475,7 @@ public class ManifestacionesService extends Service {
                                 for (Estacion e : l.estaciones) {
                                     String nn = Planificador.norm(e.nombre);
                                     if (nn.length() >= 4 && nEst.contains(nn)) {
-                                        bloquearNn(nlinea, nn, terminalSentido);
+                                        bloquearNnDebug(nlinea, nn, terminalSentido, sev);
                                         // Parte la línea SOLO si es un bloqueo físico real (ver bloqueoFisico
                                         // arriba); una estación "sin servicio"/cerrada normal se puede
                                         // seguir de largo sin bajar/subir, así que no se desconecta el resto.

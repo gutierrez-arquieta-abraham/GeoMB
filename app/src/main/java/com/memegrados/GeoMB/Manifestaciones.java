@@ -114,8 +114,16 @@ public final class Manifestaciones {
     private static final Set<String> mexibusBloq = ConcurrentHashMap.newKeySet();
     private static volatile String resumen = "";       // nombres/lugares legibles, separados por coma
     private static volatile long actualizado = 0L;
+    // DIAGNÓSTICO TEMPORAL: texto ("sev") que llevó a cada bloqueo AMBOS, para el toast de depuración
+    // del planificador. Quitar junto con origenAmbos()/PlanificadorFragment.depurarBloqueo().
+    private static volatile Map<String, String> debugSev = java.util.Collections.emptyMap();
 
     private Manifestaciones() {}
+
+    /** DIAGNÓSTICO TEMPORAL: reemplaza el mapa de texto-origen de los bloqueos AMBOS del ciclo. */
+    public static void setDebugSev(Map<String, String> m) {
+        debugSev = m == null ? java.util.Collections.<String, String>emptyMap() : m;
+    }
 
     /** Claves "linea|estacion" bloqueadas en AMBOS sentidos (compatibilidad; ya no solo el nombre). */
     public static Set<String> bloqueadas() {
@@ -133,7 +141,10 @@ public final class Manifestaciones {
     public static String origenAmbos(int linea, String estacionNn) {
         String k = clave(linea, estacionNn);
         java.util.List<String> f = new java.util.ArrayList<>();
-        if (afectadas.contains(k)) f.add("afectadas");
+        if (afectadas.contains(k)) {
+            String sev = debugSev.get(k);
+            f.add("afectadas" + (sev != null ? "{" + sev + "}" : ""));
+        }
         if (mexibusBloq.contains(k)) f.add("mexibusBloq");
         Set<String> ps = porSentido.get(k);
         if (ps != null && ps.contains(AMBOS)) f.add("porSentido" + ps);
