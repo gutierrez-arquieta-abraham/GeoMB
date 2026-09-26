@@ -57,6 +57,18 @@
                     android:maxLines="1"
                     android:textColor="@color/mb_gray"
                     android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/txt_estacion_afectacion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="@color/mb_red"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
 
