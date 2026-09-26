@@ -540,20 +540,19 @@ public class ManifestacionesService extends Service {
      * (las estaciones del tramo sin servicio) en la línea correspondiente.
      */
     private void bloquearTramos(String normFull, Set<String> afect, int cortarLineaHint) {
-        // "Servicio de A a B" a secas (sin "solo hay"/"provisional" delante) SOLO cuenta como tramo
-        // reducido si el texto también describe un circuito/servicio emergente real (congestionamiento
-        // vial, evento temporal, manifestación): de lo contrario es demasiado genérico -- cualquier
-        // texto que mencione "servicio de X" y, en otra parte no relacionada, la palabra "a" (p. ej.
-        // "estación cerrada" con dos nombres separados por "y"/"-") lo disparaba de más y bloqueaba
-        // media línea sin que hubiera un tramo reducido real (caso real: "Indios Verdes a Deportivo 18
-        // de Marzo" tratado como "estas 2 son las ÚNICAS en servicio" en vez de solo informativo).
-        boolean contextoCircuito = normFull.contains("circuito") || normFull.contains("servicio emergente")
-                || normFull.contains("congestionamiento") || normFull.contains("evento")
-                || normFull.contains("manifestacion") || normFull.contains("planton");
+        // "Servicio de A a B" a secas (sin "solo hay"/"provisional" delante) TAMBIÉN cuenta como
+        // tramo reducido -- caso real confirmado: circuitos de emergencia reales ("Servicio de
+        // Tenayuca a Buenavista Y de Pueblo de Santa Cruz a Cuauhtémoc") no siempre incluyen una
+        // palabra como "circuito"/"manifestación" en el texto, así que exigirla (intento anterior)
+        // dejaba SIN bloquear las estaciones intermedias de un circuito real. La protección contra
+        // falsos positivos ya la da el propio requisito de abajo: X y Y deben mapear a estaciones
+        // REALES de la MISMA línea (idxEstacion) -- si no, el bucle no arma ningún rango y no
+        // bloquea nada (autolimitado), así que un texto que mencione "servicio de" y, en otra parte
+        // no relacionada, la palabra "a" sin dos nombres de estación válidos, no dispara nada.
         boolean parcial = normFull.contains("solo hay servicio") || normFull.contains("servicio provisional")
                 || normFull.contains("servicio parcial") || normFull.contains("opera de")
                 || normFull.contains("provisional")
-                || (contextoCircuito && normFull.contains("servicio de") && normFull.contains(" a "));
+                || (normFull.contains("servicio de") && normFull.contains(" a "));
         if (!parcial) return;
 
         int idx = normFull.indexOf("servicio de");
