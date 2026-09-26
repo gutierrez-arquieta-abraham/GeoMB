@@ -102,6 +102,11 @@ public class ManifestacionesService extends Service {
     // Bloqueo POR SENTIDO: estación(norm) -> {terminal(norm) | AMBOS}. General y de movilidad reducida.
     private java.util.Map<String, java.util.Set<String>> porSentidoAcc = new java.util.HashMap<>();
     private java.util.Map<String, java.util.Set<String>> porSentidoMRAcc = new java.util.HashMap<>();
+    // Claves "linea|estacion" donde el Estado del Servicio (fuente EN VIVO) ya dio un sentido
+    // específico (p. ej. "hacia El Caminero"). Se usa para no dejar que Mantenimiento/Elevadores
+    // (tablas de calendario, que suelen traer "Dirección" vacía → AMBOS por defecto) tumben ese
+    // sentido específico y bloqueen la estación completa por el MISMO cierre real.
+    private Set<String> direccionEspecificaAcc = new HashSet<>();
     private List<Manifestaciones.Afectacion> listaAcc = new ArrayList<>();
     private List<String> resumenAcc = new ArrayList<>();
     private Set<String> cortesAcc = new HashSet<>();             // cortes reales (partición de línea) del ciclo
@@ -164,6 +169,7 @@ public class ManifestacionesService extends Service {
             afectAcc = new HashSet<>();
             porSentidoAcc = new java.util.HashMap<>();
             porSentidoMRAcc = new java.util.HashMap<>();
+            direccionEspecificaAcc = new HashSet<>();
             listaAcc = new ArrayList<>();
             resumenAcc = new ArrayList<>();
             cortesAcc = new HashSet<>();
@@ -193,6 +199,16 @@ public class ManifestacionesService extends Service {
 
     /** Actualiza el estado compartido (panel en la app + ruteo). NO notifica. */
     private void guardarStore() {
+        // Si el Estado del Servicio (fuente EN VIVO) ya dio un sentido específico para una estación,
+        // que NO se pise por un "ambos sentidos" de Mantenimiento/Elevadores del MISMO cierre (esas
+        // tablas suelen traer "Dirección" vacía y caen a AMBOS por defecto — ver direccionEfectiva()).
+        // Caso real: Línea 1 · Euzkaro, "Sin servicio hacia El Caminero" en Estado del Servicio, pero
+        // Mantenimiento repite el mismo cierre sin dirección propia → bloqueaba Euzkaro en AMBOS
+        // sentidos e impedía llegar ahí incluso desde el norte (sentido nunca afectado).
+        for (String k : direccionEspecificaAcc) {
+            java.util.Set<String> s = porSentidoAcc.get(k);
+            if (s != null) s.remove(Manifestaciones.AMBOS);
+        }
         Manifestaciones.actualizar(afectAcc, porSentidoAcc, porSentidoMRAcc, listaAcc, join(resumenAcc));
         Manifestaciones.reemplazarCortesReales(cortesAcc);   // parte la(s) línea(s) donde hay cierre total
         ultimaLista = listaAcc;
@@ -248,10 +264,12 @@ public class ManifestacionesService extends Service {
         // claveTerminal(): sin efecto en Metrobús (1..7, sin variantes), pero mantiene la clave
         // consistente con Manifestaciones.clave()/AfectacionesMexibus (ordinario↔exprés normalizado).
         String k = Planificador.claveTerminal(linea) + "|" + nn;
-        if (terminalSentido != null)
+        if (terminalSentido != null) {
             porSentidoAcc.computeIfAbsent(k, z -> new java.util.HashSet<>()).add(terminalSentido);
-        else
+            direccionEspecificaAcc.add(k);   // el Estado del Servicio ya dio un sentido: ver guardarStore()
+        } else {
             afectAcc.add(k);
+        }
     }
 
     /**
