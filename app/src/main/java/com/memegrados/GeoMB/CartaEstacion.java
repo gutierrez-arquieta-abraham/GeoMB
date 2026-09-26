@@ -27,13 +27,14 @@ public final class CartaEstacion {
     public static final class Vistas {
         public final MaterialCardView card;
         public final ImageView imgEstacion;
-        public final TextView txtNombre, txtLinea;
+        public final TextView txtNombre, txtLinea, txtAfectacion;
 
         public Vistas(View raiz) {
             card = raiz.findViewById(R.id.card_estacion);
             imgEstacion = raiz.findViewById(R.id.img_estacion);
             txtNombre = raiz.findViewById(R.id.txt_estacion_nombre);
             txtLinea = raiz.findViewById(R.id.txt_estacion_linea);
+            txtAfectacion = raiz.findViewById(R.id.txt_estacion_afectacion);
         }
     }
 
@@ -70,6 +71,16 @@ public final class CartaEstacion {
             v.imgEstacion.setBackground(fondo);
         }
         v.imgEstacion.setImageBitmap(pic);
+
+        // Aviso de afectación (manifestación, circuito de emergencia, mantenimiento…), si esta
+        // estación tiene una activa en ESTA línea (ver Manifestaciones.afectacionEstacion()).
+        Manifestaciones.Afectacion af = Manifestaciones.afectacionEstacion(linea, Planificador.norm(e.nombre));
+        if (af != null && !af.estado.isEmpty()) {
+            v.txtAfectacion.setText("⚠ " + af.estado);
+            v.txtAfectacion.setVisibility(View.VISIBLE);
+        } else {
+            v.txtAfectacion.setVisibility(View.GONE);
+        }
 
         v.card.setVisibility(View.VISIBLE);
     }

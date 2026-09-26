@@ -232,6 +232,27 @@ public final class Manifestaciones {
         return mejor;
     }
 
+    /**
+     * Afectación real (Metrobús + Mexibús) que coincide con esta estación DE ESA LÍNEA, o null si
+     * ninguna. A diferencia de {@link #razonCierre}, que solo compara nombre (y puede cruzarse entre
+     * líneas con estación homónima, p. ej. "La Raza" en L1 y L3), aquí también se exige que la línea
+     * de la afectación coincida (normalizada con {@link Planificador#claveTerminal}: ordinario y
+     * exprés cuentan como la misma). Pensada para mostrar el aviso en la carta de estación del mapa.
+     */
+    public static Afectacion afectacionEstacion(int linea, String estacionNn) {
+        if (estacionNn == null || estacionNn.length() < 3) return null;
+        int lineaN = Planificador.claveTerminal(linea);
+        Afectacion mejor = null;
+        for (Afectacion a : lista()) {
+            if (a.lineaNum <= 0 || Planificador.claveTerminal(a.lineaNum) != lineaN) continue;
+            String ln = Planificador.norm(a.lugar == null ? "" : a.lugar);
+            if (ln.length() < 3 || !(ln.contains(estacionNn) || estacionNn.contains(ln))) continue;
+            if (a.categoria == C_ESTADO) return a;   // prioriza estado (bloqueo/manifestación)
+            if (mejor == null || a.categoria == C_MANTENIMIENTO) mejor = a;
+        }
+        return mejor;
+    }
+
     private static boolean contiene(Map<String, Set<String>> m, String est, String term) {
         Set<String> dirs = m.get(est);
         if (dirs == null) return false;

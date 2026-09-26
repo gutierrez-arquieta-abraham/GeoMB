@@ -594,7 +594,11 @@ public class ManifestacionesService extends Service {
                 for (int[] r : rangos) if (k >= r[0] && k <= r[1]) { corre = true; break; }
                 if (!corre) {
                     String nn = Planificador.norm(l.estaciones.get(k).nombre);
-                    afect.add(nn);
+                    // OJO: la clave lleva la línea (igual que bloquearNn/Manifestaciones.clave()) -- sin
+                    // el prefijo, esta estación nunca calzaba con "linea|estacion" y el bloqueo real
+                    // (Manifestaciones.bloqueadas(), usado por el mapa y el planificador) no la veía,
+                    // aunque el corte físico (cortesAcc, abajo) sí la aislara del ruteo.
+                    afect.add(Planificador.claveTerminal(l.numero) + "|" + nn);
                     // Aísla el tramo muerto cortando sus tramos adyacentes en esta línea.
                     if (k > 0) {
                         String key = Manifestaciones.claveCorte(l.numero, nn,
