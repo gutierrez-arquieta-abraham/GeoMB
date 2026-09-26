@@ -926,12 +926,32 @@ public class PlanificadorFragment extends Fragment {
             int motivo = cat == Manifestaciones.C_MANTENIMIENTO ? R.string.ruta_motivo_mantenimiento
                     : cat == Manifestaciones.C_ESTADO ? R.string.ruta_motivo_bloqueo
                     : R.string.ruta_motivo_afectacion;
-            return getString(R.string.ruta_estacion_cerrada, est, getString(motivo));
+            // DIAGNÓSTICO TEMPORAL (quitar una vez resuelto el caso Euzkaro/hacia El Caminero):
+            // muestra el Set<String> real que sentidosBloqueados() devuelve para esta estación, para
+            // confirmar si el planificador la trata como AMBOS o solo direccional.
+            return getString(R.string.ruta_estacion_cerrada, est, getString(motivo))
+                    + " [debug: " + depurarBloqueo(est) + "]";
         }
         if (Planificador.motivoFallo == Planificador.MOTIVO_SIN_RUTA && Manifestaciones.hay()) {
             return getString(R.string.ruta_corte_bloqueo);
         }
         return getString(R.string.ruta_sin_ruta, destino);
+    }
+
+    /** DIAGNÓSTICO TEMPORAL: para cada línea donde exista una estación con este nombre, muestra el
+     *  Set<String> de sentidos bloqueados que ve el planificador (AMBOS = "*", o terminal(es) norm). */
+    private String depurarBloqueo(String nombreEstacion) {
+        String nn = Planificador.norm(nombreEstacion);
+        StringBuilder b = new StringBuilder();
+        for (Linea l : GtfsRepository.getRuteables(requireContext())) {
+            for (Estacion e : l.estaciones) {
+                if (!Planificador.norm(e.nombre).equals(nn)) continue;
+                java.util.Set<String> s = Manifestaciones.sentidosBloqueados(l.numero, nn, false);
+                if (!s.isEmpty())
+                    b.append(b.length() > 0 ? "; " : "").append("L").append(l.numero).append("=").append(s);
+            }
+        }
+        return b.length() > 0 ? b.toString() : "sin bloqueo detectado(!)";
     }
 
     private void dibujar(Planificador.Ruta r, String destino) {
