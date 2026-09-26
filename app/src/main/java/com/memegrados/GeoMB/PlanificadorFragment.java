@@ -513,6 +513,7 @@ public class PlanificadorFragment extends Fragment {
         calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld), r -> {
             if (r == null) {
                 Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show();
+                mostrarDebugEstacionCerradaSiAplica(fd);
                 return;
             }
             // nombres canónicos ya resueltos (el campo se muestra con nº de línea si estaba fijada)
@@ -571,7 +572,11 @@ public class PlanificadorFragment extends Fragment {
             final java.util.Map<Integer, Boolean> fpref = pref;
             ultLineaO = flo; ultLineaD = fld; ultPref = new java.util.HashMap<>(fpref);   // recuerda la preferencia
             calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, fpref), r -> {
-                if (r == null) { Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show(); return; }
+                if (r == null) {
+                    Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show();
+                    mostrarDebugEstacionCerradaSiAplica(fd);
+                    return;
+                }
                 finalizarTraza(r, fd);
             });
             return;
@@ -926,16 +931,28 @@ public class PlanificadorFragment extends Fragment {
             int motivo = cat == Manifestaciones.C_MANTENIMIENTO ? R.string.ruta_motivo_mantenimiento
                     : cat == Manifestaciones.C_ESTADO ? R.string.ruta_motivo_bloqueo
                     : R.string.ruta_motivo_afectacion;
-            // DIAGNÓSTICO TEMPORAL (quitar una vez resuelto el caso Euzkaro/hacia El Caminero):
-            // muestra el Set<String> real que sentidosBloqueados() devuelve para esta estación, para
-            // confirmar si el planificador la trata como AMBOS o solo direccional.
-            return getString(R.string.ruta_estacion_cerrada, est, getString(motivo))
-                    + " [debug: " + depurarBloqueo(est) + "]";
+            return getString(R.string.ruta_estacion_cerrada, est, getString(motivo));
         }
         if (Planificador.motivoFallo == Planificador.MOTIVO_SIN_RUTA && Manifestaciones.hay()) {
             return getString(R.string.ruta_corte_bloqueo);
         }
         return getString(R.string.ruta_sin_ruta, destino);
+    }
+
+    /**
+     * DIAGNÓSTICO TEMPORAL (caso Euzkaro/El Caminero): si el fallo fue "estación fuera de servicio",
+     * muestra un diálogo (no un Toast, que se corta con "...") con el texto EXACTO que evaluó el
+     * planificador para decidir AMBOS vs un solo sentido. Quitar junto con
+     * Manifestaciones.origenAmbos()/setDebugSev() una vez resuelto.
+     */
+    private void mostrarDebugEstacionCerradaSiAplica(String destino) {
+        if (Planificador.motivoFallo != Planificador.MOTIVO_ESTACION_CERRADA) return;
+        String est = Planificador.estacionCerrada != null ? Planificador.estacionCerrada : destino;
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Debug: " + est)
+                .setMessage(depurarBloqueo(est))
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     /** DIAGNÓSTICO TEMPORAL: para cada línea donde exista una estación con este nombre, muestra el
