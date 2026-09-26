@@ -127,6 +127,21 @@ public final class Manifestaciones {
         return s;
     }
 
+    /** DIAGNÓSTICO TEMPORAL: de qué acumulador(es) viene un bloqueo AMBOS para esta estación — para
+     *  saber si es "afectadas" (el propio Estado del Servicio lo reportó sin sentido) o "porSentido"
+     *  (Mantenimiento/Elevadores puso AMBOS y no se demotó). Quitar una vez resuelto el caso Euzkaro. */
+    public static String origenAmbos(int linea, String estacionNn) {
+        String k = clave(linea, estacionNn);
+        java.util.List<String> f = new java.util.ArrayList<>();
+        if (afectadas.contains(k)) f.add("afectadas");
+        if (mexibusBloq.contains(k)) f.add("mexibusBloq");
+        Set<String> ps = porSentido.get(k);
+        if (ps != null && ps.contains(AMBOS)) f.add("porSentido" + ps);
+        Set<String> sim = simulado.get(k);
+        if (sim != null && sim.contains(AMBOS)) f.add("simulado");
+        return f.isEmpty() ? "(sin ambos)" : String.join("+", f);
+    }
+
     /**
      * ¿La estación (de ESA línea) está bloqueada para viajar HACIA la terminal indicada? Considera
      * AMBOS (estación completa) y el sentido específico. Si movilidadReducida, suma los elevadores.

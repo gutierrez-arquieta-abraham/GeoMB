@@ -943,12 +943,14 @@ public class PlanificadorFragment extends Fragment {
     private String depurarBloqueo(String nombreEstacion) {
         String nn = Planificador.norm(nombreEstacion);
         StringBuilder b = new StringBuilder();
+        java.util.Set<Integer> lineasVistas = new java.util.HashSet<>();   // evita repetir si hay 2 andenes con el mismo nombre
         for (Linea l : GtfsRepository.getRuteables(requireContext())) {
             for (Estacion e : l.estaciones) {
-                if (!Planificador.norm(e.nombre).equals(nn)) continue;
+                if (!Planificador.norm(e.nombre).equals(nn) || !lineasVistas.add(l.numero)) continue;
                 java.util.Set<String> s = Manifestaciones.sentidosBloqueados(l.numero, nn, false);
                 if (!s.isEmpty())
-                    b.append(b.length() > 0 ? "; " : "").append("L").append(l.numero).append("=").append(s);
+                    b.append(b.length() > 0 ? "; " : "").append("L").append(l.numero).append("=").append(s)
+                            .append("(").append(Manifestaciones.origenAmbos(l.numero, nn)).append(")");
             }
         }
         return b.length() > 0 ? b.toString() : "sin bloqueo detectado(!)";
