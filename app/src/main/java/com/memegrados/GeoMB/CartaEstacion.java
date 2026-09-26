@@ -56,6 +56,7 @@ public final class CartaEstacion {
             texto = nombreLinea + (par != null ? " · " + par : "");
         }
         v.txtLinea.setText(texto);
+        v.txtLinea.setSelected(true);   // arranca el marquee (panel LED) cuando el texto no cabe
 
         Bitmap pic = (e.icono != null && !e.icono.isEmpty())
                 ? Iconos.pictograma(ctx, e.icono, Math.round(44 * ctx.getResources().getDisplayMetrics().density))
