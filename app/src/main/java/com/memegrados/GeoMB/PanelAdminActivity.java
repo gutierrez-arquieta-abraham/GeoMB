@@ -7,11 +7,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
 import android.view.View;
-import android.webkit.ClientCertRequest;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,41 +21,71 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONObject;
+
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
-import java.util.Enumeration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 
 /**
- * Panel admin de afectaciones (aviso manual): abre el formulario REAL del backend
- * ({@link Config#PANEL_ADMIN_URL}) dentro de un WebView, presentando el certificado
- * cliente (mTLS, .p12) cuando el servidor lo pide durante el handshake TLS — ver
- * docs/SESION_2026-09_backend.md §7. Solo alcanzable desde el modo personalizado
- * (ReporteFragment, 5 toques al logo en "Acerca de").
+ * Panel admin de afectaciones (aviso manual): formulario NATIVO que arma el MISMO POST que el
+ * panel web del backend (POST /admin/afectacion en :8443, protegido con mTLS -- ver
+ * admin_afect.py y docs/SESION_2026-09_backend.md §7) y lo manda con el certificado cliente
+ * (.p12), en vez de cargar el formulario del servidor en un WebView. Solo alcanzable desde el
+ * modo personalizado (ReporteFragment, 5 toques al logo en "Acerca de").
  *
- * <p>El certificado NUNCA se empaqueta en la app ni al repo (regla de CLAUDE.md): el usuario
- * lo importa desde su propio almacenamiento (Storage Access Framework) y solo se persiste el
- * URI elegido (un simple puntero al archivo, no un secreto). La CONTRASEÑA del .p12 nunca se
- * guarda: se pide cada vez que se abre el panel, y con ella se arma en memoria la identidad
- * (clave privada + cadena de certificados) que se entrega al servidor.
+ * <p>El certificado NUNCA se empaqueta en la app ni al repo (regla de CLAUDE.md): el usuario lo
+ * importa desde su propio almacenamiento (Storage Access Framework) y solo se persiste el URI
+ * elegido (un simple puntero, no un secreto). La CONTRASEÑA del .p12 nunca se guarda: se pide
+ * cada vez que se abre el panel, y con ella se arma en memoria (solo para esa sesión) el
+ * {@link KeyManagerFactory} que presenta el certificado durante el handshake TLS.
+ *
+ * <p>IMPORTANTE: los nombres de los campos del POST (linea/estado/lugar/info/circuito/duracion_h)
+ * deben calzar EXACTO con lo que lee admin_afect.py (request.form.get(...)); no son arbitrarios.
  */
 public class PanelAdminActivity extends AppCompatActivity {
 
-    private WebView web;
-    private ProgressBar prog;
-    private TextView txtVacio;
+    /** Códigos y etiquetas que acepta admin_afect.py (LINEAS), en el mismo orden que el panel web. */
+    private static final String[][] LINEAS = {
+            {"1", "Metrobús L1"}, {"2", "Metrobús L2"}, {"3", "Metrobús L3"},
+            {"4", "Metrobús L4"}, {"5", "Metrobús L5"}, {"6", "Metrobús L6"}, {"7", "Metrobús L7"},
+            {"101", "Mexibús L1"}, {"102", "Mexibús L2"}, {"103", "Mexibús L3"}, {"104", "Mexibús L4"},
+            {"111", "Mexibús L1A (AIFA)"}, {"112", "Mexibús L2A (Serv. Eléctrico)"}, {"113", "Mexibús L3A"},
+            {"201", "Mexicable L1"}, {"202", "Mexicable L2"},
+    };
 
-    // Identidad mTLS ya resuelta ANTES de cargar la URL: onReceivedClientCertRequest() puede
-    // llegar en un hilo que no es el principal y debe responder de inmediato (proceed/cancel),
-    // así que no se puede abrir un diálogo de contraseña a mitad del handshake TLS.
-    private PrivateKey clavePrivada;
-    private X509Certificate[] cadena;
+    /** Catálogo de estados que ofrece el panel web (ESTADOS); el server no valida contra esta
+     *  lista (acepta cualquier texto), pero usarla evita errores de dedo y mantiene el mismo
+     *  vocabulario que ya reconoce el resto de la app (Manifestaciones). */
+    private static final String[] ESTADOS = {
+            "Sin servicio", "Servicio parcial", "Retraso en el servicio",
+            "Obstrucción de carril", "Manifestación",
+            "Paso de largo", "Estación cerrada", "Estación en mantenimiento",
+            "Afectación en el servicio", "Servicio restablecido",
+    };
+
+    private View scrollForm, txtVacio;
+    private ProgressBar prog;
+    private Spinner spLinea, spEstado, spEstacion;
+    private EditText inOtrasEstaciones, inInfo, inDuracion, inCircuito;
+
+    // Identidad mTLS ya resuelta (KeyStore + contraseña, en memoria SOLO para esta sesión):
+    // KeyManagerFactory.init() los necesita juntos para armar el SSLContext del POST.
+    private KeyStore keyStore;
+    private char[] password;
 
     private final ActivityResultLauncher<String[]> elegirCert =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
-                if (uri == null) { if (clavePrivada == null) finish(); return; }
+                if (uri == null) { if (keyStore == null) finish(); return; }
                 try {
                     getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 } catch (Exception ignore) {
@@ -72,36 +102,65 @@ public class PanelAdminActivity extends AppCompatActivity {
         setContentView(R.layout.activity_panel_admin);
 
         Tipografia.aplicar((TextView) findViewById(R.id.txt_panel_admin_titulo));
-        web = findViewById(R.id.web_panel_admin);
+        scrollForm = findViewById(R.id.scroll_panel_admin_form);
         prog = findViewById(R.id.prog_panel_admin);
         txtVacio = findViewById(R.id.txt_panel_admin_vacio);
+        spLinea = findViewById(R.id.sp_panel_linea);
+        spEstado = findViewById(R.id.sp_panel_estado);
+        spEstacion = findViewById(R.id.sp_panel_estacion);
+        inOtrasEstaciones = findViewById(R.id.in_panel_otras_estaciones);
+        inInfo = findViewById(R.id.in_panel_info);
+        inDuracion = findViewById(R.id.in_panel_duracion);
+        inCircuito = findViewById(R.id.in_panel_circuito);
 
         findViewById(R.id.btn_cerrar_panel_admin).setOnClickListener(v -> finish());
         findViewById(R.id.btn_cambiar_cert_panel_admin).setOnClickListener(v -> lanzarSelector());
 
-        web.getSettings().setJavaScriptEnabled(true);
-        web.getSettings().setDomStorageEnabled(true);
-        web.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onReceivedClientCertRequest(WebView view, ClientCertRequest request) {
-                if (clavePrivada != null && cadena != null) request.proceed(clavePrivada, cadena);
-                else request.cancel();
-            }
-
-            @Override
-            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
-                prog.setVisibility(View.VISIBLE);
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                prog.setVisibility(View.GONE);
-            }
-        });
+        armarFormulario();
+        findViewById(R.id.btn_panel_enviar).setOnClickListener(v -> confirmarEnvio());
 
         String guardado = Modos.certAdminUri(this);
         if (guardado == null) lanzarSelector();
         else pedirPassword(Uri.parse(guardado));
+    }
+
+    private void armarFormulario() {
+        List<String> nombresLinea = new ArrayList<>();
+        for (String[] par : LINEAS) nombresLinea.add(par[1]);
+        spLinea.setAdapter(adaptador(nombresLinea));
+        spLinea.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) { poblarEstaciones(); }
+            @Override public void onNothingSelected(AdapterView<?> p) {}
+        });
+        spEstado.setAdapter(adaptador(Arrays.asList(ESTADOS)));
+        poblarEstaciones();
+    }
+
+    /** Repuebla el spinner de estaciones con las de la línea elegida (datos ya cargados por la
+     *  propia app vía GtfsRepository: no depende de ningún catálogo aparte en el backend). */
+    private void poblarEstaciones() {
+        int idx = spLinea.getSelectedItemPosition();
+        List<String> nombres = new ArrayList<>();
+        nombres.add(getString(R.string.panel_admin_estacion_ninguna));
+        if (idx >= 0) {
+            for (Estacion e : estacionesDeLinea(LINEAS[idx][0])) nombres.add(e.nombre);
+        }
+        spEstacion.setAdapter(adaptador(nombres));
+    }
+
+    private List<Estacion> estacionesDeLinea(String codigo) {
+        int n;
+        try { n = Integer.parseInt(codigo); } catch (Exception e) { return java.util.Collections.emptyList(); }
+        List<Linea> todas = new ArrayList<>(GtfsRepository.getLineas(this));
+        todas.addAll(GtfsRepository.getMexibus(this));
+        for (Linea l : todas) if (l.numero == n) return l.estaciones;
+        return java.util.Collections.emptyList();
+    }
+
+    private ArrayAdapter<String> adaptador(List<String> items) {
+        ArrayAdapter<String> a = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, items);
+        a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        return a;
     }
 
     private void lanzarSelector() {
@@ -113,7 +172,7 @@ public class PanelAdminActivity extends AppCompatActivity {
         }
     }
 
-    /** Pide la contraseña del .p12 (NUNCA se guarda) y, con ella, arma la identidad mTLS. */
+    /** Pide la contraseña del .p12 (NUNCA se guarda) y, con ella, valida el certificado. */
     private void pedirPassword(Uri certUri) {
         EditText in = new EditText(this);
         in.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -129,61 +188,153 @@ public class PanelAdminActivity extends AppCompatActivity {
                 .setPositiveButton(R.string.panel_admin_pass_entrar, (d, w) ->
                         resolverIdentidad(certUri, in.getText().toString()))
                 .setNegativeButton(android.R.string.cancel, (d, w) -> {
-                    if (clavePrivada == null) finish();
+                    if (keyStore == null) finish();
                 })
                 .show();
     }
 
-    /** Arma la identidad mTLS (clave privada + cadena) en un hilo aparte: leer y descifrar el
-     *  .p12 es E/S + criptografía, no debe bloquear el hilo principal. */
-    private void resolverIdentidad(Uri certUri, String password) {
+    /** Carga el .p12 en un hilo aparte (E/S + criptografía, no debe bloquear el hilo principal)
+     *  para confirmar que la contraseña es correcta ANTES de mostrar el formulario. */
+    private void resolverIdentidad(Uri certUri, String pass) {
         prog.setVisibility(View.VISIBLE);
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
-            PrivateKey pk = null;
-            X509Certificate[] chain = null;
+            KeyStore ks = null;
             try (InputStream in = getContentResolver().openInputStream(certUri)) {
-                KeyStore ks = KeyStore.getInstance("PKCS12");
-                ks.load(in, password.toCharArray());
-                String alias = null;
-                Enumeration<String> aliases = ks.aliases();
-                while (aliases.hasMoreElements()) {
-                    String a = aliases.nextElement();
-                    if (ks.isKeyEntry(a)) { alias = a; break; }
-                }
-                if (alias != null) {
-                    pk = (PrivateKey) ks.getKey(alias, password.toCharArray());
-                    Certificate[] c = ks.getCertificateChain(alias);
-                    if (c != null) {
-                        chain = new X509Certificate[c.length];
-                        for (int i = 0; i < c.length; i++) chain[i] = (X509Certificate) c[i];
-                    }
-                }
+                ks = KeyStore.getInstance("PKCS12");
+                ks.load(in, pass.toCharArray());
+                if (!ks.aliases().hasMoreElements()) ks = null;   // .p12 vacío: no sirve
             } catch (Exception ignore) {
-                // Contraseña incorrecta, archivo inválido o permiso perdido: pk/chain se quedan
-                // null y el bloque de abajo lo reporta sin tronar la app.
+                ks = null;   // contraseña incorrecta, archivo inválido o permiso perdido
             }
-            final PrivateKey pkf = pk;
-            final X509Certificate[] chainf = chain;
+            final KeyStore ksf = ks;
             main.post(() -> {
                 prog.setVisibility(View.GONE);
-                if (pkf == null || chainf == null) {
+                if (ksf == null) {
                     Toast.makeText(this, R.string.panel_admin_cert_error, Toast.LENGTH_LONG).show();
                     txtVacio.setVisibility(View.VISIBLE);
+                    scrollForm.setVisibility(View.GONE);
                     return;
                 }
-                clavePrivada = pkf;
-                cadena = chainf;
+                keyStore = ksf;
+                password = pass.toCharArray();
                 txtVacio.setVisibility(View.GONE);
-                web.loadUrl(Config.PANEL_ADMIN_URL);
+                scrollForm.setVisibility(View.VISIBLE);
             });
         }, "panel-admin-cert").start();
     }
 
+    /** Confirma antes de mandar: esto empuja una notificación push real a TODOS los usuarios y
+     *  queda escrito en el panel de afectaciones, así que no se dispara con un solo toque. */
+    private void confirmarEnvio() {
+        if (spLinea.getSelectedItem() == null || spEstado.getSelectedItem() == null) {
+            Toast.makeText(this, R.string.panel_admin_faltan_datos, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.panel_admin_confirmar_titulo)
+                .setMessage(R.string.panel_admin_confirmar_msg)
+                .setPositiveButton(R.string.panel_admin_confirmar_enviar, (d, w) -> enviar())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void enviar() {
+        String codigoLinea = LINEAS[spLinea.getSelectedItemPosition()][0];
+        String estado = (String) spEstado.getSelectedItem();
+
+        String estacionElegida = spEstacion.getSelectedItemPosition() > 0
+                ? (String) spEstacion.getSelectedItem() : "";
+        String otras = inOtrasEstaciones.getText().toString().trim();
+        String lugar = estacionElegida.isEmpty() ? otras
+                : otras.isEmpty() ? estacionElegida : estacionElegida + " y " + otras;
+
+        String info = inInfo.getText().toString().trim();
+        String duracion = inDuracion.getText().toString().trim();
+        String circuito = inCircuito.getText().toString().trim();
+
+        prog.setVisibility(View.VISIBLE);
+        final Handler main = new Handler(Looper.getMainLooper());
+        new Thread(() -> {
+            boolean ok; String cuerpo;
+            HttpsURLConnection conn = null;
+            try {
+                KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                kmf.init(keyStore, password);
+                SSLContext ctx = SSLContext.getInstance("TLS");
+                ctx.init(kmf.getKeyManagers(), null, null);   // trustManagers=null -> confía en el sistema
+
+                StringBuilder body = new StringBuilder();
+                agregarParam(body, "linea", codigoLinea);
+                agregarParam(body, "estado", estado);
+                agregarParam(body, "lugar", lugar);
+                agregarParam(body, "info", info);
+                agregarParam(body, "circuito", circuito);
+                agregarParam(body, "duracion_h", duracion);
+                byte[] datos = body.toString().getBytes("UTF-8");
+
+                conn = (HttpsURLConnection) new URL(Config.PANEL_ADMIN_URL).openConnection();
+                conn.setSSLSocketFactory(ctx.getSocketFactory());
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(15000);
+                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
+                try (OutputStream os = conn.getOutputStream()) { os.write(datos); }
+
+                int code = conn.getResponseCode();
+                ok = code >= 200 && code < 300;
+                cuerpo = leer(ok ? conn.getInputStream() : conn.getErrorStream());
+            } catch (Exception e) {
+                ok = false;
+                cuerpo = String.valueOf(e.getMessage());
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+            final String cuerpof = cuerpo;
+            main.post(() -> {
+                prog.setVisibility(View.GONE);
+                mostrarResultado(cuerpof);
+            });
+        }, "panel-admin-post").start();
+    }
+
+    private static void agregarParam(StringBuilder body, String nombre, String valor) throws Exception {
+        if (valor == null) valor = "";
+        if (body.length() > 0) body.append('&');
+        body.append(nombre).append('=').append(URLEncoder.encode(valor, "UTF-8"));
+    }
+
+    private static String leer(InputStream in) throws Exception {
+        if (in == null) return "";
+        StringBuilder sb = new StringBuilder();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = in.read(buf)) > 0) sb.append(new String(buf, 0, n, "UTF-8"));
+        in.close();
+        return sb.toString();
+    }
+
+    private void mostrarResultado(String cuerpo) {
+        try {
+            JSONObject j = new JSONObject(cuerpo);
+            if (j.optBoolean("ok", false)) {
+                Toast.makeText(this, getString(R.string.panel_admin_enviado,
+                        j.optString("estado"), j.optString("linea")), Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, getString(R.string.panel_admin_error_envio,
+                        j.optString("error", "?")), Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            String msg = cuerpo == null || cuerpo.trim().isEmpty() ? "?" : cuerpo;
+            Toast.makeText(this, getString(R.string.panel_admin_error_envio, msg), Toast.LENGTH_LONG).show();
+        }
+    }
+
     @Override
     protected void onDestroy() {
-        clavePrivada = null;
-        cadena = null;
+        keyStore = null;
+        password = null;
         super.onDestroy();
     }
 }

@@ -114,6 +114,24 @@
     <string name="panel_admin_pass_entrar">Continue</string>
     <string name="panel_admin_cert_error">Couldn\'t read the certificate (wrong password or invalid file)</string>
     <string name="panel_admin_sin_lector">No file picker found on this device</string>
+    <string name="panel_admin_linea">Line</string>
+    <string name="panel_admin_estado">Status</string>
+    <string name="panel_admin_estacion">Station</string>
+    <string name="panel_admin_estacion_ninguna">-- Station --</string>
+    <string name="panel_admin_otras_estaciones_hint">Other stations (optional, separated by \"and\")</string>
+    <string name="panel_admin_info">Detail (info)</string>
+    <string name="panel_admin_info_hint">e.g. due to flooding near…, the service is delayed</string>
+    <string name="panel_admin_duracion">Notice duration</string>
+    <string name="panel_admin_duracion_hint">Hours (0.5–48); default 7</string>
+    <string name="panel_admin_circuito">Circuit (segments that ARE running) — optional</string>
+    <string name="panel_admin_circuito_hint">One segment per line: Station A - Station B</string>
+    <string name="panel_admin_enviar">Broadcast notice</string>
+    <string name="panel_admin_confirmar_titulo">Broadcast this notice?</string>
+    <string name="panel_admin_confirmar_msg">This will send a push notification to ALL users and will show on the affectations panel. Review the data before continuing.</string>
+    <string name="panel_admin_confirmar_enviar">Broadcast</string>
+    <string name="panel_admin_faltan_datos">Choose a line and a status</string>
+    <string name="panel_admin_enviado">Sent: %1$s (line %2$s)</string>
+    <string name="panel_admin_error_envio">Error: %1$s</string>
     <string name="verif_titulo">Identity verification</string>
     <string name="verif_pendiente">To report, Metrobús requires verifying your identity with your official ID and a facial photo (only your name is stored). The KYC provider isn\'t configured yet; you can continue in test mode.</string>
     <string name="verif_pruebas">Continue (test)</string>
@@ -425,6 +443,19 @@
     <string name="agradecimientos_titulo">Acknowledgements</string>
     <string name="agradecimientos_texto">Thanks to Mexico City Metrobús and to SONDA for the GTFS-Realtime system that makes the live information possible. And to the community of users who help by identifying the units, their companies and models.\n\nProject developed by Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCo-author: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nSpecial thanks:\n\n●Minami Aguilar. (Ideas to improve the map).\n●Manuel Lozano. (To whom I dedicate this project).\n●Augusto Neri. (Proposals for the Metrobús route system).\n●Dante Sifuentes. (Logo designer).\n●To all the operators I know who have supported me since before I was a known figure in the community.\n\nProject dedicated to everyone who has supported me since my beginnings in the public-transit enthusiast community, and dedicated to a figure who inspired me to keep going even when I didn\'t believe in myself, thank you, father.</string>
     <string name="acerca_datos">Arrival times are estimates. Data comes from the Metrobús feed and may vary. GeoMB is not officially affiliated with Mexico City Metrobús.</string>
+
+    <!-- Report a problem WITH THE APP (not the Metrobús service), to the support emails -->
+    <string name="config_reportar_app">Report a problem with the app</string>
+    <string name="reporte_app_titulo">Report a problem</string>
+    <string name="reporte_app_categoria">Category</string>
+    <string name="reporte_app_categoria_mala_info">Wrong information</string>
+    <string name="reporte_app_categoria_incompleto">Incomplete process</string>
+    <string name="reporte_app_categoria_otro">Other</string>
+    <string name="reporte_app_descripcion">Description</string>
+    <string name="reporte_app_desc_hint">Describe the problem…</string>
+    <string name="reporte_app_adjuntar">Attach a screenshot (optional)</string>
+    <string name="reporte_app_imagen_adjunta">Screenshot: %1$s</string>
+    <string name="reporte_app_enviar">Send</string>
 
     <!-- Ethical notice (gate) -->
     <string name="aviso_titulo">Responsible-use notice</string>
