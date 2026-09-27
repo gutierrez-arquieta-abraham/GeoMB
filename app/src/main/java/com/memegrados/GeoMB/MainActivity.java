@@ -16,7 +16,13 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.ump.ConsentInformation;
+import com.google.android.ump.ConsentRequestParameters;
+import com.google.android.ump.UserMessagingPlatform;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 // ============================================================
 // CLASE    : MainActivity   (extends AppCompatActivity)
@@ -46,6 +52,8 @@ public class MainActivity extends AppCompatActivity {
     private int seleccionadoId = -1;
     private BottomNavigationView bottomNav;
     private AdView banner;
+    private ConsentInformation consentInfo;
+    private final AtomicBoolean adsInicializado = new AtomicBoolean(false);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,7 +121,38 @@ public class MainActivity extends AppCompatActivity {
             bottomNav.setSelectedItemId(inicial);
             seleccionar(inicial);
         }
-        cargarBanner();
+        gestionarConsentimientoAds();
+    }
+
+    /**
+     * Antes de pedir anuncios, hay que saber si este usuario necesita dar su consentimiento
+     * (GDPR en la UE/Reino Unido, o las leyes de privacidad de EE. UU.) -- lo resuelve el SDK de
+     * UMP (User Messaging Platform) de Google, mostrando el mensaje correspondiente SOLO si aplica
+     * y SOLO si hay uno configurado en AdMob (Privacidad y mensajes). Si el usuario no está en una
+     * región regulada, o ya dio/negó su consentimiento en una sesión anterior, no muestra nada.
+     */
+    private void gestionarConsentimientoAds() {
+        ConsentRequestParameters params = new ConsentRequestParameters.Builder().build();
+        consentInfo = UserMessagingPlatform.getConsentInformation(this);
+        consentInfo.requestConsentInfoUpdate(this, params,
+                () -> UserMessagingPlatform.loadAndShowConsentFormIfRequired(MainActivity.this, formError -> {
+                    // formError != null: no se pudo cargar/mostrar el formulario (sin red, etc.);
+                    // igual se checa canRequestAds() por si ya había consentimiento de antes.
+                    if (consentInfo.canRequestAds()) inicializarAds();
+                }),
+                requestError -> { if (consentInfo.canRequestAds()) inicializarAds(); });
+        // Mientras se actualiza la info de consentimiento (llamada async de arriba), si YA se puede
+        // pedir anuncios (consentimiento obtenido en una sesión previa) no hace falta esperar:
+        // se inicializa en paralelo. inicializarAds() está protegido contra doble ejecución.
+        if (consentInfo.canRequestAds()) inicializarAds();
+    }
+
+    /** Inicializa el SDK de anuncios y carga el banner. Protegido con AtomicBoolean porque
+     *  gestionarConsentimientoAds() puede llamarlo desde dos caminos (el chequeo inmediato y el
+     *  callback async) y esto NUNCA debe correr dos veces. */
+    private void inicializarAds() {
+        if (!adsInicializado.compareAndSet(false, true)) return;
+        try { MobileAds.initialize(this, i -> cargarBanner()); } catch (Exception ignore) {}
     }
 
     /** Banner de AdMob no invasivo, fijo abajo en todas las pantallas (ver Config.AD_BANNER_UNIT_ID):

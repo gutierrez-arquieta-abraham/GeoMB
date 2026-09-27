@@ -42,6 +42,7 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
     implementation(libs.play.services.ads)   // AdMob: banner no invasivo (ver Config.AD_BANNER_UNIT_ID)
+    implementation(libs.user.messaging.platform)   // UMP: consentimiento GDPR/UK/US antes de pedir anuncios
 
     // Firebase (login con Google + registro en Firestore)
     implementation(platform("com.google.firebase:firebase-bom:34.16.0"))
