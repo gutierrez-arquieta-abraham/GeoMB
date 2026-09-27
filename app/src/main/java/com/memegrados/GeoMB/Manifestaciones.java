@@ -106,6 +106,14 @@ public final class Manifestaciones {
     private static final Set<String> cortes = ConcurrentHashMap.newKeySet();   // "linea|nnA|nnB": corte de tramo (parte la línea) — panel de pruebas
     private static final Set<String> cortesReales = ConcurrentHashMap.newKeySet();   // cortes detectados del feed real (ServicioMB)
     private static final List<Afectacion> lista = new CopyOnWriteArrayList<>();
+    // Afectación INFERIDA por estación (no viene literal en ninguna fila scrapeada de ServicioMB):
+    // caso L4 "por servicios" (ver ManifestacionesService.bloquearRutaL4()) -- el texto real solo
+    // dice "Ruta Sur", sin nombrar cada parada, así que no hay ninguna Afectacion de 'lista' cuyo
+    // 'lugar' contenga, p. ej., "Eje Central". Clave "linea|estacion" (misma que bloqueadas()), SOLO
+    // para afectacionEstacion() (la carta del mapa) -- aparte de 'lista' para no duplicar cada
+    // estación en la tabla de "Estado del servicio" ni en el panel de elevadores/otras (que sí
+    // recorren 'lista' completa).
+    private static final Map<String, Afectacion> extraPorEstacion = new ConcurrentHashMap<>();
     // Afectaciones de MEXIBÚS (del backend, vía afectaciones_mexibus.json). Van aparte porque el
     // scraper de Metrobús reemplaza 'lista' en cada ciclo; 'lista()' devuelve la UNIÓN de ambas.
     private static final List<Afectacion> mexibus = new CopyOnWriteArrayList<>();
@@ -250,7 +258,14 @@ public final class Manifestaciones {
             if (a.categoria == C_ESTADO) return a;   // prioriza estado (bloqueo/manifestación)
             if (mejor == null || a.categoria == C_MANTENIMIENTO) mejor = a;
         }
-        return mejor;
+        if (mejor != null) return mejor;
+        return extraPorEstacion.get(clave(linea, estacionNn));   // p. ej. L4 "por servicios"
+    }
+
+    /** Reemplaza el mapa de afectaciones INFERIDAS por estación (ver {@link #extraPorEstacion}). */
+    static void setExtraPorEstacion(Map<String, Afectacion> nuevo) {
+        extraPorEstacion.clear();
+        if (nuevo != null) extraPorEstacion.putAll(nuevo);
     }
 
     private static boolean contiene(Map<String, Set<String>> m, String est, String term) {

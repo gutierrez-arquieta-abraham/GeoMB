@@ -109,6 +109,10 @@ public class ManifestacionesService extends Service {
     private Set<String> direccionEspecificaAcc = new HashSet<>();
     private List<Manifestaciones.Afectacion> listaAcc = new ArrayList<>();
     private List<String> resumenAcc = new ArrayList<>();
+    // Afectación inferida por estación (L4 "por servicios", ver bloquearRutaL4()): aparte de
+    // listaAcc para no duplicar cada estación en la tabla de "Estado del servicio" ni en el panel
+    // de elevadores/otras (ambos recorren listaAcc completa) -- solo alimenta afectacionEstacion().
+    private java.util.Map<String, Manifestaciones.Afectacion> extraPorEstacionAcc = new java.util.HashMap<>();
     private Set<String> cortesAcc = new HashSet<>();             // cortes reales (partición de línea) del ciclo
     private int estadoFilas = 0;                                  // filas leídas del Estado del Servicio
     // Estado ya notificado por línea (clave de la situación) para no repetir el aviso.
@@ -173,6 +177,7 @@ public class ManifestacionesService extends Service {
             listaAcc = new ArrayList<>();
             resumenAcc = new ArrayList<>();
             cortesAcc = new HashSet<>();
+            extraPorEstacionAcc = new java.util.HashMap<>();
             web.loadUrl(URL_SERVICIOMB);   // primero las tablas (funciona seguro); luego el iframe de estado
         }
         handler.postDelayed(tick, INTERVALO_MS);
@@ -210,6 +215,7 @@ public class ManifestacionesService extends Service {
             if (s != null) s.remove(Manifestaciones.AMBOS);
         }
         Manifestaciones.actualizar(afectAcc, porSentidoAcc, porSentidoMRAcc, listaAcc, join(resumenAcc));
+        Manifestaciones.setExtraPorEstacion(extraPorEstacionAcc);   // L4 "por servicios" (bloquearRutaL4)
         Manifestaciones.reemplazarCortesReales(cortesAcc);   // parte la(s) línea(s) donde hay cierre total
         ultimaLista = listaAcc;
     }
@@ -483,7 +489,7 @@ public class ManifestacionesService extends Service {
                         // L4 se rutea por SERVICIOS con nombre real (Ruta Norte/Ruta Sur), no por un
                         // tramo lineal: cuando el texto dice que se CANCELA una de ellas, bloquea sus
                         // estaciones exclusivas (ver bloquearRutaL4).
-                        if (sinServicio) bloquearRutaL4(nlinea, sev, afect);
+                        if (sinServicio) bloquearRutaL4(nlinea, sev, lineaLabel, estado, afect, extraPorEstacionAcc);
                     }
                 } else {
                     continue;
@@ -652,8 +658,18 @@ public class ManifestacionesService extends Service {
      * por la otra ruta. Caso real confirmado: "se cancela el servicio de la ruta sur" -> de Plaza
      * de la República a Moctezuma fuera de servicio (la Ruta Aeropuerto comparte ese mismo trazo
      * ahí, así que ya queda cubierta: rutaL4() agrupa Ruta Sur y Ruta Aeropuerto como "sur").
+     *
+     * <p>Además de bloquear (afect) y cortar el grafo, registra una {@link Manifestaciones.Afectacion}
+     * SINTÉTICA por estación en {@code extra}: el texto real de ServicioMB solo dice "Ruta Sur", sin
+     * nombrar cada parada, así que sin esto {@link Manifestaciones#afectacionEstacion} (usada por la
+     * carta del mapa) no encontraba ningún motivo que mostrar para, p. ej., "Eje Central" -- pese a
+     * que la estación sí quedaba bloqueada/gris (eso lee {@code afect}). {@code extra} es un mapa
+     * APARTE de listaAcc a propósito: si estas ~15 estaciones se agregaran a listaAcc, la tabla de
+     * "Estado del servicio" (que junta el 'lugar' de TODAS las filas de esa línea) terminaría
+     * listando las 15 una por una en vez de solo la fila real scrapeada.
      */
-    private void bloquearRutaL4(int nlinea, String sev, Set<String> afect) {
+    private void bloquearRutaL4(int nlinea, String sev, String lineaLabel, String estado,
+                                Set<String> afect, java.util.Map<String, Manifestaciones.Afectacion> extra) {
         if (nlinea != 4) return;
         boolean cierre = sev.contains("cancela") || sev.contains("bloqueo") || sev.contains("bloquead")
                 || sev.contains("sin servicio") || sev.contains("suspend");
@@ -663,12 +679,15 @@ public class ManifestacionesService extends Service {
         if (!sur && !norte) return;
         Linea l = GtfsRepository.porNumero(this, nlinea);
         if (l == null) return;
+        String info = sur ? "Servicio de la Ruta Sur cancelado" : "Servicio de la Ruta Norte cancelado";
         for (Estacion e : l.estaciones) {
             String nn = Planificador.norm(e.nombre);
             int r = RutasMixtas.rutaL4(nn);
             if (!((sur && r == 2) || (norte && r == 1))) continue;
-            afect.add(Planificador.claveTerminal(nlinea) + "|" + nn);
+            String key = Planificador.claveTerminal(nlinea) + "|" + nn;
+            afect.add(key);
             cortarAlrededor(nlinea, nn);
+            extra.put(key, new Manifestaciones.Afectacion(lineaLabel, nlinea, e.nombre, estado, "", info, false));
         }
     }
 
