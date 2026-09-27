@@ -82,10 +82,8 @@ public final class Config {
 
     /**
      * Banner de AdMob (no invasivo, fijo abajo en todas las pantallas): ayuda a cubrir el costo
-     * de rss.app (feeds de afectaciones de Mexibús/Mexicable). OJO: este es el ID de anuncio DE
-     * PRUEBA que publica Google (no es un secreto) -- hay que cambiarlo por el Ad Unit ID real de
-     * la cuenta de AdMob antes de publicar (junto con el App ID en AndroidManifest.xml), o Google
-     * puede suspender la cuenta por servir anuncios de prueba en producción.
+     * de rss.app (feeds de afectaciones de Mexibús/Mexicable). Ad Unit ID real de la cuenta de
+     * AdMob (GeoMB, Android, unidad tipo banner).
      */
-    public static final String AD_BANNER_UNIT_ID = "ca-app-pub-3940256099942544/6300978111";
+    public static final String AD_BANNER_UNIT_ID = "ca-app-pub-9067864586341510/7340023212";
 }
