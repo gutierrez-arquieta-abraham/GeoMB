@@ -33,6 +33,14 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBVWqLHPP_BgAX0y1qewGY98-zk00McoSo" />
 
+        <!-- AdMob: banner no invasivo para ayudar a cubrir el costo de rss.app (ver Config.java).
+             OJO: este es el App ID DE PRUEBA que publica Google (no es un secreto, está pensado
+             para pegarse tal cual en desarrollo). Hay que cambiarlo por el App ID real de la
+             cuenta de AdMob antes de publicar, o Play Store rechaza la build o AdMob no paga. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+
         <activity
             android:name=".SplashActivity"
             android:exported="true"
