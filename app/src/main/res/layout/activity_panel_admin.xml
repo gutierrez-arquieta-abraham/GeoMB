@@ -5,12 +5,14 @@
      PanelAdminActivity. No es un WebView: los nombres de campo deben calzar exacto con el server. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/panel_admin_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
     android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/panel_admin_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
@@ -64,6 +66,7 @@
             android:id="@+id/scroll_panel_admin_form"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:clipToPadding="false"
             android:visibility="gone">
 
             <LinearLayout
