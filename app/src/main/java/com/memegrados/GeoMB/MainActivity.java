@@ -5,11 +5,12 @@ import android.os.Bundle;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 // ============================================================
 // CLASE    : MainActivity   (extends AppCompatActivity)
@@ -23,7 +24,7 @@ import androidx.fragment.app.Fragment;
 // Reportar], Configuración) según lo que toque el usuario.
 //
 // PUNTOS CLAVE:
-//   - NAV_IDS : los ítems del menú inferior.
+//   - bottomNav (BottomNavigationView) : barra inferior, ítems en res/menu/bottom_nav_menu.xml.
 //   - EXTRA_ABRIR_RUTA : extra para abrir directo el planificador (p. ej. al
 //     tocar la notificación de recorrido).
 //   - EdgeToEdge : dibuja detrás de las barras del sistema (pantalla completa).
@@ -36,11 +37,8 @@ public class MainActivity extends AppCompatActivity {
     /** Extra: abrir directamente el planificador (p.ej. al tocar la notificación de recorrido). */
     public static final String EXTRA_ABRIR_RUTA = "abrir_ruta";
 
-    private static final int[] NAV_IDS = {
-            R.id.nav_mapa, R.id.nav_lineas,
-            R.id.nav_ruta, R.id.nav_llegadas, R.id.nav_acerca
-    };
     private int seleccionadoId = -1;
+    private BottomNavigationView bottomNav;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,15 +96,15 @@ public class MainActivity extends AppCompatActivity {
         Tipografia.aplicarArbol(findViewById(R.id.bottom_nav));   // etiquetas de pestañas
         Traductor.traducirArbol(findViewById(R.id.bottom_nav));
 
-        for (int navId : NAV_IDS) {
-            findViewById(navId).setOnClickListener(v -> seleccionar(v.getId()));
-        }
+        bottomNav = findViewById(R.id.bottom_nav);
+        bottomNav.setOnItemSelectedListener(item -> { seleccionar(item.getItemId()); return true; });
         if (savedInstanceState == null) {
-            if (getIntent() != null && getIntent().getBooleanExtra(EXTRA_ABRIR_RUTA, false)) {
-                seleccionar(R.id.nav_ruta);
-            } else {
-                seleccionar(R.id.nav_mapa);
-            }
+            int inicial = (getIntent() != null && getIntent().getBooleanExtra(EXTRA_ABRIR_RUTA, false))
+                    ? R.id.nav_ruta : R.id.nav_mapa;
+            // setSelectedItemId() no dispara el listener si ese ítem ya está seleccionado por
+            // defecto (el primero del menú): seleccionar() de todos modos es idempotente.
+            bottomNav.setSelectedItemId(inicial);
+            seleccionar(inicial);
         }
     }
 
@@ -115,11 +113,13 @@ public class MainActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         if (intent != null && intent.getBooleanExtra(EXTRA_ABRIR_RUTA, false)) {
+            bottomNav.setSelectedItemId(R.id.nav_ruta);
             seleccionar(R.id.nav_ruta);
         }
     }
 
-    /** Carga el fragmento de la pestaña y actualiza el resaltado de la barra.
+    /** Carga el fragmento de la pestaña. El resaltado del ítem activo/inactivo ya lo maneja
+     *  BottomNavigationView solo (app:itemIconTint/itemTextColor con bottom_nav_color).
      *  commitAllowingStateLoss(): un listener o notificación puede llamar a esto justo cuando la
      *  Activity ya guardó su estado (p. ej. al volver de segundo plano); commit() normal lanza
      *  IllegalStateException en ese caso. Perder esta transacción puntual es inofensivo. */
@@ -130,7 +130,6 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, fragmentDe(id))
                 .commitAllowingStateLoss();
-        pintarBarra(id);
     }
 
     private Fragment fragmentDe(int id) {
@@ -141,21 +140,10 @@ public class MainActivity extends AppCompatActivity {
         return new MapFragment();
     }
 
-    /** Resalta el ítem activo (rojo) y apaga los demás (gris). */
-    private void pintarBarra(int id) {
-        int activo = ContextCompat.getColor(this, R.color.mb_red);
-        int inactivo = ContextCompat.getColor(this, R.color.mb_gray);
-        for (int navId : NAV_IDS) {
-            android.view.ViewGroup item = findViewById(navId);
-            int color = (navId == id) ? activo : inactivo;
-            ((android.widget.ImageView) item.getChildAt(0)).setColorFilter(color);
-            ((android.widget.TextView) item.getChildAt(1)).setTextColor(color);
-        }
-    }
-
     /** Cambia de pestaña desde otros fragments. */
     public void navegarA(int itemId) {
-        seleccionar(itemId);
+        bottomNav.setSelectedItemId(itemId);
+        seleccionar(itemId);   // por si ese ítem ya estaba seleccionado (el listener no dispara)
     }
 
     /** Abre la pantalla de rutas por código (con botón atrás). */
