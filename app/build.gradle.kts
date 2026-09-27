@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
+    implementation(libs.play.services.ads)   // AdMob: banner no invasivo (ver Config.AD_BANNER_UNIT_ID)
 
     // Firebase (login con Google + registro en Firestore)
     implementation(platform("com.google.firebase:firebase-bom:34.16.0"))

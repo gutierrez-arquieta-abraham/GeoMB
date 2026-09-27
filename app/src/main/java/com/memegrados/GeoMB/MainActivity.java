@@ -2,6 +2,7 @@ package com.memegrados.GeoMB;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,6 +11,11 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdSize;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.LoadAdError;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 // ============================================================
@@ -39,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
     private int seleccionadoId = -1;
     private BottomNavigationView bottomNav;
+    private AdView banner;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,6 +113,23 @@ public class MainActivity extends AppCompatActivity {
             bottomNav.setSelectedItemId(inicial);
             seleccionar(inicial);
         }
+        cargarBanner();
+    }
+
+    /** Banner de AdMob no invasivo, fijo abajo en todas las pantallas (ver Config.AD_BANNER_UNIT_ID):
+     *  ayuda a cubrir el costo de rss.app. Arranca oculto (activity_main.xml) y solo se muestra si
+     *  el anuncio realmente carga, para nunca dejar un hueco en blanco sin red o sin relleno. */
+    private void cargarBanner() {
+        banner = findViewById(R.id.ad_banner);
+        banner.setAdSize(AdSize.BANNER);
+        banner.setAdUnitId(Config.AD_BANNER_UNIT_ID);
+        banner.setAdListener(new AdListener() {
+            @Override public void onAdLoaded() { banner.setVisibility(View.VISIBLE); }
+            @Override public void onAdFailedToLoad(@androidx.annotation.NonNull LoadAdError error) {
+                banner.setVisibility(View.GONE);
+            }
+        });
+        try { banner.loadAd(new AdRequest.Builder().build()); } catch (Exception ignore) {}
     }
 
     @Override
@@ -189,5 +213,11 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.fragment_container, PlanificadorFragment.nuevo(destino))
                 .addToBackStack("planificador")
                 .commitAllowingStateLoss();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (banner != null) banner.destroy();   // libera los recursos del SDK de AdMob
+        super.onDestroy();
     }
 }
