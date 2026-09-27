@@ -15,11 +15,15 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import org.json.JSONObject;
 
@@ -99,10 +103,12 @@ public class PanelAdminActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);   // borde a borde (Android 15+)
         setContentView(R.layout.activity_panel_admin);
 
         Tipografia.aplicar((TextView) findViewById(R.id.txt_panel_admin_titulo));
         scrollForm = findViewById(R.id.scroll_panel_admin_form);
+        aplicarInsets();
         prog = findViewById(R.id.prog_panel_admin);
         txtVacio = findViewById(R.id.txt_panel_admin_vacio);
         spLinea = findViewById(R.id.sp_panel_linea);
@@ -122,6 +128,25 @@ public class PanelAdminActivity extends AppCompatActivity {
         String guardado = Modos.certAdminUri(this);
         if (guardado == null) lanzarSelector();
         else pedirPassword(Uri.parse(guardado));
+    }
+
+    /** Inserta el encabezado (fondo colorPrimary) bajo la barra de estado y deja espacio bajo el
+     *  formulario para la barra de navegación, para que el borde a borde (EdgeToEdge) no tape
+     *  contenido en Android 15+. */
+    private void aplicarInsets() {
+        View raiz = findViewById(R.id.panel_admin_root);
+        View header = findViewById(R.id.panel_admin_header);
+        int headerPadTop = header.getPaddingTop();
+        int headerPadStart = header.getPaddingStart();
+        int headerPadEnd = header.getPaddingEnd();
+        ViewCompat.setOnApplyWindowInsetsListener(raiz, (v, insets) -> {
+            Insets sb = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            header.setPaddingRelative(headerPadStart + sb.left, headerPadTop + sb.top,
+                    headerPadEnd + sb.right, header.getPaddingBottom());
+            scrollForm.setPadding(scrollForm.getPaddingLeft() + sb.left, scrollForm.getPaddingTop(),
+                    scrollForm.getPaddingRight() + sb.right, sb.bottom);
+            return insets;
+        });
     }
 
     private void armarFormulario() {
