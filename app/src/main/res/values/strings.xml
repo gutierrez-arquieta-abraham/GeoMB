@@ -95,6 +95,19 @@
     <string name="reporte_sin_camara">No se pudo abrir la cámara</string>
     <string name="reporte_sin_grabadora">No hay una app de grabación de audio</string>
     <string name="reporte_requiere_verificacion">Verifica tu identidad para poder enviar reportes</string>
+
+    <!-- Panel admin de afectaciones (aviso manual, mTLS) — solo visible en modo personalizado -->
+    <string name="reporte_panel_admin_abrir">Panel de afectaciones (admin)</string>
+    <string name="panel_admin_titulo">Panel de afectaciones</string>
+    <string name="panel_admin_cambiar_cert">Cambiar certificado</string>
+    <string name="panel_admin_sin_cert">Importa el certificado (.p12) del panel para continuar</string>
+    <string name="panel_admin_elegir_cert">Selecciona el certificado del panel admin (.p12)</string>
+    <string name="panel_admin_pass_titulo">Certificado del panel admin</string>
+    <string name="panel_admin_pass_msg">Escribe la contraseña del certificado. No se guarda: se pide cada vez que abres el panel.</string>
+    <string name="panel_admin_pass_hint">Contraseña del certificado</string>
+    <string name="panel_admin_pass_entrar">Entrar</string>
+    <string name="panel_admin_cert_error">No se pudo leer el certificado (contraseña incorrecta o archivo inválido)</string>
+    <string name="panel_admin_sin_lector">No se encontró un selector de archivos en este dispositivo</string>
     <string name="verif_titulo">Verificación de identidad</string>
     <string name="verif_pendiente">Para reportar, Metrobús requiere verificar tu identidad con tu identificación oficial y una foto facial (solo se guarda tu nombre). La verificación con proveedor aún no está configurada; puedes continuar en modo pruebas.</string>
     <string name="verif_pruebas">Continuar (pruebas)</string>

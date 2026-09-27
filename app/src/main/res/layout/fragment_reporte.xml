@@ -172,5 +172,17 @@
             android:layout_marginBottom="8dp"
             app:icon="@drawable/ic_route"
             android:text="@string/reporte_enviar" />
+
+        <!-- Panel de afectaciones (admin, mTLS): solo visible en modo personalizado (5 toques
+             al logo en "Acerca de"). Ver ReporteFragment.actualizarPanelAdmin(). -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_panel_admin"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone"
+            app:icon="@drawable/ic_lock"
+            android:text="@string/reporte_panel_admin_abrir" />
     </LinearLayout>
 </ScrollView>

@@ -165,4 +165,17 @@ public final class Modos {
     public static void setAhorroDatos(Context c, boolean v) {
         p(c).edit().putBoolean("ahorro_datos", v).apply();
     }
+
+    // --- Certificado cliente (.p12) del panel admin de afectaciones (mTLS), modo personalizado.
+    // Solo se guarda el URI del archivo (un simple puntero al almacenamiento del propio teléfono,
+    // no un secreto): la CONTRASEÑA del .p12 nunca se persiste, se pide cada vez que se abre el
+    // panel (PanelAdminActivity), igual que exige CLAUDE.md ("nunca tokens/llaves en claro"). ---
+
+    public static String certAdminUri(Context c) {
+        return p(c).getString("cert_admin_uri", null);
+    }
+
+    public static void setCertAdminUri(Context c, String uri) {
+        p(c).edit().putString("cert_admin_uri", uri).apply();
+    }
 }

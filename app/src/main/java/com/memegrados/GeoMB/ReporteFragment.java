@@ -63,6 +63,7 @@ public class ReporteFragment extends Fragment {
     private EditText inEco, inEstacion, inDesc, inInvolucrado, inTel;
     private TextView txtFoto, txtVerificado;
     private View grpUnidad, grpPersonal, grpEstacion;
+    private View btnPanelAdmin;
     private Uri evidenciaUri, capturaPendiente;
     private String modoPendiente;
     private LatLng posReporte;
@@ -137,6 +138,19 @@ public class ReporteFragment extends Fragment {
         v.findViewById(R.id.btn_unidades_cerca).setOnClickListener(x -> capturarUnidadCerca());
         v.findViewById(R.id.btn_foto).setOnClickListener(x -> elegirTipoEvidencia());
         v.findViewById(R.id.btn_enviar).setOnClickListener(x -> enviar());
+
+        btnPanelAdmin = v.findViewById(R.id.btn_panel_admin);
+        btnPanelAdmin.setOnClickListener(x ->
+                startActivity(new Intent(requireContext(), PanelAdminActivity.class)));
+        actualizarPanelAdmin();
+    }
+
+    /** El botón del panel admin (mTLS) solo se ve con el modo personalizado activo -- se
+     *  revisa también en onResume() porque el usuario puede activarlo/desactivarlo en
+     *  "Acerca de" sin salir de la app y volver a este tab. */
+    private void actualizarPanelAdmin() {
+        if (btnPanelAdmin != null)
+            btnPanelAdmin.setVisibility(Modos.personalizado(requireContext()) ? View.VISIBLE : View.GONE);
     }
 
     /** Case por tipo: Unidad(0)=económico; Personal(1)=económico + nombre/cargo; Estación(2)=estación. */
@@ -153,6 +167,7 @@ public class ReporteFragment extends Fragment {
     public void onResume() {
         super.onResume();
         actualizarVerificado();
+        actualizarPanelAdmin();
         intentosVerif = 0;
         pollVerificacion();
     }

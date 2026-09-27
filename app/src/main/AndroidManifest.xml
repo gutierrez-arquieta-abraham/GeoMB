@@ -52,6 +52,12 @@
             android:name=".MainActivity"
             android:exported="false" />
 
+        <!-- Panel admin de afectaciones (aviso manual, mTLS): solo alcanzable desde el modo
+             personalizado (ReporteFragment), nunca desde un intent externo. -->
+        <activity
+            android:name=".PanelAdminActivity"
+            android:exported="false" />
+
         <service
             android:name=".SeguimientoService"
             android:exported="false"

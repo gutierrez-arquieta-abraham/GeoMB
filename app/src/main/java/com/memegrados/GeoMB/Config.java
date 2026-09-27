@@ -29,6 +29,13 @@ public final class Config {
     /** Backend de RESPALDO: si el principal no responde, la app cae aquí (Railway) sola. */
     public static final String FALLBACK_URL = "https://web-production-6a6c6.up.railway.app";
 
+    /**
+     * Panel admin de afectaciones (aviso manual): puerto y ruta dedicados, protegidos con
+     * mTLS (certificado cliente) en vez de token — ver docs/SESION_2026-09_backend.md §7.
+     * Solo alcanzable desde el modo personalizado (5 toques al logo en "Acerca de").
+     */
+    public static final String PANEL_ADMIN_URL = "https://geomb.duckdns.org:8443/admin/afectacion";
+
     /** Rutas relativas que sirve el backend (se usan con failover, ver Backend). */
     public static final String PATH_VEHICLES = "/data/vehicles.json";
     public static final String PATH_ROUTES = "/data/routes.json";
