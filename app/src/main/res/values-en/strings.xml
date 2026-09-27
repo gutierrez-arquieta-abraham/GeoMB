@@ -444,6 +444,9 @@
     <string name="agradecimientos_texto">Thanks to Mexico City Metrobús and to SONDA for the GTFS-Realtime system that makes the live information possible. And to the community of users who help by identifying the units, their companies and models.\n\nProject developed by Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCo-author: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nSpecial thanks:\n\n●Minami Aguilar. (Ideas to improve the map).\n●Manuel Lozano. (To whom I dedicate this project).\n●Augusto Neri. (Proposals for the Metrobús route system).\n●Dante Sifuentes. (Logo designer).\n●To all the operators I know who have supported me since before I was a known figure in the community.\n\nProject dedicated to everyone who has supported me since my beginnings in the public-transit enthusiast community, and dedicated to a figure who inspired me to keep going even when I didn\'t believe in myself, thank you, father.</string>
     <string name="acerca_datos">Arrival times are estimates. Data comes from the Metrobús feed and may vary. GeoMB is not officially affiliated with Mexico City Metrobús.</string>
 
+    <!-- Button to reopen the ad consent form (GDPR/UK), only shown when UMP requires it -->
+    <string name="config_privacidad">Privacy options</string>
+
     <!-- Report a problem WITH THE APP (not the Metrobús service), to the support emails -->
     <string name="config_reportar_app">Report a problem with the app</string>
     <string name="reporte_app_titulo">Report a problem</string>

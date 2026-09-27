@@ -474,6 +474,9 @@
     <string name="agradecimientos_texto">Gracias al Metrobús de la Ciudad de México y a SONDA por el sistema GTFS-Realtime que hace posible la información en vivo. Y a la comunidad de usuarios que colabora identificando las unidades, sus empresas y modelos.\n\nProyecto desarrollado por Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCoautor: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nAgradecimientos especiales:\n\n●Minami Aguilar. (Ideas de mejora para el mapa).\n●Manuel Lozano. (A quien dedico este proyecto).\n●Augusto Neri. (Propuestas en el sistema de rutas de metrobús).\n●Dante Sifuentes. (Diseñador del logo).\n●Equipo Movidram. (Por los logos de las estaciones de Metrobús y Mexibús).\n●Toda la banda de operadores que conozco y que me han apoyado desde antes de ser una figura presente en la comunidad.\n\nProyecto dedicado a todos los que me han apoyado desde mis inicios dentro de la comunidad aficionada al transporte publico y dedicado para una figura que me inspiro a seguir adelante incluso cuando no creia en mi mismo, gracias padre.</string>
     <string name="acerca_datos">Los tiempos de llegada son estimaciones. Los datos provienen del feed del Metrobús y pueden variar. GeoMB no está afiliada oficialmente al Metrobús de la Ciudad de México.</string>
 
+    <!-- Botón para reabrir el formulario de consentimiento de anuncios (GDPR/UK), solo visible si UMP lo requiere -->
+    <string name="config_privacidad">Opciones de privacidad</string>
+
     <!-- Reporte de un problema DE LA APP (no del servicio de Metrobús), a los correos de soporte -->
     <string name="config_reportar_app">Reportar un problema de la app</string>
     <string name="reporte_app_titulo">Reportar un problema</string>

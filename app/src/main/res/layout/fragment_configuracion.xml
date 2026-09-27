@@ -358,6 +358,16 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="@string/config_reportar_app" />
+
+            <!-- Solo visible si UMP determina que el usuario puede revisar su consentimiento (GDPR/UK). -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_privacidad"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/config_privacidad"
+                android:visibility="gone" />
         </LinearLayout>
 
         <!-- Modo personalizado (oculto hasta 5 toques al logo) -->

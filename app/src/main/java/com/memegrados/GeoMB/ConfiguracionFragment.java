@@ -36,6 +36,8 @@ import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.android.ump.ConsentInformation;
+import com.google.android.ump.UserMessagingPlatform;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -121,6 +123,7 @@ public class ConfiguracionFragment extends Fragment {
         view.findViewById(R.id.btn_editar_perfil).setOnClickListener(x -> editarPerfil());
         view.findViewById(R.id.btn_descargar_audios).setOnClickListener(x -> menuAudios());
         view.findViewById(R.id.btn_reportar_app).setOnClickListener(x -> mostrarReporteApp());
+        configurarOpcionesPrivacidad(view);
         configurarSimulador(view);
 
         panel = view.findViewById(R.id.panel_personalizado);
@@ -278,6 +281,21 @@ public class ConfiguracionFragment extends Fragment {
                 iv.setImageDrawable(rd);
             });
         }).start();
+    }
+
+    /** Botón "Opciones de privacidad" (reabre el formulario de consentimiento de anuncios): solo
+     *  se muestra si UMP determina que el usuario está en una región donde puede revisar su
+     *  elección (GDPR/UK), como pide Google al publicar el mensaje de consentimiento. */
+    private void configurarOpcionesPrivacidad(View view) {
+        View btn = view.findViewById(R.id.btn_privacidad);
+        ConsentInformation consentInfo = UserMessagingPlatform.getConsentInformation(requireContext());
+        if (consentInfo.getPrivacyOptionsRequirementStatus()
+                != ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) {
+            return;
+        }
+        btn.setVisibility(View.VISIBLE);
+        btn.setOnClickListener(x -> UserMessagingPlatform.showPrivacyOptionsForm(requireActivity(),
+                formError -> {}));
     }
 
     /**
