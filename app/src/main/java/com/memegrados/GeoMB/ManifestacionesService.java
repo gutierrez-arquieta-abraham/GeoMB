@@ -565,7 +565,11 @@ public class ManifestacionesService extends Service {
         List<Linea> lineas;
         try { lineas = GtfsRepository.getLineas(this); } catch (Exception e) { return; }
 
-        // Rangos "en servicio" por número de línea.
+        // Rangos "en servicio" por número de línea. L4/L7 quedan FUERA: no son troncales lineales
+        // (se rutean por sus SERVICIOS reales -- San Lázaro, Aeropuerto, Alameda, Buenavista...), así
+        // que un rango de ÍNDICES sobre su lista plana de estaciones no representa su topología real.
+        // Caso real: "Servicio de la Ruta Norte de Teatro Blanquita a San Lázaro" arma un rango sin
+        // sentido en L4 y bloqueaba de más ("Ferrocarril de Cintura", ajena al cierre real).
         java.util.Map<Integer, List<int[]>> corridos = new java.util.HashMap<>();
         for (String chunk : seg.split("\\s+y\\s+")) {
             int ap = chunk.indexOf(" a ");
@@ -574,6 +578,7 @@ public class ManifestacionesService extends Service {
             String y = chunk.substring(ap + 3).trim();
             if (x.length() < 3 || y.length() < 3) continue;
             for (Linea l : lineas) {
+                if (porServicios(l.numero)) continue;
                 int ix = idxEstacion(l, x), iy = idxEstacion(l, y);
                 if (ix >= 0 && iy >= 0) {
                     int a = Math.min(ix, iy), b = Math.max(ix, iy);
