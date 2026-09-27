@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -65,6 +67,14 @@ public class ConfiguracionFragment extends Fragment {
     private int taps = 0;
     private long ultimoTap = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    // Reporte de un problema DE LA APP (ver ReporteApp): imagen opcional elegida de la galería.
+    private Uri imagenReporteApp;
+    private TextView txtImagenReporteApp;
+    private final ActivityResultLauncher<String> elegirImagenReporteApp =
+            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+                if (uri != null) fijarImagenReporteApp(uri);
+            });
 
     @Nullable
     @Override
@@ -110,6 +120,7 @@ public class ConfiguracionFragment extends Fragment {
         view.findViewById(R.id.btn_idioma).setOnClickListener(x -> Idiomas.mostrarSelector(requireContext()));
         view.findViewById(R.id.btn_editar_perfil).setOnClickListener(x -> editarPerfil());
         view.findViewById(R.id.btn_descargar_audios).setOnClickListener(x -> menuAudios());
+        view.findViewById(R.id.btn_reportar_app).setOnClickListener(x -> mostrarReporteApp());
         configurarSimulador(view);
 
         panel = view.findViewById(R.id.panel_personalizado);
@@ -575,6 +586,48 @@ public class ConfiguracionFragment extends Fragment {
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    /**
+     * Reporte de un problema DE LA APP (mala información, proceso incompleto, sugerencia…), a
+     * diferencia del reporte de irregularidad del SERVICIO (pestaña "Reportar"). Ver ReporteApp.
+     */
+    private void mostrarReporteApp() {
+        View v = getLayoutInflater().inflate(R.layout.dialog_reporte_app, null, false);
+        Spinner spCat = v.findViewById(R.id.sp_reporte_app_categoria);
+        EditText inDesc = v.findViewById(R.id.in_reporte_app_desc);
+        txtImagenReporteApp = v.findViewById(R.id.txt_reporte_app_imagen);
+        imagenReporteApp = null;
+
+        spCat.setAdapter(adaptador(Arrays.asList(
+                getString(R.string.reporte_app_categoria_mala_info),
+                getString(R.string.reporte_app_categoria_incompleto),
+                getString(R.string.reporte_app_categoria_otro))));
+
+        v.findViewById(R.id.btn_reporte_app_imagen).setOnClickListener(x -> {
+            try {
+                elegirImagenReporteApp.launch("image/*");
+            } catch (Exception e) {
+                Toast.makeText(requireContext(), R.string.panel_admin_sin_lector, Toast.LENGTH_LONG).show();
+            }
+        });
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.reporte_app_titulo)
+                .setView(v)
+                .setPositiveButton(R.string.reporte_app_enviar, (d, w) ->
+                        ReporteApp.enviar(requireContext(), (String) spCat.getSelectedItem(),
+                                inDesc.getText().toString(), imagenReporteApp))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void fijarImagenReporteApp(Uri uri) {
+        imagenReporteApp = uri;
+        if (txtImagenReporteApp == null) return;
+        String nombre = uri.getLastPathSegment();
+        txtImagenReporteApp.setText(getString(R.string.reporte_app_imagen_adjunta, nombre != null ? nombre : "1"));
+        txtImagenReporteApp.setVisibility(View.VISIBLE);
     }
 
     /** Menú de descarga de audios offline: elige línea (o borra todo). */

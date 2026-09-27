@@ -108,6 +108,24 @@
     <string name="panel_admin_pass_entrar">Entrar</string>
     <string name="panel_admin_cert_error">No se pudo leer el certificado (contraseña incorrecta o archivo inválido)</string>
     <string name="panel_admin_sin_lector">No se encontró un selector de archivos en este dispositivo</string>
+    <string name="panel_admin_linea">Línea</string>
+    <string name="panel_admin_estado">Estado</string>
+    <string name="panel_admin_estacion">Estación</string>
+    <string name="panel_admin_estacion_ninguna">-- Estación --</string>
+    <string name="panel_admin_otras_estaciones_hint">Otras estaciones (opcional, separadas por \"y\")</string>
+    <string name="panel_admin_info">Detalle (info)</string>
+    <string name="panel_admin_info_hint">p. ej. debido a inundación a la altura de…, se presenta retraso en el servicio</string>
+    <string name="panel_admin_duracion">Duración del aviso</string>
+    <string name="panel_admin_duracion_hint">Horas (0.5–48); por defecto 7</string>
+    <string name="panel_admin_circuito">Circuito (tramos que SÍ operan) — opcional</string>
+    <string name="panel_admin_circuito_hint">Un tramo por línea: Estación A - Estación B</string>
+    <string name="panel_admin_enviar">Difundir aviso</string>
+    <string name="panel_admin_confirmar_titulo">¿Difundir este aviso?</string>
+    <string name="panel_admin_confirmar_msg">Se enviará una notificación push a TODOS los usuarios y quedará reflejado en el panel de afectaciones. Revisa los datos antes de continuar.</string>
+    <string name="panel_admin_confirmar_enviar">Difundir</string>
+    <string name="panel_admin_faltan_datos">Elige línea y estado</string>
+    <string name="panel_admin_enviado">Enviado: %1$s (línea %2$s)</string>
+    <string name="panel_admin_error_envio">Error: %1$s</string>
     <string name="verif_titulo">Verificación de identidad</string>
     <string name="verif_pendiente">Para reportar, Metrobús requiere verificar tu identidad con tu identificación oficial y una foto facial (solo se guarda tu nombre). La verificación con proveedor aún no está configurada; puedes continuar en modo pruebas.</string>
     <string name="verif_pruebas">Continuar (pruebas)</string>
@@ -455,6 +473,19 @@
     <string name="agradecimientos_titulo">Agradecimientos</string>
     <string name="agradecimientos_texto">Gracias al Metrobús de la Ciudad de México y a SONDA por el sistema GTFS-Realtime que hace posible la información en vivo. Y a la comunidad de usuarios que colabora identificando las unidades, sus empresas y modelos.\n\nProyecto desarrollado por Abraham Gutiérrez — IPN. Instagram: @abr.gt1mb\nCoautor: Joshua Martinez — IPN. Instagram: @josmtz888 \n\nAgradecimientos especiales:\n\n●Minami Aguilar. (Ideas de mejora para el mapa).\n●Manuel Lozano. (A quien dedico este proyecto).\n●Augusto Neri. (Propuestas en el sistema de rutas de metrobús).\n●Dante Sifuentes. (Diseñador del logo).\n●Equipo Movidram. (Por los logos de las estaciones de Metrobús y Mexibús).\n●Toda la banda de operadores que conozco y que me han apoyado desde antes de ser una figura presente en la comunidad.\n\nProyecto dedicado a todos los que me han apoyado desde mis inicios dentro de la comunidad aficionada al transporte publico y dedicado para una figura que me inspiro a seguir adelante incluso cuando no creia en mi mismo, gracias padre.</string>
     <string name="acerca_datos">Los tiempos de llegada son estimaciones. Los datos provienen del feed del Metrobús y pueden variar. GeoMB no está afiliada oficialmente al Metrobús de la Ciudad de México.</string>
+
+    <!-- Reporte de un problema DE LA APP (no del servicio de Metrobús), a los correos de soporte -->
+    <string name="config_reportar_app">Reportar un problema de la app</string>
+    <string name="reporte_app_titulo">Reportar un problema</string>
+    <string name="reporte_app_categoria">Categoría</string>
+    <string name="reporte_app_categoria_mala_info">Mala información</string>
+    <string name="reporte_app_categoria_incompleto">Proceso incompleto</string>
+    <string name="reporte_app_categoria_otro">Otro</string>
+    <string name="reporte_app_descripcion">Descripción</string>
+    <string name="reporte_app_desc_hint">Describe el problema…</string>
+    <string name="reporte_app_adjuntar">Adjuntar captura (opcional)</string>
+    <string name="reporte_app_imagen_adjunta">Captura: %1$s</string>
+    <string name="reporte_app_enviar">Enviar</string>
 
     <!-- Aviso ético (gate) -->
     <string name="aviso_titulo">Aviso de uso responsable</string>

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Panel admin de afectaciones (aviso manual), solo alcanzable desde el modo personalizado.
-     Muestra el formulario REAL del backend (:8443/admin/afectacion) dentro de un WebView que
-     presenta el certificado cliente (mTLS) cuando el servidor lo pide (ver PanelAdminActivity). -->
+     Formulario NATIVO que arma el mismo POST que el panel web del backend (/admin/afectacion en
+     :8443, ver admin_afect.py) y lo manda con el certificado cliente (mTLS), ver
+     PanelAdminActivity. No es un WebView: los nombres de campo deben calzar exacto con el server. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -9,77 +10,159 @@
     android:background="?attr/colorSurface"
     android:orientation="vertical">
 
-        <LinearLayout
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/btn_cerrar_panel_admin"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@android:string/cancel"
+            android:padding="8dp"
+            android:src="@drawable/ic_close_small"
+            app:tint="@color/white" />
+
+        <TextView
+            android:id="@+id/txt_panel_admin_titulo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/panel_admin_titulo"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btn_cambiar_cert_panel_admin"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/panel_admin_cambiar_cert"
+            android:padding="8dp"
+            android:src="@drawable/ic_lock"
+            app:tint="@color/white" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ScrollView
+            android:id="@+id/scroll_panel_admin_form"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView style="@style/ReporteLabel" android:text="@string/panel_admin_linea" />
+
+                <Spinner
+                    android:id="@+id/sp_panel_linea"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp" />
+
+                <TextView style="@style/ReporteLabel" android:text="@string/panel_admin_estado" />
+
+                <Spinner
+                    android:id="@+id/sp_panel_estado"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp" />
+
+                <TextView style="@style/ReporteLabel" android:text="@string/panel_admin_estacion" />
+
+                <Spinner
+                    android:id="@+id/sp_panel_estacion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp" />
+
+                <EditText
+                    android:id="@+id/in_panel_otras_estaciones"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:hint="@string/panel_admin_otras_estaciones_hint"
+                    android:inputType="text"
+                    android:maxLines="1" />
+
+                <TextView style="@style/ReporteLabel" android:text="@string/panel_admin_info" />
+
+                <EditText
+                    android:id="@+id/in_panel_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:hint="@string/panel_admin_info_hint"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:minLines="3" />
+
+                <TextView style="@style/ReporteLabel" android:text="@string/panel_admin_duracion" />
+
+                <EditText
+                    android:id="@+id/in_panel_duracion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/panel_admin_duracion_hint"
+                    android:inputType="numberDecimal"
+                    android:maxLines="1" />
+
+                <TextView style="@style/ReporteLabel" android:text="@string/panel_admin_circuito" />
+
+                <EditText
+                    android:id="@+id/in_panel_circuito"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:hint="@string/panel_admin_circuito_hint"
+                    android:inputType="textMultiLine"
+                    android:minLines="2" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_panel_enviar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    app:icon="@drawable/ic_lock"
+                    android:text="@string/panel_admin_enviar" />
+            </LinearLayout>
+        </ScrollView>
+
+        <ProgressBar
+            android:id="@+id/prog_panel_admin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/txt_panel_admin_vacio"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="4dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="8dp">
-
-            <ImageButton
-                android:id="@+id/btn_cerrar_panel_admin"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@android:string/cancel"
-                android:padding="8dp"
-                android:src="@drawable/ic_close_small"
-                app:tint="@color/white" />
-
-            <TextView
-                android:id="@+id/txt_panel_admin_titulo"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="@string/panel_admin_titulo"
-                android:textColor="@color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <ImageButton
-                android:id="@+id/btn_cambiar_cert_panel_admin"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/panel_admin_cambiar_cert"
-                android:padding="8dp"
-                android:src="@drawable/ic_lock"
-                app:tint="@color/white" />
-        </LinearLayout>
-
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
-            <WebView
-                android:id="@+id/web_panel_admin"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
-
-            <ProgressBar
-                android:id="@+id/prog_panel_admin"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/txt_panel_admin_vacio"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:padding="32dp"
-                android:text="@string/panel_admin_sin_cert"
-                android:textColor="@color/mb_gray"
-                android:visibility="gone" />
-        </FrameLayout>
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:padding="32dp"
+            android:text="@string/panel_admin_sin_cert"
+            android:textColor="@color/mb_gray"
+            android:visibility="gone" />
+    </FrameLayout>
 </LinearLayout>

@@ -350,6 +350,14 @@
                 android:textColor="@color/mb_gray"
                 android:textSize="12sp"
                 android:lineSpacingExtra="2dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_reportar_app"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/config_reportar_app" />
         </LinearLayout>
 
         <!-- Modo personalizado (oculto hasta 5 toques al logo) -->
