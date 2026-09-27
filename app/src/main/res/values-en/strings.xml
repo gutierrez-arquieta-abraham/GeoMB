@@ -101,6 +101,19 @@
     <string name="reporte_sin_camara">Couldn\'t open the camera</string>
     <string name="reporte_sin_grabadora">No audio recorder app available</string>
     <string name="reporte_requiere_verificacion">Verify your identity to submit reports</string>
+
+    <!-- Affectation admin panel (manual notice, mTLS) — only visible in custom mode -->
+    <string name="reporte_panel_admin_abrir">Affectations panel (admin)</string>
+    <string name="panel_admin_titulo">Affectations panel</string>
+    <string name="panel_admin_cambiar_cert">Change certificate</string>
+    <string name="panel_admin_sin_cert">Import the panel\'s certificate (.p12) to continue</string>
+    <string name="panel_admin_elegir_cert">Choose the admin panel\'s certificate (.p12)</string>
+    <string name="panel_admin_pass_titulo">Admin panel certificate</string>
+    <string name="panel_admin_pass_msg">Enter the certificate\'s password. It isn\'t saved: you\'ll be asked every time you open the panel.</string>
+    <string name="panel_admin_pass_hint">Certificate password</string>
+    <string name="panel_admin_pass_entrar">Continue</string>
+    <string name="panel_admin_cert_error">Couldn\'t read the certificate (wrong password or invalid file)</string>
+    <string name="panel_admin_sin_lector">No file picker found on this device</string>
     <string name="verif_titulo">Identity verification</string>
     <string name="verif_pendiente">To report, Metrobús requires verifying your identity with your official ID and a facial photo (only your name is stored). The KYC provider isn\'t configured yet; you can continue in test mode.</string>
     <string name="verif_pruebas">Continue (test)</string>

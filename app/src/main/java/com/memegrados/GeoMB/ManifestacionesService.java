@@ -480,6 +480,10 @@ public class ManifestacionesService extends Service {
                         // operativo en Insurgentes Norte"): ahí SÍ conviene enrutar solo por ese tramo
                         // y dejar bloqueado (inhabilitado) el resto, igual que con un corte total.
                         bloquearTramos(Planificador.norm(info), afect, ambos ? nlinea : 0);
+                        // L4 se rutea por SERVICIOS con nombre real (Ruta Norte/Ruta Sur), no por un
+                        // tramo lineal: cuando el texto dice que se CANCELA una de ellas, bloquea sus
+                        // estaciones exclusivas (ver bloquearRutaL4).
+                        if (sinServicio) bloquearRutaL4(nlinea, sev, afect);
                     }
                 } else {
                     continue;
@@ -637,6 +641,34 @@ public class ManifestacionesService extends Service {
                         Planificador.norm(sm.estaciones[k]), Planificador.norm(sm.estaciones[k + 1]));
                 if (key != null) cortesAcc.add(key);
             }
+        }
+    }
+
+    /**
+     * L4 no es troncal lineal (ver RutasMixtas): cuando el texto de la afectación dice que se
+     * CANCELA una de sus rutas con nombre real (Ruta Norte / Ruta Sur), bloquea las estaciones
+     * EXCLUSIVAS de esa ruta ({@link RutasMixtas#rutaL4}) y corta sus tramos -- deja la troncal
+     * compartida (Buenavista, Delegación Cuauhtémoc, México Tenochtitlan, San Lázaro) en servicio
+     * por la otra ruta. Caso real confirmado: "se cancela el servicio de la ruta sur" -> de Plaza
+     * de la República a Moctezuma fuera de servicio (la Ruta Aeropuerto comparte ese mismo trazo
+     * ahí, así que ya queda cubierta: rutaL4() agrupa Ruta Sur y Ruta Aeropuerto como "sur").
+     */
+    private void bloquearRutaL4(int nlinea, String sev, Set<String> afect) {
+        if (nlinea != 4) return;
+        boolean cierre = sev.contains("cancela") || sev.contains("bloqueo") || sev.contains("bloquead")
+                || sev.contains("sin servicio") || sev.contains("suspend");
+        if (!cierre) return;
+        boolean sur = sev.contains("ruta sur");
+        boolean norte = sev.contains("ruta norte");
+        if (!sur && !norte) return;
+        Linea l = GtfsRepository.porNumero(this, nlinea);
+        if (l == null) return;
+        for (Estacion e : l.estaciones) {
+            String nn = Planificador.norm(e.nombre);
+            int r = RutasMixtas.rutaL4(nn);
+            if (!((sur && r == 2) || (norte && r == 1))) continue;
+            afect.add(Planificador.claveTerminal(nlinea) + "|" + nn);
+            cortarAlrededor(nlinea, nn);
         }
     }
 
