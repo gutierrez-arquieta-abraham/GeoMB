@@ -11,8 +11,8 @@ android {
         applicationId = "com.memegrados.GeoMB"
         minSdk = 24
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.6"
+        versionCode = 22
+        versionName = "1.6.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,8 +41,6 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
-    implementation(libs.play.services.ads)   // AdMob: banner no invasivo (ver Config.AD_BANNER_UNIT_ID)
-    implementation(libs.user.messaging.platform)   // UMP: consentimiento GDPR/UK/US antes de pedir anuncios
 
     // Firebase (login con Google + registro en Firestore)
     implementation(platform("com.google.firebase:firebase-bom:34.16.0"))
