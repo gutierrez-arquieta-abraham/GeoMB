@@ -9,6 +9,10 @@
         android:icon="@drawable/ic_bus"
         android:title="@string/nav_lineas" />
     <item
+        android:id="@+id/nav_ruta"
+        android:icon="@drawable/ic_route"
+        android:title="@string/nav_ruta" />
+    <item
         android:id="@+id/nav_llegadas"
         android:icon="@drawable/ic_bell"
         android:title="@string/nav_servicio" />
