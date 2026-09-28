@@ -50,6 +50,7 @@ public class DescargaVozService extends Service {
     public interface Escucha {
         void avance(int hechos, int total);
         void fin(int descargados, int total);
+        void error(String msg);
     }
 
     private static final String EXTRA_LINEAS = "lineas";
@@ -132,7 +133,16 @@ public class DescargaVozService extends Service {
                     Telemetria.registrarError(DescargaVozService.this, Telemetria.ERR_EXCEPCION, "DescargaVozService.fin", String.valueOf(ex));
                 }
             }
-            @Override public void error(String msg) {}
+            @Override public void error(String msg) {
+                corriendo = false;
+                try {
+                    terminarConError(msg);
+                    Escucha e = escucha;
+                    if (e != null) e.error(msg);
+                } catch (Throwable ex) {
+                    Telemetria.registrarError(DescargaVozService.this, Telemetria.ERR_EXCEPCION, "DescargaVozService.error", String.valueOf(ex));
+                }
+            }
         });
         return START_NOT_STICKY;
     }
@@ -207,6 +217,25 @@ public class DescargaVozService extends Service {
             nm.notify(ID_ONGOING, fin);
         }
         stopForeground(STOP_FOREGROUND_DETACH);   // deja visible el aviso final, ya sin ser "en curso"
+        stopSelf();
+    }
+
+    /** Aborto temprano (sin red real, o varios fallos seguidos a media descarga): deja un aviso
+     *  claro en vez de la notificación de "en curso" colgada para siempre. */
+    private void terminarConError(String msg) {
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm != null) {
+            Notification fin = new NotificationCompat.Builder(this, CANAL)
+                    .setSmallIcon(R.drawable.ic_bus)
+                    .setContentTitle(nombre)
+                    .setContentText(msg)
+                    .setAutoCancel(true)
+                    .setContentIntent(piAbrir())
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .build();
+            nm.notify(ID_ONGOING, fin);
+        }
+        stopForeground(STOP_FOREGROUND_DETACH);
         stopSelf();
     }
 
