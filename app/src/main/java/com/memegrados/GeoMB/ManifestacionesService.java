@@ -456,7 +456,15 @@ public class ManifestacionesService extends Service {
                         String nEst = Planificador.norm(estaciones);
                         if (sinSentido) {
                             // Obstrucción de carril sin dirección: solo se muestra, no bloquea ruteo.
-                        } else if (nEst.contains("linea completa") || nEst.contains("toda la linea")) {
+                        } else if (nEst.contains("linea completa") || nEst.contains("toda la linea")
+                                || (nEst.isEmpty() && terminalSentido != null)) {
+                            // Caso real confirmado: "Por mantenimiento sin servicio en dirección a El
+                            // Caminero" (L1) -- SIN una lista de estaciones puntual en la columna
+                            // "estaciones" (nEst vacío), pero CON un cierre real (sinServicio) y una
+                            // terminal identificada en el texto. Antes esto no marcaba NINGUNA estación
+                            // (ni "línea completa" ni la lista puntual aplicaban): se trata igual que un
+                            // cierre de línea completa, pero terminalSentido ya restringe el bloqueo a
+                            // ESE sentido nada más (ver bloquearNn), no a ambos.
                             if (nlinea > 0) {
                                 Linea l = GtfsRepository.porNumero(this, nlinea);
                                 if (l != null) {
