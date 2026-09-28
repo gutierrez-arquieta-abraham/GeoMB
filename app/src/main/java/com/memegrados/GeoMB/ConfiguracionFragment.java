@@ -725,6 +725,10 @@ public class ConfiguracionFragment extends Fragment {
                 if (isAdded()) Toast.makeText(requireContext(),
                         getString(R.string.audios_listo, ok), Toast.LENGTH_SHORT).show();
             }
+            @Override public void error(String msg) {
+                if (dlg.isShowing()) dlg.dismiss();
+                if (isAdded()) Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show();
+            }
         });
         DescargaVozService.iniciar(requireContext(), lineas, nombre);
     }

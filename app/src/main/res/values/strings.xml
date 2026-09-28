@@ -283,6 +283,7 @@
     <string name="audios_borrados">Audios borrados (%1$d)</string>
     <string name="audios_cancelar">Cancelar descarga</string>
     <string name="audios_en_curso">Ya hay una descarga de audios en curso</string>
+    <string name="audios_sin_red">Sin conexión a internet real: descarga cancelada</string>
     <string name="canal_descarga_audios">Descarga de audios</string>
     <string name="ruta_horario_hoy">🕓 Servicio hoy — %1$s</string>
     <string name="ruta_fuera_horario">⚠ A esta hora podría no circular: %1$s</string>

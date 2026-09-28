@@ -53,6 +53,11 @@ public final class DescargaVoz {
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static volatile boolean cancelar = false;
+    /** Si se acumulan estos fallos SEGUIDOS, se asume que la red murió a media descarga (o nunca
+     *  sirvió) y se aborta el resto -- sin esto, una Wi-Fi "conectada" pero sin internet real (portal
+     *  cautivo, router sin servicio) intentaba las CENTENAS de audios uno por uno, cada uno tardando
+     *  hasta ~23 s en fallar (los timeouts de descargarUno), sintiéndose "trabada" por mucho tiempo. */
+    private static final int FALLOS_SEGUIDOS_ABORTAR = 6;
 
     private DescargaVoz() {}
 
@@ -109,13 +114,25 @@ public final class DescargaVoz {
         final Context app = ctx.getApplicationContext();
         cancelar = false;
         EXEC.execute(() -> {
+            // Falla RÁPIDO si la red activa no tiene internet real (Wi-Fi sin servicio, portal
+            // cautivo, avión, etc.), en vez de intentar las centenas de audios uno por uno.
+            if (!Red.hayInternetReal(app)) {
+                MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
+                return;
+            }
             Set<String> set = new LinkedHashSet<>();
             for (int ln : lineas) set.addAll(textosLinea(app, ln));   // unión sin duplicar
             List<String> textos = new ArrayList<>(set);
-            int total = textos.size(), hechos = 0, ok = 0;
+            int total = textos.size(), hechos = 0, ok = 0, fallosSeguidos = 0;
             for (String t : textos) {
                 if (cancelar) break;
-                try { if (descargarUno(app, t)) ok++; } catch (Exception ignore) {}
+                boolean bien = false;
+                try { bien = descargarUno(app, t); } catch (Exception ignore) {}
+                if (bien) { ok++; fallosSeguidos = 0; }
+                else if (++fallosSeguidos >= FALLOS_SEGUIDOS_ABORTAR) {
+                    MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
+                    return;
+                }
                 hechos++;
                 final int h = hechos;
                 MAIN.post(() -> { if (cb != null) cb.avance(h, total); });

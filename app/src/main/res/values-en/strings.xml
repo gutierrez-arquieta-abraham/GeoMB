@@ -253,6 +253,7 @@
     <string name="audios_borrados">Audios deleted (%1$d)</string>
     <string name="audios_cancelar">Cancel download</string>
     <string name="audios_en_curso">An audio download is already in progress</string>
+    <string name="audios_sin_red">No real internet connection: download canceled</string>
     <string name="canal_descarga_audios">Audio download</string>
     <string name="ruta_horario_hoy">🕓 Service today — %1$s</string>
     <string name="ruta_fuera_horario">⚠ May not be running at this time: %1$s</string>
