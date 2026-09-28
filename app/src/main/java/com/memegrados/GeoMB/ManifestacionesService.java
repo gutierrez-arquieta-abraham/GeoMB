@@ -503,7 +503,7 @@ public class ManifestacionesService extends Service {
                         // L4 se rutea por SERVICIOS con nombre real (Ruta Norte/Ruta Sur), no por un
                         // tramo lineal: cuando el texto dice que se CANCELA una de ellas, bloquea sus
                         // estaciones exclusivas (ver bloquearRutaL4).
-                        if (sinServicio) bloquearRutaL4(nlinea, sev, lineaLabel, estado, afect, extraPorEstacionAcc);
+                        if (sinServicio) bloquearRutaL4(nlinea, sev, info, lineaLabel, estado, afect, extraPorEstacionAcc);
                     }
                 } else {
                     continue;
@@ -682,14 +682,29 @@ public class ManifestacionesService extends Service {
      * "Estado del servicio" (que junta el 'lugar' de TODAS las filas de esa línea) terminaría
      * listando las 15 una por una en vez de solo la fila real scrapeada.
      */
-    private void bloquearRutaL4(int nlinea, String sev, String lineaLabel, String estado,
+    private void bloquearRutaL4(int nlinea, String sev, String infoRaw, String lineaLabel, String estado,
                                 Set<String> afect, java.util.Map<String, Manifestaciones.Afectacion> extra) {
         if (nlinea != 4) return;
         boolean cierre = sev.contains("cancela") || sev.contains("bloqueo") || sev.contains("bloquead")
                 || sev.contains("sin servicio") || sev.contains("suspend");
         if (!cierre) return;
-        boolean sur = sev.contains("ruta sur");
-        boolean norte = sev.contains("ruta norte");
+        // OJO: el texto real suele mencionar LAS DOS rutas en el mismo aviso -- una CORRIENDO
+        // ("Servicio de la ruta sur de San Pablo a San Lázaro") y otra CANCELADA ("Se cancela ruta
+        // norte..."). Buscar "ruta sur"/"ruta norte" en TODO el texto junto (sev) hacía que ambas
+        // salieran "true" y se bloquearan LAS DOS -- el bug real reportado: servicio provisional
+        // vigente en una ruta, pero la app lo mandaba como "sin servicio" también ahí. Por eso aquí
+        // se revisa cada ORACIÓN de infoRaw por separado (separadas por '.'/'·', ANTES de perder la
+        // puntuación con norm()) y solo se marca cancelada la ruta cuyo nombre aparece en la MISMA
+        // oración que la palabra de cierre.
+        boolean sur = false, norte = false;
+        for (String frase : infoRaw.split("[.·]")) {
+            String nf = Planificador.norm(frase);
+            boolean cierreFrase = nf.contains("cancela") || nf.contains("bloqueo") || nf.contains("bloquead")
+                    || nf.contains("sin servicio") || nf.contains("suspend");
+            if (!cierreFrase) continue;
+            if (nf.contains("ruta sur")) sur = true;
+            if (nf.contains("ruta norte")) norte = true;
+        }
         if (!sur && !norte) return;
         Linea l = GtfsRepository.porNumero(this, nlinea);
         if (l == null) return;
