@@ -175,6 +175,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private ViewGroup cartaContainer;
     private CartaUnidad.Vistas cartaVistas;
     private String ecoCartaActual;   // económico mostrado en la tarjeta flotante
+    private View panelZoom;   // controles de zoom/brújula/ubicación (ver ajustarPanelZoom())
 
     private final ActivityResultLauncher<String> permisoUbicacionCarta =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> {
@@ -222,6 +223,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         view.findViewById(R.id.btn_ubicacion).setOnClickListener(v -> irAMiUbicacion());
 
         cartaContainer = view.findViewById(R.id.map_carta_container);
+        panelZoom = view.findViewById(R.id.panel_zoom);
 
         // Buscador inline: busca el económico y centra el mapa en la unidad.
         EditText inputMapa = view.findViewById(R.id.input_mapa);
@@ -918,6 +920,37 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Oculta la tarjeta flotante (unidad o estación) sobre el mapa. */
     private void ocultarCarta() {
         if (cartaContainer != null) cartaContainer.setVisibility(View.GONE);
+        ajustarPanelZoom();
+    }
+
+    /**
+     * El panel de zoom/brújula/ubicación está centrado verticalmente en pantalla (fragment_map.xml),
+     * pero la tarjeta flotante de unidad/estación crece hacia arriba desde abajo y su alto varía
+     * según el contenido (hasta 300dp) -- con una tarjeta alta, ambos se traslapan. En vez de fijar
+     * un desplazamiento a ojo, se miden las posiciones reales ya con el layout resuelto (por eso el
+     * post()) y solo se sube el panel lo que haga falta para dejar de encimarse; sin tarjeta visible
+     * (o si no se traslapan) vuelve a su lugar original.
+     */
+    private void ajustarPanelZoom() {
+        if (panelZoom == null) return;
+        panelZoom.post(() -> {
+            if (!isAdded() || panelZoom.getHeight() == 0) return;
+            float desplazamiento = 0f;
+            if (cartaContainer != null && cartaContainer.getVisibility() == View.VISIBLE
+                    && cartaContainer.getHeight() > 0) {
+                int[] posPanel = new int[2];
+                int[] posCarta = new int[2];
+                panelZoom.getLocationOnScreen(posPanel);
+                cartaContainer.getLocationOnScreen(posCarta);
+                int panelInferior = posPanel[1] + panelZoom.getHeight();
+                int cartaSuperior = posCarta[1];
+                if (panelInferior > cartaSuperior) {
+                    float aire = 12f * panelZoom.getResources().getDisplayMetrics().density;
+                    desplazamiento = -(panelInferior - cartaSuperior) - aire;
+                }
+            }
+            panelZoom.animate().translationY(desplazamiento).setDuration(150).start();
+        });
     }
 
     /**
@@ -975,6 +1008,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         btnCerrar.setVisibility(View.VISIBLE);
         btnCerrar.setOnClickListener(b -> ocultarCarta());
         cartaContainer.setVisibility(View.VISIBLE);
+        ajustarPanelZoom();
         LatLng posUnidad = u != null ? u.posicion : null;
         if (posUnidad == null) {
             Marker mUnidad = marcadoresUnidad.get(eco);
@@ -1040,6 +1074,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         CartaEstacion.bind(requireContext(), vistas, em.e, em.linea, em.color);
         v.findViewById(R.id.btn_cerrar_carta_estacion).setOnClickListener(b -> ocultarCarta());
         cartaContainer.setVisibility(View.VISIBLE);
+        ajustarPanelZoom();
         if (em.pos != null) destelloEstacion(em.pos, em.color);   // resalta el marcador seleccionado
     }
 
@@ -1432,6 +1467,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cartaContainer = null;
         cartaVistas = null;
         ecoCartaActual = null;
+        panelZoom = null;
         super.onDestroyView();
     }
 }
