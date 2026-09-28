@@ -88,16 +88,21 @@ public class MainActivity extends AppCompatActivity {
             if (Perfil.movilidadReducida(this)) fm.subscribeToTopic("elevadores");
             else fm.unsubscribeFromTopic("elevadores");
         } catch (Exception ignore) {}
-        // Con EdgeToEdge activo, el sistema YA NO redimensiona solo la pantalla cuando aparece el
-        // teclado -- hay que consumir el inset ime() a mano. IMPORTANTE: NO combinar esto con
-        // android:windowSoftInputMode="adjustResize" en el manifiesto: se probó y el resize físico
-        // de adjustResize se SUMA a este padding manual (el teclado se restaba dos veces), dejando
-        // media pantalla en blanco. Sin esto, en cambio, el teclado se sobreponía a los campos de
-        // texto en vez de empujar el contenido hacia arriba (Planificador, Reportar, buscador del Mapa).
+        // El teclado se sobreponía a los campos de texto (Planificador, Reportar, buscador del
+        // Mapa) en vez de empujar la pantalla hacia arriba. Se probaron dos variantes y ambas
+        // fallaron por separado:
+        //  1) SOLO padding manual con el inset ime() (sin adjustResize): en este dispositivo el
+        //     inset ime() nunca llegaba con datos reales sin adjustResize, así que el padding
+        //     jamás se aplicaba y el overlap seguía igual que sin el fix.
+        //  2) adjustResize + el MISMO padding manual: adjustResize YA encoge físicamente la
+        //     ventana con el alto del teclado, así que sumarle el padding lo restaba DOS veces,
+        //     dejando media pantalla en blanco.
+        // La combinación que sí funciona es adjustResize (ver AndroidManifest.xml) SIN padding
+        // extra por el teclado -- el resize físico de adjustResize ya hace todo el trabajo; aquí
+        // solo se aplican las barras del sistema (edge-to-edge).
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, Math.max(systemBars.bottom, ime.bottom));
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
