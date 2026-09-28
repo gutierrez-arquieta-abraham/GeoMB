@@ -89,9 +89,11 @@ public class MainActivity extends AppCompatActivity {
             else fm.unsubscribeFromTopic("elevadores");
         } catch (Exception ignore) {}
         // Con EdgeToEdge activo, el sistema YA NO redimensiona solo la pantalla cuando aparece el
-        // teclado (el comportamiento de windowSoftInputMode="adjustResize" hay que hacerlo a mano
-        // con el inset ime()) -- sin esto, el teclado se sobreponía a los campos de texto en vez de
-        // empujar el contenido hacia arriba (Planificador, Reportar, buscador del Mapa, etc.).
+        // teclado -- hay que consumir el inset ime() a mano. IMPORTANTE: NO combinar esto con
+        // android:windowSoftInputMode="adjustResize" en el manifiesto: se probó y el resize físico
+        // de adjustResize se SUMA a este padding manual (el teclado se restaba dos veces), dejando
+        // media pantalla en blanco. Sin esto, en cambio, el teclado se sobreponía a los campos de
+        // texto en vez de empujar el contenido hacia arriba (Planificador, Reportar, buscador del Mapa).
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
