@@ -88,9 +88,14 @@ public class MainActivity extends AppCompatActivity {
             if (Perfil.movilidadReducida(this)) fm.subscribeToTopic("elevadores");
             else fm.unsubscribeFromTopic("elevadores");
         } catch (Exception ignore) {}
+        // Con EdgeToEdge activo, el sistema YA NO redimensiona solo la pantalla cuando aparece el
+        // teclado (el comportamiento de windowSoftInputMode="adjustResize" hay que hacerlo a mano
+        // con el inset ime()) -- sin esto, el teclado se sobreponía a los campos de texto en vez de
+        // empujar el contenido hacia arriba (Planificador, Reportar, buscador del Mapa, etc.).
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, Math.max(systemBars.bottom, ime.bottom));
             return insets;
         });
 
