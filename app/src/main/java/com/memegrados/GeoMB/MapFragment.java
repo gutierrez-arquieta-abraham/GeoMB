@@ -156,6 +156,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     }
                 }
             });
+            // Bloqueos/avisos de Mexibús del backend: sin esto, la tarjeta de una estación Mexibús
+            // (CartaEstacion) nunca mostraba el aviso "⚠ ..." si el usuario no había visitado antes
+            // Llegadas o Planificador (las únicas pantallas que llamaban a refrescar() esto).
+            if (isAdded()) {
+                AfectacionesMexibus.refrescar(requireContext(),
+                        () -> { if (isAdded() && mapa != null) actualizarEstadoEstaciones(); });
+            }
             handler.postDelayed(this, Red.intervalo(getContext(), Modos.mapaRefrescoMs(getContext())));
         }
     };
