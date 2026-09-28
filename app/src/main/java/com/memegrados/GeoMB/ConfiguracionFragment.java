@@ -273,12 +273,14 @@ public class ConfiguracionFragment extends Fragment {
             Bitmap fondo = bmp;
             handler.post(() -> {
                 if (!isAdded()) return;   // el fragmento ya no está en pantalla
-                RoundedBitmapDrawable rd = RoundedBitmapDrawableFactory.create(getResources(), fondo);
-                rd.setCircular(true);
-                iv.setPadding(0, 0, 0, 0);
-                iv.setBackground(null);
-                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                iv.setImageDrawable(rd);
+                try {
+                    RoundedBitmapDrawable rd = RoundedBitmapDrawableFactory.create(getResources(), fondo);
+                    rd.setCircular(true);
+                    iv.setPadding(0, 0, 0, 0);
+                    iv.setBackground(null);
+                    iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    iv.setImageDrawable(rd);
+                } catch (Exception ignore) {}
             });
         }).start();
     }

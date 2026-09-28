@@ -234,17 +234,21 @@ public class PanelAdminActivity extends AppCompatActivity {
             }
             final KeyStore ksf = ks;
             main.post(() -> {
-                prog.setVisibility(View.GONE);
-                if (ksf == null) {
-                    Toast.makeText(this, R.string.panel_admin_cert_error, Toast.LENGTH_LONG).show();
-                    txtVacio.setVisibility(View.VISIBLE);
-                    scrollForm.setVisibility(View.GONE);
-                    return;
-                }
-                keyStore = ksf;
-                password = pass.toCharArray();
-                txtVacio.setVisibility(View.GONE);
-                scrollForm.setVisibility(View.VISIBLE);
+                // Si el admin cierra la pantalla mientras carga el .p12, esta Activity ya no existe.
+                if (isFinishing() || isDestroyed()) return;
+                try {
+                    prog.setVisibility(View.GONE);
+                    if (ksf == null) {
+                        Toast.makeText(this, R.string.panel_admin_cert_error, Toast.LENGTH_LONG).show();
+                        txtVacio.setVisibility(View.VISIBLE);
+                        scrollForm.setVisibility(View.GONE);
+                        return;
+                    }
+                    keyStore = ksf;
+                    password = pass.toCharArray();
+                    txtVacio.setVisibility(View.GONE);
+                    scrollForm.setVisibility(View.VISIBLE);
+                } catch (Exception ignore) {}
             });
         }, "panel-admin-cert").start();
     }
@@ -318,8 +322,11 @@ public class PanelAdminActivity extends AppCompatActivity {
             }
             final String cuerpof = cuerpo;
             main.post(() -> {
-                prog.setVisibility(View.GONE);
-                mostrarResultado(cuerpof);
+                if (isFinishing() || isDestroyed()) return;
+                try {
+                    prog.setVisibility(View.GONE);
+                    mostrarResultado(cuerpof);
+                } catch (Exception ignore) {}
             });
         }, "panel-admin-post").start();
     }

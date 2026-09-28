@@ -133,30 +133,46 @@ public class PlanificadorFragment extends Fragment {
             if (!isAdded()) return;
             handler.post(() -> {
                 if (progressTrazando != null) progressTrazando.setVisibility(View.GONE);
-                if (isAdded()) alTerminar.accept(res);
+                // alTerminar dibuja la ruta (dibujar()/finalizarTraza()): puede tronar por una carrera
+                // real con el mapa (mapa aún null) o accesos a índices de la ruta calculada.
+                try {
+                    if (isAdded()) alTerminar.accept(res);
+                } catch (Exception e) {
+                    android.content.Context ctx = getContext();
+                    if (ctx != null) Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "PlanificadorFragment.calcularAsync", String.valueOf(e.getMessage()));
+                }
             });
         });
     }
 
     private final Runnable poll = new Runnable() {
         @Override public void run() {
-            RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
-                @Override public void onData(List<UnidadReal> unidades) { revisarUnidad(unidades); dibujarUnidades(unidades); }
-                @Override public void onError(String m) {}
-            });
-            if (recorrido) refrescarRecorridoUI();
-            // La ruta NO se re-traza sola (antes se re-ruteaba al cambiar afectaciones y eso podía
-            // cambiar el trazo, p. ej. mandar toda la vuelta del circuito L2A). Solo se retraza cuando
-            // el usuario toca el botón "Trazar". Aquí únicamente se refresca el aviso de afectación.
-            if (Manifestaciones.actualizado() != ultimaManifest) {
-                ultimaManifest = Manifestaciones.actualizado();
-                if (rutaActiva != null && resAviso != null) {
-                    boolean afect = rutaTieneAfectacion(rutaActiva);
-                    resAviso.setVisibility(afect ? View.VISIBLE : View.GONE);
-                    if (afect) resAviso.setText(getString(R.string.ruta_alterna));
+            // Runnable recurrente (cada pocos segundos): una excepción no atrapada aquí la propaga
+            // el Handler directo al hilo principal (tumba la app) y además detiene el propio
+            // refresco (nunca se llega al postDelayed de abajo). Todo el cuerpo va en try/finally.
+            try {
+                RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
+                    @Override public void onData(List<UnidadReal> unidades) { revisarUnidad(unidades); dibujarUnidades(unidades); }
+                    @Override public void onError(String m) {}
+                });
+                if (recorrido) refrescarRecorridoUI();
+                // La ruta NO se re-traza sola (antes se re-ruteaba al cambiar afectaciones y eso podía
+                // cambiar el trazo, p. ej. mandar toda la vuelta del circuito L2A). Solo se retraza cuando
+                // el usuario toca el botón "Trazar". Aquí únicamente se refresca el aviso de afectación.
+                if (Manifestaciones.actualizado() != ultimaManifest) {
+                    ultimaManifest = Manifestaciones.actualizado();
+                    if (rutaActiva != null && resAviso != null) {
+                        boolean afect = rutaTieneAfectacion(rutaActiva);
+                        resAviso.setVisibility(afect ? View.VISIBLE : View.GONE);
+                        if (afect) resAviso.setText(getString(R.string.ruta_alterna));
+                    }
                 }
+            } catch (Exception e) {
+                android.content.Context ctx = getContext();
+                if (ctx != null) Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "PlanificadorFragment.poll", String.valueOf(e.getMessage()));
+            } finally {
+                if (isAdded()) handler.postDelayed(this, Red.intervalo(getContext(), Modos.mapaRefrescoMs(getContext())));
             }
-            handler.postDelayed(this, Red.intervalo(getContext(), Modos.mapaRefrescoMs(getContext())));
         }
     };
 
@@ -166,8 +182,16 @@ public class PlanificadorFragment extends Fragment {
     private static final long TICK_RECORRIDO_MS = 400L;
     private final Runnable tickRecorrido = new Runnable() {
         @Override public void run() {
-            if (recorrido) refrescarRecorridoUI();
-            handler.postDelayed(this, TICK_RECORRIDO_MS);
+            // Igual que 'poll': corre cada 400 ms, así que una excepción no atrapada tumbaría la app
+            // y además detendría el propio refresco del puntero (nunca se re-agenda a sí mismo).
+            try {
+                if (recorrido) refrescarRecorridoUI();
+            } catch (Exception e) {
+                android.content.Context ctx = getContext();
+                if (ctx != null) Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "PlanificadorFragment.tickRecorrido", String.valueOf(e.getMessage()));
+            } finally {
+                if (isAdded()) handler.postDelayed(this, TICK_RECORRIDO_MS);
+            }
         }
     };
 
@@ -1555,14 +1579,14 @@ public class PlanificadorFragment extends Fragment {
         View root = getView();
         if (root == null || mapa == null) return;
         root.post(() -> {
-            if (!isAdded() || mapa == null) return;
-            int arriba = (panelEstaciones.getVisibility() == View.VISIBLE
-                    ? panelEstaciones.getBottom() : panelOrigen.getBottom());
-            int abajo = panelResultado.getVisibility() == View.VISIBLE
-                    ? root.getHeight() - panelResultado.getTop() : 0;
-            int m = (int) (16 * getResources().getDisplayMetrics().density);
-            mapa.setPadding(m, arriba + m, m, abajo + m);
             try {
+                if (!isAdded() || mapa == null) return;
+                int arriba = (panelEstaciones.getVisibility() == View.VISIBLE
+                        ? panelEstaciones.getBottom() : panelOrigen.getBottom());
+                int abajo = panelResultado.getVisibility() == View.VISIBLE
+                        ? root.getHeight() - panelResultado.getTop() : 0;
+                int m = (int) (16 * getResources().getDisplayMetrics().density);
+                mapa.setPadding(m, arriba + m, m, abajo + m);
                 mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(limites, m));
             } catch (Exception ignore) {}
         });

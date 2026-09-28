@@ -328,22 +328,25 @@ public class RecorridoService extends Service {
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         crearCanal();
         tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS && tts != null) {
-                tts.setLanguage(new Locale("es", "MX"));
-                tts.setAudioAttributes(new android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build());               // mismo canal que el tururu, voz audible
-                seleccionarVozFemenina();     // mejor aproximación a "Ximena" con el motor instalado
-                tts.setSpeechRate(0.98f);
-                tts.setPitch(1.05f);          // timbre ligeramente más agudo (femenino)
-                tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
-                    @Override public void onStart(String id) {}
-                    @Override public void onDone(String id) { handler.post(RecorridoService.this::vozTerminada); }
-                    @Override public void onError(String id) { handler.post(RecorridoService.this::vozTerminada); }
-                });
-                ttsListo = true;
-            }
+            // Callback async de inicialización de TextToSpeech, sin protección hasta ahora.
+            try {
+                if (status == TextToSpeech.SUCCESS && tts != null) {
+                    tts.setLanguage(new Locale("es", "MX"));
+                    tts.setAudioAttributes(new android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build());               // mismo canal que el tururu, voz audible
+                    seleccionarVozFemenina();     // mejor aproximación a "Ximena" con el motor instalado
+                    tts.setSpeechRate(0.98f);
+                    tts.setPitch(1.05f);          // timbre ligeramente más agudo (femenino)
+                    tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+                        @Override public void onStart(String id) {}
+                        @Override public void onDone(String id) { handler.post(() -> { try { vozTerminada(); } catch (Exception ignore) {} }); }
+                        @Override public void onError(String id) { handler.post(() -> { try { vozTerminada(); } catch (Exception ignore) {} }); }
+                    });
+                    ttsListo = true;
+                }
+            } catch (Exception ignore) {}
         });
     }
 

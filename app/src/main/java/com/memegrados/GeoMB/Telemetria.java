@@ -207,7 +207,8 @@ public final class Telemetria {
         Context app = c.getApplicationContext();
         ioSeguro(() -> {
             List<EconomicoFavoritoEntity> lista = db(app).economicoFavoritoDao().listar();
-            MAIN.post(() -> cb.listo(lista));
+            // cb.listo corre en el post() al hilo principal, ya fuera del try/catch de ioSeguro.
+            MAIN.post(() -> { try { cb.listo(lista); } catch (Exception ignore) {} });
         });
     }
 
@@ -215,7 +216,7 @@ public final class Telemetria {
         Context app = c.getApplicationContext();
         ioSeguro(() -> {
             boolean si = economico != null && db(app).economicoFavoritoDao().existe(economico);
-            MAIN.post(() -> cb.accept(si));
+            MAIN.post(() -> { try { cb.accept(si); } catch (Exception ignore) {} });
         });
     }
 }
