@@ -83,7 +83,9 @@ public final class Config {
     /**
      * Banner de AdMob (no invasivo, fijo abajo en todas las pantallas): ayuda a cubrir el costo
      * de rss.app (feeds de afectaciones de Mexibús/Mexicable). Ad Unit ID real de la cuenta de
-     * AdMob (GeoMB, Android, unidad tipo banner).
+     * AdMob (GeoMB, Android, unidad tipo banner). DEBE coincidir con
+     * res/values/strings.xml#ad_banner_unit_id (el AdView lo necesita como recurso XML, ver
+     * activity_main.xml) -- si se cambia aquí, cambiar también allá.
      */
     public static final String AD_BANNER_UNIT_ID = "ca-app-pub-9067864586341510/7340023212";
 }
