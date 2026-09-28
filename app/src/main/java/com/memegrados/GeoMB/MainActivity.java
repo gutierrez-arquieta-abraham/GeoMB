@@ -148,10 +148,20 @@ public class MainActivity extends AppCompatActivity {
 
     /** Inicializa el SDK de anuncios y carga el banner. Protegido con AtomicBoolean porque
      *  gestionarConsentimientoAds() puede llamarlo desde dos caminos (el chequeo inmediato y el
-     *  callback async) y esto NUNCA debe correr dos veces. */
+     *  callback async) y esto NUNCA debe correr dos veces.
+     *
+     *  El try-catch de cargarBanner() va DENTRO del callback, no envolviendo initialize(): el SDK
+     *  entrega ese callback en un Handler.post() posterior (confirmado en el stack trace de los
+     *  crashes anteriores), así que un try-catch de afuera ya no está "activo" para cuando corre.
+     *  Esto blinda contra cualquier comportamiento inesperado el día que AdMob apruebe la cuenta y
+     *  empiece a servir anuncios reales de producción, no solo los errores ya conocidos. */
     private void inicializarAds() {
         if (!adsInicializado.compareAndSet(false, true)) return;
-        try { MobileAds.initialize(this, i -> cargarBanner()); } catch (Exception ignore) {}
+        try {
+            MobileAds.initialize(this, initStatus -> {
+                try { cargarBanner(); } catch (Exception ignore) {}
+            });
+        } catch (Exception ignore) {}
     }
 
     /** Banner de AdMob no invasivo, fijo abajo en todas las pantallas (ver Config.AD_BANNER_UNIT_ID):
