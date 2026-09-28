@@ -1190,6 +1190,14 @@ public class RecorridoService extends Service {
             int ia = Horarios.idxEnLinea(l, seq.get(i).nombre);
             int ib = Horarios.idxEnLinea(l, seq.get(fin).nombre);
             if (ia >= 0 && ib >= 0 && ia != ib) {
+                // Preferir el nombre CANÓNICO de terminal (Planificador.terminales, curado a mano)
+                // sobre el nombre crudo de la primera/última estación registrada en los datos de la
+                // línea: en un exprés ese extremo puede ser un andén intermedio compartido con otra
+                // línea (p. ej. "Puente de Fierro" en Mexibús L2 Exprés) en vez de la terminal real
+                // ("Ecatepec"), que es justo lo que ya usa el texto en pantalla -- la voz decía el
+                // nombre equivocado. Si la línea no está en la tabla canónica, cae al respaldo de siempre.
+                String[] canon = Planificador.terminales(p.linea);
+                if (canon != null) return Horarios.nomNombre(ib > ia ? canon[1] : canon[0]);
                 Estacion term = ib > ia ? l.estaciones.get(l.estaciones.size() - 1) : l.estaciones.get(0);
                 return Horarios.nomNombre(term.nombre);
             }
