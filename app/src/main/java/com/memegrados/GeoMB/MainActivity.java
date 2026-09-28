@@ -13,7 +13,6 @@ import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
@@ -160,8 +159,8 @@ public class MainActivity extends AppCompatActivity {
      *  el anuncio realmente carga, para nunca dejar un hueco en blanco sin red o sin relleno. */
     private void cargarBanner() {
         banner = findViewById(R.id.ad_banner);
-        banner.setAdSize(AdSize.BANNER);
-        banner.setAdUnitId(Config.AD_BANNER_UNIT_ID);
+        // adSize/adUnitId van en el XML (activity_main.xml): fijarlos aquí también revienta con
+        // "The ad size/ad unit ID can only be set once on AdView" (AdMob no permite fijarlos 2 veces).
         banner.setAdListener(new AdListener() {
             @Override public void onAdLoaded() { banner.setVisibility(View.VISIBLE); }
             @Override public void onAdFailedToLoad(@androidx.annotation.NonNull LoadAdError error) {
