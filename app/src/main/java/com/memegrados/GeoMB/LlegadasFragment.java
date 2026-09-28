@@ -356,12 +356,16 @@ public class LlegadasFragment extends Fragment {
         String estaciones;  // estaciones afectadas
     }
 
-    /** Concatena dos textos con " · " omitiendo vacíos/duplicados. */
+    /** Concatena dos textos con " · " omitiendo vacíos/duplicados. La página oficial suele partir
+     *  un solo incidente en varias filas casi idénticas (mismo motivo, con o sin punto final,
+     *  mayúsculas distintas, etc.), así que el duplicado se detecta NORMALIZADO (sin acentos,
+     *  minúsculas, sin puntuación) en vez de comparar el texto literal -- si no, se repetía el
+     *  mismo aviso dos veces en el panel de Llegadas (p. ej. "por mantenimiento..." dos veces). */
     private static String juntar(String a, String b) {
         if (b == null || b.trim().isEmpty()) return a;
         b = b.trim();
         if (a == null || a.isEmpty()) return b;
-        if (a.contains(b)) return a;
+        if (Planificador.norm(a).contains(Planificador.norm(b))) return a;
         return a + " · " + b;
     }
 
