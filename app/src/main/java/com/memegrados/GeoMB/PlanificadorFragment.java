@@ -72,6 +72,7 @@ public class PlanificadorFragment extends Fragment {
     private FusedLocationProviderClient loc;
     private EditText inOrigen, inDestino;
     private View panelResultado, panelEstaciones, panelOrigen;
+    private View panelZoomRuta;   // controles de zoom/brújula (ver ajustarPanelZoomRuta())
     private View panelOdExpandido, panelOdColapsado, btnContraerOd;
     private TextView txtOdColapsado;
     private View panelResultadoDetalle, filaResultadoResumen;
@@ -195,6 +196,7 @@ public class PlanificadorFragment extends Fragment {
         panelResultado = view.findViewById(R.id.panel_resultado);
         panelEstaciones = view.findViewById(R.id.panel_estaciones);
         panelOrigen = view.findViewById(R.id.panel_origen_destino);
+        panelZoomRuta = view.findViewById(R.id.panel_zoom_ruta);
         panelOdExpandido = view.findViewById(R.id.panel_od_expandido);
         panelOdColapsado = view.findViewById(R.id.panel_od_colapsado);
         txtOdColapsado = view.findViewById(R.id.txt_od_colapsado);
@@ -991,6 +993,7 @@ public class PlanificadorFragment extends Fragment {
         // deslizador de estaciones (arriba) + chips de instrucción por tramo (Aborda/Toma · dirección)
         sliderAdapter.set(r.secuencia, r.instrucciones);
         panelEstaciones.setVisibility(r.secuencia.isEmpty() ? View.GONE : View.VISIBLE);
+        ajustarPanelZoomRuta();
         btnContraerOd.setVisibility(View.VISIBLE);   // ya hay ruta: se puede contraer el buscador a mano
         boolean veniaRecorrido = recorrido;
         if (recorrido) detenerRecorrido();
@@ -1516,6 +1519,31 @@ public class PlanificadorFragment extends Fragment {
         if (progresoLine != null) progresoLine.setPoints(hecho);
         else progresoLine = mapa.addPolyline(new PolylineOptions().addAll(hecho)
                 .color(0xFF9E9E9E).width(20f).zIndex(7f));   // gris sólido encima = "ya recorrido" (estilo Maps)
+    }
+
+    /**
+     * Controles de zoom/brújula del planificador: en el XML quedan a la MISMA altura que en el mapa
+     * general (centrados en toda la pantalla, igual que panel_zoom en fragment_map.xml), para que la
+     * posición sea consistente entre pantallas. Solo se ajustan aquí si el panel de estaciones
+     * (arriba) o el de resultado (abajo) están visibles y se traslapan con esa posición base.
+     */
+    private void ajustarPanelZoomRuta() {
+        if (panelZoomRuta == null) return;
+        View root = getView();
+        if (root == null) return;
+        root.post(() -> {
+            if (!isAdded() || panelZoomRuta.getHeight() == 0) return;
+            int limiteArriba = panelEstaciones.getVisibility() == View.VISIBLE ? panelEstaciones.getBottom() : 0;
+            int limiteAbajo = panelResultado.getVisibility() == View.VISIBLE ? panelResultado.getTop() : root.getHeight();
+            int margen = (int) (12 * getResources().getDisplayMetrics().density);
+            float desplazamiento = 0f;
+            if (panelZoomRuta.getTop() < limiteArriba) {
+                desplazamiento = limiteArriba - panelZoomRuta.getTop() + margen;
+            } else if (panelZoomRuta.getBottom() > limiteAbajo) {
+                desplazamiento = -(panelZoomRuta.getBottom() - limiteAbajo) - margen;
+            }
+            panelZoomRuta.animate().translationY(desplazamiento).setDuration(150).start();
+        });
     }
 
     private void encuadrarAhora(LatLngBounds limites) {

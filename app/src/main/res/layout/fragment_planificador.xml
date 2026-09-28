@@ -363,7 +363,10 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Controles de zoom y orientación (izquierda) -->
+    <!-- Controles de zoom y orientación (izquierda): misma altura que panel_zoom en fragment_map.xml
+         (centrados en TODA la pantalla) para que la posición sea consistente entre pantallas.
+         ajustarPanelZoomRuta() en PlanificadorFragment sube/baja el panel en tiempo real solo si el
+         de estaciones (arriba) o el de resultado (abajo) están visibles y se traslapan. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/panel_zoom_ruta"
         android:layout_width="wrap_content"
@@ -372,13 +375,8 @@
         app:cardCornerRadius="22dp"
         app:cardElevation="8dp"
         android:translationZ="8dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/panel_estaciones"
-        app:layout_goneMarginTop="8dp"
-        app:layout_constraintBottom_toTopOf="@id/panel_resultado"
-        app:layout_goneMarginBottom="12dp"
-        app:layout_constrainedHeight="true"
-        app:layout_constraintVertical_bias="1"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
         <LinearLayout
