@@ -1532,17 +1532,22 @@ public class PlanificadorFragment extends Fragment {
         View root = getView();
         if (root == null) return;
         root.post(() -> {
-            if (!isAdded() || panelZoomRuta.getHeight() == 0) return;
-            int limiteArriba = panelEstaciones.getVisibility() == View.VISIBLE ? panelEstaciones.getBottom() : 0;
-            int limiteAbajo = panelResultado.getVisibility() == View.VISIBLE ? panelResultado.getTop() : root.getHeight();
-            int margen = (int) (12 * getResources().getDisplayMetrics().density);
-            float desplazamiento = 0f;
-            if (panelZoomRuta.getTop() < limiteArriba) {
-                desplazamiento = limiteArriba - panelZoomRuta.getTop() + margen;
-            } else if (panelZoomRuta.getBottom() > limiteAbajo) {
-                desplazamiento = -(panelZoomRuta.getBottom() - limiteAbajo) - margen;
-            }
-            panelZoomRuta.animate().translationY(desplazamiento).setDuration(150).start();
+            // Ajuste puramente cosmético: si algo aquí truena (vista desprendida, medidas en 0 por
+            // una carrera con el layout, etc.), nunca debe tumbar la app -- en el peor caso el panel
+            // se queda donde estaba.
+            try {
+                if (!isAdded() || panelZoomRuta.getHeight() == 0) return;
+                int limiteArriba = panelEstaciones.getVisibility() == View.VISIBLE ? panelEstaciones.getBottom() : 0;
+                int limiteAbajo = panelResultado.getVisibility() == View.VISIBLE ? panelResultado.getTop() : root.getHeight();
+                int margen = (int) (12 * getResources().getDisplayMetrics().density);
+                float desplazamiento = 0f;
+                if (panelZoomRuta.getTop() < limiteArriba) {
+                    desplazamiento = limiteArriba - panelZoomRuta.getTop() + margen;
+                } else if (panelZoomRuta.getBottom() > limiteAbajo) {
+                    desplazamiento = -(panelZoomRuta.getBottom() - limiteAbajo) - margen;
+                }
+                panelZoomRuta.animate().translationY(desplazamiento).setDuration(150).start();
+            } catch (Exception ignore) {}
         });
     }
 

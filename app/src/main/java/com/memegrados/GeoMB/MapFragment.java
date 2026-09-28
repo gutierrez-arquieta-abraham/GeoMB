@@ -934,22 +934,27 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private void ajustarPanelZoom() {
         if (panelZoom == null) return;
         panelZoom.post(() -> {
-            if (!isAdded() || panelZoom.getHeight() == 0) return;
-            float desplazamiento = 0f;
-            if (cartaContainer != null && cartaContainer.getVisibility() == View.VISIBLE
-                    && cartaContainer.getHeight() > 0) {
-                int[] posPanel = new int[2];
-                int[] posCarta = new int[2];
-                panelZoom.getLocationOnScreen(posPanel);
-                cartaContainer.getLocationOnScreen(posCarta);
-                int panelInferior = posPanel[1] + panelZoom.getHeight();
-                int cartaSuperior = posCarta[1];
-                if (panelInferior > cartaSuperior) {
-                    float aire = 12f * panelZoom.getResources().getDisplayMetrics().density;
-                    desplazamiento = -(panelInferior - cartaSuperior) - aire;
+            // Ajuste puramente cosmético: cualquier excepción aquí (vista ya desprendida, medidas
+            // en 0 por una carrera con el layout, etc.) nunca debe tumbar la app -- en el peor caso
+            // el panel se queda donde estaba.
+            try {
+                if (!isAdded() || panelZoom.getHeight() == 0) return;
+                float desplazamiento = 0f;
+                if (cartaContainer != null && cartaContainer.getVisibility() == View.VISIBLE
+                        && cartaContainer.getHeight() > 0) {
+                    int[] posPanel = new int[2];
+                    int[] posCarta = new int[2];
+                    panelZoom.getLocationOnScreen(posPanel);
+                    cartaContainer.getLocationOnScreen(posCarta);
+                    int panelInferior = posPanel[1] + panelZoom.getHeight();
+                    int cartaSuperior = posCarta[1];
+                    if (panelInferior > cartaSuperior) {
+                        float aire = 12f * panelZoom.getResources().getDisplayMetrics().density;
+                        desplazamiento = -(panelInferior - cartaSuperior) - aire;
+                    }
                 }
-            }
-            panelZoom.animate().translationY(desplazamiento).setDuration(150).start();
+                panelZoom.animate().translationY(desplazamiento).setDuration(150).start();
+            } catch (Exception ignore) {}
         });
     }
 
