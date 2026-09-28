@@ -17,14 +17,19 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Banner de AdMob (no invasivo, fijo abajo en TODAS las pantallas): ver Config.AD_BANNER_UNIT_ID
-         y MainActivity (adUnitId/adSize se configuran en código, no aquí, para que sea un solo lugar
-         a actualizar). Arranca oculto (visibility="gone"): MainActivity solo lo muestra si el
-         anuncio carga, así nunca deja un hueco en blanco sin red o sin relleno. -->
+         y MainActivity (adUnitId se configura en código, para que sea un solo lugar a actualizar).
+         adSize SÍ debe ir aquí en el XML: el AdView necesita conocer su tamaño desde que se infla
+         (en setContentView, dentro de onCreate), mucho antes de que corra el código de
+         cargarBanner() (que espera a MobileAds.initialize()/UMP), y sin este atributo revienta
+         con "Required XML attribute adSize was missing" al primer layout. Arranca oculto
+         (visibility="gone"): MainActivity solo lo muestra si el anuncio carga, así nunca deja un
+         hueco en blanco sin red o sin relleno. -->
     <com.google.android.gms.ads.AdView
         android:id="@+id/ad_banner"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
+        app:adSize="BANNER"
         app:layout_constraintBottom_toTopOf="@id/bottom_nav"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
