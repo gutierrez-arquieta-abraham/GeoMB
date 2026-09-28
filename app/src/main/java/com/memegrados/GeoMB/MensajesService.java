@@ -187,20 +187,26 @@ public class MensajesService extends FirebaseMessagingService {
         final String tit = valor(titulo, getString(R.string.push_actualizar_titulo));
         final String cue = valor(texto, getString(R.string.push_actualizar_texto));
         final PendingIntent piFin = pi;
-        // Contenido dinámico: traduce al idioma efectivo (ML Kit) y luego notifica.
+        // Contenido dinámico: traduce al idioma efectivo (ML Kit) y luego notifica. Corre en el
+        // callback ASÍNCRONO de Traductor.traducirTexto, fuera del try/catch de onMessageReceived
+        // (mismo motivo que emitirAfectacion): necesita su propia protección.
         Traductor.traducirTexto(this, tit, titT ->
                 Traductor.traducirTexto(this, cue, cueT -> {
-                    Notification n = new NotificationCompat.Builder(this, CANAL_ACT)
-                            .setSmallIcon(R.drawable.ic_bus)
-                            .setContentTitle(titT)
-                            .setContentText(cueT)
-                            .setStyle(new NotificationCompat.BigTextStyle().bigText(cueT))
-                            .setAutoCancel(true)
-                            .setContentIntent(piFin)
-                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                            .build();
-                    NotificationManager nm = getSystemService(NotificationManager.class);
-                    if (nm != null) nm.notify(ID_ACT, n);
+                    try {
+                        Notification n = new NotificationCompat.Builder(this, CANAL_ACT)
+                                .setSmallIcon(R.drawable.ic_bus)
+                                .setContentTitle(titT)
+                                .setContentText(cueT)
+                                .setStyle(new NotificationCompat.BigTextStyle().bigText(cueT))
+                                .setAutoCancel(true)
+                                .setContentIntent(piFin)
+                                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                                .build();
+                        NotificationManager nm = getSystemService(NotificationManager.class);
+                        if (nm != null) nm.notify(ID_ACT, n);
+                    } catch (Throwable t) {
+                        Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "MensajesService.notificarActualizacion", String.valueOf(t));
+                    }
                 }));
     }
 

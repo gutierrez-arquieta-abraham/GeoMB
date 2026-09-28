@@ -89,7 +89,7 @@ public final class DiditKYC {
             } finally {
                 if (c != null) c.disconnect();
             }
-            main.post(() -> cb.onEstado(verif[0], nom[0]));
+            main.post(() -> { try { cb.onEstado(verif[0], nom[0]); } catch (Exception ignore) {} });
         }, "didit-status").start();
     }
 

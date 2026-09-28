@@ -183,23 +183,37 @@ public class ManifestacionesService extends Service {
         handler.postDelayed(tick, INTERVALO_MS);
     }
 
-    /** Fase 0 listo: elevadores + mantenimiento. Actualiza el estado (para la app) y va por el Estado del Servicio. */
+    /** Fase 0 listo: elevadores + mantenimiento. Actualiza el estado (para la app) y va por el Estado del Servicio.
+     *  Corre en el callback ASÍNCRONO de evaluateJavascript (fuera de cualquier try/catch de arriba), y
+     *  procesarFilas() depende del HTML real de una página externa que puede cambiar sin aviso -- si
+     *  truena, no debe dejar el servicio bloqueado (cargando=true para siempre). */
     private void onTablas(String jsonValue) {
-        procesarFilas(jsonValue);
-        guardarStore();                              // panel en la app se actualiza siempre
+        try {
+            procesarFilas(jsonValue);
+            guardarStore();                              // panel en la app se actualiza siempre
+        } catch (Exception e) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ManifestacionesService.onTablas", String.valueOf(e.getMessage()));
+        }
         fase = 1;
         if (web != null) web.loadUrl(URL_ESTADO);
         handler.removeCallbacks(seguridad);
         handler.postDelayed(seguridad, 15000);       // si el iframe no responde, no bloquear el ciclo
     }
 
-    /** Fase 1 listo: Estado del Servicio. Actualiza el estado y decide qué notificar. */
+    /** Fase 1 listo: Estado del Servicio. Actualiza el estado y decide qué notificar. Mismo motivo que
+     *  onTablas: procesarFilas()/notificar() no deben tumbar el servicio, y cargando debe liberarse
+     *  siempre (si no, el ciclo de refresco queda bloqueado para siempre). */
     private void onEstado(String jsonValue) {
         handler.removeCallbacks(seguridad);
-        procesarFilas(jsonValue);
-        guardarStore();
-        notificar();
-        cargando = false;
+        try {
+            procesarFilas(jsonValue);
+            guardarStore();
+            notificar();
+        } catch (Exception e) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ManifestacionesService.onEstado", String.valueOf(e.getMessage()));
+        } finally {
+            cargando = false;
+        }
     }
 
     /** Actualiza el estado compartido (panel en la app + ruteo). NO notifica. */

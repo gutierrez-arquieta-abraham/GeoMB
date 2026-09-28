@@ -431,17 +431,21 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // del tooltip genérico de arriba -- unifica el resultado con el buscador de la pestaña
         // Buscar (CartaUnidad) y le da a las estaciones el mismo trato (CartaEstacion).
         mapa.setOnMarkerClickListener(m -> {
-            String eco = numeroDeMarcador(m);
-            if (eco != null) {
-                mostrarCartaUnidad(eco, RealtimeRepository.get().buscar(eco));
-                return true;
-            }
-            EstMapa em = estacionDeMarcador(m);
-            if (em != null) {
-                mostrarCartaEstacion(em);
-                return true;
-            }
-            return false;   // marcador no reconocido: comportamiento por defecto (tooltip)
+            // Listener nativo del SDK de Maps, se dispara en cada toque de marcador: una excepción no
+            // atrapada aquí tumba la app en la interacción más frecuente de esta pantalla.
+            try {
+                String eco = numeroDeMarcador(m);
+                if (eco != null) {
+                    mostrarCartaUnidad(eco, RealtimeRepository.get().buscar(eco));
+                    return true;
+                }
+                EstMapa em = estacionDeMarcador(m);
+                if (em != null) {
+                    mostrarCartaEstacion(em);
+                    return true;
+                }
+            } catch (Exception ignore) {}
+            return false;   // marcador no reconocido (o falló): comportamiento por defecto (tooltip)
         });
 
         // El trazado se hace cuando la red ya está en memoria, observando el LiveData del ViewModel.
@@ -449,16 +453,20 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // (sin fugas). getLineas()/getMexibus() dentro de dibujar* son lecturas lock-free ya publicadas.
         red.getMetrobus().observe(getViewLifecycleOwner(), lineas -> {
             if (mapa == null) return;
-            dibujarRed();
-            aplicarSeleccionLinea();
-            crearEstacionesVisibles();
-            aplicarVisibilidadEstaciones();
+            try {
+                dibujarRed();
+                aplicarSeleccionLinea();
+                crearEstacionesVisibles();
+                aplicarVisibilidadEstaciones();
+            } catch (Exception ignore) {}
         });
         red.getMexibus().observe(getViewLifecycleOwner(), lineas -> {
             if (mapa == null) return;
-            dibujarMexibus();
-            crearMexibusVisibles();
-            aplicarVisibilidadEstaciones();
+            try {
+                dibujarMexibus();
+                crearMexibusVisibles();
+                aplicarVisibilidadEstaciones();
+            } catch (Exception ignore) {}
         });
         if (RealtimeRepository.unidadSeleccionada != null) {
             // Viene una unidad del buscador: se centra en ELLA, NO en la estación cercana. Así el
@@ -481,12 +489,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
 
         mapa.setOnCameraIdleListener(() -> {
-            crearEstacionesVisibles();                 // carga estaciones al explorar
-            aplicarVisibilidadEstaciones();
-            crearMexibusVisibles();                    // crea marcadores Mexibús por demanda (no todos al inicio)
-            aplicarMexibus();                          // oculta/mostrar estaciones Mexibús por zoom
-            List<UnidadReal> ultimo = RealtimeRepository.get().getUltimo();
-            if (ultimo != null) actualizarUnidades(ultimo);   // carga unidades del rango visible
+            // Se dispara en cada movimiento de cámara (muy frecuente); igual que el listener de
+            // marcadores, no debe poder tumbar la app.
+            try {
+                crearEstacionesVisibles();                 // carga estaciones al explorar
+                aplicarVisibilidadEstaciones();
+                crearMexibusVisibles();                    // crea marcadores Mexibús por demanda (no todos al inicio)
+                aplicarMexibus();                          // oculta/mostrar estaciones Mexibús por zoom
+                List<UnidadReal> ultimo = RealtimeRepository.get().getUltimo();
+                if (ultimo != null) actualizarUnidades(ultimo);   // carga unidades del rango visible
+            } catch (Exception ignore) {}
         });
 
         // arranca el polling en vivo de inmediato
@@ -585,15 +597,17 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (!tienePermisoUbicacion()) { aplicarCentro(CDMX); return; }
         locationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                 .addOnSuccessListener(loc -> {
-                    if (!isAdded() || mapa == null) return;   // el fragment ya se desmontó: evita requireContext()
-                    LatLng centro = CDMX;
-                    if (loc != null) {
-                        Estacion cerca = estacionMasCercana(new LatLng(loc.getLatitude(), loc.getLongitude()));
-                        if (cerca != null) centro = cerca.posicion;
-                    }
-                    aplicarCentro(centro);
+                    try {
+                        if (!isAdded() || mapa == null) return;   // el fragment ya se desmontó: evita requireContext()
+                        LatLng centro = CDMX;
+                        if (loc != null) {
+                            Estacion cerca = estacionMasCercana(new LatLng(loc.getLatitude(), loc.getLongitude()));
+                            if (cerca != null) centro = cerca.posicion;
+                        }
+                        aplicarCentro(centro);
+                    } catch (Exception ignore) {}
                 })
-                .addOnFailureListener(e -> { if (isAdded() && mapa != null) aplicarCentro(CDMX); });
+                .addOnFailureListener(e -> { try { if (isAdded() && mapa != null) aplicarCentro(CDMX); } catch (Exception ignore) {} });
     }
 
     private void aplicarCentro(LatLng centro) {

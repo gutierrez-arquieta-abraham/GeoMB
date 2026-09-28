@@ -112,19 +112,30 @@ public final class Traductor {
         if (hit != null) { cb.listo(hit); return; }
 
         final Translator t = clientePara(lang);
-        final Runnable trad = () -> t.translate(textoEs)
-                .addOnSuccessListener(res -> {
-                    String out = (res == null || res.isEmpty()) ? textoEs : res;
-                    if (res != null && !res.isEmpty()) cache.put(textoEs, res);
-                    cb.listo(out);
-                })
-                .addOnFailureListener(e -> cb.listo(textoEs));
+        // Los callbacks de ML Kit corren asíncronos y pueden llegar después de que cerrar() ya haya
+        // cerrado 'cliente' (cambio de idioma en pleno vuelo) o de que el fragmento que espera cb ya
+        // no exista: cualquier excepción aquí no debe tumbar la app, solo dejar el texto en español.
+        final Runnable trad = () -> {
+            try {
+                t.translate(textoEs)
+                        .addOnSuccessListener(res -> {
+                            try {
+                                String out = (res == null || res.isEmpty()) ? textoEs : res;
+                                if (res != null && !res.isEmpty()) cache.put(textoEs, res);
+                                cb.listo(out);
+                            } catch (Exception ignore) {}
+                        })
+                        .addOnFailureListener(e -> { try { cb.listo(textoEs); } catch (Exception ignore) {} });
+            } catch (Exception ignore) { try { cb.listo(textoEs); } catch (Exception ignore2) {} }
+        };
 
         if (modeloListo && lang.equals(clienteLang)) { trad.run(); return; }
         DownloadConditions cond = new DownloadConditions.Builder().build();
-        t.downloadModelIfNeeded(cond)
-                .addOnSuccessListener(v -> { modeloListo = true; trad.run(); })
-                .addOnFailureListener(e -> cb.listo(textoEs));
+        try {
+            t.downloadModelIfNeeded(cond)
+                    .addOnSuccessListener(v -> { modeloListo = true; trad.run(); })
+                    .addOnFailureListener(e -> { try { cb.listo(textoEs); } catch (Exception ignore) {} });
+        } catch (Exception ignore) { try { cb.listo(textoEs); } catch (Exception ignore2) {} }
     }
 
     private static void cerrar() {
@@ -145,11 +156,21 @@ public final class Traductor {
         recorrerCache(root, lang);   // instantáneo con lo ya traducido
 
         final Translator t = clientePara(lang);
-        if (modeloListo && lang.equals(clienteLang)) { recorrer(root, t, lang); return; }
+        // recorrer()/traducirVista() tocan vistas que pueden haberse destruido (fragmento cerrado)
+        // mientras se descargaba el modelo o llegaba la traducción; no debe tumbar la app.
+        if (modeloListo && lang.equals(clienteLang)) {
+            try { recorrer(root, t, lang); } catch (Exception ignore) {}
+            return;
+        }
         DownloadConditions cond = new DownloadConditions.Builder().build();
-        t.downloadModelIfNeeded(cond)
-                .addOnSuccessListener(v -> { modeloListo = true; recorrer(root, t, lang); })
-                .addOnFailureListener(e -> { /* sin modelo/conexión: queda en español */ });
+        try {
+            t.downloadModelIfNeeded(cond)
+                    .addOnSuccessListener(v -> {
+                        modeloListo = true;
+                        try { recorrer(root, t, lang); } catch (Exception ignore) {}
+                    })
+                    .addOnFailureListener(e -> { /* sin modelo/conexión: queda en español */ });
+        } catch (Exception ignore) { /* sin modelo/conexión: queda en español */ }
     }
 
     private static Translator clientePara(String lang) {
@@ -209,12 +230,16 @@ public final class Traductor {
         String hit = cache.get(src);
         if (hit != null) { tv.setText(hit); return; }
 
-        t.translate(src).addOnSuccessListener(res -> {
-            if (res == null || res.isEmpty()) return;
-            cache.put(src, res);
-            // Solo si la vista sigue mostrando el texto original (no cambió mientras tanto).
-            if (src.contentEquals(tv.getText())) tv.setText(res);
-        });
+        try {
+            t.translate(src).addOnSuccessListener(res -> {
+                try {
+                    if (res == null || res.isEmpty()) return;
+                    cache.put(src, res);
+                    // Solo si la vista sigue mostrando el texto original (no cambió mientras tanto).
+                    if (src.contentEquals(tv.getText())) tv.setText(res);
+                } catch (Exception ignore) {}
+            });
+        } catch (Exception ignore) {}
     }
 
     /** Evita traducir números, arrobas, enlaces, el nombre de la app o textos sin letras. */

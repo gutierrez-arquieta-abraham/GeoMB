@@ -82,7 +82,13 @@ public final class AfectacionesMexibus {
             }
             boolean cambio = Manifestaciones.setMexibus(lista);
             Manifestaciones.setMexibusBloqueadas(bloq);
-            if (cambio && alTerminar != null) MAIN.post(alTerminar);
+            if (cambio && alTerminar != null) {
+                MAIN.post(() -> {
+                    try { alTerminar.run(); } catch (Exception e) {
+                        Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "AfectacionesMexibus.refrescar", String.valueOf(e.getMessage()));
+                    }
+                });
+            }
         });
     }
 

@@ -121,12 +121,18 @@ public class LoginActivity extends AppCompatActivity {
     private void autenticarFirebase(GoogleSignInAccount acc) {
         AuthCredential cred = GoogleAuthProvider.getCredential(acc.getIdToken(), null);
         auth.signInWithCredential(cred).addOnCompleteListener(this, task -> {
-            if (task.isSuccessful()) {
-                registrar(auth.getCurrentUser());
-                irAMain();
-            } else {
-                Log.e("LoginActivity", "Firebase signInWithCredential falló", task.getException());
-                Toast.makeText(this, getString(R.string.login_error), Toast.LENGTH_LONG).show();
+            // Callback async de Firebase: registrar()/irAMain() (Firestore + cambio de Activity)
+            // no deben poder tumbar el login, que es el punto de entrada obligatorio de la app.
+            try {
+                if (task.isSuccessful()) {
+                    registrar(auth.getCurrentUser());
+                    irAMain();
+                } else {
+                    Log.e("LoginActivity", "Firebase signInWithCredential falló", task.getException());
+                    Toast.makeText(this, getString(R.string.login_error), Toast.LENGTH_LONG).show();
+                }
+            } catch (Exception e) {
+                Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "LoginActivity.autenticarFirebase", String.valueOf(e.getMessage()));
             }
         });
     }

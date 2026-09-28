@@ -133,13 +133,20 @@ public class MainActivity extends AppCompatActivity {
     private void gestionarConsentimientoAds() {
         ConsentRequestParameters params = new ConsentRequestParameters.Builder().build();
         consentInfo = UserMessagingPlatform.getConsentInformation(this);
+        // Los 3 callbacks de UMP corren asíncronos (fuera de cualquier try/catch de este método);
+        // inicializarAds() ya está blindada, pero canRequestAds()/loadAndShowConsentFormIfRequired
+        // en sí también podrían tronar, así que cada callback se protege por su cuenta.
         consentInfo.requestConsentInfoUpdate(this, params,
-                () -> UserMessagingPlatform.loadAndShowConsentFormIfRequired(MainActivity.this, formError -> {
-                    // formError != null: no se pudo cargar/mostrar el formulario (sin red, etc.);
-                    // igual se checa canRequestAds() por si ya había consentimiento de antes.
-                    if (consentInfo.canRequestAds()) inicializarAds();
-                }),
-                requestError -> { if (consentInfo.canRequestAds()) inicializarAds(); });
+                () -> {
+                    try {
+                        UserMessagingPlatform.loadAndShowConsentFormIfRequired(MainActivity.this, formError -> {
+                            // formError != null: no se pudo cargar/mostrar el formulario (sin red, etc.);
+                            // igual se checa canRequestAds() por si ya había consentimiento de antes.
+                            try { if (consentInfo.canRequestAds()) inicializarAds(); } catch (Exception ignore) {}
+                        });
+                    } catch (Exception ignore) {}
+                },
+                requestError -> { try { if (consentInfo.canRequestAds()) inicializarAds(); } catch (Exception ignore) {} });
         // Mientras se actualiza la info de consentimiento (llamada async de arriba), si YA se puede
         // pedir anuncios (consentimiento obtenido en una sesión previa) no hace falta esperar:
         // se inicializa en paralelo. inicializarAds() está protegido contra doble ejecución.

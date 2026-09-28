@@ -105,19 +105,32 @@ public final class RealtimeRepository {
         return c;
     }
 
-    /** Descarga el feed en segundo plano y responde en el hilo principal. */
+    /** Descarga el feed en segundo plano y responde en el hilo principal. El try/catch de aquí solo
+     *  cubre la descarga+parseo; cb.onData/onError corren DESPUÉS, dentro del post() al hilo
+     *  principal, así que se protegen aparte -- si no, una excepción del consumidor (casi todas las
+     *  pantallas de la app llaman a fetch() en cada ciclo de refresco) tumbaría la app entera. */
     public void fetch(Callback cb) {
         executor.execute(() -> {
             try {
                 String json = Backend.descargar(Config.PATH_VEHICLES);
                 List<UnidadReal> lista = parsear(json);
                 ultimo = lista;
-                main.post(() -> cb.onData(lista));
+                main.post(() -> {
+                    try { cb.onData(lista); } catch (Exception e) {
+                        GeoMBApplication app = GeoMBApplication.get();
+                        if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "RealtimeRepository.onData", String.valueOf(e.getMessage()));
+                    }
+                });
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage() : "error";
                 GeoMBApplication app = GeoMBApplication.get();
                 if (app != null) Telemetria.registrarError(app, Telemetria.ERR_RED, "RealtimeRepository.fetch", msg);
-                main.post(() -> cb.onError(msg));
+                main.post(() -> {
+                    try { cb.onError(msg); } catch (Exception e2) {
+                        GeoMBApplication app2 = GeoMBApplication.get();
+                        if (app2 != null) Telemetria.registrarError(app2, Telemetria.ERR_EXCEPCION, "RealtimeRepository.onError", String.valueOf(e2.getMessage()));
+                    }
+                });
             }
         });
     }

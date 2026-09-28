@@ -157,9 +157,11 @@ public final class CartaUnidad {
             Bitmap bmp = descargarBitmap(url);
             if (bmp == null) return;
             v.imgUnidad.post(() -> {
-                if (ecoVigente != null && !eco.equals(ecoVigente.get())) return;   // resultado viejo
-                v.imgUnidad.setImageBitmap(bmp);
-                v.imgUnidad.setVisibility(View.VISIBLE);
+                try {
+                    if (ecoVigente != null && !eco.equals(ecoVigente.get())) return;   // resultado viejo
+                    v.imgUnidad.setImageBitmap(bmp);
+                    v.imgUnidad.setVisibility(View.VISIBLE);
+                } catch (Exception ignore) {}
             });
         }, "img-unidad").start();
     }

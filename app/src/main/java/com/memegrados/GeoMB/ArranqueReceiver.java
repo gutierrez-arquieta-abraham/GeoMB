@@ -50,14 +50,19 @@ public class ArranqueReceiver extends BroadcastReceiver {
             try {
                 PendingResult espera = goAsync();
                 Telemetria.listaFavoritos(context, favoritos -> {
-                    for (EconomicoFavoritoEntity f : favoritos) {
-                        try {
-                            Intent i = new Intent(context, SeguimientoService.class)
-                                    .putExtra(SeguimientoService.EXTRA_ECO, f.economico);
-                            androidx.core.content.ContextCompat.startForegroundService(context, i);
-                        } catch (Exception ignore) {}
+                    // espera.finish() debe llamarse SIEMPRE (si no, el sistema puede matar el proceso
+                    // pensando que sigue trabajando): va en finally, no al final del bloque normal.
+                    try {
+                        for (EconomicoFavoritoEntity f : favoritos) {
+                            try {
+                                Intent i = new Intent(context, SeguimientoService.class)
+                                        .putExtra(SeguimientoService.EXTRA_ECO, f.economico);
+                                androidx.core.content.ContextCompat.startForegroundService(context, i);
+                            } catch (Exception ignore) {}
+                        }
+                    } finally {
+                        espera.finish();
                     }
-                    espera.finish();
                 });
             } catch (Exception ignore) {}
         }
