@@ -56,7 +56,8 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- Panel admin de afectaciones (aviso manual, mTLS): solo alcanzable desde el modo
              personalizado (ReporteFragment), nunca desde un intent externo. -->

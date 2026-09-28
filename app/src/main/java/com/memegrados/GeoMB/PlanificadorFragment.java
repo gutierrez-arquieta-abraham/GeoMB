@@ -267,7 +267,17 @@ public class PlanificadorFragment extends Fragment {
             if (o.length() > 0 && d.length() > 0) trazar();
         });
         btnRecorrido.setOnClickListener(v -> alternarRecorrido());
-        inDestino.setOnEditorActionListener((v, id, e) -> { trazar(); return true; });
+        // Origen: el Enter/flecha del teclado NO traza, solo avanza el foco al campo de destino
+        // (queda vacío listo para escribir). Destino: el Enter SÍ traza, y primero oculta el
+        // teclado para que se vea el resultado (antes se quedaba tapado por el teclado).
+        inOrigen.setOnEditorActionListener((v, id, e) -> { inDestino.requestFocus(); return true; });
+        inDestino.setOnEditorActionListener((v, id, e) -> {
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager) requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+            trazar();
+            return true;
+        });
 
         view.findViewById(R.id.btn_zoom_in).setOnClickListener(v -> {
             if (mapa != null) mapa.animateCamera(CameraUpdateFactory.zoomIn());

@@ -105,6 +105,7 @@
                             android:layout_weight="1"
                             android:autofillHints=""
                             android:hint="@string/planificador_origen"
+                            android:imeOptions="actionNext"
                             android:inputType="text"
                             android:maxLines="1" />
                     </LinearLayout>
@@ -132,7 +133,7 @@
                             android:layout_weight="1"
                             android:autofillHints=""
                             android:hint="@string/planificador_destino"
-                            android:imeOptions="actionSearch"
+                            android:imeOptions="actionGo"
                             android:inputType="text"
                             android:maxLines="1" />
                     </LinearLayout>
