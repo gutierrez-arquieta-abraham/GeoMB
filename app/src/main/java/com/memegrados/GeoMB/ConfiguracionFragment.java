@@ -123,6 +123,8 @@ public class ConfiguracionFragment extends Fragment {
         view.findViewById(R.id.btn_editar_perfil).setOnClickListener(x -> editarPerfil());
         view.findViewById(R.id.btn_descargar_audios).setOnClickListener(x -> menuAudios());
         view.findViewById(R.id.btn_reportar_app).setOnClickListener(x -> mostrarReporteApp());
+        view.findViewById(R.id.btn_asistente).setOnClickListener(x ->
+                startActivity(new android.content.Intent(requireContext(), ChatAsistenteActivity.class)));
         configurarOpcionesPrivacidad(view);
         configurarSimulador(view);
 

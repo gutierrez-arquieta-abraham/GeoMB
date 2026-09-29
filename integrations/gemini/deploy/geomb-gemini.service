@@ -1,0 +1,23 @@
+[Unit]
+Description=GeoMB - Asistente Gemini (FastAPI/Uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+# Ajusta User y las rutas al usuario/carpeta reales del clon en el EC2.
+User=geomb
+WorkingDirectory=/home/geomb/GeoMB
+EnvironmentFile=/home/geomb/GeoMB/integrations/gemini/.env
+# --workers 1 es OBLIGATORIO: las sesiones por dispositivo (session_manager.py) y el límite
+# por IP (ip_limiter.py) viven en memoria del proceso. Con más de un worker, cada uno tendría
+# su propio estado y un mismo dispositivo podría caer en sesiones/limites distintos según a
+# qué worker lo mande el balanceo. El límite diario (ratelimit.py) sí persiste en SQLite y
+# sobreviviría a varios workers, pero las sesiones y el límite por IP no.
+ExecStart=/home/geomb/GeoMB/integrations/gemini/.venv/bin/uvicorn integrations.gemini.server:app --host 127.0.0.1 --port 8005 --workers 1
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

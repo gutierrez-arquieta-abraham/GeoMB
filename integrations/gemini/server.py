@@ -6,12 +6,13 @@ Arrancar:
 """
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from . import data_loader as dl
-from . import tools
-from .agent import GeoMBAgent
+from . import ip_limiter, ratelimit, tools
+from .session_manager import SessionManager
 
 app = FastAPI(
     title="GeoMB · API + agente Gemini",
@@ -20,16 +21,16 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Instancia única del agente para esta demo (mantiene UN historial de conversación
-# compartido). En producción, cada usuario necesita su propia sesión -- ver README.md.
-_agente: GeoMBAgent | None = None
+# Una sesión de conversación por dispositivo (X-Device-ID), no una sola global compartida --
+# ver session_manager.py. El límite diario de mensajes por dispositivo vive en ratelimit.py.
+_sesiones = SessionManager()
 
 
-def _get_agente() -> GeoMBAgent:
-    global _agente
-    if _agente is None:
-        _agente = GeoMBAgent()
-    return _agente
+def _ip_cliente(request: Request) -> str:
+    adelante = request.headers.get("x-forwarded-for")
+    if adelante:
+        return adelante.split(",")[0].strip()
+    return request.client.host if request.client else "desconocida"
 
 
 # ---------------------------------------------------------------- esquemas de request/response
@@ -83,16 +84,43 @@ def planificar_ruta(origen: str, destino: str):
 
 # ---------------------------------------------------------------- chat con Gemini (Function Calling)
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
-    agente = _get_agente()
+@app.post("/chat")
+async def chat(
+    req: ChatRequest,
+    request: Request,
+    x_device_id: str | None = Header(default=None, alias="X-Device-ID"),
+):
+    if not x_device_id:
+        raise HTTPException(status_code=400, detail="Falta el header X-Device-ID.")
+
+    ip = _ip_cliente(request)
+    if not ip_limiter.permitir(ip):
+        raise HTTPException(
+            status_code=429, detail="Demasiadas solicitudes desde esta red, intenta más tarde."
+        )
+
+    if not ratelimit.puede_enviar(x_device_id):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "cuota_agotada",
+                "mensaje": "Ya usaste tu límite de mensajes del asistente por hoy. Vuelve mañana.",
+            },
+        )
+
     if req.reiniciar:
-        agente.reiniciar()
+        _sesiones.reiniciar(x_device_id)
+    agente = _sesiones.obtener(x_device_id)
+
     try:
         respuesta = await agente.responder(req.mensaje)
     except RuntimeError as e:
         # Típicamente falta GEMINI_API_KEY.
         raise HTTPException(status_code=500, detail=str(e))
+
+    # Se cuenta contra la cuota diaria solo si Gemini de verdad respondió (una falla del
+    # servidor no debe consumirle su mensaje del día al usuario).
+    ratelimit.registrar_mensaje(x_device_id)
     return ChatResponse(respuesta=respuesta)
 
 

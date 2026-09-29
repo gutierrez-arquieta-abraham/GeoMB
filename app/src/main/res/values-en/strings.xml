@@ -448,6 +448,17 @@
     <!-- Button to reopen the ad consent form (GDPR/UK), only shown when UMP requires it -->
     <string name="config_privacidad">Privacy options</string>
 
+    <!-- Conversational assistant (Gemini + Function Calling), see integrations/gemini/ -->
+    <string name="config_asistente_titulo">GeoMB Assistant (Beta)</string>
+    <string name="config_asistente_desc">Ask in plain language about routes, stations, vehicles and service alerts. There is a daily message limit.</string>
+    <string name="config_asistente_boton">Open assistant</string>
+    <string name="asistente_titulo">GeoMB Assistant</string>
+    <string name="asistente_hint">Type your question…</string>
+    <string name="asistente_enviar">Send</string>
+    <string name="asistente_error_red">Could not reach the assistant. Check your connection and try again.</string>
+    <string name="asistente_cuota_agotada">You already used your daily message limit for the assistant. Come back tomorrow.</string>
+    <string name="asistente_saludo">Hi! Ask me about routes, stations, vehicles or service alerts for Metrobús, Mexibús or Mexicable.</string>
+
     <!-- Report a problem WITH THE APP (not the Metrobús service), to the support emails -->
     <string name="config_reportar_app">Report a problem with the app</string>
     <string name="reporte_app_titulo">Report a problem</string>
