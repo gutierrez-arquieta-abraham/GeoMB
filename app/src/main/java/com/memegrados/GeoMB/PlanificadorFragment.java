@@ -227,6 +227,10 @@ public class PlanificadorFragment extends Fragment {
         btnContraerOd = view.findViewById(R.id.btn_contraer_od);
         btnContraerOd.setOnClickListener(v -> colapsarOrigenDestino());
         panelOdColapsado.setOnClickListener(v -> expandirOrigenDestino());
+        // Posición inicial de los controles de zoom: antes solo se ajustaban al trazar una ruta
+        // (ver ajusteMapaAccion), así que al abrir la pantalla se quedaban encimados con la tarjeta
+        // de búsqueda "Planificador de ruta".
+        ajustarPanelZoomRuta();
         panelResultadoDetalle = view.findViewById(R.id.panel_resultado_detalle);
         filaResultadoResumen = view.findViewById(R.id.fila_resultado_resumen);
         icContraerResultado = view.findViewById(R.id.ic_contraer_resultado);
@@ -453,6 +457,9 @@ public class PlanificadorFragment extends Fragment {
         }
         ajusteMapaListener = null;
         if (!isAdded() || mapa == null) return;
+        // Los controles de zoom deben re-acomodarse con CUALQUIER cambio de panel (colapsar/expandir
+        // origen-destino o resultado, trazar), no solo cuando aparece panelEstaciones.
+        ajustarPanelZoomRuta();
         if (recorrido && seguirCamara && RecorridoService.ultimaPos != null) {
             centrarRecorrido(RecorridoService.ultimaPos);
         } else if (ultimosLimites != null) {
@@ -1571,7 +1578,12 @@ public class PlanificadorFragment extends Fragment {
             // se queda donde estaba.
             try {
                 if (!isAdded() || panelZoomRuta.getHeight() == 0) return;
-                int limiteArriba = panelEstaciones.getVisibility() == View.VISIBLE ? panelEstaciones.getBottom() : 0;
+                // Igual que encuadrarAhora()/centrarRecorrido(): si panelEstaciones no está visible
+                // (antes de trazar, o con el resultado colapsado) el límite de arriba lo da la
+                // tarjeta de búsqueda (panelOrigen) -- antes caía a 0 y los controles de zoom podían
+                // quedar encimados con "Planificador de ruta" al abrir la pantalla.
+                int limiteArriba = panelEstaciones.getVisibility() == View.VISIBLE
+                        ? panelEstaciones.getBottom() : panelOrigen.getBottom();
                 int limiteAbajo = panelResultado.getVisibility() == View.VISIBLE ? panelResultado.getTop() : root.getHeight();
                 int margen = (int) (12 * getResources().getDisplayMetrics().density);
                 float desplazamiento = 0f;
