@@ -1,0 +1,16 @@
+[Unit]
+Description=Socket del asistente Gemini (arranca geomb-gemini.service bajo demanda)
+
+# Este socket se activa (systemctl enable --now geomb-gemini.socket) y queda ESCUCHANDO
+# SIEMPRE en 127.0.0.1:8005, pero NO mantiene ningún proceso Python corriendo por sí solo.
+# systemd arranca geomb-gemini.service automáticamente la primera vez que llega una conexión
+# real a este puerto (por el nombre compartido "geomb-gemini"), y ese servicio se apaga solo
+# tras un rato de inactividad (ver idle_shutdown.py) -- la siguiente conexión lo vuelve a
+# levantar. Así no hay un proceso Python residente en RAM cuando nadie usa el asistente.
+
+[Socket]
+ListenStream=127.0.0.1:8005
+Accept=no
+
+[Install]
+WantedBy=sockets.target

@@ -6,12 +6,14 @@ Arrancar:
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from . import data_loader as dl
-from . import ip_limiter, ratelimit, tools
+from . import idle_shutdown, ip_limiter, ratelimit, tools
 from .session_manager import SessionManager
 
 app = FastAPI(
@@ -20,6 +22,20 @@ app = FastAPI(
                  "servicio) y un chat con Function Calling sobre Gemini que los usa.",
     version="0.1.0",
 )
+
+
+@app.middleware("http")
+async def _marcar_actividad(request: Request, call_next):
+    idle_shutdown.registrar_actividad()
+    return await call_next(request)
+
+
+@app.on_event("startup")
+async def _iniciar_vigilancia_inactividad() -> None:
+    # Solo hace algo si GEOMB_IDLE_TIMEOUT_S > 0 -- ver idle_shutdown.py y
+    # deploy/geomb-gemini.socket (activación por socket: el proceso se apaga solo sin
+    # tráfico y systemd lo vuelve a levantar en la siguiente solicitud).
+    asyncio.create_task(idle_shutdown.vigilar_inactividad())
 
 # Una sesión de conversación por dispositivo (X-Device-ID), no una sola global compartida --
 # ver session_manager.py. El límite diario de mensajes por dispositivo vive en ratelimit.py.

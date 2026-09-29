@@ -103,6 +103,25 @@ que el servicio debe correr con **un solo worker de uvicorn** (ver
 `deploy/geomb-gemini.service`). El límite diario en SQLite sí sobreviviría varios workers,
 pero las sesiones y el límite por IP no.
 
+## Apagado automático cuando nadie lo usa (activación por socket)
+
+El servicio NO corre 24/7 en el EC2: se despliega con **activación por socket de systemd**
+(`deploy/geomb-gemini.socket`). El socket queda escuchando el puerto siempre, pero el
+proceso de Python (uvicorn + el cliente de Gemini) solo existe mientras hay tráfico.
+
+- Cada solicitud marca actividad (`idle_shutdown.registrar_actividad()`, vía un middleware
+  en `server.py`).
+- Una tarea de fondo (`idle_shutdown.vigilar_inactividad()`) apaga el proceso con `SIGTERM`
+  si pasan `GEOMB_IDLE_TIMEOUT_S` segundos sin ninguna solicitud.
+- El socket (`Accept=no`) se queda escuchando de todos modos: la SIGUIENTE solicitud hace
+  que systemd levante el proceso de nuevo automáticamente, sin intervención manual.
+
+`GEOMB_IDLE_TIMEOUT_S=0` (el default en `.env.example`) desactiva esto -- úsalo en desarrollo
+local con `uvicorn --reload`, donde no hay socket de systemd. En el EC2, ponle un valor como
+`600` (10 min). El primer mensaje después de estar "apagado" tarda un poco más (arranca
+Python desde cero antes de responder); los siguientes son normales hasta el próximo periodo
+de inactividad.
+
 ## Despliegue en el EC2 (systemd + Nginx)
 
 El servidor va en el MISMO EC2 donde corre `metrobus_app`, detrás del mismo dominio
@@ -113,17 +132,19 @@ El servidor va en el MISMO EC2 donde corre `metrobus_app`, detrás del mismo dom
 cd integrations/gemini
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # llenar GEMINI_API_KEY y, si quieres, GEOMB_LIMITE_MENSAJES_DIA
+cp .env.example .env   # llenar GEMINI_API_KEY, GEOMB_LIMITE_MENSAJES_DIA y GEOMB_IDLE_TIMEOUT_S
 deactivate
 ```
 
-1. Copia `deploy/geomb-gemini.service` a `/etc/systemd/system/geomb-gemini.service`,
-   ajusta `User=` y las rutas (`WorkingDirectory`, `EnvironmentFile`, `ExecStart`) a la
-   carpeta real del clon, y habilítalo:
+1. Copia `deploy/geomb-gemini.socket` Y `deploy/geomb-gemini.service` a
+   `/etc/systemd/system/`, ajusta en el `.service` el `User=` y las rutas
+   (`WorkingDirectory`, `EnvironmentFile`, `ExecStart`) a la carpeta real del clon, y
+   habilita el **socket** (no el service -- el service lo arranca el socket solo):
    ```bash
    sudo systemctl daemon-reload
-   sudo systemctl enable --now geomb-gemini
-   sudo systemctl status geomb-gemini   # debe quedar "active (running)"
+   sudo systemctl enable --now geomb-gemini.socket
+   sudo systemctl status geomb-gemini.socket    # debe quedar "active (listening)" SIEMPRE
+   sudo systemctl status geomb-gemini.service   # "inactive (dead)" hasta la primera solicitud
    ```
 2. Agrega el contenido de `deploy/nginx-geomb-gemini.conf` dentro del `server{}` HTTPS
    que ya sirve `geomb.duckdns.org` (el mismo que usa `metrobus_app`, no un `server{}`
@@ -138,6 +159,9 @@ deactivate
         -H "Content-Type: application/json" -H "X-Device-ID: prueba-123" \
         -d '{"mensaje": "¿cómo llego de Tacubaya a Tenayuca?"}'
    ```
+   Justo después de ese `curl`, `sudo systemctl status geomb-gemini.service` debe verse
+   `active (running)`; pasados `GEOMB_IDLE_TIMEOUT_S` segundos sin más tráfico, vuelve solo a
+   `inactive (dead)` (el socket sigue `active (listening)`).
 
 ## Limitaciones conocidas (léelas antes de usarlo con usuarios reales)
 
