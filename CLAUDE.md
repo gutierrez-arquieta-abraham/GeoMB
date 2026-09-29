@@ -13,7 +13,7 @@ Java, package `com.memegrados.GeoMB`, Google Maps SDK, minSdk 24. Gradle KTS.
 - `MEMORIA.md` — memoria del proyecto. `docs/` — registros de sesión.
 
 ## Núcleos (ver MEMORIA.md para detalle)
-- **Datos/ruteo:** `GtfsRepository`, `Planificador` (Dijkstra + variantes exprés + circuitos), `RutasMixtas`, `Servicios`, `ServiciosMexibus`, `Linea` (`distanciaEn`/`puntoEn`).
+- **Datos/ruteo:** `GtfsRepository`, `Planificador` (A* + variantes exprés + circuitos), `RutasMixtas`, `Servicios`, `ServiciosMexibus`, `Linea` (`distanciaEn`/`puntoEn`).
 - **Tiempo real:** `RealtimeRepository`, `UnidadReal`, `UnidadAnimador` (snap al grafo, 60% vel), `Llegadas`, `MapFragment`, `PlanificadorFragment`.
 - **Recorrido/voz:** `RecorridoService` (foreground, voz Mia/Polly + respaldo Android), `DescargaVoz`, `Locuciones`, `Iconos`, `Tipografia`.
 - **Afectaciones:** `MensajesService` (FCM), `ManifestacionesService` (scraping Metrobús local), `AfectMexibusFeed` (RSS Mexibús local), `AfectacionesMexibus` (panel del EC2), `Manifestaciones`.

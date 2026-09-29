@@ -1,4 +1,4 @@
-"""Planificador de ruta SIMPLIFICADO (grafo + Dijkstra) sobre los datos locales.
+"""Planificador de ruta SIMPLIFICADO (grafo + A*) sobre los datos locales.
 
 OJO -- esto NO es un puerto de Planificador.java. Esa clase (miles de líneas) maneja
 exprés/ramales/circuitos, correspondencias declaradas a mano, horarios y afectaciones en
@@ -41,6 +41,7 @@ def _clave(linea: int, nombre_norm: str) -> str:
 class Nodo:
     linea: int
     nombre: str  # nombre de exhibición (sin prefijo MXB/MXC)
+    pos: dl.Estacion  # para el heurístico de A* (distancia en línea recta al destino)
 
 
 @dataclass
@@ -67,7 +68,7 @@ def construir_grafo() -> Grafo:
         claves = []
         for e in linea.estaciones:
             k = _clave(linea.numero, dl.normalizar(e.nombre))
-            g.agregar_nodo(k, Nodo(linea=linea.numero, nombre=e.nombre))
+            g.agregar_nodo(k, Nodo(linea=linea.numero, nombre=e.nombre, pos=e))
             claves.append((k, e))
         for i in range(len(claves) - 1):
             (ka, ea), (kb, eb) = claves[i], claves[i + 1]
@@ -106,9 +107,15 @@ def _nodos_de_estacion(g: Grafo, nombre: str) -> list[str]:
 
 
 def planificar(origen: str, destino: str) -> dict:
-    """Dijkstra multi-origen/multi-destino (una estación puede existir en varias líneas).
-    Devuelve un dict con la secuencia de paradas y un resumen legible, o un error si no
-    se encontró alguna de las dos estaciones o no hay ruta conectada entre ellas."""
+    """A* multi-origen/multi-destino (una estación puede existir en varias líneas). El
+    heurístico (distancia en línea recta al destino más cercano de los válidos) nunca
+    sobreestima el costo real restante -- todo tramo del grafo es, como mínimo, la línea
+    recta entre sus dos extremos (los transbordos solo SUMAN una penalización encima), así
+    que sigue garantizando la ruta óptima, igual que Dijkstra, pero explorando menos nodos
+    al priorizar los que apuntan geográficamente hacia el destino.
+
+    Devuelve un dict con la secuencia de paradas y un resumen legible, o un error si no se
+    encontró alguna de las dos estaciones o no hay ruta conectada entre ellas."""
     g = construir_grafo()
     origenes = _nodos_de_estacion(g, origen)
     destinos = _nodos_de_estacion(g, destino)
@@ -117,15 +124,20 @@ def planificar(origen: str, destino: str) -> dict:
     if not destinos:
         return {"error": f"No se encontró la estación de destino '{destino}' en el catálogo local."}
 
-    dist: dict[str, float] = {k: 0.0 for k in origenes}
+    destino_posiciones = [g.nodos[k].pos for k in destinos]
+
+    def heuristica(u: str) -> float:
+        return min(dl.haversine_m(g.nodos[u].pos, dp) for dp in destino_posiciones)
+
+    dist: dict[str, float] = {k: 0.0 for k in origenes}  # costo REAL acumulado (g), no f
     prev: dict[str, str] = {}
     visitado: set[str] = set()
-    cola: list[tuple[float, str]] = [(0.0, k) for k in origenes]
+    cola: list[tuple[float, str]] = [(heuristica(k), k) for k in origenes]
     heapq.heapify(cola)
     destinos_set = set(destinos)
 
     while cola:
-        d, u = heapq.heappop(cola)
+        _f, u = heapq.heappop(cola)
         if u in visitado:
             continue
         visitado.add(u)
@@ -133,11 +145,11 @@ def planificar(origen: str, destino: str) -> dict:
             destino_final = u
             break
         for v, peso in g.adyacencia.get(u, []):
-            nd = d + peso
+            nd = dist[u] + peso
             if nd < dist.get(v, float("inf")):
                 dist[v] = nd
                 prev[v] = u
-                heapq.heappush(cola, (nd, v))
+                heapq.heappush(cola, (nd + heuristica(v), v))
     else:
         return {"error": f"No se encontró una ruta conectada entre '{origen}' y '{destino}' "
                           "con el catálogo simplificado (líneas troncales)."}

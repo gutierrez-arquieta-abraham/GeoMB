@@ -25,7 +25,7 @@ asistente para usuarios finales, este backend en Python:
 integrations/gemini/
   config.py          Variables de entorno (.env)
   data_loader.py      Carga lineas.json/mexibus.json, búsqueda de estaciones/líneas
-  graph.py            Planificador de ruta simplificado (grafo + Dijkstra)
+  graph.py            Planificador de ruta simplificado (grafo + A*)
   backend_client.py   Cliente HTTP al backend real (con failover)
   tools.py            Las funciones de GeoMB + su esquema para Gemini (Function Calling)
   agent.py            Bucle Gemini <-> herramientas <-> Gemini hasta la respuesta final
@@ -166,8 +166,10 @@ deactivate
 ## Limitaciones conocidas (léelas antes de usarlo con usuarios reales)
 
 - **`planificar_ruta` NO es un puerto de `Planificador.java`.** Es un grafo simple
-  (líneas troncales + transbordos por coincidencia de nombre/cercanía) con Dijkstra por
-  distancia en línea recta. No conoce exprés, ramales, circuitos, horarios, ni
+  (líneas troncales + transbordos por coincidencia de nombre/cercanía) con A* por distancia
+  en línea recta (heurístico admisible: la distancia en línea recta nunca sobreestima el
+  costo real, así que sigue dando la ruta óptima, solo que explorando menos nodos que
+  Dijkstra). No conoce exprés, ramales, circuitos, horarios, ni
   correspondencias declaradas a mano con nombres distintos (p. ej. "Indios Verdes"
   Metrobús ↔ Mexibús). Para una réplica fiel, lo correcto a mediano plazo es exponer el
   Planificador REAL de la app como un endpoint (Java/Kotlin, o un puerto completo a
