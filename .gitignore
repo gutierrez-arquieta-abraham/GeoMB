@@ -20,3 +20,10 @@ local.properties
 *.keystore
 *.p12
 key.properties
+
+# Integración Gemini (integrations/gemini/): nunca la llave real ni el entorno virtual.
+integrations/gemini/.env
+integrations/gemini/.venv/
+integrations/gemini/__pycache__/
+**/__pycache__/
+*.pyc
