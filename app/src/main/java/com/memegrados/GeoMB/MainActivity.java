@@ -88,18 +88,18 @@ public class MainActivity extends AppCompatActivity {
             if (Perfil.movilidadReducida(this)) fm.subscribeToTopic("elevadores");
             else fm.unsubscribeFromTopic("elevadores");
         } catch (Exception ignore) {}
-        // El teclado se sobreponía a los campos de texto (Planificador, Reportar, buscador del
-        // Mapa) en vez de empujar la pantalla hacia arriba. NUNCA usar
-        // android:windowSoftInputMode="adjustResize" aquí para arreglarlo: se probó y el resize
-        // físico de esa bandera rompe el redibujado del SurfaceView de Google Maps (el mapa se
-        // queda "congelado" en negro/en blanco detrás del teclado, confirmado con captura real).
-        // La única combinación que no rompe el mapa es NO tener adjustResize y en cambio consumir
-        // el inset ime() a mano, aplicándolo como padding extra (además del de las barras del
-        // sistema) -- así solo se ajusta el layout, nunca el tamaño físico de la ventana/SurfaceView.
+        // NUNCA intentar ajustar el layout de esta Activity cuando aparece el teclado (ni con
+        // android:windowSoftInputMode="adjustResize" ni con padding manual del inset ime()): se
+        // probaron AMBAS variantes por separado y las DOS rompen el redibujado del SurfaceView de
+        // Google Maps -- el mapa (que vive de fondo, a pantalla completa, detrás de las tarjetas
+        // flotantes de Mapa/Planificador) se queda "congelado" en negro/en blanco cada vez que se
+        // reduce el tamaño de su contenedor, sea por resize físico de ventana o por un simple
+        // cambio de padding en el layout. Confirmado con capturas reales en ambos casos. Por eso
+        // aquí solo se aplican las barras del sistema (edge-to-edge); el teclado puede tapar parte
+        // del mapa mientras se escribe, y es preferible a que la pantalla se rompa.
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, Math.max(systemBars.bottom, ime.bottom));
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
