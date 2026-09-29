@@ -7,6 +7,7 @@ Arrancar:
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -15,6 +16,8 @@ from pydantic import BaseModel
 from . import data_loader as dl
 from . import idle_shutdown, ip_limiter, ratelimit, tools
 from .session_manager import SessionManager
+
+logger = logging.getLogger("geomb.gemini.server")
 
 app = FastAPI(
     title="GeoMB · API + agente Gemini",
@@ -130,9 +133,12 @@ async def chat(
 
     try:
         respuesta = await agente.responder(req.mensaje)
-    except RuntimeError as e:
-        # Típicamente falta GEMINI_API_KEY.
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        # Cualquier falla real llamando a Gemini (API key inválida, modelo retirado, error de
+        # red, etc.) -- sin este catch amplio, una excepción que NO fuera RuntimeError se
+        # filtraba como un 500 en texto plano sin JSON (bug real, visto en producción).
+        logger.exception("Fallo llamando al asistente para device_id=%s", x_device_id)
+        raise HTTPException(status_code=500, detail=f"El asistente no pudo responder: {e}")
 
     # Se cuenta contra la cuota diaria solo si Gemini de verdad respondió (una falla del
     # servidor no debe consumirle su mensaje del día al usuario).
