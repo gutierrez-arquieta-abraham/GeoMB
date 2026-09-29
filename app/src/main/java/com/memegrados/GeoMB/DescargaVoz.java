@@ -17,11 +17,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Pre-descarga (Fase 1) los audios base del recorrido de una LÍNEA al MISMO almacenamiento interno
- * que usa {@link RecorridoService} ({@code getFilesDir()/voz/}, nombre {@code hash("Mia|"+texto).mp3}
- * -- NO caché, para que no se borren solos bajo presión de espacio), para que el recorrido los
- * reproduzca offline. Fase 1 = por cada estación: "Llegando a estación: X" y "Próxima estación: X"
- * (los strings exactos del recorrido). Las variantes de correspondencia/conexión son Fase 2.
+ * Pre-descarga (Fase 1) los audios base del recorrido de una LÍNEA al MISMO almacenamiento que usa
+ * {@link RecorridoService} ({@code Android/data/<paquete>/files/voz/}, nombre
+ * {@code hash("Mia|"+texto).mp3} -- NO caché, para que no se borren solos bajo presión de espacio;
+ * es almacenamiento externo PROPIO de la app, visible con un explorador de archivos y sin permisos
+ * especiales), para que el recorrido los reproduzca offline. Fase 1 = por cada estación: "Llegando
+ * a estación: X" y "Próxima estación: X" (los strings exactos del recorrido). Las variantes de
+ * correspondencia/conexión son Fase 2.
  */
 // ============================================================
 // CLASE    : DescargaVoz   (interfaz Progreso)
@@ -31,9 +33,10 @@ import java.util.concurrent.Executors;
 // DESCRIPCIÓN:
 //
 // Pre-descarga (Fase 1) los audios base del recorrido de UNA línea al
-// MISMO almacenamiento interno que usa RecorridoService (getFilesDir()/voz/,
-// nombre hash("Mia|"+texto).mp3 -- NO caché), para que el recorrido se oiga
-// OFFLINE sin que el sistema borre los audios ya descargados.
+// MISMO almacenamiento que usa RecorridoService (Android/data/<paquete>/
+// files/voz/, nombre hash("Mia|"+texto).mp3 -- NO caché), para que el
+// recorrido se oiga OFFLINE sin que el sistema borre los audios ya
+// descargados.
 //
 // Fase 1 = por cada estación: "Llegando a estación: X" y "Próxima
 // estación: X" (los textos EXACTOS del recorrido). Las variantes de
@@ -58,6 +61,9 @@ public final class DescargaVoz {
      *  cautivo, router sin servicio) intentaba las CENTENAS de audios uno por uno, cada uno tardando
      *  hasta ~23 s en fallar (los timeouts de descargarUno), sintiéndose "trabada" por mucho tiempo. */
     private static final int FALLOS_SEGUIDOS_ABORTAR = 6;
+    /** Mismos consejos de seguridad que RecorridoService.tipAleatorio() (sin el "rosa", que solo
+     *  aplica a Mexibús -- ver textosLinea()), para predescargar TODAS las variantes posibles. */
+    private static final int[] TIPS_BASE = {R.string.voz_tip_espacios, R.string.voz_tip_objetos, R.string.voz_tip_correr};
 
     private DescargaVoz() {}
 
@@ -78,8 +84,18 @@ public final class DescargaVoz {
             String nom = nomDe(e.nombre);
             if (nom == null || nom.isEmpty()) continue;
             com.google.android.gms.maps.model.LatLng pos = e.posicion;
-            // Fase 1: avisos base
-            t.add(ctx.getString(R.string.voz_llegando_est, nom));
+            // Fase 1: avisos base. "Llegando a estación: X" real casi nunca suena a secas -- ver
+            // RecorridoService.vozLlegada(): si es la última parada del VIAJE (que puede ser
+            // cualquier estación, no solo una terminal de línea) se le añade "última estación de tu
+            // recorrido", y si no, tipAleatorio() le añade un consejo de seguridad al azar la mitad
+            // de las veces. Sin predescargar esas combinaciones, casi CUALQUIER llegada sin
+            // correspondencia terminaba en TTS por defecto, no solo las que sí son
+            // correspondencia/conexión/transbordo (esas se aceptan con TTS por lo combinatorio).
+            String llegandoBase = ctx.getString(R.string.voz_llegando_est, nom);
+            t.add(llegandoBase);
+            t.add(llegandoBase + ". " + ult);
+            for (int tipRes : TIPS_BASE) t.add(llegandoBase + ". " + ctx.getString(tipRes));
+            if (linea >= 100 && linea < 200) t.add(llegandoBase + ". " + ctx.getString(R.string.voz_tip_rosa));
             t.add(ctx.getString(R.string.voz_proxima, nom));
             // Fase 2: terminal o correspondencia
             if (Locuciones.esTerminal(linea, e.nombre)) {
@@ -196,13 +212,16 @@ public final class DescargaVoz {
         return n;
     }
 
-    // --- MISMO esquema que RecorridoService.archivoVoz (para que coincidan los hashes). Almacenamiento
-    // INTERNO (getFilesDir(), NO getCacheDir()): el sistema puede borrar la caché en cualquier momento
-    // bajo presión de espacio, tumbando audios ya descargados sin avisar; getFilesDir()/voz/ solo lo
-    // borra la propia app (borrarLinea()/borrarTodo()). ---
+    // --- MISMO esquema que RecorridoService.archivoVoz (para que coincidan los hashes y la carpeta).
+    // Almacenamiento EXTERNO propio de la app (Android/data/<paquete>/files/voz/, NO getCacheDir()):
+    // el sistema nunca lo borra bajo presión de espacio (solo al desinstalar la app), y a diferencia
+    // de getFilesDir() sí es accesible con un explorador de archivos, sin permisos especiales. Si no
+    // hay almacenamiento externo disponible, cae al interno para no perder la función. ---
     private static File archivoVoz(Context ctx, String texto) {
         try {
-            File dir = new File(ctx.getFilesDir(), "voz");
+            File base = ctx.getExternalFilesDir(null);
+            if (base == null) base = ctx.getFilesDir();
+            File dir = new File(base, "voz");
             if (!dir.exists()) dir.mkdirs();
             return new File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
         } catch (Exception e) {

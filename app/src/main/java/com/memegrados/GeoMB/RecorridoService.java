@@ -897,12 +897,18 @@ public class RecorridoService extends Service {
         }, "voz-mia").start();
     }
 
-    // Almacenamiento interno (getFilesDir(), NO getCacheDir()): el sistema puede borrar la caché en
-    // cualquier momento bajo presión de espacio, lo que tumbaba audios ya descargados a media
-    // reproducción o forzaba redescargas silenciosas. getFilesDir()/voz/ solo lo borra la propia app.
+    // Almacenamiento externo PROPIO de la app (Android/data/<paquete>/files/voz/, NO getCacheDir()):
+    // igual que el interno, el sistema NUNCA lo borra bajo presión de espacio (solo al desinstalar
+    // la app), pero a diferencia de getFilesDir() sí es accesible con un explorador de archivos --
+    // el usuario puede revisar/copiar los .mp3 ya descargados. Sin permisos especiales: una carpeta
+    // "de datos de la app" no necesita permiso de almacenamiento en ninguna versión de Android.
+    // Si por lo que sea no hay almacenamiento externo disponible (SD extraíble desmontada, etc.),
+    // cae al interno para no perder la función.
     private java.io.File archivoVoz(String texto) {
         try {
-            java.io.File dir = new java.io.File(getFilesDir(), "voz");
+            java.io.File base = getExternalFilesDir(null);
+            if (base == null) base = getFilesDir();
+            java.io.File dir = new java.io.File(base, "voz");
             if (!dir.exists()) dir.mkdirs();
             return new java.io.File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
         } catch (Exception e) { return null; }
