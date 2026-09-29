@@ -77,16 +77,16 @@ public final class CartaEstacion {
         // estación tiene una activa en ESTA línea (ver Manifestaciones.afectacionEstacion()).
         Manifestaciones.Afectacion af = Manifestaciones.afectacionEstacion(linea, Planificador.norm(e.nombre));
         if (af != null && !af.estado.isEmpty()) {
-            String texto = "⚠ " + af.estado;
+            String textoAfect = "⚠ " + af.estado;
             // Detalle adicional (p. ej. "Sin servicio en ambos sentidos"): antes se perdía -- la
             // tarjeta solo mostraba el encabezado (af.estado), aunque el push de esa misma
             // afectación (MensajesService) SÍ incluye este detalle. txt_estacion_afectacion ya
             // admite 2 líneas (maxLines="2").
             if (af.info != null && !af.info.isEmpty()
                     && !Planificador.norm(af.estado).contains(Planificador.norm(af.info))) {
-                texto += "\n" + af.info;
+                textoAfect += "\n" + af.info;
             }
-            v.txtAfectacion.setText(texto);
+            v.txtAfectacion.setText(textoAfect);
             v.txtAfectacion.setVisibility(View.VISIBLE);
         } else {
             v.txtAfectacion.setVisibility(View.GONE);
