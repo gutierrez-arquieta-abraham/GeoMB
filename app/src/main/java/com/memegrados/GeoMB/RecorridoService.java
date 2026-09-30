@@ -231,10 +231,14 @@ public class RecorridoService extends Service {
     }
 
     /** Se llama cuando TERMINA de sonar un aviso completo (tururu + voz): dispara la acción pendiente
-     *  de fin de recorrido (si la hay) y de inmediato sigue con el siguiente aviso en cola, si hay. */
+     *  de fin de recorrido (si la hay) y de inmediato sigue con el siguiente aviso en cola, si hay. Si
+     *  el usuario ya pidió salir del recorrido, solo apaga el servicio hasta que la cola quede VACÍA
+     *  (no tras el primer aviso que termine): procesarSiguienteVoz() dejó vozOcupada=false si ya no
+     *  queda nada pendiente. */
     private void vozTerminada() {
         dispararFinVoz();
         procesarSiguienteVoz();
+        if (detenerPendiente && !vozOcupada) detenerDeVerdad();
     }
     private int ultVoz = -99;              // índice ya anunciado por voz (solo "llegaste" al final)
     private int ultLlegando = -99;         // estación cuya llegada ya se anunció ("Llegando a…")
@@ -251,6 +255,9 @@ public class RecorridoService extends Service {
     private final java.util.ArrayDeque<Object[]> colaVoz = new java.util.ArrayDeque<>();
     private boolean vozOcupada = false;            // hay un aviso sonando/hablando ahora mismo
     private volatile boolean destruido = false;    // el servicio ya se detuvo: no reproducir nada más
+    // El usuario pidió salir del recorrido (ACCION_DETENER) mientras sonaba/había en cola un aviso: no se
+    // apaga de inmediato (cortaría el audio a media palabra), se espera a que termine TODO lo pendiente.
+    private boolean detenerPendiente = false;
 
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
@@ -261,10 +268,13 @@ public class RecorridoService extends Service {
         catch (Exception ignore) {}   // Android puede negar el arranque del foreground service
     }
 
+    /** Pide salir del recorrido. NO detiene el servicio directo (stopService cortaría de inmediato
+     *  cualquier audio sonando/en cola a media palabra): manda ACCION_DETENER para que la propia
+     *  instancia decida, con su estado de voz, si apagarse ya o esperar a que termine lo pendiente
+     *  (ver el manejo de ACCION_DETENER en onStartCommand). */
     public static void detener(android.content.Context c) {
-        limpiarPersistencia(c);
-        Telemetria.finalizarRecorrido(c);
-        c.stopService(new Intent(c, RecorridoService.class));
+        try { c.startService(new Intent(c, RecorridoService.class).setAction(ACCION_DETENER)); }
+        catch (Exception ignore) {}   // el servicio ya no estaba corriendo
     }
 
     private static final String PREFS = "recorrido_estado";
@@ -346,8 +356,29 @@ public class RecorridoService extends Service {
         });
     }
 
+    /** Apaga el servicio de verdad: limpia persistencia, cierra telemetría y se detiene. Lo llama
+     *  ACCION_DETENER directo si no hay voz sonando, o {@link #vozTerminada()} en cuanto la cola
+     *  quede vacía (si el usuario salió del recorrido a media reproducción) -- ver detenerPendiente. */
+    private void detenerDeVerdad() {
+        detenerPendiente = false;
+        limpiarPersistencia();
+        Telemetria.finalizarRecorrido(this);
+        stopSelf();
+    }
+
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACCION_DETENER.equals(intent.getAction())) { limpiarPersistencia(); Telemetria.finalizarRecorrido(this); stopSelf(); return START_NOT_STICKY; }
+        if (intent != null && ACCION_DETENER.equals(intent.getAction())) {
+            if (vozOcupada) {
+                // Deja terminar el aviso en curso (y los que sigan en cola) antes de apagar el
+                // servicio del todo, para no cortar a media palabra el último audio al salir del
+                // recorrido -- antes se llamaba stopSelf() aquí mismo, de inmediato.
+                detenerPendiente = true;
+                handler.postDelayed(this::detenerDeVerdad, 15000);   // respaldo si el callback no llega
+            } else {
+                detenerDeVerdad();
+            }
+            return START_NOT_STICKY;
+        }
         // Proceso revivido por el SO (intent null) sin la ruta en memoria: recárgala del disco.
         if (paradas == null && !restaurar()) { limpiarPersistencia(); stopSelf(); return START_NOT_STICKY; }
         activo = true;

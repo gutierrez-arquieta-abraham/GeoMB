@@ -533,15 +533,20 @@ public final class Planificador {
             case 5: return new String[]{"Preparatoria 1", "Río de los Remedios"};
             case 6: return new String[]{"El Rosario", "Villa de Aragón"};
             case 7: return new String[]{"Indios Verdes", "Campo Marte"};
-            // Mexibús (ordinarios y ramales)
-            case 101: return new String[]{"MXB Ojo de Agua", "MXB Ciudad Azteca"};                            // L1
+            // Mexibús (ordinarios y ramales). OJO: aquí el orden {a, b} SÍ importa (a diferencia de
+            // Metrobús 1-7, arriba, no es solo cosmético) -- terminalSentido() en RecorridoService usa
+            // este mismo orden para decidir cuál nombre anunciar por voz según hacia dónde avanzas: 'a'
+            // debe ser la terminal del lado de índice MENOR en mexibus.json, 'b' la del lado de índice
+            // MAYOR. L1 (101/121) y L2 (102) estaban al revés (verificado contra mexibus.json) y la voz
+            // anunciaba la terminal contraria a la real.
+            case 101: return new String[]{"MXB Ciudad Azteca", "MXB Ojo de Agua"};                            // L1
             case 111: return new String[]{"MXB Ojo de Agua", "MXB Terminal de Pasajeros"};                    // L1A (AIFA)
-            case 102: return new String[]{"MXB La Quebrada", "MXB Las Américas"};                             // L2
+            case 102: return new String[]{"MXB Las Américas", "MXB La Quebrada"};                             // L2
             case 103: return new String[]{"Pantitlán (conexión Metrobús L4)", "MXB Chimalhuacán"};           // L3
             case 113: return new String[]{"MXB Acuitlapilco", "MXB Central de Abastos Chicoloapan"};           // L3A (circuito; retorno en CEDA Chicoloapan)
             case 104: return new String[]{"MXB La Raza", "MXB Universidad Mexiquense del Bicentenario"};      // L4
             // Mexibús exprés (span principal; algunos servicios tienen terminal intermedia)
-            case 121: return new String[]{"MXB Ojo de Agua", "MXB Ciudad Azteca"};                            // L1 Exprés (TR3/TR4; TR4 sale de Central de Abastos)
+            case 121: return new String[]{"MXB Ciudad Azteca", "MXB Ojo de Agua"};                            // L1 Exprés (TR3/TR4; TR4 sale de Central de Abastos)
             case 122: return new String[]{"MXB Ecatepec", "MXB Lechería"};                                    // L2 Exprés (ERO)
             case 123: return new String[]{"Pantitlán (conexión Metrobús L4)", "MXB Chimalhuacán"};           // L3 Exprés
             case 124: return new String[]{"Indios Verdes", "MXB Universidad Mexiquense del Bicentenario"};    // L4 Exprés (sur en Indios Verdes)
