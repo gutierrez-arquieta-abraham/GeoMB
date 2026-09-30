@@ -180,6 +180,12 @@ public final class Planificador {
      *  son transbordo real. */
     private static final String[][] EXCL_CORRESP = {
             {"mxb casa de morelos", "mxb puente de fierro"},
+            // "1° de Mayo" existe en Mexibús L1/L1 Exprés (101/121) Y en L2 (102): son DOS estaciones
+            // físicas distintas (no correspondencia real), pero quedan a ~828 m una de otra -- apenas
+            // arriba del radio de correspondencia por cercanía (RADIO_CORRESP=800). Como comparten
+            // nombre exacto (mismo par, así que "self-pair" en la tabla), sin esta exclusión un futuro
+            // ajuste de coordenadas que las acerque un poco más las uniría como transbordo falso.
+            {"mxb 1 de mayo", "mxb 1 de mayo"},
     };
 
     private static int sistemaLinea(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }
