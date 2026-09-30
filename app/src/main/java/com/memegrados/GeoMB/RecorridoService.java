@@ -155,24 +155,20 @@ public class RecorridoService extends Service {
     // corredor, el andén ya queda cubierto; además se amplía el radio de llegada para el aproche y, con
     // ello, el de "próxima estación" (que es radioCerca + COBERTURA_EXTRA_M).
     private static final float ZONA_CERCA_M = 70f;    // corredor de andén (Indios Verdes): radio amplio
-    private static final float ANDEN_LARGO_M = 55f;   // andén ~100 m (solo centro): ~110 m de cobertura
-    // Puente de Fierro (plataforma L4): el acceso peatonal real queda un poco más lejos del punto
-    // registrado de la plataforma que el radio normal (CERCA_MXB_M), así que sin este margen extra el
-    // GPS no llegaba a disparar la llegada. Se aplica SOLO a la copia de L4 (no a la de L2) para no
-    // reintroducir la ambigüedad entre las dos plataformas que se quitó del cálculo de distancia.
-    private static final float PF_L4_RADIO_EXTRA_M = 8f;   // +8 m (dentro del rango 5-10 m pedido)
+    // Radio de las estaciones Mexibús L4 de "andén largo" (ANDENES_LARGOS en Planificador -- coordenada de
+    // CENTRO ajustada a mano, no la cruda del JSON, porque solo se tiene un punto por plataforma de ~100 m).
+    // Puente de Fierro es una de ellas: su acceso peatonal real queda ~85 m del centro registrado, más lejos
+    // de lo que cubría el radio anterior (55 m); antes esto se resolvía con un punto de acceso adicional
+    // (PF_L4_ACC_LAT/LON, ya quitado) que solo cubría UNA estación y de forma puntual. En vez de eso, el
+    // radio se sube aquí para las 16 estaciones de la lista, cubriendo la plataforma completa (~100 m) más
+    // el acceso real, sin necesitar coordenadas extra por estación.
+    private static final float ANDEN_LARGO_M = 90f;
 
-    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal (+ el
-     *  margen extra de Puente de Fierro L4, si aplica). */
+    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal. */
     private static float radioCerca(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
-        float base = (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
-        if (p != null && (p.linea == 104 || p.linea == 124)
-                && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
-            base += PF_L4_RADIO_EXTRA_M;
-        }
-        return base;
+        return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
     }
     /** Metros de alejamiento para disparar "próxima estación", según el sistema. */
     private static float radioPaso(Planificador.Parada p) {
@@ -437,29 +433,16 @@ public class RecorridoService extends Service {
         return ls;
     }
 
-    // Acceso PEATONAL real de Puente de Fierro (el camino que de verdad se puede pisar/tener señal GPS
-    // queda ~85 m de la plataforma L4 registrada). Antes este atajo se aplicaba por igual a las DOS
-    // copias de la estación (L2 y L4) por compartir nombre, y eso hacía que estando cerca de este punto
-    // ambas plataformas parecieran igual de cercanas (aun a 206 m reales la de L2 y 85 m la de L4),
-    // produciendo saltos erráticos de 'best' entre ellas. Ahora se aplica SOLO a la copia de L4 (ver
-    // distParada): la de L2 nunca se ve afectada, así que la ambigüedad no puede repetirse.
-    private static final double PF_L4_ACC_LAT = 19.602869413781498, PF_L4_ACC_LON = -99.03368304222656;
-
     /** Distancia a la parada. En Indios Verdes cada andén tiene una ZONA de cobertura (corredor A→B): se
-     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). En la
-     *  plataforma L4 de Puente de Fierro se considera además el acceso peatonal real (mínimo de andén y
-     *  acceso) porque, aun con el margen extra de {@link #PF_L4_RADIO_EXTRA_M}, la llegada no siempre
-     *  disparaba: el punto GPS realmente alcanzable por el peatón queda más lejos del andén registrado. */
+     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). Las
+     *  estaciones de "andén largo" (p. ej. Puente de Fierro L4) YA cubren la plataforma completa por el
+     *  radio ampliado de {@link #ANDEN_LARGO_M}, así que no hace falta un punto de acceso peatonal
+     *  adicional aquí (se quitó: cubría solo una estación y de forma puntual, en vez de resolverlo con
+     *  un radio que sirva para todas). */
     private double distParada(android.location.Location l, Planificador.Parada p) {
         double dz = Planificador.distanciaZona(p, l.getLatitude(), l.getLongitude());
-        double base = dz >= 0 ? dz
+        return dz >= 0 ? dz
                 : haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
-        if (p != null && (p.linea == 104 || p.linea == 124)
-                && Planificador.norm(Planificador.sinMxb(p.nombre)).contains("puente de fierro")) {
-            double acc = haversine(l.getLatitude(), l.getLongitude(), PF_L4_ACC_LAT, PF_L4_ACC_LON);
-            return Math.min(base, acc);
-        }
-        return base;
     }
 
     /** Distancia mínima recorrida dentro del trazo (tras la correspondencia, sumando tramos entre
