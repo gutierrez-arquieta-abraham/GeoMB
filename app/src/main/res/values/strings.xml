@@ -42,6 +42,7 @@
     <string name="mapa_alejar">Alejar</string>
     <string name="mapa_norte">Orientar al norte</string>
     <string name="mapa_estaciones">Iconos de estaciones</string>
+    <string name="como_llegar_aqui">Cómo llegar aquí</string>
     <string name="mapa_estaciones_on">Iconos de estaciones activados</string>
     <string name="mapa_estaciones_off">Iconos de estaciones ocultos</string>
     <string name="mapa_refresco_valor">Actualización del mapa: %1$d s</string>

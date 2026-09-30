@@ -15,68 +15,84 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="16dp">
-
-            <FrameLayout
-                android:layout_width="48dp"
-                android:layout_height="48dp">
-
-                <ImageView
-                    android:id="@+id/img_estacion"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:contentDescription="@string/mapa_estaciones"
-                    android:padding="2dp" />
-            </FrameLayout>
+            android:orientation="vertical">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="32dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="16dp">
 
-                <TextView
-                    android:id="@+id/txt_estacion_nombre"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp">
 
-                <!-- singleLine (no maxLines) + ellipsize="marquee" es el combo que Android realmente
-                     anima como letrero de LED; requiere foco/selección, forzada en código
-                     (CartaEstacion.bind() llama setSelected(true)) para que ruede sin que el
-                     usuario tenga que tocarla. -->
-                <TextView
-                    android:id="@+id/txt_estacion_linea"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:singleLine="true"
-                    android:ellipsize="marquee"
-                    android:marqueeRepeatLimit="marquee_forever"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true"
-                    android:textColor="@color/mb_gray"
-                    android:textSize="14sp" />
+                    <ImageView
+                        android:id="@+id/img_estacion"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:contentDescription="@string/mapa_estaciones"
+                        android:padding="2dp" />
+                </FrameLayout>
 
-                <TextView
-                    android:id="@+id/txt_estacion_afectacion"
-                    android:layout_width="match_parent"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:textColor="@color/mb_red"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:visibility="gone" />
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="32dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/txt_estacion_nombre"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="2"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <!-- singleLine (no maxLines) + ellipsize="marquee" es el combo que Android realmente
+                         anima como letrero de LED; requiere foco/selección, forzada en código
+                         (CartaEstacion.bind() llama setSelected(true)) para que ruede sin que el
+                         usuario tenga que tocarla. -->
+                    <TextView
+                        android:id="@+id/txt_estacion_linea"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:textColor="@color/mb_gray"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/txt_estacion_afectacion"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:ellipsize="end"
+                        android:maxLines="2"
+                        android:textColor="@color/mb_red"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+                </LinearLayout>
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_como_llegar_estacion"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="12dp"
+                android:text="@string/como_llegar_aqui"
+                app:icon="@drawable/ic_direcciones" />
         </LinearLayout>
 
         <ImageButton

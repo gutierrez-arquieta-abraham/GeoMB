@@ -44,6 +44,7 @@
     <string name="mapa_alejar">Zoom out</string>
     <string name="mapa_norte">Orient to north</string>
     <string name="mapa_estaciones">Station icons</string>
+    <string name="como_llegar_aqui">How to get here</string>
     <string name="mapa_estaciones_on">Station icons enabled</string>
     <string name="mapa_estaciones_off">Station icons hidden</string>
     <string name="mapa_refresco_valor">Map refresh: %1$d s</string>

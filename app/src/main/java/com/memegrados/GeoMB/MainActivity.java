@@ -270,11 +270,16 @@ public class MainActivity extends AppCompatActivity {
                 .commitAllowingStateLoss();
     }
 
-    /** Abre el planificador de ruta hacia una estación (con botón atrás). */
-    public void mostrarPlanificador(String destino) {
+    /** Abre el planificador de ruta hacia una estación (con botón atrás), sin línea fija: si el
+     *  nombre existe en varias líneas, el propio planificador pregunta a cuál te refieres. */
+    public void mostrarPlanificador(String destino) { mostrarPlanificador(destino, 0); }
+
+    /** Igual, pero con la línea YA conocida (p. ej. se tocó un marcador concreto en el mapa): no
+     *  pregunta a cuál estación te refieres aunque el nombre exista en otra línea también. */
+    public void mostrarPlanificador(String destino, int linea) {
         getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.fragment_container, PlanificadorFragment.nuevo(destino))
+                .replace(R.id.fragment_container, PlanificadorFragment.nuevo(destino, linea))
                 .addToBackStack("planificador")
                 .commitAllowingStateLoss();
     }

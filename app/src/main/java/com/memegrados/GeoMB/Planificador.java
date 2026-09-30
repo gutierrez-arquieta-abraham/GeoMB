@@ -405,6 +405,36 @@ public final class Planificador {
         return res;
     }
 
+    // Radio para agrupar candidatos homónimos en UNA sola estación física (desambiguación): más
+    // angosto que RADIO_CORRESP (800, el de transbordo real) porque aquí el criterio es "¿es
+    // literalmente el mismo andén/estación?", no "¿se puede caminar?". Valor original de
+    // PlanificadorFragment.agruparCandidatos(), preservado al compartirlo con el mapa general.
+    private static final double RADIO_AGRUPAR_ESTACION_FISICA = 400.0;
+
+    /** Agrupa candidatos de {@link #candidatos} por ESTACIÓN FÍSICA real: misma línea base (ordinario/
+     *  ramal/exprés cuentan como una) + mismo sistema + co-ubicados (≤ RADIO_AGRUPAR_ESTACION_FISICA).
+     *  Dos estaciones con el MISMO nombre pero de líneas base DISTINTAS (p. ej. "1° de Mayo" en
+     *  Mexibús L1 y L2, a 828 m) quedan en grupos separados aunque el nombre coincida exacto -- evita
+     *  tratarlas como una sola correspondencia. Un grupo con más de un elemento SÍ es una
+     *  correspondencia real (misma estación, varios andenes/servicios). Compartido por el
+     *  Planificador (desambiguación al trazar) y el mapa general (buscarEstacionEnMapa), para no
+     *  duplicar el criterio en dos lugares. */
+    public static java.util.List<java.util.List<Match>> agruparPorEstacionFisica(java.util.List<Match> cs) {
+        java.util.List<java.util.List<Match>> grupos = new java.util.ArrayList<>();
+        for (Match m : cs) {
+            java.util.List<Match> g = null;
+            for (java.util.List<Match> gr : grupos) {
+                Match r = gr.get(0);
+                if (Servicios.base(r.linea) == Servicios.base(m.linea)
+                        && sistemaLinea(r.linea) == sistemaLinea(m.linea)
+                        && Linea.distancia(r.pos, m.pos) <= RADIO_AGRUPAR_ESTACION_FISICA) { g = gr; break; }
+            }
+            if (g == null) { g = new java.util.ArrayList<>(); grupos.add(g); }
+            g.add(m);
+        }
+        return grupos;
+    }
+
     /** ¿La estación (por nombre limpio) existe en la línea {@code numero}? (para ofrecer Ordinario/Express). */
     public static boolean estacionEnLinea(Context ctx, String nombre, int numero) {
         Linea l = GtfsRepository.porNumero(ctx, numero);

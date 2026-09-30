@@ -67,6 +67,10 @@ import java.util.List;
 public class PlanificadorFragment extends Fragment {
 
     public static final String ARG_DESTINO = "destino";
+    // Línea específica del destino (0 = cualquiera/desambiguar): cuando quien manda a este fragmento
+    // YA sabe exactamente qué andén quiere (p. ej. se tocó un marcador concreto en el mapa), evita la
+    // carta "¿A qué estación te refieres?" para un nombre que existe en varias líneas.
+    public static final String ARG_DESTINO_LINEA = "destino_linea";
 
     private GoogleMap mapa;
     private FusedLocationProviderClient loc;
@@ -195,10 +199,14 @@ public class PlanificadorFragment extends Fragment {
         }
     };
 
-    public static PlanificadorFragment nuevo(String destino) {
+    public static PlanificadorFragment nuevo(String destino) { return nuevo(destino, 0); }
+
+    /** @param linea línea exacta del destino (0 = cualquiera, deja que se desambigue si hace falta). */
+    public static PlanificadorFragment nuevo(String destino, int linea) {
         PlanificadorFragment f = new PlanificadorFragment();
         Bundle b = new Bundle();
         b.putString(ARG_DESTINO, destino);
+        b.putInt(ARG_DESTINO_LINEA, linea);
         f.setArguments(b);
         return f;
     }
@@ -253,7 +261,12 @@ public class PlanificadorFragment extends Fragment {
         String destino = getArguments() != null ? getArguments().getString(ARG_DESTINO) : null;
         if (destino != null) {
             // El usuario pidió expresamente una ruta ("ver ruta a X"): esa sí se traza sola.
-            setDestino(destino); autoTrazar = true;
+            setDestino(destino);
+            // Si ya se sabe exactamente qué andén es (p. ej. se tocó un marcador concreto en el
+            // mapa), se fija su línea para no mostrar "¿A qué estación te refieres?" de balde.
+            int lineaDestino = getArguments().getInt(ARG_DESTINO_LINEA, 0);
+            if (lineaDestino != 0) destinoLinea = lineaDestino;
+            autoTrazar = true;
         } else if (ultDestino != null) {
             // Al volver al módulo se RECUERDAN origen y destino en los campos, pero NO se re-traza:
             // la ruta se vuelve a trazar solo cuando el usuario toca el botón "Trazar".
@@ -676,21 +689,10 @@ public class PlanificadorFragment extends Fragment {
     }
 
     /** Agrupa candidatos por estación física: misma línea base y mismo sistema, co-ubicados (≤400 m).
-     *  Así L2 y L2A (co-ubicadas) son UNA opción, pero L1 y L4 (bases distintas) quedan separadas. */
+     *  Así L2 y L2A (co-ubicadas) son UNA opción, pero L1 y L4 (bases distintas) quedan separadas.
+     *  Delega a {@link Planificador#agruparPorEstacionFisica}, compartido con el mapa general. */
     private java.util.List<java.util.List<Planificador.Match>> agruparCandidatos(java.util.List<Planificador.Match> cs) {
-        java.util.List<java.util.List<Planificador.Match>> grupos = new java.util.ArrayList<>();
-        for (Planificador.Match m : cs) {
-            java.util.List<Planificador.Match> g = null;
-            for (java.util.List<Planificador.Match> gr : grupos) {
-                Planificador.Match r = gr.get(0);
-                if (Servicios.base(r.linea) == Servicios.base(m.linea)
-                        && sistema(r.linea) == sistema(m.linea)
-                        && Linea.distancia(r.pos, m.pos) <= 400) { g = gr; break; }
-            }
-            if (g == null) { g = new java.util.ArrayList<>(); grupos.add(g); }
-            g.add(m);
-        }
-        return grupos;
+        return Planificador.agruparPorEstacionFisica(cs);
     }
 
     /** Carta "¿A qué estación te refieres?": una celda por estación física, con badge de línea y etiqueta
