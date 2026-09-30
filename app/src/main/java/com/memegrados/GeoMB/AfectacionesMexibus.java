@@ -171,6 +171,12 @@ public final class AfectacionesMexibus {
     /** Normaliza nombre de estación: sin 'MXB ', sin acentos/mayúsculas, y ordinales "1ro/1°/1o"→"1". */
     private static String normEst(String nombre) {
         String s = Planificador.norm(Planificador.sinMxb(nombre == null ? "" : nombre));
-        return s.replaceAll("\\b(\\d+)(ro|do|er|to|vo|mo|no|ra|da|a|o)\\b", "$1");   // 1ro/1°(→1 )/1o → 1
+        s = s.replaceAll("\\b(\\d+)(ro|do|er|to|vo|mo|no|ra|da|a|o)\\b", "$1");   // 1ro/1°(→1 )/1o → 1
+        // Landmark conocido, NO es nombre oficial de estación: Mexibús L4 usa "Home Depot" en avisos
+        // de retorno/circuito para referirse a la altura de la estación Industrial (confirmado por el
+        // usuario). Como indiceEstacion() ya busca solo dentro de las estaciones de LA línea del
+        // aviso, este alias no puede confundirse con la "Industrial" de otra línea (p. ej. L1).
+        if (s.equals("home depot")) s = "industrial";
+        return s;
     }
 }
