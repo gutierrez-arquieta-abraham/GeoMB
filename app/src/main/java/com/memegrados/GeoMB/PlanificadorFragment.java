@@ -637,16 +637,18 @@ public class PlanificadorFragment extends Fragment {
         }
         int base = bases.get(idx), exp = base + 20;
         String et = Planificador.etiquetaLineaCortaPub(base);
-        java.util.List<Opcion> op = new java.util.ArrayList<>();
-        op.add(new Opcion(0, badgeLinea(colorLinea(base), et), getString(R.string.servicio_ordinario), () -> {
+        int colorBase = CartaDesambiguacion.colorLinea(requireContext(), base);
+        int colorExp = CartaDesambiguacion.colorLinea(requireContext(), exp);
+        java.util.List<CartaDesambiguacion.Opcion> op = new java.util.ArrayList<>();
+        op.add(new CartaDesambiguacion.Opcion(0, CartaDesambiguacion.badgeLinea(requireContext(), colorBase, et), getString(R.string.servicio_ordinario), () -> {
             pref.put(base, false);
             preguntarServicioPorLinea(origen, lineaO, destino, lineaD, bases, pref, idx + 1);
-        }).col(colorLinea(base)));
-        op.add(new Opcion(0, badgeLinea(colorLinea(exp), et), getString(R.string.servicio_express), () -> {
+        }).col(colorBase));
+        op.add(new CartaDesambiguacion.Opcion(0, CartaDesambiguacion.badgeLinea(requireContext(), colorExp, et), getString(R.string.servicio_express), () -> {
             pref.put(base, true);
             preguntarServicioPorLinea(origen, lineaO, destino, lineaD, bases, pref, idx + 1);
-        }).col(colorLinea(exp)));
-        mostrarCarta(getString(R.string.servicio_titulo_linea, "L" + et), op);
+        }).col(colorExp));
+        CartaDesambiguacion.mostrar(requireContext(), getString(R.string.servicio_titulo_linea, "L" + et), op);
     }
 
     /**
@@ -695,211 +697,12 @@ public class PlanificadorFragment extends Fragment {
         return Planificador.agruparPorEstacionFisica(cs);
     }
 
-    /** Carta "¿A qué estación te refieres?": una celda por estación física, con badge de línea y etiqueta
-     *  "Nombre (Sistema Lx y Ly)". Al elegir, fija esa estación (su línea representante más baja). */
+    /** Carta "¿A qué estación te refieres?": delega en {@link CartaDesambiguacion}, compartida con
+     *  el buscador del mapa ({@link MapFragment#buscarEstacionEnMapa}), para que ambos usen el mismo
+     *  trato visual. Al elegir, fija esa estación (su línea representante más baja). */
     private void elegirEstacion(EditText campo, java.util.List<java.util.List<Planificador.Match>> grupos, ResueltoCb cb) {
-        // Ordena PRIMERO por sistema (Metrobús, Mexibús, Mexicable), LUEGO por línea (representante más bajo).
-        java.util.Collections.sort(grupos, (g1, g2) -> {
-            Planificador.Match r1 = repGrupo(g1), r2 = repGrupo(g2);
-            int s = Integer.compare(sistema(r1.linea), sistema(r2.linea));
-            return s != 0 ? s : Integer.compare(r1.linea, r2.linea);
-        });
-        int px = Math.round(40 * getResources().getDisplayMetrics().density);
-        java.util.List<Opcion> ops = new java.util.ArrayList<>();
-        for (java.util.List<Planificador.Match> g : grupos) {
-            final Planificador.Match sel = repGrupo(g);
-            Bitmap est = Iconos.pictograma(requireContext(), sel.icono, px);   // ícono de estación
-            if (est == null) est = badgeLinea(colorLinea(sel.linea), Planificador.etiquetaLineaCortaPub(sel.linea));
-            Bitmap linea = bmpLinea(sel.linea);   // drawable de línea (izquierda)
-            ops.add(new Opcion(0, est, linea, etiquetaEstacion(g), () -> fijar(campo, sel, cb)).col(colorLinea(sel.linea)));
-        }
-        mostrarCarta(getString(R.string.desamb_cual_estacion), ops);
-    }
-
-    /** Representante de un grupo: el match de línea más baja. */
-    private Planificador.Match repGrupo(java.util.List<Planificador.Match> g) {
-        Planificador.Match rep = g.get(0);
-        for (Planificador.Match m : g) if (m.linea < rep.linea) rep = m;
-        return rep;
-    }
-
-    /** Ícono de línea para la card: Metrobús = {@code linea_1..7}; Mexibús = logo de línea
-     *  ({@code mexibus_0N} nuevo / {@code mexibus_ant_0N} antiguo, troncales I–IV); si no hay, badge de color. */
-    private Bitmap bmpLinea(int linea) {
-        int id = 0;
-        if (linea < 100) {                       // Metrobús
-            id = drawableId("linea_" + linea);
-        } else if (linea < 200) {                // Mexibús
-            String suf = sufijoMxb(linea);
-            if (suf != null) {
-                if (!Modos.iconosNuevos(requireContext())) id = drawableId("mexibus_ant_" + suf);  // antiguo (SVG troncales)
-                if (id == 0) id = drawableId("mexibus_" + suf);                                     // nuevo / respaldo
-            }
-        }
-        if (id != 0) {
-            Bitmap b = android.graphics.BitmapFactory.decodeResource(getResources(), id);
-            if (b != null) return b;
-        }
-        return badgeLinea(colorLinea(linea), Planificador.etiquetaLineaCortaPub(linea));
-    }
-
-    private int drawableId(String nombre) {
-        return getResources().getIdentifier(nombre, "drawable", requireContext().getPackageName());
-    }
-
-    /** Sufijo del drawable de logo Mexibús: troncal 101→"01", ramal 111→"01a", exprés 124→"04" (logo troncal). */
-    private String sufijoMxb(int n) {
-        if (n >= 121 && n <= 124) return "0" + (n - 120);
-        if (n >= 111 && n <= 113) return "0" + (n - 110) + "a";
-        if (n >= 101 && n <= 104) return "0" + (n - 100);
-        return null;
-    }
-
-    /** Etiqueta de una estación física: "Nombre (Sistema Lx y Ly)" con sus líneas distintas. */
-    private String etiquetaEstacion(java.util.List<Planificador.Match> g) {
-        Planificador.Match rep = g.get(0);
-        for (Planificador.Match m : g) if (m.linea < rep.linea) rep = m;
-        java.util.TreeSet<Integer> orden = new java.util.TreeSet<>();
-        for (Planificador.Match m : g) orden.add(m.linea);
-        java.util.LinkedHashSet<String> ets = new java.util.LinkedHashSet<>();
-        for (int ln : orden) ets.add("L" + Planificador.etiquetaLineaCortaPub(ln));   // "L2", "L2A" (exprés colapsa con su troncal)
-        java.util.List<String> ls = new java.util.ArrayList<>(ets);
-        StringBuilder lin = new StringBuilder();
-        for (int i = 0; i < ls.size(); i++) {
-            if (i == 0) lin.append(ls.get(i));
-            else if (i == ls.size() - 1) lin.append(" y ").append(ls.get(i));
-            else lin.append(", ").append(ls.get(i));
-        }
-        return Planificador.sinMxb(rep.nombre) + " (" + nombreSistema(rep.linea) + " " + lin + ")";
-    }
-
-    /** Nombre del sistema por número de línea. */
-    private String nombreSistema(int n) {
-        if (n >= 200) return getString(R.string.desamb_sist_mexicable);
-        if (n >= 100) return getString(R.string.desamb_sist_mexibus);
-        return getString(R.string.desamb_sist_metrobus);
-    }
-
-    /** Opción de una carta flotante: logo (recurso o bitmap) + título + acción. {@code iconoLinea} es un
-     *  ícono opcional a la IZQUIERDA (drawable de línea) que se muestra antes del ícono principal. */
-    private static final class Opcion {
-        final int iconoRes; final Bitmap iconoBmp; final Bitmap iconoLinea; final String titulo; final Runnable accion;
-        int color = 0;   // acento del color de la línea (0 = sin color específico)
-        Opcion(int res, Bitmap bmp, String t, Runnable a) { this(res, bmp, null, t, a); }
-        Opcion(int res, Bitmap bmp, Bitmap lineaBmp, String t, Runnable a) {
-            iconoRes = res; iconoBmp = bmp; iconoLinea = lineaBmp; titulo = t; accion = a;
-        }
-        Opcion col(int c) { color = c; return this; }
-    }
-
-    /** Muestra una carta flotante HORIZONTAL: cada opción es una celda (logo arriba, título abajo). */
-    private void mostrarCarta(String titulo, java.util.List<Opcion> ops) {
-        float d = getResources().getDisplayMetrics().density;
-        android.widget.LinearLayout fila = new android.widget.LinearLayout(requireContext());
-        fila.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        fila.setGravity(android.view.Gravity.CENTER);
-        int pad = Math.round(12 * d);
-        fila.setPadding(pad, pad, pad, pad);
-        // Scroll horizontal: si hay muchas opciones (o con logo de línea + ícono de estación) no caben,
-        // el usuario desliza en vez de que se corten.
-        android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(requireContext());
-        scroll.setHorizontalScrollBarEnabled(false);
-        scroll.addView(fila);
-        AlertDialog dlg = new AlertDialog.Builder(requireContext())
-                .setTitle(titulo).setView(scroll).setCancelable(true).create();
-        android.util.TypedValue tv = new android.util.TypedValue();
-        requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true);
-        int rojo = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.mb_red);
-        for (Opcion o : ops) {
-            int acento = o.color != 0 ? o.color : rojo;   // acento del color de la línea (o rojo por defecto)
-
-            // Tarjeta contenedora con esquinas redondeadas, elevación y franja de acento arriba.
-            com.google.android.material.card.MaterialCardView card =
-                    new com.google.android.material.card.MaterialCardView(requireContext());
-            android.widget.LinearLayout.LayoutParams clp = new android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
-            clp.setMargins(Math.round(6 * d), Math.round(4 * d), Math.round(6 * d), Math.round(4 * d));
-            card.setLayoutParams(clp);
-            card.setRadius(16 * d);
-            card.setCardElevation(3 * d);
-            card.setStrokeWidth(0);
-            card.setClickable(true);
-            card.setFocusable(true);
-
-            android.widget.LinearLayout envoltura = new android.widget.LinearLayout(requireContext());
-            envoltura.setOrientation(android.widget.LinearLayout.VERTICAL);
-
-            // Franja de acento superior (color de la línea).
-            android.view.View franja = new android.view.View(requireContext());
-            franja.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT, Math.round(5 * d)));
-            franja.setBackgroundColor(acento);
-            envoltura.addView(franja);
-
-            android.widget.LinearLayout celda = new android.widget.LinearLayout(requireContext());
-            celda.setOrientation(android.widget.LinearLayout.VERTICAL);
-            celda.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-            int cp = Math.round(12 * d);
-            celda.setPadding(cp, cp, cp, cp);
-            celda.setMinimumWidth(Math.round(96 * d));
-            int sz = Math.round(48 * d);
-            android.widget.ImageView iv = new android.widget.ImageView(requireContext());
-            iv.setLayoutParams(new android.widget.LinearLayout.LayoutParams(sz, sz));
-            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            if (o.iconoBmp != null) iv.setImageBitmap(o.iconoBmp);
-            else if (o.iconoRes != 0) iv.setImageResource(o.iconoRes);
-            if (o.iconoLinea != null) {
-                // Fila horizontal: [drawable de línea] [ícono de estación]
-                android.widget.LinearLayout iconos = new android.widget.LinearLayout(requireContext());
-                iconos.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-                iconos.setGravity(android.view.Gravity.CENTER_VERTICAL);
-                android.widget.ImageView ivL = new android.widget.ImageView(requireContext());
-                int szl = Math.round(30 * d);
-                android.widget.LinearLayout.LayoutParams lpL = new android.widget.LinearLayout.LayoutParams(szl, szl);
-                lpL.rightMargin = Math.round(6 * d);
-                ivL.setLayoutParams(lpL);
-                ivL.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                ivL.setImageBitmap(o.iconoLinea);
-                iconos.addView(ivL);
-                iconos.addView(iv);
-                celda.addView(iconos);
-            } else {
-                celda.addView(iv);
-            }
-            TextView t = new TextView(requireContext());
-            t.setText(o.titulo);
-            t.setGravity(android.view.Gravity.CENTER);
-            t.setPadding(0, Math.round(6 * d), 0, 0);
-            t.setTextSize(13f);
-            celda.addView(t);   // el/los ícono(s) ya se agregaron arriba
-            envoltura.addView(celda);
-            card.addView(envoltura);
-            card.setOnClickListener(v -> { dlg.dismiss(); o.accion.run(); });
-            fila.addView(card);
-        }
-        dlg.show();
-    }
-
-    /** Color de una línea (para el badge); si no se encuentra, gris. */
-    private int colorLinea(int linea) {
-        Linea l = GtfsRepository.porNumero(requireContext(), linea);
-        return l != null ? l.color : 0xFF757575;
-    }
-
-    /** Badge circular del color de la línea con su número/etiqueta en blanco. */
-    private Bitmap badgeLinea(int color, String texto) {
-        int px = Math.round(40 * getResources().getDisplayMetrics().density);
-        Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(b);
-        android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-        p.setColor(color); c.drawCircle(px / 2f, px / 2f, px * 0.46f, p);
-        p.setColor(0xFFFFFFFF); p.setFakeBoldText(true);
-        p.setTextAlign(android.graphics.Paint.Align.CENTER);
-        p.setTextSize(px * (texto.length() > 1 ? 0.34f : 0.5f));
-        android.graphics.Paint.FontMetrics fm = p.getFontMetrics();
-        c.drawText(texto, px / 2f, px / 2f - (fm.ascent + fm.descent) / 2f, p);
-        return b;
+        CartaDesambiguacion.elegirEstacionFisica(requireContext(), getString(R.string.desamb_cual_estacion), grupos,
+                g -> fijar(campo, CartaDesambiguacion.repGrupo(g), cb));
     }
 
     /** Carta para elegir SISTEMA (Metrobús/Mexibús/Mexicable), con sus logos. */
@@ -910,26 +713,27 @@ public class PlanificadorFragment extends Fragment {
         int logoMetro = nuevos ? R.drawable.logo_metrobus_nuevo : R.drawable.logo_mb;          // Metrobús: MB rojo nuevo / logo antiguo
         int logoMxb   = nuevos ? R.drawable.logo_mexibus_nuevo   : R.drawable.ic_mexibus_ant;  // Mexibús: "B" Movimex / "M" verde antigua
         int logoMxc   = nuevos ? R.drawable.logo_mexicable_nuevo : R.drawable.mexicable_01_0;  // Mexicable: cabina nueva / logo antiguo
-        java.util.List<Opcion> ops = new java.util.ArrayList<>();
+        java.util.List<CartaDesambiguacion.Opcion> ops = new java.util.ArrayList<>();
         if (!metro.isEmpty())
-            ops.add(new Opcion(logoMetro, null, getString(R.string.desamb_sist_metrobus), () -> fijar(campo, metro.get(0), cb)));
+            ops.add(new CartaDesambiguacion.Opcion(logoMetro, null, getString(R.string.desamb_sist_metrobus), () -> fijar(campo, metro.get(0), cb)));
         if (!mxb.isEmpty())
-            ops.add(new Opcion(logoMxb, null, getString(R.string.desamb_sist_mexibus),
+            ops.add(new CartaDesambiguacion.Opcion(logoMxb, null, getString(R.string.desamb_sist_mexibus),
                     () -> { if (mxb.size() == 1) fijar(campo, mxb.get(0), cb); else elegirLinea(campo, mxb, cb); }));
         if (!mxc.isEmpty())
-            ops.add(new Opcion(logoMxc, null, getString(R.string.desamb_sist_mexicable), () -> fijar(campo, mxc.get(0), cb)));
-        mostrarCarta(getString(R.string.desamb_sistema_titulo, Planificador.sinMxb(canon)), ops);
+            ops.add(new CartaDesambiguacion.Opcion(logoMxc, null, getString(R.string.desamb_sist_mexicable), () -> fijar(campo, mxc.get(0), cb)));
+        CartaDesambiguacion.mostrar(requireContext(), getString(R.string.desamb_sistema_titulo, Planificador.sinMxb(canon)), ops);
     }
 
     /** Carta para elegir LÍNEA dentro de un sistema (Mexibús L1/L2/…), con badges de color. */
     private void elegirLinea(EditText campo, java.util.List<Planificador.Match> ops, ResueltoCb cb) {
-        java.util.List<Opcion> op = new java.util.ArrayList<>();
+        java.util.List<CartaDesambiguacion.Opcion> op = new java.util.ArrayList<>();
         for (Planificador.Match m : ops) {
             String et = Planificador.etiquetaLineaCortaPub(m.linea);
-            op.add(new Opcion(0, badgeLinea(colorLinea(m.linea), et),
-                    getString(R.string.desamb_linea_n, et), () -> fijar(campo, m, cb)).col(colorLinea(m.linea)));
+            int color = CartaDesambiguacion.colorLinea(requireContext(), m.linea);
+            op.add(new CartaDesambiguacion.Opcion(0, CartaDesambiguacion.badgeLinea(requireContext(), color, et),
+                    getString(R.string.desamb_linea_n, et), () -> fijar(campo, m, cb)).col(color));
         }
-        mostrarCarta(getString(R.string.desamb_elige_linea), op);
+        CartaDesambiguacion.mostrar(requireContext(), getString(R.string.desamb_elige_linea), op);
     }
 
     /** Une opciones que están a ≤400 m (misma estación física servida por varias líneas), dejando la de menor número. */
@@ -1485,8 +1289,8 @@ public class PlanificadorFragment extends Fragment {
     private BitmapDescriptor iconoUnidad(UnidadReal u) {
         RutasMixtas.Tramo t = RutasMixtas.tramo(u.origen, u.destino);
         int arriba, abajo;
-        if (t != null) { arriba = colorLinea(t.salida); abajo = colorLinea(t.termino); }
-        else { arriba = abajo = (u.linea != null ? colorLinea(u.linea) : 0xFF757575); }
+        if (t != null) { arriba = CartaDesambiguacion.colorLinea(requireContext(), t.salida); abajo = CartaDesambiguacion.colorLinea(requireContext(), t.termino); }
+        else { arriba = abajo = (u.linea != null ? CartaDesambiguacion.colorLinea(requireContext(), u.linea) : 0xFF757575); }
 
         int d = Math.round(40 * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);

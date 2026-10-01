@@ -1463,16 +1463,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         java.util.List<java.util.List<Planificador.Match>> grupos = Planificador.agruparPorEstacionFisica(cs);
         if (grupos.size() == 1) { centrarGrupoEnMapa(grupos.get(0)); return; }
 
-        java.util.Collections.sort(grupos, (g1, g2) -> Integer.compare(g1.get(0).linea, g2.get(0).linea));
-        CharSequence[] etiquetas = new CharSequence[grupos.size()];
-        for (int i = 0; i < grupos.size(); i++) {
-            Planificador.Match rep = grupos.get(i).get(0);
-            etiquetas[i] = Planificador.sinMxb(rep.nombre) + " — " + etiquetaLineaCompleta(rep.linea);
-        }
-        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle(R.string.desamb_cual_estacion)
-                .setItems(etiquetas, (dlg, which) -> centrarGrupoEnMapa(grupos.get(which)))
-                .show();
+        // Misma carta ilustrada (logo de línea + pictograma + etiqueta) que usa el Planificador al
+        // trazar una ruta -- antes el buscador del mapa se quedaba con un AlertDialog de texto plano.
+        CartaDesambiguacion.elegirEstacionFisica(requireContext(), getString(R.string.desamb_cual_estacion),
+                grupos, this::centrarGrupoEnMapa);
     }
 
     /** Centra el mapa en el punto promedio de un grupo (un solo andén, o varios co-ubicados de una
@@ -1484,15 +1478,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         LatLng centro = new LatLng(lat / grupo.size(), lon / grupo.size());
         centroCarga = centro;
         mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(centro, grupo.size() > 1 ? 15.5f : 16f));
-    }
-
-    /** "Línea N" (Metrobús) o el nombre autodescriptivo de la línea (Mexibús/Mexicable, p. ej.
-     *  "Mexibús L1"), para las etiquetas de la carta de desambiguación. */
-    private String etiquetaLineaCompleta(int linea) {
-        Linea l = GtfsRepository.porNumero(requireContext(), linea);
-        if (linea < 100 || l == null || l.nombre == null || l.nombre.isEmpty())
-            return getString(R.string.linea_formato_txt, Planificador.etiquetaLineaCortaPub(linea));
-        return l.nombre;
     }
 
     private void ocultarTeclado() {
