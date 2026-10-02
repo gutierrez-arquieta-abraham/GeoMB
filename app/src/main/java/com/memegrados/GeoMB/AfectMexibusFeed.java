@@ -274,6 +274,11 @@ public final class AfectMexibusFeed {
 
     private static final Pattern E_REST = Pattern.compile("restablec|reanud|normaliz|opera con normalidad");
     private static final Pattern E_CIRC = Pattern.compile("realiza circuito|se realiza circuito|\\bcircuitos?\\b");
+    // "dejando sin servicio a la estación X" SÍ contiene "sin servicio", pero es un cierre puntual de
+    // esa estación (p. ej. contraflujo por manifestación), no de la línea entera -- caso real
+    // confirmado: Mexibús L3, contraflujo en Palacio Municipal, bloqueaba toda la troncal en vez de
+    // solo esa estación. Se revisa ANTES de E_SUSP para que la frase puntual gane.
+    private static final Pattern E_CERR_PUNTUAL = Pattern.compile("sin servicio a (la|las) estacion");
     private static final Pattern E_SUSP = Pattern.compile("suspend|sin servicio|cierre total|se cierra");
     private static final Pattern E_RETR = Pattern.compile("retras|avance lento|servicio lento|marcha lenta|demora|\\blento\\b");
     private static final Pattern E_PASO = Pattern.compile("omite acople|pasa de largo|sin parada|no se detiene");
@@ -282,6 +287,7 @@ public final class AfectMexibusFeed {
     private static String estadoDe(String tn) {
         if (E_REST.matcher(tn).find()) return "Servicio restablecido";
         if (E_CIRC.matcher(tn).find()) return "Servicio parcial";
+        if (E_CERR_PUNTUAL.matcher(tn).find()) return "Estación cerrada";
         if (E_SUSP.matcher(tn).find()) return "Sin servicio";
         if (E_RETR.matcher(tn).find()) return "Retraso en el servicio";
         if (E_PASO.matcher(tn).find()) return "Paso de largo";
