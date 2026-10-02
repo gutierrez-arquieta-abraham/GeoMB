@@ -508,9 +508,13 @@ public class ManifestacionesService extends Service {
                         // operativo en Insurgentes Norte"): ahí SÍ conviene enrutar solo por ese tramo
                         // y dejar bloqueado (inhabilitado) el resto, igual que con un corte total.
                         bloquearTramos(Planificador.norm(info), afect, ambos ? nlinea : 0);
-                        // L4 se rutea por SERVICIOS con nombre real (Ruta Norte/Ruta Sur), no por un
-                        // tramo lineal: cuando el texto dice que se CANCELA una de ellas, bloquea sus
-                        // estaciones exclusivas (ver bloquearRutaL4).
+                        // L4 y L7 se rutean por SERVICIOS (couplet/ramas), no por un tramo lineal:
+                        // bloquearTramos las salta. Un aviso que nombre ESTACIONES reales ("Servicio de
+                        // Campo Marte a Glorieta Cuitláhuac") se resuelve aquí usando las secuencias de
+                        // RutasMixtas como referencia de orden (ver bloquearTramosServicios).
+                        if (porServicios(nlinea)) bloquearTramosServicios(nlinea, Planificador.norm(info), afect);
+                        // L4 además puede nombrar la ruta por su NOMBRE ("Ruta Norte"/"Ruta Sur") en vez
+                        // de estaciones: bloquea sus estaciones exclusivas (ver bloquearRutaL4).
                         if (sinServicio) bloquearRutaL4(nlinea, sev, info, lineaLabel, estado, afect, extraPorEstacionAcc);
                     }
                 } else {
@@ -568,28 +572,28 @@ public class ManifestacionesService extends Service {
     }
 
     /**
-     * Detecta "solo hay servicio de A a B (y de C a D)" y bloquea el complemento
-     * (las estaciones del tramo sin servicio) en la línea correspondiente.
+     * Extrae el segmento "A a B (y de C a D)" de un texto de afectación ya normalizado, listo para
+     * partir por {@code " y "} y sacar los tramos "X a Y" -- compartido por {@link #bloquearTramos}
+     * (líneas troncales lineales) y {@link #bloquearTramosServicios} (L4/L7, ruteadas por servicios).
+     * {@code null} si el texto no describe un servicio parcial.
      */
-    private void bloquearTramos(String normFull, Set<String> afect, int cortarLineaHint) {
+    private static String segmentoParcial(String normFull) {
         // "Servicio de A a B" a secas (sin "solo hay"/"provisional" delante) TAMBIÉN cuenta como
         // tramo reducido -- caso real confirmado: circuitos de emergencia reales ("Servicio de
         // Tenayuca a Buenavista Y de Pueblo de Santa Cruz a Cuauhtémoc") no siempre incluyen una
         // palabra como "circuito"/"manifestación" en el texto, así que exigirla (intento anterior)
         // dejaba SIN bloquear las estaciones intermedias de un circuito real. La protección contra
-        // falsos positivos ya la da el propio requisito de abajo: X y Y deben mapear a estaciones
-        // REALES de la MISMA línea (idxEstacion) -- si no, el bucle no arma ningún rango y no
-        // bloquea nada (autolimitado), así que un texto que mencione "servicio de" y, en otra parte
-        // no relacionada, la palabra "a" sin dos nombres de estación válidos, no dispara nada.
+        // falsos positivos ya la da el propio requisito de quien use el resultado: X y Y deben mapear
+        // a estaciones REALES -- si no, no se arma ningún rango y no se bloquea nada (autolimitado).
         boolean parcial = normFull.contains("solo hay servicio") || normFull.contains("servicio provisional")
                 || normFull.contains("servicio parcial") || normFull.contains("opera de")
                 || normFull.contains("provisional")
                 || (normFull.contains("servicio de") && normFull.contains(" a "));
-        if (!parcial) return;
+        if (!parcial) return null;
 
         int idx = normFull.indexOf("servicio de");
         if (idx < 0) idx = normFull.indexOf("opera de");
-        if (idx < 0) return;
+        if (idx < 0) return null;
         String seg = normFull.substring(idx);
         if (seg.length() > 300) seg = seg.substring(0, 300);
         seg = seg.replaceFirst("^(servicio de|opera de)\\s*", "");
@@ -599,7 +603,16 @@ public class ManifestacionesService extends Service {
         // quedaba pegada como cola del tramo anterior (un texto larguísimo que no calzaba con NINGUNA
         // estación), perdiendo esos tramos reales y bloqueando de más casi toda la troncal. Cualquier
         // "servicio de"/"opera de" POSTERIOR también separa tramos, igual que "y".
-        seg = seg.replaceAll("\\bservicio de\\b", " y ").replaceAll("\\bopera de\\b", " y ");
+        return seg.replaceAll("\\bservicio de\\b", " y ").replaceAll("\\bopera de\\b", " y ");
+    }
+
+    /**
+     * Detecta "solo hay servicio de A a B (y de C a D)" y bloquea el complemento
+     * (las estaciones del tramo sin servicio) en la línea correspondiente.
+     */
+    private void bloquearTramos(String normFull, Set<String> afect, int cortarLineaHint) {
+        String seg = segmentoParcial(normFull);
+        if (seg == null) return;
 
         List<Linea> lineas;
         try { lineas = GtfsRepository.getLineas(this); } catch (Exception e) { return; }
@@ -769,6 +782,82 @@ public class ManifestacionesService extends Service {
             String k = Manifestaciones.claveCorte(nlinea, base, Planificador.norm(l.estaciones.get(idx + 1).nombre));
             if (k != null) cortesAcc.add(k);
         }
+    }
+
+    /**
+     * Como {@link #bloquearTramos}, pero para líneas ruteadas por SERVICIOS ({@link #porServicios}:
+     * L4 y L7), que {@code bloquearTramos} excluye porque {@code l.estaciones} no sigue su topología
+     * real. Usa las secuencias de {@link RutasMixtas} de esa línea como referencia de orden: resuelve
+     * "Servicio de A a B" dentro de CADA secuencia que contenga ambos extremos y marca "en servicio"
+     * lo que quede dentro de ese rango en AL MENOS una de ellas (si una variante sigue cubriendo una
+     * estación, sigue siendo alcanzable por ahí). Lo que no queda cubierto por NINGUNA, se bloquea.
+     *
+     * <p>Caso real confirmado: L7 "Servicio de Campo Marte a Glorieta Cuitláhuac" no bloqueaba nada
+     * (ni la troncal completa ni el tramo real): {@code bloquearTramos} la salta por ser L7, y no
+     * existía ningún equivalente a {@link #bloquearRutaL4} para L7 (ese solo activa con el nombre
+     * "Ruta Norte"/"Ruta Sur", que L7 no usa -- sus avisos nombran estaciones reales).
+     */
+    private void bloquearTramosServicios(int nlinea, String normFull, Set<String> afect) {
+        String seg = segmentoParcial(normFull);
+        if (seg == null) return;
+        List<RutasMixtas.SeqMixta> secs = new ArrayList<>();
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+            boolean toca = false;
+            for (int ln : sm.lineas) if (ln == nlinea) { toca = true; break; }
+            if (toca) secs.add(sm);
+        }
+        if (secs.isEmpty()) return;
+
+        java.util.LinkedHashSet<String> universo = new java.util.LinkedHashSet<>();
+        for (RutasMixtas.SeqMixta sm : secs)
+            for (int k = 0; k < sm.estaciones.length; k++)
+                if (sm.lineas[k] == nlinea) universo.add(Planificador.norm(sm.estaciones[k]));
+
+        for (String chunk : seg.split("\\s+y\\s+")) {
+            int ap = chunk.indexOf(" a ");
+            if (ap < 3) continue;
+            String x = chunk.substring(0, ap).trim();
+            String y = chunk.substring(ap + 3).trim();
+            if (x.length() < 3 || y.length() < 3) continue;
+
+            java.util.Map<String, Boolean> enServicio = new java.util.HashMap<>();
+            boolean algunaResuelta = false;
+            for (RutasMixtas.SeqMixta sm : secs) {
+                int ix = idxEnSecuencia(sm, nlinea, x), iy = idxEnSecuencia(sm, nlinea, y);
+                if (ix < 0 || iy < 0) continue;
+                algunaResuelta = true;
+                int lo = Math.min(ix, iy), hi = Math.max(ix, iy);
+                for (int k = 0; k < sm.estaciones.length; k++) {
+                    if (sm.lineas[k] != nlinea) continue;
+                    String nn = Planificador.norm(sm.estaciones[k]);
+                    boolean dentro = k >= lo && k <= hi;
+                    enServicio.merge(nn, dentro, (a, b) -> a || b);
+                }
+            }
+            // Ningún tramo real mapeado (X/Y no calzan con ninguna secuencia de esta línea): blindaje,
+            // no arriesgar bloqueando de más por un texto no reconocido.
+            if (!algunaResuelta) continue;
+
+            for (String nn : universo) {
+                Boolean v = enServicio.get(nn);
+                if (v == null || !v) {
+                    afect.add(Planificador.claveTerminal(nlinea) + "|" + nn);
+                    cortarAlrededor(nlinea, nn);
+                }
+            }
+        }
+    }
+
+    /** Índice de una estación DENTRO de una secuencia de {@link RutasMixtas} (solo sus tramos de la
+     *  línea {@code nlinea}), por nombre normalizado con coincidencia difusa. */
+    private static int idxEnSecuencia(RutasMixtas.SeqMixta sm, int nlinea, String q) {
+        String qn = Planificador.norm(q);
+        for (int k = 0; k < sm.estaciones.length; k++) {
+            if (sm.lineas[k] != nlinea) continue;
+            String nn = Planificador.norm(sm.estaciones[k]);
+            if (nn.equals(qn) || nn.contains(qn) || qn.contains(nn)) return k;
+        }
+        return -1;
     }
 
     /** Índice de la estación de la línea que coincide con el nombre normalizado {@code q}. */
