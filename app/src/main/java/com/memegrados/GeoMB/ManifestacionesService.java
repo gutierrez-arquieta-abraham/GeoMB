@@ -591,8 +591,15 @@ public class ManifestacionesService extends Service {
         if (idx < 0) idx = normFull.indexOf("opera de");
         if (idx < 0) return;
         String seg = normFull.substring(idx);
-        if (seg.length() > 200) seg = seg.substring(0, 200);
+        if (seg.length() > 300) seg = seg.substring(0, 300);
         seg = seg.replaceFirst("^(servicio de|opera de)\\s*", "");
+        // Caso real confirmado: un aviso puede traer VARIAS oraciones "Servicio de X a Y" seguidas
+        // (p. ej. "...y de El Caminero a Sonora. Servicio de Cuauhtémoc a Pueblo de Santa Cruz.") en
+        // vez de una sola unida con "y" -- norm() ya quitó los puntos, así que la segunda oración
+        // quedaba pegada como cola del tramo anterior (un texto larguísimo que no calzaba con NINGUNA
+        // estación), perdiendo esos tramos reales y bloqueando de más casi toda la troncal. Cualquier
+        // "servicio de"/"opera de" POSTERIOR también separa tramos, igual que "y".
+        seg = seg.replaceAll("\\bservicio de\\b", " y ").replaceAll("\\bopera de\\b", " y ");
 
         List<Linea> lineas;
         try { lineas = GtfsRepository.getLineas(this); } catch (Exception e) { return; }
