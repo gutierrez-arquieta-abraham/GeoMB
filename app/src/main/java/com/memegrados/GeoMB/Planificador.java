@@ -27,15 +27,20 @@ import java.util.regex.Pattern;
 // DESCRIPCIÓN:
 //
 // El CEREBRO del ruteo: calcula la ruta ÓPTIMA (menor tiempo estimado)
-// entre dos estaciones, usando el algoritmo de DIJKSTRA sobre un grafo.
+// entre dos estaciones, usando el algoritmo A* sobre un grafo.
 //
 // ------------------------------------------------------------
-// ¿QUÉ ES DIJKSTRA?
+// ¿QUÉ ES A*?
 // ------------------------------------------------------------
-// Algoritmo clásico que encuentra el camino más "barato" entre dos puntos
-// de una red, explorando siempre el nodo pendiente más barato primero
-// (aquí el "costo" es TIEMPO en segundos). Usa una cola de prioridad
-// (PriorityQueue) para lograrlo.
+// Es Dijkstra (el algoritmo clásico que explora siempre el nodo pendiente
+// más barato primero, con una PriorityQueue) MÁS un heurístico: a cada nodo
+// se le suma una estimación de lo que falta para llegar (aquí, distancia en
+// línea recta al destino / velocidad máxima), así que explora primero los
+// nodos que apuntan hacia el destino en vez de expandirse "a ciegas" en
+// todas direcciones por igual. Como el heurístico NUNCA sobreestima el
+// tiempo real restante (ver el cálculo de heur[] más abajo), sigue
+// garantizando la misma ruta óptima que Dijkstra, solo que revisando menos
+// nodos (aquí el "costo" es TIEMPO en segundos).
 //
 // ------------------------------------------------------------
 // EL GRAFO DE GeoMB
@@ -175,6 +180,12 @@ public final class Planificador {
      *  son transbordo real. */
     private static final String[][] EXCL_CORRESP = {
             {"mxb casa de morelos", "mxb puente de fierro"},
+            // "1° de Mayo" existe en Mexibús L1/L1 Exprés (101/121) Y en L2 (102): son DOS estaciones
+            // físicas distintas (no correspondencia real), pero quedan a ~828 m una de otra -- apenas
+            // arriba del radio de correspondencia por cercanía (RADIO_CORRESP=800). Como comparten
+            // nombre exacto (mismo par, así que "self-pair" en la tabla), sin esta exclusión un futuro
+            // ajuste de coordenadas que las acerque un poco más las uniría como transbordo falso.
+            {"mxb 1 de mayo", "mxb 1 de mayo"},
     };
 
     private static int sistemaLinea(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }
@@ -394,6 +405,36 @@ public final class Planificador {
         return res;
     }
 
+    // Radio para agrupar candidatos homónimos en UNA sola estación física (desambiguación): más
+    // angosto que RADIO_CORRESP (800, el de transbordo real) porque aquí el criterio es "¿es
+    // literalmente el mismo andén/estación?", no "¿se puede caminar?". Valor original de
+    // PlanificadorFragment.agruparCandidatos(), preservado al compartirlo con el mapa general.
+    private static final double RADIO_AGRUPAR_ESTACION_FISICA = 400.0;
+
+    /** Agrupa candidatos de {@link #candidatos} por ESTACIÓN FÍSICA real: misma línea base (ordinario/
+     *  ramal/exprés cuentan como una) + mismo sistema + co-ubicados (≤ RADIO_AGRUPAR_ESTACION_FISICA).
+     *  Dos estaciones con el MISMO nombre pero de líneas base DISTINTAS (p. ej. "1° de Mayo" en
+     *  Mexibús L1 y L2, a 828 m) quedan en grupos separados aunque el nombre coincida exacto -- evita
+     *  tratarlas como una sola correspondencia. Un grupo con más de un elemento SÍ es una
+     *  correspondencia real (misma estación, varios andenes/servicios). Compartido por el
+     *  Planificador (desambiguación al trazar) y el mapa general (buscarEstacionEnMapa), para no
+     *  duplicar el criterio en dos lugares. */
+    public static java.util.List<java.util.List<Match>> agruparPorEstacionFisica(java.util.List<Match> cs) {
+        java.util.List<java.util.List<Match>> grupos = new java.util.ArrayList<>();
+        for (Match m : cs) {
+            java.util.List<Match> g = null;
+            for (java.util.List<Match> gr : grupos) {
+                Match r = gr.get(0);
+                if (Servicios.base(r.linea) == Servicios.base(m.linea)
+                        && sistemaLinea(r.linea) == sistemaLinea(m.linea)
+                        && Linea.distancia(r.pos, m.pos) <= RADIO_AGRUPAR_ESTACION_FISICA) { g = gr; break; }
+            }
+            if (g == null) { g = new java.util.ArrayList<>(); grupos.add(g); }
+            g.add(m);
+        }
+        return grupos;
+    }
+
     /** ¿La estación (por nombre limpio) existe en la línea {@code numero}? (para ofrecer Ordinario/Express). */
     public static boolean estacionEnLinea(Context ctx, String nombre, int numero) {
         Linea l = GtfsRepository.porNumero(ctx, numero);
@@ -528,15 +569,20 @@ public final class Planificador {
             case 5: return new String[]{"Preparatoria 1", "Río de los Remedios"};
             case 6: return new String[]{"El Rosario", "Villa de Aragón"};
             case 7: return new String[]{"Indios Verdes", "Campo Marte"};
-            // Mexibús (ordinarios y ramales)
-            case 101: return new String[]{"MXB Ojo de Agua", "MXB Ciudad Azteca"};                            // L1
+            // Mexibús (ordinarios y ramales). OJO: aquí el orden {a, b} SÍ importa (a diferencia de
+            // Metrobús 1-7, arriba, no es solo cosmético) -- terminalSentido() en RecorridoService usa
+            // este mismo orden para decidir cuál nombre anunciar por voz según hacia dónde avanzas: 'a'
+            // debe ser la terminal del lado de índice MENOR en mexibus.json, 'b' la del lado de índice
+            // MAYOR. L1 (101/121) y L2 (102) estaban al revés (verificado contra mexibus.json) y la voz
+            // anunciaba la terminal contraria a la real.
+            case 101: return new String[]{"MXB Ciudad Azteca", "MXB Ojo de Agua"};                            // L1
             case 111: return new String[]{"MXB Ojo de Agua", "MXB Terminal de Pasajeros"};                    // L1A (AIFA)
-            case 102: return new String[]{"MXB La Quebrada", "MXB Las Américas"};                             // L2
+            case 102: return new String[]{"MXB Las Américas", "MXB La Quebrada"};                             // L2
             case 103: return new String[]{"Pantitlán (conexión Metrobús L4)", "MXB Chimalhuacán"};           // L3
             case 113: return new String[]{"MXB Acuitlapilco", "MXB Central de Abastos Chicoloapan"};           // L3A (circuito; retorno en CEDA Chicoloapan)
             case 104: return new String[]{"MXB La Raza", "MXB Universidad Mexiquense del Bicentenario"};      // L4
             // Mexibús exprés (span principal; algunos servicios tienen terminal intermedia)
-            case 121: return new String[]{"MXB Ojo de Agua", "MXB Ciudad Azteca"};                            // L1 Exprés (TR3/TR4; TR4 sale de Central de Abastos)
+            case 121: return new String[]{"MXB Ciudad Azteca", "MXB Ojo de Agua"};                            // L1 Exprés (TR3/TR4; TR4 sale de Central de Abastos)
             case 122: return new String[]{"MXB Ecatepec", "MXB Lechería"};                                    // L2 Exprés (ERO)
             case 123: return new String[]{"Pantitlán (conexión Metrobús L4)", "MXB Chimalhuacán"};           // L3 Exprés
             case 124: return new String[]{"Indios Verdes", "MXB Universidad Mexiquense del Bicentenario"};    // L4 Exprés (sur en Indios Verdes)
@@ -1127,19 +1173,37 @@ public final class Planificador {
             return null;
         }
 
-        // Dijkstra. 1ª pasada RESTRINGIENDO las correspondencias de troncales con exprés a sus paradas
+        // Heurístico de A*: distancia en línea recta (misma fórmula que costoTramo, Linea.distancia)
+        // de cada nodo al destino válido MÁS CERCANO, dividida entre VEL_MS -- nunca sobreestima el
+        // tiempo real restante, porque todo tramo real cuesta AL MENOS su distancia en línea recta / VEL_MS
+        // (los transbordos, esperas y sesgos de servicio solo SUMAN costo encima, nunca restan). Al
+        // ser la MISMA fórmula de distancia que ya usa costoTramo (no otra aproximación), el heurístico
+        // queda consistente por construcción, no solo admisible. Se calcula UNA vez (no depende de
+        // 'restringir' ni cambia entre pasadas) y se reusa en las dos pasadas de abajo.
+        List<LatLng> destPos = new ArrayList<>();
+        for (int i = 0; i < n; i++) if (esDest[i]) destPos.add(stopDe(rutas, node.get(i)).pos);
+        double[] heur = new double[n];
+        for (int i = 0; i < n; i++) {
+            LatLng p = stopDe(rutas, node.get(i)).pos;
+            double mejor = Double.MAX_VALUE;
+            for (LatLng dp : destPos) mejor = Math.min(mejor, Linea.distancia(p, dp) / VEL_MS);
+            heur[i] = mejor;
+        }
+
+        // A*. 1ª pasada RESTRINGIENDO las correspondencias de troncales con exprés a sus paradas
         // exprés (ordinario y exprés transbordan en la MISMA estación). Si no hay ruta, 2ª pasada sin
         // restricción (respaldo, para no dejar sin ruta trayectos cuyo único transbordo es ordinario).
         // ========================================================
-        // NÚCLEO DIJKSTRA (parte "rebuscada"): camino de menor TIEMPO
+        // NÚCLEO A* (parte "rebuscada"): camino de menor TIEMPO
         // ========================================================
         // Se corre HASTA DOS VECES ('restringir' = true, luego false): la 1ª pasada
         // exige que las correspondencias exprés sean en la MISMA estación (ruta más
         // "limpia"); si no halla camino, la 2ª relaja esa regla (respaldo).
         //
-        // Dijkstra en breve:
-        //   - dist[i]: mejor tiempo conocido hasta el nodo i (empieza en ∞).
-        //   - pq (PriorityQueue): saca SIEMPRE el nodo pendiente más barato.
+        // A* en breve (es Dijkstra + heur[] para explorar menos nodos, MISMA garantía de óptimo
+        // porque heur[] nunca sobreestima -- ver arriba):
+        //   - dist[i]: mejor tiempo REAL conocido hasta el nodo i (empieza en ∞); esto es 'g'.
+        //   - pq (PriorityQueue): guarda {f, nodo, g} y saca SIEMPRE el f = g + heur[] más bajo.
         //   - Se "siembran" los nodos ORIGEN con su espera inicial de abordaje.
         //   - Al sacar un nodo se RELAJAN sus vecinos: si llegar por aquí (nd) es más
         //     barato que dist[v], se actualiza y se reencola. 'prev[]' recuerda de dónde
@@ -1160,14 +1224,14 @@ public final class Planificador {
                     // Metrobús que no cubre esta estación) ya habrá cerrado para cuando de verdad
                     // pasarías a tomarla (proyectado, no "ahora" a secas).
                     if (!lineaAbierta(ctx, s, proyectar(ahoraBase, e0))) continue;
-                    dist[i] = e0; pq.add(new double[]{e0, i});
+                    dist[i] = e0; pq.add(new double[]{e0 + heur[i], i, e0});
                 }
             }
             fin = -1;
             while (!pq.isEmpty()) {
                 double[] top = pq.poll();
                 int u = (int) top[1];
-                if (top[0] > dist[u]) continue;
+                if (top[2] > dist[u]) continue;   // top[2] = g con el que se encoló; obsoleto si dist[u] ya mejoró
                 if (esDest[u]) { fin = u; break; }
                 for (double[] ar : adj.get(u)) {
                     int v = (int) ar[0];
@@ -1186,11 +1250,11 @@ public final class Planificador {
                     else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref);
                     // Al TRANSBORDAR (abordar una línea distinta EN ESA ESTACIÓN), no permitirlo si para
                     // cuando de verdad llegarías ahí (nd proyectado) ya habrá cerrado su horario (exprés/
-                    // ramal Mexibús, o un patrón Metrobús que no cubre esa estación): el Dijkstra cae al
+                    // ramal Mexibús, o un patrón Metrobús que no cubre esa estación): el A* cae al
                     // ordinario/otro patrón que siga abierto. Viajar (tipo 0) no se checa: ya ibas a
                     // bordo, esa unidad termina su corrida aunque el horario nominal ya pasara.
                     if (transbordo && !lineaAbierta(ctx, stopDe(rutas, node.get(v)), proyectar(ahoraBase, nd))) continue;
-                    if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd, v}); }
+                    if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd + heur[v], v, nd}); }
                 }
             }
             if (fin >= 0) break;

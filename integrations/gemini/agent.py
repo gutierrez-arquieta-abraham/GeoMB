@@ -35,22 +35,39 @@ SYSTEM_INSTRUCTION = (
 # si el modelo insiste en pedir funciones (p. ej. por una respuesta de error repetida).
 MAX_TURNOS_HERRAMIENTA = 6
 
+# Cuántos turnos de conversación (usuario + respuesta final) se conservan por sesión. Cada
+# turno de más se descarta del INICIO del historial -- sin esto, una sesión de larga duración
+# (un device_id que no reinicia el chat) acumularía tokens de contexto sin límite en cada
+# llamada a Gemini, disparando el costo.
+MAX_HISTORIAL_TURNOS = 6
+
 
 class GeoMBAgent:
-    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
-        if not (api_key or config.GEMINI_API_KEY):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        client: "genai.Client | None" = None,
+    ) -> None:
+        if client is None and not (api_key or config.GEMINI_API_KEY):
             raise RuntimeError(
                 "Falta GEMINI_API_KEY (variable de entorno o .env) -- ver .env.example."
             )
-        self._client = genai.Client(api_key=api_key or config.GEMINI_API_KEY)
+        self._client = client or genai.Client(api_key=api_key or config.GEMINI_API_KEY)
         self._model = model or config.GEMINI_MODEL
         self._historial: list[types.Content] = []
+        # Índice en _historial donde empieza cada turno de usuario (para poder recortar por
+        # turnos completos en vez de por número de Content sueltos, que varía según cuántas
+        # herramientas se hayan llamado dentro de un mismo turno).
+        self._inicios_turno: list[int] = []
 
     def reiniciar(self) -> None:
         """Borra el historial de la conversación (nueva sesión)."""
         self._historial = []
+        self._inicios_turno = []
 
     async def responder(self, mensaje_usuario: str) -> str:
+        self._inicios_turno.append(len(self._historial))
         self._historial.append(
             types.Content(role="user", parts=[types.Part(text=mensaje_usuario)])
         )
@@ -72,6 +89,7 @@ class GeoMBAgent:
             if not llamadas:
                 # Respuesta final en texto: la guarda en el historial y la regresa.
                 self._historial.append(candidato.content)
+                self._recortar_historial()
                 return respuesta.text or ""
 
             # El modelo pidió una o varias funciones: se ejecutan TODAS antes de responder
@@ -86,8 +104,17 @@ class GeoMBAgent:
                 )
             self._historial.append(types.Content(role="user", parts=partes_respuesta))
 
+        self._recortar_historial()
         return ("No logré completar tu solicitud después de varios intentos con las "
                 "herramientas disponibles. Intenta reformular la pregunta.")
+
+    def _recortar_historial(self) -> None:
+        if len(self._inicios_turno) <= MAX_HISTORIAL_TURNOS:
+            return
+        exceso = len(self._inicios_turno) - MAX_HISTORIAL_TURNOS
+        corte = self._inicios_turno[exceso]
+        self._historial = self._historial[corte:]
+        self._inicios_turno = [i - corte for i in self._inicios_turno[exceso:]]
 
     async def _ejecutar_herramienta(self, nombre: str, args: dict) -> dict:
         funcion = tools.EJECUTORES.get(nombre)

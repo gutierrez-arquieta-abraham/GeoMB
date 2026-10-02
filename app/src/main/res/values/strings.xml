@@ -42,6 +42,7 @@
     <string name="mapa_alejar">Alejar</string>
     <string name="mapa_norte">Orientar al norte</string>
     <string name="mapa_estaciones">Iconos de estaciones</string>
+    <string name="como_llegar_aqui">Cómo llegar aquí</string>
     <string name="mapa_estaciones_on">Iconos de estaciones activados</string>
     <string name="mapa_estaciones_off">Iconos de estaciones ocultos</string>
     <string name="mapa_refresco_valor">Actualización del mapa: %1$d s</string>
@@ -481,6 +482,17 @@
 
     <!-- Botón para reabrir el formulario de consentimiento de anuncios (GDPR/UK), solo visible si UMP lo requiere -->
     <string name="config_privacidad">Opciones de privacidad</string>
+
+    <!-- Asistente conversacional (Gemini + Function Calling), ver integrations/gemini/ -->
+    <string name="config_asistente_titulo">Asistente GeoMB (Beta)</string>
+    <string name="config_asistente_desc">Pregúntale en lenguaje natural sobre rutas, estaciones, unidades y afectaciones. Tiene un límite de mensajes por día.</string>
+    <string name="config_asistente_boton">Abrir asistente</string>
+    <string name="asistente_titulo">Asistente GeoMB</string>
+    <string name="asistente_hint">Escribe tu pregunta…</string>
+    <string name="asistente_enviar">Enviar</string>
+    <string name="asistente_error_red">No se pudo conectar con el asistente. Revisa tu conexión e intenta de nuevo.</string>
+    <string name="asistente_cuota_agotada">Ya usaste tu límite de mensajes del asistente por hoy. Vuelve mañana.</string>
+    <string name="asistente_saludo">¡Hola! Pregúntame sobre rutas, estaciones, unidades o afectaciones de Metrobús, Mexibús o Mexicable.</string>
 
     <!-- Reporte de un problema DE LA APP (no del servicio de Metrobús), a los correos de soporte -->
     <string name="config_reportar_app">Reportar un problema de la app</string>

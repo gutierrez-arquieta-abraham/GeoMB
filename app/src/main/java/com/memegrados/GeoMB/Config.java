@@ -43,6 +43,13 @@ public final class Config {
     public static final String PATH_AFECT_MXB = "/data/afectaciones_mexibus.json";
 
     /**
+     * Asistente conversacional (Gemini + Function Calling): backend Python aparte
+     * ({@code integrations/gemini/} en este mismo repo), detrás de Nginx en el mismo EC2 y
+     * dominio que {@link #BASE_URL} — ver integrations/gemini/README.md §Despliegue.
+     */
+    public static final String ASISTENTE_CHAT_URL = BASE_URL + "/gemini/chat";
+
+    /**
      * Catálogo colaborativo de marca/modelo por económico.
      * Apunta directo al Google Sheet publicado como CSV (colaborativo y en vivo):
      * al editar la hoja, la app se actualiza en el siguiente arranque.

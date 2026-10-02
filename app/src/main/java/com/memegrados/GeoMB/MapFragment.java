@@ -1099,6 +1099,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         CartaEstacion.Vistas vistas = new CartaEstacion.Vistas(v);
         CartaEstacion.bind(requireContext(), vistas, em.e, em.linea, em.color);
         v.findViewById(R.id.btn_cerrar_carta_estacion).setOnClickListener(b -> ocultarCarta());
+        // Manda al planificador con esta estación de destino YA fijada (línea conocida: se tocó
+        // este marcador en concreto, así que no hace falta preguntar "¿a qué estación te refieres?"
+        // aunque el nombre también exista en otra línea, p. ej. "1° de Mayo" en Mexibús L1 y L2).
+        v.findViewById(R.id.btn_como_llegar_estacion).setOnClickListener(b ->
+                ((MainActivity) requireActivity()).mostrarPlanificador(em.e.nombre, em.linea));
         cartaContainer.setVisibility(View.VISIBLE);
         ajustarPanelZoom();
         if (em.pos != null) destelloEstacion(em.pos, em.color);   // resalta el marcador seleccionado
@@ -1437,30 +1442,42 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     /**
-     * Búsqueda de estación (texto): resuelve el nombre de forma difusa y centra el mapa.
-     * Si es correspondencia (varias líneas), centra en la zona intermedia. Sin puntero.
+     * Búsqueda de estación (texto): resuelve el nombre de forma difusa y centra el mapa. Si son
+     * varios andenes de la MISMA estación física (correspondencia real), centra en la zona
+     * intermedia; si el nombre coincide pero son estaciones FÍSICAS distintas (p. ej. "1° de Mayo"
+     * en Mexibús L1 y L2, a 828 m -- ver Planificador.agruparPorEstacionFisica), antes se promediaban
+     * sus coordenadas igual y el mapa caía en un punto intermedio que no correspondía a NINGUNA de
+     * las dos: ahora se pregunta a cuál se refiere, igual que ya hace el Planificador al trazar.
      */
     private void buscarEstacionEnMapa(String texto) {
-        String nombre = Planificador.estacionParecida(requireContext(), texto);
-        if (nombre == null) {
+        java.util.List<Planificador.Match> cs = Planificador.candidatos(requireContext(), texto);
+        if (!Modos.mostrarMexibus(requireContext())) {   // sin Mexibús visible, solo Metrobús
+            java.util.List<Planificador.Match> f = new java.util.ArrayList<>();
+            for (Planificador.Match m : cs) if (m.linea < 100) f.add(m);
+            cs = f;
+        }
+        if (cs.isEmpty()) {
             Toast.makeText(requireContext(), getString(R.string.estacion_no_encontrada), Toast.LENGTH_SHORT).show();
             return;
         }
-        String nn = Planificador.norm(nombre);
+        java.util.List<java.util.List<Planificador.Match>> grupos = Planificador.agruparPorEstacionFisica(cs);
+        if (grupos.size() == 1) { centrarGrupoEnMapa(grupos.get(0)); return; }
+
+        // Misma carta ilustrada (logo de línea + pictograma + etiqueta) que usa el Planificador al
+        // trazar una ruta -- antes el buscador del mapa se quedaba con un AlertDialog de texto plano.
+        CartaDesambiguacion.elegirEstacionFisica(requireContext(), getString(R.string.desamb_cual_estacion),
+                grupos, this::centrarGrupoEnMapa);
+    }
+
+    /** Centra el mapa en el punto promedio de un grupo (un solo andén, o varios co-ubicados de una
+     *  misma estación física real). */
+    private void centrarGrupoEnMapa(java.util.List<Planificador.Match> grupo) {
+        if (mapa == null) return;
         double lat = 0, lon = 0;
-        int c = 0;
-        for (EstMapa em : estaciones) {
-            if (Planificador.norm(em.e.nombre).equals(nn)) { lat += em.e.posicion.latitude; lon += em.e.posicion.longitude; c++; }
-        }
-        if (c == 0 && Modos.mostrarMexibus(requireContext())) {   // estación del Mexibús
-            for (Linea l : GtfsRepository.getMexibus(requireContext()))
-                for (Estacion e : l.estaciones)
-                    if (Planificador.norm(e.nombre).equals(nn)) { lat += e.posicion.latitude; lon += e.posicion.longitude; c++; }
-        }
-        if (c == 0) return;
-        LatLng centro = new LatLng(lat / c, lon / c);   // zona intermedia si es correspondencia
+        for (Planificador.Match m : grupo) { lat += m.pos.latitude; lon += m.pos.longitude; }
+        LatLng centro = new LatLng(lat / grupo.size(), lon / grupo.size());
         centroCarga = centro;
-        mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(centro, c > 1 ? 15.5f : 16f));
+        mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(centro, grupo.size() > 1 ? 15.5f : 16f));
     }
 
     private void ocultarTeclado() {

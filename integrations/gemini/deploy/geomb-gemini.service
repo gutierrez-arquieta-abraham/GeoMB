@@ -1,0 +1,27 @@
+[Unit]
+Description=GeoMB - Asistente Gemini (FastAPI/Uvicorn, activación por socket)
+Requires=geomb-gemini.socket
+After=network.target
+
+[Service]
+Type=simple
+# Ajusta User y las rutas al usuario/carpeta reales del clon en el EC2.
+User=geomb
+WorkingDirectory=/home/geomb/GeoMB
+EnvironmentFile=/home/geomb/GeoMB/integrations/gemini/.env
+# --workers 1 es OBLIGATORIO: las sesiones por dispositivo (session_manager.py) y el límite
+# por IP (ip_limiter.py) viven en memoria del proceso. Con más de un worker, cada uno tendría
+# su propio estado y un mismo dispositivo podría caer en sesiones/limites distintos según a
+# qué worker lo mande el balanceo. El límite diario (ratelimit.py) sí persiste en SQLite y
+# sobreviviría a varios workers, pero las sesiones y el límite por IP no.
+#
+# --fd 3: en vez de abrir su propio socket en un puerto, usa el que YA abrió systemd (ver
+# geomb-gemini.socket) -- así el puerto queda escuchando aunque este proceso no exista.
+ExecStart=/home/geomb/GeoMB/integrations/gemini/.venv/bin/uvicorn integrations.gemini.server:app --fd 3 --workers 1
+# NO reiniciar solo tras apagarse: cuando GEOMB_IDLE_TIMEOUT_S se cumple (ver
+# idle_shutdown.py), el proceso se apaga a propósito y debe QUEDARSE apagado -- el socket de
+# arriba sigue escuchando y systemd levanta un proceso nuevo automáticamente en la siguiente
+# solicitud (eso no depende de Restart=, es un start distinto disparado por el socket).
+Restart=no
+NoNewPrivileges=true
+PrivateTmp=true

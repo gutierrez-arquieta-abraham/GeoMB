@@ -25,5 +25,6 @@ key.properties
 integrations/gemini/.env
 integrations/gemini/.venv/
 integrations/gemini/__pycache__/
+integrations/gemini/uso.db
 **/__pycache__/
 *.pyc

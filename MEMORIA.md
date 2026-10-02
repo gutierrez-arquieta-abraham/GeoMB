@@ -6,7 +6,7 @@
 ## Visión general
 App Android (Java, package `com.memegrados.GeoMB`, Google Maps SDK). Cubre **Metrobús CDMX (L1–L7)**,
 **Mexibús (Edomex, L1–L4 + ramales 1A/2A/3A)** y **Mexicable (L1/L2)**. Funciones: mapa de unidades en
-tiempo real, buscador, líneas/estaciones, **planificador (Dijkstra)**, **recorrido con voz** (turn-by-turn),
+tiempo real, buscador, líneas/estaciones, **planificador (A*)**, **recorrido con voz** (turn-by-turn),
 afectaciones del servicio, reportes y notificaciones push (FCM).
 
 ## Convenciones / gotchas clave
@@ -59,8 +59,10 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
   caminata (`dist/1.4 s`).
 
 ## Planificador — `Planificador.java` / `PlanificadorFragment.java`
-- Grafo cacheado (líneas dirigidas + mixtas + variantes exprés) + Dijkstra con preferencia de servicio (svcPref) y cortes por
-  afectación. `Ruta` = pasos + instrucciones + trazo + secuencia. Trazo por paso vía `geomSentido`→`subRuta`; respaldo a rectas.
+- Grafo cacheado (líneas dirigidas + mixtas + variantes exprés) + A* (heurístico: distancia en línea recta al destino más
+  cercano / VEL_MS, misma fórmula que `costoTramo` → admisible y consistente por construcción, misma ruta óptima que Dijkstra
+  pero explorando menos nodos) con preferencia de servicio (svcPref) y cortes por afectación. `Ruta` = pasos + instrucciones +
+  trazo + secuencia. Trazo por paso vía `geomSentido`→`subRuta`; respaldo a rectas.
 - **panel_resultado:** SOLO indicaciones en texto (una por tramo: "{línea/servicio} → {terminal} · N estaciones") + filas de
   transferencia. Se itera `pasos`/`instrucciones` (1:1; `mismoTrazo` une ordinario↔exprés, ramales sí son trazo distinto).
   **Ya NO lista estaciones.**

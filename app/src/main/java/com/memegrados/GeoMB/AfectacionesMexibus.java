@@ -171,6 +171,7 @@ public final class AfectacionesMexibus {
     /** Normaliza nombre de estación: sin 'MXB ', sin acentos/mayúsculas, y ordinales "1ro/1°/1o"→"1". */
     private static String normEst(String nombre) {
         String s = Planificador.norm(Planificador.sinMxb(nombre == null ? "" : nombre));
-        return s.replaceAll("\\b(\\d+)(ro|do|er|to|vo|mo|no|ra|da|a|o)\\b", "$1");   // 1ro/1°(→1 )/1o → 1
+        s = s.replaceAll("\\b(\\d+)(ro|do|er|to|vo|mo|no|ra|da|a|o)\\b", "$1");   // 1ro/1°(→1 )/1o → 1
+        return s;
     }
 }

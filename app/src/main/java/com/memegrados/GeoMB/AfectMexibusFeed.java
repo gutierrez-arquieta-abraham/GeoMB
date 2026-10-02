@@ -273,7 +273,7 @@ public final class AfectMexibusFeed {
     }
 
     private static final Pattern E_REST = Pattern.compile("restablec|reanud|normaliz|opera con normalidad");
-    private static final Pattern E_CIRC = Pattern.compile("realiza circuito|se realiza circuito|\\bcircuito\\b");
+    private static final Pattern E_CIRC = Pattern.compile("realiza circuito|se realiza circuito|\\bcircuitos?\\b");
     private static final Pattern E_SUSP = Pattern.compile("suspend|sin servicio|cierre total|se cierra");
     private static final Pattern E_RETR = Pattern.compile("retras|avance lento|servicio lento|marcha lenta|demora|\\blento\\b");
     private static final Pattern E_PASO = Pattern.compile("omite acople|pasa de largo|sin parada|no se detiene");
@@ -324,12 +324,19 @@ public final class AfectMexibusFeed {
     private static final Pattern SEG = Pattern.compile(
             "^([A-Za-zÁÉÍÓÚÑáéíóúñ0-9.\\s]{3,32}?)\\s+-\\s+([A-Za-zÁÉÍÓÚÑáéíóúñ0-9.\\s]{3,32}?)$");
 
+    // Quita cualquier emoji/símbolo/viñeta al INICIO de la línea (🚆, 👉, etc.): los posts reales de
+    // circuito los usan para marcar cada tramo ("🚆UMB - Revolución"), y sin esto SEG nunca matcheaba
+    // -- ^[A-Za-z...] no admite un emoji como primer carácter, así que el tramo se perdía entero y la
+    // línea quedaba SIN bloquear nada (caso real confirmado: Mexibús L4, lluvia, circuito norte/sur).
+    private static final Pattern PREFIJO_NO_TEXTO = Pattern.compile("^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9]+");
+
     private static List<String[]> segmentosCircuito(String texto) {
         List<String[]> segs = new ArrayList<>();
         if (!norm(texto).contains("circuito")) return segs;
         for (String ln0 : texto.split("\n")) {
             String ln = stripChars(ln0, " .");
             if (ln.isEmpty() || ln.startsWith("#") || ln.toLowerCase(Locale.ROOT).contains("circuito")) continue;
+            ln = PREFIJO_NO_TEXTO.matcher(ln).replaceFirst("");
             Matcher m = SEG.matcher(ln);
             if (m.matches()) segs.add(new String[]{m.group(1).trim(), m.group(2).trim()});
         }

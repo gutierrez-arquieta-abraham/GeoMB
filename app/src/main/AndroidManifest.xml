@@ -64,6 +64,15 @@
             android:name=".PanelAdminActivity"
             android:exported="false" />
 
+        <!-- Asistente conversacional (Gemini + Function Calling, ver integrations/gemini/).
+             Sin MapView de por medio (a diferencia de MainActivity, ver su comentario "NUNCA"),
+             así que adjustResize aquí es seguro y necesario para que el teclado no tape el
+             campo de mensaje. -->
+        <activity
+            android:name=".ChatAsistenteActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <service
             android:name=".SeguimientoService"
             android:exported="false"
