@@ -1,5 +1,6 @@
 package com.memegrados.GeoMB;
 
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -62,22 +63,14 @@ public final class ReporteApp {
         String asunto = "[GeoMB][" + etiquetaCorta(prioridad) + "][" + reportId + "]"
                 + (categoria != null && !categoria.trim().isEmpty() ? " " + categoria.trim() : "");
 
-        String cuerpo = construirCuerpo(reportId, ts, categoria, descripcion, d, imagen != null);
+        // El Uri de GetContent() puede dejar de ser legible (el picker lo invalidó, el proveedor
+        // ya no lo sirve, etc.) -- se verifica ANTES de prometerlo en el cuerpo o en el Intent, para
+        // nunca anunciar un adjunto que luego Gmail no puede mostrar.
+        boolean imagenOk = imagen != null && uriLegible(ctx, imagen);
+        boolean imagenFallo = imagen != null && !imagenOk;
 
-        // Mismo patrón que ReporteIrregularidad: con adjunto usa ACTION_SEND (message/rfc822 sesga
-        // a apps de correo); sin adjunto, "mailto:" es lo más compatible entre clientes.
-        Intent i;
-        if (imagen != null) {
-            i = new Intent(Intent.ACTION_SEND);
-            i.setType("message/rfc822");
-            i.putExtra(Intent.EXTRA_STREAM, imagen);
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } else {
-            i = new Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"));
-        }
-        i.putExtra(Intent.EXTRA_EMAIL, DESTINO);
-        i.putExtra(Intent.EXTRA_SUBJECT, asunto);
-        i.putExtra(Intent.EXTRA_TEXT, cuerpo);
+        String cuerpo = construirCuerpo(reportId, ts, categoria, descripcion, d, imagenOk, imagenFallo);
+        Intent i = construirIntentCorreo(ctx, asunto, cuerpo, imagenOk ? imagen : null);
         try {
             ctx.startActivity(Intent.createChooser(i, asunto).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (Exception ignore) {
@@ -85,6 +78,55 @@ public final class ReporteApp {
         }
 
         guardarYSincronizar(app, reportId, ts, categoria, descripcion, prioridad, d);
+    }
+
+    /**
+     * Construye el Intent de correo. Con imagen usa {@code ACTION_SEND} (obligatorio para poder
+     * adjuntar: {@code ACTION_SENDTO} no admite {@code EXTRA_STREAM}); sin imagen usa
+     * {@code ACTION_SENDTO} con {@code mailto:}, que sigue siendo lo más compatible entre clientes.
+     *
+     * La clave para que Gmail (y el resto de apps de correo) reciban el permiso de LEER el
+     * {@code content://} del adjunto es {@link Intent#setClipData}: {@code FLAG_GRANT_READ_URI_PERMISSION}
+     * solo delega el permiso sobre los Uris presentes en {@code getData()}/{@code getClipData()} --
+     * nunca sobre uno que solo viva en un extra como {@code EXTRA_STREAM}. Sin el ClipData, Gmail
+     * recibe el extra pero no puede abrir el archivo, y el adjunto simplemente no aparece (sin error
+     * visible) -- ese era el bug del mecanismo anterior, heredado tal cual a este.
+     */
+    private static Intent construirIntentCorreo(Context ctx, String asunto, String cuerpo, Uri imagen) {
+        Intent i;
+        if (imagen != null) {
+            i = new Intent(Intent.ACTION_SEND);
+            i.setType(mimeImagen(ctx, imagen));
+            i.putExtra(Intent.EXTRA_STREAM, imagen);
+            i.setClipData(ClipData.newRawUri("GeoMB", imagen));
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } else {
+            i = new Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"));
+        }
+        i.putExtra(Intent.EXTRA_EMAIL, DESTINO);
+        i.putExtra(Intent.EXTRA_SUBJECT, asunto);
+        i.putExtra(Intent.EXTRA_TEXT, cuerpo);
+        return i;
+    }
+
+    /** MIME real del Uri vía el ContentResolver (nunca se adivina por extensión); "image/*" si el
+     *  proveedor no lo informa o no es una imagen reconocible. */
+    private static String mimeImagen(Context ctx, Uri imagen) {
+        try {
+            String t = ctx.getContentResolver().getType(imagen);
+            if (t != null && t.startsWith("image/")) return t;
+        } catch (Exception ignore) {}
+        return "image/*";
+    }
+
+    /** Verifica, SIN leer su contenido, que el Uri todavía se puede abrir (el picker pudo haber
+     *  invalidado el permiso, el proveedor pudo dejar de servirlo, etc.) -- nunca lanza. */
+    private static boolean uriLegible(Context ctx, Uri uri) {
+        try (java.io.InputStream in = ctx.getContentResolver().openInputStream(uri)) {
+            return in != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** Arma la entidad local (con errores cercanos correlacionados) y la deja lista para Firestore. */
@@ -178,7 +220,7 @@ public final class ReporteApp {
     }
 
     private static String construirCuerpo(String reportId, long ts, String categoria, String descripcion,
-                                           DiagnosticoReporte.Datos d, boolean hayImagen) {
+                                           DiagnosticoReporte.Datos d, boolean hayImagen, boolean imagenFallo) {
         String fecha = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(new Date(ts));
         StringBuilder b = new StringBuilder();
         b.append("------------------------------------\n");
@@ -217,6 +259,7 @@ public final class ReporteApp {
                 .append("\n\n");
         b.append("Estado del seguimiento:\n").append(txt(d.estadoSeguimiento)).append("\n");
         if (hayImagen) b.append("\nSe adjunta una captura de pantalla.\n");
+        else if (imagenFallo) b.append("\nAdjunto no disponible.\n");
         b.append("\n------------------------------------\n");
         b.append("Folio: ").append(reportId).append('\n');
         return b.toString();
