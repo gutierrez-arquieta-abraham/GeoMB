@@ -944,8 +944,9 @@ public class PlanificadorFragment extends Fragment {
         return false;
     }
 
-    /** Info/aviso de horarios (Metrobús L1..L7): ventana de servicio de hoy por línea y aviso si a
-     *  esta hora alguna línea de la ruta ya no circula. Devuelve null si no hay datos aplicables. */
+    /** Info/aviso de horarios: ventana de servicio de hoy por línea (Metrobús, Mexibús o Mexicable,
+     *  según qué rutas tenga horarios.json) y aviso si a esta hora alguna línea de la ruta ya no
+     *  circula. Devuelve null si no hay datos aplicables. */
     private String infoHorario(Planificador.Ruta r) {
         java.util.LinkedHashSet<Integer> claves = new java.util.LinkedHashSet<>();
         for (Planificador.Parada p : r.secuencia) {

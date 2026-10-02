@@ -1473,300 +1473,6 @@
    "sistema": "mb"
   },
   {
-   "linea": 101,
-   "lineas": [
-    101
-   ],
-   "origen": "Ciudad Azteca",
-   "destino": "Ojo de Agua",
-   "mixta": false,
-   "sistema": "mxb",
-   "horarios": {
-    "LV": {
-     "ida": {
-      "prim": "04:39",
-      "ult": "00:54"
-     },
-     "vuelta": {
-      "prim": "04:00",
-      "ult": "00:15"
-     }
-    },
-    "S": {
-     "ida": {
-      "prim": "04:39",
-      "ult": "00:57"
-     },
-     "vuelta": {
-      "prim": "04:00",
-      "ult": "00:16"
-     }
-    },
-    "D": {
-     "ida": {
-      "prim": "04:50",
-      "ult": "00:42"
-     },
-     "vuelta": {
-      "prim": "04:10",
-      "ult": "00:02"
-     }
-    }
-   }
-  },
-  {
-   "linea": 111,
-   "lineas": [
-    111
-   ],
-   "origen": "Ojo de Agua",
-   "destino": "Terminal de Pasajeros",
-   "mixta": false,
-   "sistema": "mxb",
-   "horarios": {
-    "LV": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "23:50"
-     },
-     "vuelta": {
-      "prim": "04:10",
-      "ult": "23:00"
-     }
-    },
-    "S": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "23:50"
-     },
-     "vuelta": {
-      "prim": "04:10",
-      "ult": "23:00"
-     }
-    },
-    "D": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "23:50"
-     },
-     "vuelta": {
-      "prim": "04:10",
-      "ult": "23:00"
-     }
-    }
-   }
-  },
-  {
-   "linea": 102,
-   "lineas": [
-    102
-   ],
-   "origen": "Las Américas",
-   "destino": "La Quebrada",
-   "mixta": false,
-   "sistema": "mxb",
-   "horarios": {
-    "LV": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "00:13"
-     },
-     "vuelta": {
-      "prim": "05:00",
-      "ult": "01:13"
-     }
-    },
-    "S": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "23:56"
-     },
-     "vuelta": {
-      "prim": "05:00",
-      "ult": "00:55"
-     }
-    },
-    "D": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "23:56"
-     },
-     "vuelta": {
-      "prim": "05:00",
-      "ult": "00:55"
-     }
-    }
-   }
-  },
-  {
-   "linea": 112,
-   "lineas": [
-    112
-   ],
-   "origen": "Las Américas",
-   "destino": "Río de los Remedios",
-   "mixta": false,
-   "sistema": "mxb",
-   "horarios": {
-    "LV": {
-     "ida": {
-      "prim": "05:00",
-      "ult": "22:32"
-     },
-     "vuelta": {
-      "prim": "05:39",
-      "ult": "23:11"
-     }
-    },
-    "S": {
-     "ida": {
-      "prim": "05:00",
-      "ult": "22:32"
-     },
-     "vuelta": {
-      "prim": "05:39",
-      "ult": "23:11"
-     }
-    },
-    "D": {
-     "ida": {
-      "prim": "05:00",
-      "ult": "22:33"
-     },
-     "vuelta": {
-      "prim": "05:40",
-      "ult": "23:13"
-     }
-    }
-   }
-  },
-  {
-   "linea": 103,
-   "lineas": [
-    103
-   ],
-   "origen": "Pantitlán",
-   "destino": "Chimalhuacán",
-   "mixta": false,
-   "sistema": "mxb",
-   "horarios": {
-    "LV": {
-     "ida": {
-      "prim": "04:49",
-      "ult": "00:59"
-     },
-     "vuelta": {
-      "prim": "04:00",
-      "ult": "00:10"
-     }
-    },
-    "S": {
-     "ida": {
-      "prim": "04:49",
-      "ult": "01:01"
-     },
-     "vuelta": {
-      "prim": "04:00",
-      "ult": "00:12"
-     }
-    },
-    "D": {
-     "ida": {
-      "prim": "06:49",
-      "ult": "00:59"
-     },
-     "vuelta": {
-      "prim": "06:00",
-      "ult": "00:10"
-     }
-    }
-   }
-  },
-  {
-   "linea": 113,
-   "lineas": [
-    113
-   ],
-   "origen": "Acuitlapilco",
-   "destino": "Central de Abasto",
-   "mixta": false,
-   "sistema": "mxb",
-   "horarios": {
-    "LV": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "23:34"
-     },
-     "vuelta": {
-      "prim": "04:22",
-      "ult": "23:56"
-     }
-    },
-    "S": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "23:34"
-     },
-     "vuelta": {
-      "prim": "04:22",
-      "ult": "23:56"
-     }
-    },
-    "D": {
-     "ida": {
-      "prim": "04:00",
-      "ult": "00:13"
-     },
-     "vuelta": {
-      "prim": "04:22",
-      "ult": "00:35"
-     }
-    }
-   }
-  },
-  {
-   "linea": 104,
-   "lineas": [
-    104
-   ],
-   "origen": "La Raza",
-   "destino": "Universidad Mexiquense del Bicentenario",
-   "mixta": false,
-   "sistema": "mxb",
-   "horarios": {
-    "LV": {
-     "ida": {
-      "prim": "05:05",
-      "ult": "00:57"
-     },
-     "vuelta": {
-      "prim": "03:45",
-      "ult": "23:40"
-     }
-    },
-    "S": {
-     "ida": {
-      "prim": "05:05",
-      "ult": "00:56"
-     },
-     "vuelta": {
-      "prim": "03:45",
-      "ult": "23:36"
-     }
-    },
-    "D": {
-     "ida": {
-      "prim": "05:20",
-      "ult": "00:53"
-     },
-     "vuelta": {
-      "prim": "04:00",
-      "ult": "23:35"
-     }
-    }
-   }
-  },
-  {
    "linea": 201,
    "lineas": [
     201
@@ -1835,6 +1541,536 @@
      "ida": {
       "prim": "06:00",
       "ult": "21:45"
+     }
+    }
+   }
+  },
+  {
+   "linea": 101,
+   "lineas": [
+    101
+   ],
+   "origen": "Ciudad Azteca",
+   "destino": "Ojo de Agua",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "01:40"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "01:37"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:10",
+      "ult": "01:37"
+     }
+    }
+   }
+  },
+  {
+   "linea": 121,
+   "lineas": [
+    121
+   ],
+   "origen": "Ciudad Azteca",
+   "destino": "Ojo de Agua",
+   "mixta": false,
+   "variante": "Exprés",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:40",
+      "ult": "23:57"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:48"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:48"
+     }
+    }
+   }
+  },
+  {
+   "linea": 121,
+   "lineas": [
+    121
+   ],
+   "origen": "Ciudad Azteca",
+   "destino": "Ojo de Agua",
+   "mixta": false,
+   "variante": "Exprés Rosa",
+   "nota": "Exclusivo mujeres",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:45",
+      "ult": "21:35"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "06:05",
+      "ult": "21:54"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:05",
+      "ult": "21:54"
+     }
+    }
+   }
+  },
+  {
+   "linea": 121,
+   "lineas": [
+    121
+   ],
+   "origen": "Central de Abastos",
+   "destino": "Ciudad Azteca",
+   "mixta": false,
+   "variante": "Exprés",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:58"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:53"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:00",
+      "ult": "23:11"
+     }
+    }
+   }
+  },
+  {
+   "linea": 111,
+   "lineas": [
+    111
+   ],
+   "origen": "Ojo de Agua",
+   "destino": "Terminal de Pasajeros",
+   "mixta": false,
+   "nota": "AIFA",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "04:50",
+      "ult": "23:50"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "00:06"
+     },
+     "vuelta": {
+      "prim": "04:45",
+      "ult": "00:51"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:45"
+     },
+     "vuelta": {
+      "prim": "04:45",
+      "ult": "00:30"
+     }
+    }
+   }
+  },
+  {
+   "linea": 102,
+   "lineas": [
+    102
+   ],
+   "origen": "Las Américas",
+   "destino": "La Quebrada",
+   "mixta": false,
+   "sistema": "mxb",
+   "nota": "Horario oficial: el ordinario mixto reporta cierre en Las Américas a las 12:15 (el corredor pudiera continuar solo con servicio exprés el resto del día).",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "12:15"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "01:14"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "12:13"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "01:12"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "12:13"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "01:12"
+     }
+    }
+   }
+  },
+  {
+   "linea": 122,
+   "lineas": [
+    122
+   ],
+   "origen": "Ecatepec",
+   "destino": "Lechería",
+   "mixta": false,
+   "variante": "Exprés",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:03",
+      "ult": "22:19"
+     },
+     "vuelta": {
+      "prim": "05:54",
+      "ult": "23:10"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:46",
+      "ult": "22:12"
+     },
+     "vuelta": {
+      "prim": "06:35",
+      "ult": "23:01"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:46",
+      "ult": "22:12"
+     },
+     "vuelta": {
+      "prim": "06:35",
+      "ult": "23:01"
+     }
+    }
+   }
+  },
+  {
+   "linea": 112,
+   "lineas": [
+    112
+   ],
+   "origen": "Las Américas",
+   "destino": "Río de los Remedios",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:54"
+     },
+     "vuelta": {
+      "prim": "05:39",
+      "ult": "23:33"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:39",
+      "ult": "22:33"
+     },
+     "vuelta": {
+      "prim": "05:40",
+      "ult": "23:13"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "22:52"
+     },
+     "vuelta": {
+      "prim": "05:40",
+      "ult": "23:32"
+     }
+    }
+   }
+  },
+  {
+   "linea": 103,
+   "lineas": [
+    103
+   ],
+   "origen": "Chimalhuacán",
+   "destino": "Pantitlán",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "00:57"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "01:01"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:00",
+      "ult": "00:59"
+     }
+    }
+   }
+  },
+  {
+   "linea": 123,
+   "lineas": [
+    123
+   ],
+   "origen": "Chimalhuacán",
+   "destino": "Pantitlán",
+   "mixta": false,
+   "variante": "Exprés 1",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:51",
+      "ult": "22:21"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:04",
+      "ult": "22:50"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:06",
+      "ult": "22:34"
+     }
+    }
+   }
+  },
+  {
+   "linea": 123,
+   "lineas": [
+    123
+   ],
+   "origen": "Chimalhuacán",
+   "destino": "Pantitlán",
+   "mixta": false,
+   "variante": "Exprés Rosa",
+   "nota": "Exclusivo mujeres",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "06:17",
+      "ult": "22:02"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "06:17",
+      "ult": "22:02"
+     }
+    }
+   }
+  },
+  {
+   "linea": 123,
+   "lineas": [
+    123
+   ],
+   "origen": "Chimalhuacán",
+   "destino": "Pantitlán",
+   "mixta": false,
+   "variante": "Exprés 2",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:09"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "05:02",
+      "ult": "20:17"
+     }
+    }
+   }
+  },
+  {
+   "linea": 123,
+   "lineas": [
+    123
+   ],
+   "origen": "Rayito de Sol",
+   "destino": "Pantitlán",
+   "mixta": false,
+   "variante": "Exprés 3",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:15",
+      "ult": "22:12"
+     }
+    }
+   }
+  },
+  {
+   "linea": 113,
+   "lineas": [
+    113
+   ],
+   "origen": "Acuitlapilco",
+   "destino": "Central de Abastos Chicoloapan",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "23:34"
+     },
+     "vuelta": {
+      "prim": "04:22",
+      "ult": "23:56"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "00:13"
+     },
+     "vuelta": {
+      "prim": "04:22",
+      "ult": "00:35"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "06:12",
+      "ult": "00:18"
+     },
+     "vuelta": {
+      "prim": "06:52",
+      "ult": "00:40"
+     }
+    }
+   }
+  },
+  {
+   "linea": 104,
+   "lineas": [
+    104
+   ],
+   "origen": "La Raza",
+   "destino": "Universidad Mexiquense del Bicentenario",
+   "mixta": false,
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "03:45",
+      "ult": "00:57"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "03:45",
+      "ult": "00:56"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "00:53"
+     }
+    }
+   }
+  },
+  {
+   "linea": 124,
+   "lineas": [
+    124
+   ],
+   "origen": "Universidad Mexiquense del Bicentenario",
+   "destino": "Indios Verdes",
+   "mixta": false,
+   "variante": "Exprés Rosa",
+   "nota": "Exclusivo mujeres",
+   "sistema": "mxb",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "21:20"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "18:30"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "04:00",
+      "ult": "18:15"
      }
     }
    }
