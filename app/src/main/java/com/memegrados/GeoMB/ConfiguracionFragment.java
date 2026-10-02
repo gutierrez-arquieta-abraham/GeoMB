@@ -639,7 +639,7 @@ public class ConfiguracionFragment extends Fragment {
                 .setView(v)
                 .setPositiveButton(R.string.reporte_app_enviar, (d, w) ->
                         ReporteApp.enviar(requireContext(), (String) spCat.getSelectedItem(),
-                                inDesc.getText().toString(), imagenReporteApp))
+                                spCat.getSelectedItemPosition(), inDesc.getText().toString(), imagenReporteApp))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }

@@ -61,6 +61,12 @@ public final class Backend {
     private static volatile long ultimoIntentoPrimario = 0L;
     private static final long REINTENTO_PRIMARIO_MS = 30_000L;   // vuelve a probar el principal cada 30 s
 
+    // Metadatos de la última petición HTTP real (cualquier endpoint), para el diagnóstico técnico
+    // de ReporteApp/DiagnosticoReporte -- no afectan el failover, solo se leen para reportes.
+    public static volatile String ultimoEndpoint;
+    public static volatile int ultimoHttpStatus;
+    public static volatile long ultimaLatenciaMs = -1;
+
     private Backend() {}
 
     // ========================================================
@@ -123,13 +129,19 @@ public final class Backend {
     //
     // ========================================================
     private static String get(String urlStr) throws Exception {
+        long inicio = System.currentTimeMillis();
+        ultimoHttpStatus = 0;   // 0 = sin respuesta HTTP (falla de conexión/timeout), distinto de un código real
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         try {
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(15000);
             conn.setRequestProperty("Accept", "application/json");
             conn.connect();
-            if (conn.getResponseCode() / 100 != 2) throw new Exception("HTTP " + conn.getResponseCode());
+            int status = conn.getResponseCode();
+            ultimoEndpoint = urlStr;
+            ultimoHttpStatus = status;
+            ultimaLatenciaMs = System.currentTimeMillis() - inicio;
+            if (status / 100 != 2) throw new Exception("HTTP " + status);
             StringBuilder sb = new StringBuilder();
             try (BufferedReader r = new BufferedReader(
                     new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
@@ -137,6 +149,10 @@ public final class Backend {
                 while ((l = r.readLine()) != null) sb.append(l);
             }
             return sb.toString();
+        } catch (Exception e) {
+            ultimoEndpoint = urlStr;
+            ultimaLatenciaMs = System.currentTimeMillis() - inicio;
+            throw e;
         } finally {
             conn.disconnect();
         }

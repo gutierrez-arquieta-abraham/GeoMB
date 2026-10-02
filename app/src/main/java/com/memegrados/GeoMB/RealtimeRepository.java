@@ -50,6 +50,12 @@ public final class RealtimeRepository {
     public static com.google.android.gms.maps.model.LatLng estacionSeleccionadaPos = null;
     public static int estacionSeleccionadaLinea = -1;
 
+    /** Timestamp (ms) del último fetch() exitoso y si el más reciente terminó en error -- lo lee
+     *  {@link DiagnosticoReporte} para el diagnóstico técnico de ReporteApp (antigüedad del dato,
+     *  estado del seguimiento), sin disparar ninguna petición nueva. */
+    public static volatile long ultimoFetchExitoTs = 0L;
+    public static volatile boolean ultimoFetchError = false;
+
     /** Filtros activos (compartidos entre mapa y listado). */
     public static final Filtro filtro = new Filtro();
 
@@ -115,6 +121,8 @@ public final class RealtimeRepository {
                 String json = Backend.descargar(Config.PATH_VEHICLES);
                 List<UnidadReal> lista = parsear(json);
                 ultimo = lista;
+                ultimoFetchExitoTs = System.currentTimeMillis();
+                ultimoFetchError = false;
                 main.post(() -> {
                     try { cb.onData(lista); } catch (Exception e) {
                         GeoMBApplication app = GeoMBApplication.get();
@@ -123,6 +131,7 @@ public final class RealtimeRepository {
                 });
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage() : "error";
+                ultimoFetchError = true;
                 GeoMBApplication app = GeoMBApplication.get();
                 if (app != null) Telemetria.registrarError(app, Telemetria.ERR_RED, "RealtimeRepository.fetch", msg);
                 main.post(() -> {
