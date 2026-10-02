@@ -938,6 +938,15 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return null;
     }
 
+    /** Igual que {@link #estacionDeMarcador}, pero busca por nombre+línea en vez de por marcador: la
+     *  usa el buscador de texto ({@link #centrarGrupoEnMapa}), que resuelve un {@link Planificador.Match}
+     *  y no necesariamente tiene ya un marcador creado para esa estación (se crean por demanda/radio). */
+    private EstMapa estacionPorNombreLinea(String nombre, int linea) {
+        for (EstMapa em : estaciones) if (em.linea == linea && em.e.nombre.equals(nombre)) return em;
+        for (EstMapa em : mexibusEst) if (em.linea == linea && em.e.nombre.equals(nombre)) return em;
+        return null;
+    }
+
     /** Oculta la tarjeta flotante (unidad o estación) sobre el mapa. */
     private void ocultarCarta() {
         if (cartaContainer != null) cartaContainer.setVisibility(View.GONE);
@@ -1470,7 +1479,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     /** Centra el mapa en el punto promedio de un grupo (un solo andén, o varios co-ubicados de una
-     *  misma estación física real). */
+     *  misma estación física real) y muestra/actualiza su carta -- antes solo se movía la cámara y la
+     *  carta se quedaba pegada con lo último que se hubiera tocado (p. ej. otra estación de antes). */
     private void centrarGrupoEnMapa(java.util.List<Planificador.Match> grupo) {
         if (mapa == null) return;
         double lat = 0, lon = 0;
@@ -1478,6 +1488,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         LatLng centro = new LatLng(lat / grupo.size(), lon / grupo.size());
         centroCarga = centro;
         mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(centro, grupo.size() > 1 ? 15.5f : 16f));
+
+        Planificador.Match rep = CartaDesambiguacion.repGrupo(grupo);
+        EstMapa em = estacionPorNombreLinea(rep.nombre, rep.linea);
+        if (em != null) mostrarCartaEstacion(em);
     }
 
     private void ocultarTeclado() {
