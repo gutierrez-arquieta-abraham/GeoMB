@@ -1515,6 +1515,48 @@
    }
   },
   {
+   "linea": 202,
+   "lineas": [
+    202
+   ],
+   "origen": "Indios Verdes",
+   "destino": "Hank González II",
+   "mixta": false,
+   "sistema": "mxc",
+   "horarios": {
+    "LV": {
+     "ida": {
+      "prim": "05:00",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "05:00",
+      "ult": "23:00"
+     }
+    },
+    "S": {
+     "ida": {
+      "prim": "06:00",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "06:00",
+      "ult": "23:00"
+     }
+    },
+    "D": {
+     "ida": {
+      "prim": "07:00",
+      "ult": "23:00"
+     },
+     "vuelta": {
+      "prim": "07:00",
+      "ult": "23:00"
+     }
+    }
+   }
+  },
+  {
    "linea": 124,
    "lineas": [
     124
