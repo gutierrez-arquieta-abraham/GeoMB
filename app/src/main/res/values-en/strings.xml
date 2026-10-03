@@ -459,6 +459,11 @@
     <string name="asistente_error_red">Could not reach the assistant. Check your connection and try again.</string>
     <string name="asistente_cuota_agotada">You already used your daily message limit for the assistant. Come back tomorrow.</string>
     <string name="asistente_saludo">Hi! Ask me about routes, stations, vehicles or service alerts for Metrobús, Mexibús or Mexicable.</string>
+    <string name="asistente_accion_titulo">Confirm action</string>
+    <string name="asistente_accion_confirmar">Confirm</string>
+    <string name="asistente_accion_cancelar">Cancel</string>
+    <string name="asistente_accion_expirada">That request expired, tell me again what you want to do.</string>
+    <string name="asistente_recorrido_detenido">Trip stopped.</string>
 
     <!-- Report a problem WITH THE APP (not the Metrobús service), to the support emails -->
     <string name="config_reportar_app">Report a problem with the app</string>

@@ -66,6 +66,10 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     respuesta: str
+    # Propuesta de acción del turno (p. ej. detenerRecorrido) que Android debe confirmar antes de
+    # ejecutar -- None si ese mensaje no propuso ninguna. Ver GeoMBAgent.accion_pendiente(): NUNCA
+    # se ejecuta nada aquí ni en Python, esto solo lleva el dato hacia Android.
+    accionPendiente: dict | None = None
 
 
 # ---------------------------------------------------------------- endpoints propios de GeoMB
@@ -148,7 +152,7 @@ async def chat(
     # Se cuenta contra la cuota diaria solo si Gemini de verdad respondió (una falla del
     # servidor no debe consumirle su mensaje del día al usuario).
     ratelimit.registrar_mensaje(x_device_id)
-    return ChatResponse(respuesta=respuesta)
+    return ChatResponse(respuesta=respuesta, accionPendiente=agente.accion_pendiente())
 
 
 @app.get("/salud")

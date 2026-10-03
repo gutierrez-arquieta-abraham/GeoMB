@@ -493,6 +493,11 @@
     <string name="asistente_error_red">No se pudo conectar con el asistente. Revisa tu conexión e intenta de nuevo.</string>
     <string name="asistente_cuota_agotada">Ya usaste tu límite de mensajes del asistente por hoy. Vuelve mañana.</string>
     <string name="asistente_saludo">¡Hola! Pregúntame sobre rutas, estaciones, unidades o afectaciones de Metrobús, Mexibús o Mexicable.</string>
+    <string name="asistente_accion_titulo">Confirmar acción</string>
+    <string name="asistente_accion_confirmar">Confirmar</string>
+    <string name="asistente_accion_cancelar">Cancelar</string>
+    <string name="asistente_accion_expirada">Esa solicitud ya expiró, dime de nuevo qué quieres hacer.</string>
+    <string name="asistente_recorrido_detenido">Recorrido detenido.</string>
 
     <!-- Reporte de un problema DE LA APP (no del servicio de Metrobús), a los correos de soporte -->
     <string name="config_reportar_app">Reportar un problema de la app</string>

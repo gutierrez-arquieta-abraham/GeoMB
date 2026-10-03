@@ -12,6 +12,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -21,6 +22,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
 
+import org.json.JSONObject;
+
+import java.util.Collections;
+import java.util.Set;
+
 /**
  * Pantalla de chat con el asistente conversacional (Gemini + Function Calling, backend Python
  * en integrations/gemini/, ver {@link Asistente} y {@link Config#ASISTENTE_CHAT_URL}). Sin
@@ -29,6 +35,12 @@ import com.google.android.material.button.MaterialButton;
  */
 public class ChatAsistenteActivity extends AppCompatActivity {
 
+    /** Lista blanca de acciones que esta pantalla sabe ejecutar -- Fase 3B solo valida
+     *  "detenerRecorrido". Cualquier otro nombre que mande el backend se ignora SIN mostrar
+     *  diálogo (ver {@link #onAccionPendiente}): Android decide si una acción es conocida y
+     *  permitida, nunca confía ciegamente en lo que propone Gemini. */
+    private static final Set<String> ACCIONES_PERMITIDAS = Collections.singleton("detenerRecorrido");
+
     private EditText inMensaje;
     private MaterialButton btnEnviar;
     private ProgressBar progreso;
@@ -36,6 +48,12 @@ public class ChatAsistenteActivity extends AppCompatActivity {
     private MensajeChatAdapter adapter;
     private RecyclerView rv;
     private boolean cuotaAgotada = false;
+
+    /** Acción propuesta por Gemini pendiente de que el usuario la confirme con el botón del
+     *  AlertDialog -- vive SOLO en memoria de esta Activity (nunca en SharedPreferences/Room),
+     *  ver {@link AccionPendiente}. Un mensaje de chat como "sí" NUNCA la ejecuta: la ejecución
+     *  real solo puede salir de {@link #confirmarAccion()}. */
+    private AccionPendiente accionActual;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -107,6 +125,14 @@ public class ChatAsistenteActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onAccionPendiente(JSONObject accionPendiente) {
+                String accion = accionPendiente.optString("accion", null);
+                if (accion == null || !ACCIONES_PERMITIDAS.contains(accion)) return;   // desconocida: SIN diálogo
+                String resumen = accionPendiente.optString("resumen", accion);
+                mostrarConfirmacion(new AccionPendiente(accion, accionPendiente.optJSONObject("parametros"), resumen));
+            }
+
+            @Override
             public void onCuotaAgotada(String mensaje) {
                 fijarCargando(false);
                 cuotaAgotada = true;
@@ -130,5 +156,37 @@ public class ChatAsistenteActivity extends AppCompatActivity {
         progreso.setVisibility(cargando ? View.VISIBLE : View.GONE);
         btnEnviar.setEnabled(!cargando);
         inMensaje.setEnabled(!cargando);
+    }
+
+    // ---- confirmación de acciones (Fase 3B: solo "detenerRecorrido") ----
+
+    private void mostrarConfirmacion(AccionPendiente a) {
+        accionActual = a;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.asistente_accion_titulo)
+                .setMessage(TextUtils.isEmpty(a.resumen) ? a.accion : a.resumen)
+                .setPositiveButton(R.string.asistente_accion_confirmar, (d, w) -> confirmarAccion())
+                .setNegativeButton(R.string.asistente_accion_cancelar, (d, w) -> cancelarAccion())
+                .setOnCancelListener(d -> cancelarAccion())   // back / tocar fuera del diálogo = cancelar
+                .show();
+    }
+
+    /** Único lugar de todo el flujo que puede llamar a un método real de GeoMB (RecorridoService)
+     *  -- nunca se llama desde el texto del chat, solo desde el botón "Confirmar" de arriba. */
+    private void confirmarAccion() {
+        AccionPendiente propuesta = accionActual;
+        accionActual = null;   // PRIMERA operación: evita una segunda ejecución aunque este
+                                // método se disparara dos veces (doble toque, etc.)
+        if (propuesta == null || !"detenerRecorrido".equals(propuesta.accion)) return;
+        if (propuesta.expirada()) {
+            Toast.makeText(this, R.string.asistente_accion_expirada, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        RecorridoService.detener(this);
+        Toast.makeText(this, R.string.asistente_recorrido_detenido, Toast.LENGTH_SHORT).show();
+    }
+
+    private void cancelarAccion() {
+        accionActual = null;
     }
 }

@@ -34,6 +34,10 @@ public final class Asistente {
 
     public interface Callback {
         void onRespuesta(String texto);
+        /** Gemini propuso una acción (p. ej. detenerRecorrido) que requiere confirmación explícita
+         *  del usuario -- NUNCA se ejecuta sola. Método "default" (no rompe implementaciones
+         *  existentes de este Callback): {accion, parametros, resumen}, ver AccionPendiente. */
+        default void onAccionPendiente(JSONObject accionPendiente) {}
         /** Cuota diaria agotada (HTTP 429 con {"error":"cuota_agotada", ...}): aviso, no error genérico. */
         void onCuotaAgotada(String mensaje);
         void onError(String mensaje);
@@ -75,8 +79,12 @@ public final class Asistente {
                 if (r.codigo / 100 != 2) throw new Exception("HTTP " + r.codigo);
 
                 String respuesta = extraerCampo(r.cuerpo, "respuesta", "");
+                JSONObject accionPendiente = extraerAccionPendiente(r.cuerpo);
                 main.post(() -> {
                     try { cb.onRespuesta(respuesta); } catch (Exception e) { registrarFallo("Asistente.onRespuesta", e); }
+                    if (accionPendiente != null) {
+                        try { cb.onAccionPendiente(accionPendiente); } catch (Exception e) { registrarFallo("Asistente.onAccionPendiente", e); }
+                    }
                 });
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage() : "error de red";
@@ -99,6 +107,16 @@ public final class Asistente {
             return new JSONObject(cuerpoJson).optString(campo, porDefecto);
         } catch (Exception e) {
             return porDefecto;
+        }
+    }
+
+    /** {@code accionPendiente} del cuerpo, o null si no vino (turno sin propuesta de acción) o
+     *  si el JSON no se pudo leer -- nunca inventa un valor. */
+    private static JSONObject extraerAccionPendiente(String cuerpoJson) {
+        try {
+            return new JSONObject(cuerpoJson).optJSONObject("accionPendiente");
+        } catch (Exception e) {
+            return null;
         }
     }
 

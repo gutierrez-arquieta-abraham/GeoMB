@@ -63,11 +63,21 @@ class GeoMBAgent:
         # Contexto de tracking del último mensaje (ver responder()) -- disponible desde ya para
         # que las Tools de Fase 3 lo puedan leer, aunque todavía ninguna lo use.
         self._contexto_dispositivo: dict = {}
+        # Última propuesta de acción (ver accion_pendiente()) del turno más reciente de
+        # responder() -- se reinicia en CADA llamada, nunca se arrastra de un turno a otro.
+        self._ultima_accion_pendiente: dict | None = None
 
     def reiniciar(self) -> None:
         """Borra el historial de la conversación (nueva sesión)."""
         self._historial = []
         self._inicios_turno = []
+
+    def accion_pendiente(self) -> dict | None:
+        """Última propuesta de acción (p. ej. detenerRecorrido) del turno más reciente de
+        responder() -- None si ninguna tool de acción se invocó en ese turno, o si lo que
+        devolvió no traía requiere_confirmacion. server.py llama a esto (nunca lee el atributo
+        privado directo) para armar ChatResponse.accionPendiente."""
+        return self._ultima_accion_pendiente
 
     async def responder(self, mensaje_usuario: str, contexto_dispositivo: dict | None = None) -> str:
         # Contexto de tracking que Android manda con cada mensaje (ver DiagnosticoReporte.
@@ -75,6 +85,9 @@ class GeoMBAgent:
         # _ejecutar_herramienta() lo inyecta SOLO a las tools que lo declaran en su firma (ver
         # tools_tracking.py/tools_app.py) -- las demás no lo reciben ni cambian su comportamiento.
         self._contexto_dispositivo = contexto_dispositivo or {}
+        # Nunca se arrastra de un turno a otro: si ESTE mensaje no propone ninguna acción nueva,
+        # accion_pendiente() debe devolver None, aunque el turno anterior sí hubiera propuesto una.
+        self._ultima_accion_pendiente = None
 
         self._inicios_turno.append(len(self._historial))
         self._historial.append(
@@ -108,6 +121,16 @@ class GeoMBAgent:
             partes_respuesta = []
             for llamada in llamadas:
                 resultado = await self._ejecutar_herramienta(llamada.name, dict(llamada.args or {}))
+                if isinstance(resultado, dict) and resultado.get("requiere_confirmacion"):
+                    # Se conserva la propuesta (nunca se ejecuta nada aquí): si varias tools de
+                    # acción se llamaran en el mismo turno, gana la última -- no debería pasar en
+                    # Fase 3B (solo hay una tool de acción implementada), pero el criterio queda
+                    # definido para cuando haya más.
+                    self._ultima_accion_pendiente = {
+                        "accion": resultado.get("accion"),
+                        "parametros": resultado.get("parametros", {}),
+                        "resumen": resultado.get("resumen", ""),
+                    }
                 partes_respuesta.append(
                     types.Part.from_function_response(name=llamada.name, response={"result": resultado})
                 )

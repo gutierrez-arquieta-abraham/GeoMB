@@ -99,8 +99,16 @@ def iniciar_recorrido(destino: str, origen: str = "") -> dict[str, Any]:
 
 
 def detener_recorrido() -> dict[str, Any]:
-    """Propone detener el recorrido guiado en curso. Nunca ejecuta nada por sí misma."""
-    return _NO_IMPLEMENTADO
+    """Propone detener el recorrido guiado en curso -- NUNCA lo detiene por sí misma: Python no
+    tiene (ni puede tener) acceso a RecorridoService, que solo existe en el proceso Android. Esto
+    solo arma la propuesta; agent.py la captura (ver _ultima_accion_pendiente) y server.py la
+    expone en ChatResponse.accionPendiente para que Android decida, confirme y ejecute."""
+    return {
+        "requiere_confirmacion": True,
+        "accion": "detenerRecorrido",
+        "parametros": {},
+        "resumen": "Detener el recorrido actual",
+    }
 
 
 def seguir_unidad(economico: str) -> dict[str, Any]:
