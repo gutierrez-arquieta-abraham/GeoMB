@@ -892,11 +892,20 @@ public final class Planificador {
     private static boolean grafoMexibus;
     private static String grafoCortes = null;
 
-    // Motivo del último calcular() que devolvió null (para dar un toast útil al usuario).
-    public static final int MOTIVO_OK = 0, MOTIVO_ESTACION_CERRADA = 1, MOTIVO_SIN_RUTA = 2;
+    // Motivo del último calcular() que devolvió null (para dar un toast útil al usuario). Cuando los
+    // extremos son válidos pero no se halla camino, la causa REAL se distingue con dos re-búsquedas
+    // de diagnóstico (ver diagnosticarFallo()): si ignorar el horario de alguna línea destraba un
+    // camino, la causa es horario; si no, pero ignorar los cortes activos sí lo destraba, es una
+    // afectación que de verdad interrumpe ESTA ruta (no basta con que exista alguna en otra parte de
+    // la red); si ninguna de las dos lo destraba, es que de verdad no hay conexión (SIN_RUTA).
+    public static final int MOTIVO_OK = 0, MOTIVO_ESTACION_CERRADA = 1, MOTIVO_HORARIO = 2,
+            MOTIVO_AFECTACION = 3, MOTIVO_SIN_RUTA = 4;
     public static volatile int motivoFallo = MOTIVO_OK;
     /** Estación (nombre canónico) que quedó fuera de servicio, cuando MOTIVO_ESTACION_CERRADA. */
     public static volatile String estacionCerrada = null;
+    /** Línea (código interno) identificada como la que ya cerró, cuando MOTIVO_HORARIO -- 0 si no se
+     *  pudo identificar una línea específica (el mensaje cae entonces al genérico "ya terminó por hoy"). */
+    public static volatile int lineaHorarioCerrado = 0;
 
     public static Ruta calcular(Context ctx, String origen, String destino) {
         return calcular(ctx, origen, destino, 0, 0);
@@ -1260,9 +1269,10 @@ public final class Planificador {
             if (fin >= 0) break;
         }
         if (fin < 0) {
-            // Endpoints válidos pero no hay camino: línea partida por un corte/manifestación.
-            motivoFallo = MOTIVO_SIN_RUTA;
-            estacionCerrada = null;
+            // Endpoints válidos pero no hay camino con las condiciones reales: antes de rendirse con
+            // el genérico SIN_RUTA, se diagnostica la causa REAL (horario vs. afectación vs. de verdad
+            // sin conexión) -- deja su resultado en motivoFallo/lineaHorarioCerrado.
+            diagnosticarFallo(ctx, rutas, node, rango, adj, esDest, heur, on, lineaO, svcPref, ahoraBase);
             return null;
         }
 
@@ -1390,12 +1400,143 @@ public final class Planificador {
         for (int t = 1; t < instrucciones.size(); t++)
             if (claveTerminal(instrucciones.get(t).linea) != claveTerminal(instrucciones.get(t - 1).linea)) transbordos++;
         int minutos = (int) Math.round(dist[fin] / 60.0);
-        motivoFallo = MOTIVO_OK; estacionCerrada = null;
+        motivoFallo = MOTIVO_OK; estacionCerrada = null; lineaHorarioCerrado = 0;
         return new Ruta(pasos, instrucciones, paradasTot, transbordos, minutos, trazo, secuencia);
     }
 
     private static Stop stopDe(List<Route> rutas, int[] nd) {
         return rutas.get(nd[0]).stops.get(nd[1]);
+    }
+
+    /**
+     * Cuando calcular() no halla camino con extremos válidos, determina la causa REAL probando, por
+     * descarte, si ignorar ÚNICAMENTE el horario (MOTIVO_HORARIO) o ÚNICAMENTE los cortes/afectaciones
+     * activos (MOTIVO_AFECTACION) destraba un camino -- solo se atribuye esa causa si de verdad hace
+     * la diferencia para ESTA ruta. Que exista una afectación en cualquier otra parte de la red
+     * (Manifestaciones.hay()) NUNCA basta por sí sola -- eso es justo lo que esto evita. Si ninguna de
+     * las dos explica el fallo, se deja MOTIVO_SIN_RUTA (de verdad no hay conexión). Dos re-búsquedas
+     * de A* (una sola pasada cada una, sin restringir correspondencias exprés -- el mismo criterio que
+     * ya usó la 2ª pasada real que acaba de fallar) sobre el MISMO grafo/caché real: nunca modifican
+     * ni invalidan grafoCache, nunca se usan para el resultado real, solo dejan su conclusión en
+     * motivoFallo/lineaHorarioCerrado.
+     */
+    private static void diagnosticarFallo(Context ctx, List<Route> rutas, List<int[]> node, int[][] rango,
+            List<List<double[]>> adj, boolean[] esDest, double[] heur, String on, int lineaO,
+            java.util.Map<Integer, Boolean> svcPref, Calendar ahoraBase) {
+        int n = node.size();
+        int[] prevHorario = new int[n];
+        java.util.Arrays.fill(prevHorario, -1);
+        int finSinHorario = diagnosticoCamino(ctx, rutas, node, adj, esDest, heur, on, lineaO,
+                svcPref, ahoraBase, true, prevHorario);
+        if (finSinHorario >= 0) {
+            motivoFallo = MOTIVO_HORARIO;
+            estacionCerrada = null;
+            lineaHorarioCerrado = identificarLineaCerrada(ctx, rutas, node, prevHorario, finSinHorario, ahoraBase);
+            return;
+        }
+        List<List<double[]>> adjSin = adjSinCortes(rutas, node, rango, adj);
+        int[] prevAfect = new int[n];
+        java.util.Arrays.fill(prevAfect, -1);
+        int finSinCortes = diagnosticoCamino(ctx, rutas, node, adjSin, esDest, heur, on, lineaO,
+                svcPref, ahoraBase, false, prevAfect);
+        if (finSinCortes >= 0) {
+            motivoFallo = MOTIVO_AFECTACION;
+            estacionCerrada = null;
+            lineaHorarioCerrado = 0;
+            return;
+        }
+        motivoFallo = MOTIVO_SIN_RUTA;
+        estacionCerrada = null;
+        lineaHorarioCerrado = 0;
+    }
+
+    /**
+     * Una sola pasada de A* (sin restringir correspondencias exprés a la misma estación -- el mismo
+     * criterio de la 2ª pasada real) para saber si existe AL MENOS un camino bajo las condiciones
+     * dadas. Usada SOLO para diagnosticar la causa de un fallo (ver diagnosticarFallo()), nunca para
+     * el resultado real que se le entrega al usuario. Si {@code ignorarHorario} es true, no aplica
+     * lineaAbierta() en ningún punto (prueba "¿habría ruta si el horario no fuera el problema?").
+     * Llena {@code prev} (debe venir del tamaño de node, inicializado en -1) para poder reconstruir el
+     * camino encontrado. Devuelve el nodo destino alcanzado, o -1 si ningún camino existe ni así.
+     */
+    private static int diagnosticoCamino(Context ctx, List<Route> rutas, List<int[]> node,
+            List<List<double[]>> adj, boolean[] esDest, double[] heur, String on, int lineaO,
+            java.util.Map<Integer, Boolean> svcPref, Calendar ahoraBase, boolean ignorarHorario, int[] prev) {
+        int n = node.size();
+        double[] dist = new double[n];
+        for (int i = 0; i < n; i++) dist[i] = Double.MAX_VALUE;
+        PriorityQueue<double[]> pq = new PriorityQueue<>((p, q) -> Double.compare(p[0], q[0]));
+        for (int i = 0; i < n; i++) {
+            Stop s = stopDe(rutas, node.get(i));
+            if (s.nn.equals(on) && okLineaPref(lineaO, s.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i))) {
+                double e0 = esperaExtra(s.linea) + penalServicio(s.linea, svcPref);
+                if (!ignorarHorario && !lineaAbierta(ctx, s, proyectar(ahoraBase, e0))) continue;
+                dist[i] = e0; pq.add(new double[]{e0 + heur[i], i, e0});
+            }
+        }
+        while (!pq.isEmpty()) {
+            double[] top = pq.poll();
+            int u = (int) top[1];
+            if (top[2] > dist[u]) continue;
+            if (esDest[u]) return u;
+            for (double[] ar : adj.get(u)) {
+                int v = (int) ar[0];
+                boolean transbordo = ar.length > 2 && ar[2] == 1;
+                if (transbordo && (nodoBloqueado(ctx, rutas, node.get(u)) || nodoBloqueado(ctx, rutas, node.get(v)))) continue;
+                double nd = dist[u] + ar[1];
+                if (transbordo) nd += penalServicio(stopDe(rutas, node.get(v)).linea, svcPref);
+                else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref);
+                if (transbordo && !ignorarHorario && !lineaAbierta(ctx, stopDe(rutas, node.get(v)), proyectar(ahoraBase, nd))) continue;
+                if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd + heur[v], v, nd}); }
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Copia de {@code adj} con los tramos actualmente cortados (Manifestaciones.corte) restaurados,
+     * para diagnosticar si un corte/afectación es la causa REAL de un fallo. Reutiliza la MISMA
+     * topología (rutas/node/rango) ya calculada -- los cortes nunca cambian qué rutas/nodos existen,
+     * solo qué aristas de viaje DENTRO de una ruta se omiten (ver la construcción del grafo real) --
+     * así que basta con volver a agregar esas aristas concretas, con la MISMA fórmula de costo, sin
+     * reconstruir nada más. Nunca se usa para el resultado real ni se cachea.
+     */
+    private static List<List<double[]>> adjSinCortes(List<Route> rutas, List<int[]> node, int[][] rango,
+            List<List<double[]>> adjOriginal) {
+        List<List<double[]>> adj = new ArrayList<>();
+        for (List<double[]> l : adjOriginal) adj.add(new ArrayList<>(l));
+        for (int ri = 0; ri < rutas.size(); ri++) {
+            boolean uni = rutas.get(ri).unaVia;
+            for (int i = rango[ri][0]; i + 1 < rango[ri][1]; i++) {
+                Stop sa = stopDe(rutas, node.get(i)), sb = stopDe(rutas, node.get(i + 1));
+                if (sa.linea != sb.linea || !Manifestaciones.corte(sa.linea, sa.nn, sb.nn)) continue;
+                double costo = costoTramo(sa.pos, sb.pos);
+                adj.get(i).add(new double[]{i + 1, costo, 0});
+                if (!uni) adj.get(i + 1).add(new double[]{i, costo, 0});
+            }
+            String rid = rutas.get(ri).id;
+            if (rid != null && (rid.equals("L112o") || rid.equals("L113o"))) {
+                int first = rango[ri][0], last = rango[ri][1] - 1;
+                if (last > first) {
+                    Stop sl = stopDe(rutas, node.get(last)), sf = stopDe(rutas, node.get(first));
+                    if (Manifestaciones.corte(sl.linea, sl.nn, sf.nn))
+                        adj.get(last).add(new double[]{first, costoTramo(sl.pos, sf.pos), 0});
+                }
+            }
+        }
+        return adj;
+    }
+
+    /** Recorre el camino de diagnóstico (horario ignorado) y devuelve la línea de la PRIMERA estación
+     *  en ese camino cuyo horario REAL (sin ignorar, "ahora") ya está cerrado -- la que de verdad
+     *  explica el fallo. 0 si no se puede identificar una línea específica (mensaje genérico). */
+    private static int identificarLineaCerrada(Context ctx, List<Route> rutas, List<int[]> node,
+            int[] prev, int fin, Calendar ahoraBase) {
+        for (int u = fin; u != -1; u = prev[u]) {
+            Stop s = stopDe(rutas, node.get(u));
+            if (!lineaAbierta(ctx, s, ahoraBase)) return s.linea;
+        }
+        return 0;
     }
 
     /**

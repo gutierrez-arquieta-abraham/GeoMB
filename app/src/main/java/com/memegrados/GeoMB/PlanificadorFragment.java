@@ -780,7 +780,17 @@ public class PlanificadorFragment extends Fragment {
                     : R.string.ruta_motivo_afectacion;
             return getString(R.string.ruta_estacion_cerrada, est, getString(motivo));
         }
-        if (Planificador.motivoFallo == Planificador.MOTIVO_SIN_RUTA && Manifestaciones.hay()) {
+        // MOTIVO_HORARIO/MOTIVO_AFECTACION ya vienen determinados por Planificador.calcular()
+        // (diagnosticarFallo()) probando, por descarte, cuál de las dos condiciones de verdad
+        // explica que ESTA ruta no se haya podido calcular -- nunca basta con que exista alguna
+        // afectación en otra parte de la red (eso era el bug: Manifestaciones.hay() por sí sola).
+        if (Planificador.motivoFallo == Planificador.MOTIVO_HORARIO) {
+            int linea = Planificador.lineaHorarioCerrado;
+            return linea > 0
+                    ? getString(R.string.ruta_fuera_servicio_linea, etiquetaHorario(linea))
+                    : getString(R.string.ruta_fuera_servicio);
+        }
+        if (Planificador.motivoFallo == Planificador.MOTIVO_AFECTACION) {
             return getString(R.string.ruta_corte_bloqueo);
         }
         return getString(R.string.ruta_sin_ruta, destino);

@@ -64,6 +64,8 @@
     <string name="ruta_sin_ruta">No route found to %1$s</string>
     <string name="ruta_estacion_cerrada">%1$s is out of service (%2$s)</string>
     <string name="ruta_corte_bloqueo">No route: the line is split by a service disruption</string>
+    <string name="ruta_fuera_servicio">No route available: service has already ended for today.</string>
+    <string name="ruta_fuera_servicio_linea">No route available: %1$s is no longer running at this time.</string>
     <string name="ruta_motivo_bloqueo">blockage or protest</string>
     <string name="ruta_motivo_mantenimiento">maintenance</string>
     <string name="ruta_motivo_afectacion">service disruption</string>
