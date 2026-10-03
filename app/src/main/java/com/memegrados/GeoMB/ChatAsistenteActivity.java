@@ -94,9 +94,10 @@ public class ChatAsistenteActivity extends AppCompatActivity {
         int headerPadTop = header.getPaddingTop();
         ViewCompat.setOnApplyWindowInsetsListener(raiz, (v, insets) -> {
             Insets sb = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
             header.setPadding(header.getPaddingLeft(), headerPadTop + sb.top,
                     header.getPaddingRight(), header.getPaddingBottom());
-            v.setPadding(sb.left, 0, sb.right, sb.bottom);
+            v.setPadding(sb.left, 0, sb.right, Math.max(sb.bottom, ime.bottom));
             return insets;
         });
     }
