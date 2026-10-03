@@ -92,9 +92,13 @@ public final class TelemetriaSync {
             // Nota: NO se incluyen deviceId, correoUsuario, coordenadas ni historialEstados (ver
             // auditoría de privacidad) -- tampoco se suben sincronizado/intentosSync/ultimoIntentoSyncTs
             // (son solo de la cola local).
+            // Firestore ejecuta estos listeners en su Executor por defecto (el hilo PRINCIPAL),
+            // sin importar desde qué hilo se llamó a set() -- por eso hay que pasarle explícitamente
+            // el mismo IO de esta clase, o marcarSincronizado()/registrarIntento() (Room) truenan con
+            // "Cannot access database on the main thread".
             reportes.document(r.reportId).set(m, com.google.firebase.firestore.SetOptions.merge())
-                    .addOnSuccessListener(x -> db.reporteDao().marcarSincronizado(r.reportId))
-                    .addOnFailureListener(e -> db.reporteDao().registrarIntento(r.reportId, System.currentTimeMillis()));
+                    .addOnSuccessListener(IO, x -> db.reporteDao().marcarSincronizado(r.reportId))
+                    .addOnFailureListener(IO, e -> db.reporteDao().registrarIntento(r.reportId, System.currentTimeMillis()));
         }
         db.reporteDao().purgar(System.currentTimeMillis() - RETENCION_LOCAL_MS);
     }
