@@ -72,9 +72,8 @@ class GeoMBAgent:
     async def responder(self, mensaje_usuario: str, contexto_dispositivo: dict | None = None) -> str:
         # Contexto de tracking que Android manda con cada mensaje (ver DiagnosticoReporte.
         # contextoTracking() del lado Android y ChatRequest.contextoDispositivo en server.py).
-        # FASE 2: solo se guarda para que las Tools de Fase 3 puedan leerlo -- todavía NO se
-        # inyecta en la ejecución de ninguna herramienta (ninguna de las 16 tools actuales acepta
-        # este parámetro), así que aceptar y guardar esto no cambia el comportamiento de ninguna.
+        # _ejecutar_herramienta() lo inyecta SOLO a las tools que lo declaran en su firma (ver
+        # tools_tracking.py/tools_app.py) -- las demás no lo reciben ni cambian su comportamiento.
         self._contexto_dispositivo = contexto_dispositivo or {}
 
         self._inicios_turno.append(len(self._historial))
@@ -131,6 +130,12 @@ class GeoMBAgent:
         if funcion is None:
             return {"error": f"Herramienta desconocida: {nombre}"}
         try:
+            # Solo se inyecta el contexto del dispositivo a las tools que lo DECLARAN en su firma
+            # (ver tools_tracking.py/tools_app.py, Fase 3A) -- las demás (las 5 de tools.py y las
+            # tools de acción, todavía placeholders) no lo reciben y siguen funcionando exactamente
+            # igual que antes, sin tocar su firma ni su comportamiento.
+            if "contexto_dispositivo" in inspect.signature(funcion).parameters:
+                args = {**args, "contexto_dispositivo": self._contexto_dispositivo}
             if inspect.iscoroutinefunction(funcion):
                 resultado = await funcion(**args)
             else:

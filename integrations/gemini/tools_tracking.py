@@ -2,12 +2,14 @@
 (SeguimientoService/RealtimeRepository) -- ver el diseño aprobado en docs/ (sesión de Gemini
 Function Calling). NINGUNA de estas funciones puede tocar código Android directamente: el
 proceso Python nunca tiene acceso a RecorridoService/SeguimientoService -- eso solo existe en
-memoria del teléfono. Las de LECTURA leerán, en la Fase 3, el `contexto_dispositivo` que Android
-manda con cada mensaje (todavía NO implementado en esta fase). Las de ACCIÓN nunca ejecutan nada
-aquí: en la Fase 4 devolverán "requiere_confirmacion" para que Android decida y ejecute.
+memoria del teléfono.
 
-FASE 1: solo declaraciones + placeholders ("no implementado todavía"). No hay contexto, no hay
-confirmación, no hay ejecución real.
+FASE 3A: las 5 de LECTURA leen SOLO `contexto_dispositivo` (el dict que Android ya manda con cada
+mensaje, ver DiagnosticoReporte.contextoTracking() y agent.py#_ejecutar_herramienta -- se inyecta
+automáticamente porque estas funciones lo declaran en su firma). Nunca consultan GPS, nunca
+calculan nada nuevo, nunca devuelven coordenadas: si el campo no vino en el contexto, es
+"sin dato", nunca se inventa. Las de ACCIÓN siguen siendo placeholders de Fase 1 -- en Fase 4
+devolverán "requiere_confirmacion" para que Android decida y ejecute, nunca se ejecutan aquí.
 """
 from __future__ import annotations
 
@@ -19,33 +21,75 @@ _NO_IMPLEMENTADO = {"error": "no implementado todavía"}
 
 
 # ============================================================
-# Placeholders (Fase 1) -- firmas ya definitivas, cuerpo pendiente de Fase 3/4/5
+# Tools de LECTURA (Fase 3A) -- leen únicamente contexto_dispositivo, nunca GPS/Android
 # ============================================================
 
-def obtener_estacion_actual() -> dict[str, Any]:
-    """Estación actual del recorrido guiado en curso (RecorridoService)."""
-    return _NO_IMPLEMENTADO
+def obtener_estacion_actual(contexto_dispositivo: dict | None = None) -> dict[str, Any]:
+    """Estación actual del recorrido guiado en curso, según el contexto que mandó Android."""
+    ctx = contexto_dispositivo or {}
+    estacion = ctx.get("estacionActual")
+    if not ctx.get("recorridoActivo") or not estacion:
+        return {"success": False, "error": "NO_ACTIVE_TRACKING"}
+    resultado: dict[str, Any] = {"success": True, "station": estacion}
+    if ctx.get("linea"):
+        resultado["line"] = ctx["linea"]
+    if ctx.get("sentido"):
+        resultado["direction"] = ctx["sentido"]
+    return resultado
 
 
-def obtener_proxima_estacion() -> dict[str, Any]:
-    """Siguiente estación del recorrido guiado en curso."""
-    return _NO_IMPLEMENTADO
+def obtener_proxima_estacion(contexto_dispositivo: dict | None = None) -> dict[str, Any]:
+    """Siguiente estación del recorrido guiado en curso, según el contexto que mandó Android.
+    NUNCA inventa una distancia: ese dato no existe en el contexto (RecorridoService no lo
+    calcula), así que jamás aparece en la respuesta."""
+    ctx = contexto_dispositivo or {}
+    if not ctx.get("recorridoActivo"):
+        return {"success": False, "error": "NO_ACTIVE_TRACKING"}
+    siguiente = ctx.get("estacionSiguiente")
+    if not siguiente:
+        return {"success": False, "error": "NO_NEXT_STATION"}
+    resultado: dict[str, Any] = {"success": True, "station": siguiente}
+    if ctx.get("linea"):
+        resultado["line"] = ctx["linea"]
+    return resultado
 
 
-def obtener_linea_actual() -> dict[str, Any]:
-    """Línea del recorrido guiado en curso."""
-    return _NO_IMPLEMENTADO
+def obtener_linea_actual(contexto_dispositivo: dict | None = None) -> dict[str, Any]:
+    """Línea del recorrido guiado en curso, según el contexto que mandó Android."""
+    ctx = contexto_dispositivo or {}
+    linea = ctx.get("linea")
+    if not linea:
+        return {"success": False, "error": "NO_LINE_AVAILABLE"}
+    resultado: dict[str, Any] = {"success": True, "line": linea}
+    if ctx.get("sentido"):
+        resultado["direction"] = ctx["sentido"]
+    return resultado
 
 
-def obtener_unidad_seleccionada() -> dict[str, Any]:
-    """Unidad (camión) seleccionada ahora mismo en el mapa, si hay alguna."""
-    return _NO_IMPLEMENTADO
+def obtener_unidad_seleccionada(contexto_dispositivo: dict | None = None) -> dict[str, Any]:
+    """Unidad (camión) seleccionada ahora mismo en el mapa, según el contexto que mandó Android
+    -- NUNCA devuelve coordenadas, solo el número económico."""
+    ctx = contexto_dispositivo or {}
+    unidad = ctx.get("unidadSeleccionada")
+    if not unidad:
+        return {"success": False, "error": "NO_UNIT_SELECTED"}
+    return {"success": True, "unit": unidad}
 
 
-def obtener_unidades_seguidas() -> dict[str, Any]:
-    """Unidades bajo seguimiento de proximidad activo (SeguimientoService), puede ser ninguna."""
-    return _NO_IMPLEMENTADO
+def obtener_unidades_seguidas(contexto_dispositivo: dict | None = None) -> dict[str, Any]:
+    """Unidades bajo seguimiento de proximidad activo, según el contexto que mandó Android --
+    una lista vacía es una respuesta VÁLIDA (no seguir ninguna unidad no es un error), nunca se
+    confunde con obtener_unidad_seleccionada (son conceptos distintos, ver tools_tracking.py)."""
+    ctx = contexto_dispositivo or {}
+    unidades = ctx.get("unidadesSeguidas")
+    if not isinstance(unidades, list):
+        unidades = []
+    return {"success": True, "units": [str(u) for u in unidades]}
 
+
+# ============================================================
+# Placeholders de ACCIÓN (Fase 1, sin cambios en Fase 3A) -- pendientes de Fase 4/5
+# ============================================================
 
 def iniciar_recorrido(destino: str, origen: str = "") -> dict[str, Any]:
     """Propone iniciar un recorrido guiado hacia 'destino' (y opcionalmente desde 'origen').
