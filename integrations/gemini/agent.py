@@ -16,7 +16,7 @@ import logging
 from google import genai
 from google.genai import types
 
-from . import config, tools
+from . import config, registry
 
 logger = logging.getLogger("geomb.gemini")
 
@@ -78,7 +78,7 @@ class GeoMBAgent:
                 contents=self._historial,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
-                    tools=[tools.HERRAMIENTAS],
+                    tools=[registry.TODAS_LAS_HERRAMIENTAS],
                 ),
             )
             candidato = respuesta.candidates[0] if respuesta.candidates else None
@@ -117,7 +117,7 @@ class GeoMBAgent:
         self._inicios_turno = [i - corte for i in self._inicios_turno[exceso:]]
 
     async def _ejecutar_herramienta(self, nombre: str, args: dict) -> dict:
-        funcion = tools.EJECUTORES.get(nombre)
+        funcion = registry.TODOS_LOS_EJECUTORES.get(nombre)
         if funcion is None:
             return {"error": f"Herramienta desconocida: {nombre}"}
         try:
