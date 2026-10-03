@@ -64,8 +64,8 @@
     </com.google.android.material.card.MaterialCardView>
 
     <!-- Entrada al asistente conversacional (Gemini): misma apariencia que la barra de búsqueda
-         (ícono + "entrada" de texto), pero no es un campo editable de verdad -- al tocarla (en
-         cualquier parte de la tarjeta) abre ChatAsistenteActivity, donde sí se escribe y aparece
+         (ícono + "entrada" de texto), pero no es un campo editable de verdad: al tocarla, en
+         cualquier parte de la tarjeta, abre ChatAsistenteActivity, donde sí se escribe y aparece
          el teclado. Mantenerla como EditText (no TextView) replica fielmente el look de "barra de
          texto lista para escribir" que tiene la de búsqueda, en vez de una fila de botón genérica. -->
     <com.google.android.material.card.MaterialCardView
