@@ -88,6 +88,12 @@ public final class Asistente {
                 });
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage() : "error de red";
+                // TEMPORAL: solo diagnóstico, revertir después (rama debug/asistente-conectividad)
+                android.util.Log.e(
+                        "AsistenteDebug",
+                        "clase=" + e.getClass().getName() + " mensaje=" + msg,
+                        e
+                );
                 GeoMBApplication app = GeoMBApplication.get();
                 if (app != null) Telemetria.registrarError(app, Telemetria.ERR_RED, "Asistente.enviar", msg);
                 main.post(() -> {
