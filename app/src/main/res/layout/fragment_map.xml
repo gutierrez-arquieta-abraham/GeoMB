@@ -63,6 +63,62 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- Entrada al asistente conversacional (Gemini): misma apariencia que la barra de búsqueda
+         (ícono + "entrada" de texto), pero no es un campo editable de verdad -- al tocarla (en
+         cualquier parte de la tarjeta) abre ChatAsistenteActivity, donde sí se escribe y aparece
+         el teclado. Mantenerla como EditText (no TextView) replica fielmente el look de "barra de
+         texto lista para escribir" que tiene la de búsqueda, en vez de una fila de botón genérica. -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/chat_bar"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        app:cardCornerRadius="26dp"
+        app:cardElevation="4dp"
+        app:layout_constraintTop_toBottomOf="@id/search_bar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="8dp"
+                android:contentDescription="@string/asistente_titulo"
+                android:src="@drawable/ic_chat"
+                app:tint="?attr/colorPrimary" />
+
+            <EditText
+                android:id="@+id/input_chat_mapa"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="12dp"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:cursorVisible="false"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:hint="@string/asistente_hint"
+                android:inputType="none"
+                android:longClickable="false"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="?attr/colorOnSurface"
+                android:textColorHint="@color/mb_gray"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
     <!-- Píldora de filtros activos (toca para limpiar) -->
     <TextView
         android:id="@+id/chip_filtros"
@@ -81,7 +137,7 @@
         app:drawableStartCompat="@drawable/ic_close_small"
         app:drawableTint="@color/white"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/search_bar" />
+        app:layout_constraintTop_toBottomOf="@id/chat_bar" />
 
     <!-- Contador de unidades visibles -->
     <TextView

@@ -241,6 +241,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         view.findViewById(R.id.search_icon).setOnClickListener(v ->
                 buscarEnMapa(inputMapa.getText().toString()));
 
+        // Entrada al asistente conversacional (Gemini): el campo de "entrada" de la tarjeta es
+        // solo visual (no editable aquí, ver fragment_map.xml) -- escribir de verdad ocurre en
+        // ChatAsistenteActivity, que ya tiene todo el flujo (Function Calling, confirmación de
+        // acciones, etc.). No se duplica esa lógica en el mapa.
+        view.findViewById(R.id.chat_bar).setOnClickListener(v ->
+                startActivity(new android.content.Intent(requireContext(), ChatAsistenteActivity.class)));
+
         chipFiltros = view.findViewById(R.id.chip_filtros);
         txtConteo = view.findViewById(R.id.txt_conteo);
         view.findViewById(R.id.fab_filtros).setOnClickListener(v ->
