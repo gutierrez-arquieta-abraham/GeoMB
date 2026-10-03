@@ -1040,9 +1040,13 @@ public final class Planificador {
                 // sentido — se excluyen de L3>/L3< por completo y se rutean solo por el servicio
                 // dedicado L3-TB-ida/vuelta (evita además la ambigüedad de Dijkstra entre 2 formas de
                 // llegar al mismo punto, como pasó con la lanzadera T1↔T2 vs L4-AA-ida).
-                Set<String> exclBuenavista = set("buenavista ii", "buenavista iii");
-                rutas.add(dirRoute(l, "L3>", true, exclBuenavista));
-                rutas.add(dirRoute(l, "L3<", false, exclBuenavista));
+                // "La Raza" es igual: un ramal sin salida que se desprende de "Hospital La Raza" (no
+                // continúa de largo hacia Circuito ni se llega ahí desde Circuito). Se excluye de la
+                // troncal (que conecta Hospital La Raza con Circuito directo) y se agrega aparte como
+                // ramal de ida y vuelta (RutasMixtas "L3-Raza"), para no inventar un atajo que no existe.
+                Set<String> exclRamales = set("buenavista ii", "buenavista iii", "la raza");
+                rutas.add(dirRoute(l, "L3>", true, exclRamales));
+                rutas.add(dirRoute(l, "L3<", false, exclRamales));
                 continue;
             }
             // L1/L5: dos rutas DIRIGIDAS (ida/vuelta) para poder bloquear y desviar por sentido.

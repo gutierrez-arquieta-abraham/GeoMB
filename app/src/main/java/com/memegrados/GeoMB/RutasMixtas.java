@@ -223,6 +223,14 @@ public final class RutasMixtas {
                         "Tenayuca")
                 .build());
 
+        // L3: "La Raza" es un ramal SIN SALIDA que se desprende de "Hospital La Raza" (no es una parada
+        // de paso hacia Circuito como la trataba la troncal base) -- se excluye de L3>/L3< en
+        // Planificador.calcular() y se agrega aquí aparte, de ida y vuelta, para que solo se llegue/salga
+        // por "Hospital La Raza" (sin inventar un atajo directo a Circuito que no existe).
+        SECUENCIAS.add(new Seq("L3-Raza")
+                .linea(3, "Hospital La Raza", "La Raza")
+                .build());
+
         // L7 por sus 4 servicios (couplet norte: hacia Campo Marte va por "De los Misterios";
         // hacia el norte va por "Delegación Gustavo A. Madero"). Secuencias en sentido de viaje.
         SECUENCIAS.add(new Seq("L7-IC").visible("L7").unaVia()   // Indios Verdes → Campo Marte (sur por De Los Misterios)
