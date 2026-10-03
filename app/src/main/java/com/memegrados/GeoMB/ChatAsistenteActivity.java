@@ -160,15 +160,61 @@ public class ChatAsistenteActivity extends AppCompatActivity {
 
     // ---- confirmación de acciones (Fase 3B: solo "detenerRecorrido") ----
 
+    /** ¿Esta instancia de la Activity sigue en un estado válido para mostrar un diálogo? La
+     *  respuesta de Asistente es asíncrona (hasta 30 s de espera, ciclo de Function Calling con
+     *  varias vueltas) y puede llegar después de que el usuario haya rotado la pantalla, salido de
+     *  esta pantalla, bloqueado el dispositivo, o la Activity ya se haya destruido/esté
+     *  finalizando -- el callback sigue referenciando ESTA instancia concreta (puede ser una
+     *  instancia ya vieja tras una rotación), nunca a una nueva. Comprobarlo ANTES de construir el
+     *  AlertDialog evita que ocurra WindowManager.BadTokenException en vez de solo atraparla
+     *  después de que ya fue un problema. minSdk 24, así que isDestroyed() siempre existe (API 17+). */
+    private boolean puedeMostrarDialogo() {
+        if (isFinishing() || isDestroyed()) return false;
+        android.view.Window w = getWindow();
+        android.view.View decor = w != null ? w.getDecorView() : null;
+        return decor != null && decor.isAttachedToWindow();
+    }
+
+    /** Registra (sin token, sin deviceId, sin contenido de la conversación -- solo el nombre de la
+     *  acción, que ya es un literal conocido como "detenerRecorrido", y el estado de la Activity)
+     *  que una propuesta de acción se descartó por el estado de la Activity. Reutiliza Telemetria
+     *  tal cual existe hoy (sin nuevo nivel de log): es información de diagnóstico sobre un fallo
+     *  real -- antes quedaba invisible, atrapada en el catch genérico de Asistente.java. */
+    private void registrarDescartePorLifecycle(String accion) {
+        Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ChatAsistenteActivity.mostrarConfirmacion",
+                "accion=" + accion + " descartada: finishing=" + isFinishing() + " destroyed=" + isDestroyed());
+    }
+
+    /** Punto de entrada desde {@link #onAccionPendiente}. Lifecycle-safe: si esta instancia ya no
+     *  puede mostrar UI, la propuesta se descarta de forma segura -- NUNCA se ejecuta
+     *  automáticamente y NUNCA se intenta abrir un diálogo sobre una ventana inválida. La
+     *  arquitectura actual no persiste {@code accionActual} (ver {@link AccionPendiente}: vive solo
+     *  en memoria de esta instancia, por diseño), así que no hay forma de que una instancia nueva
+     *  la recupere -- perderla aquí es el comportamiento correcto, no un bug a "arreglar" guardando
+     *  estado en otro lado. */
     private void mostrarConfirmacion(AccionPendiente a) {
+        if (!puedeMostrarDialogo()) {
+            registrarDescartePorLifecycle(a.accion);
+            return;   // SIN ejecutar nada, SIN mostrar nada: descarte seguro
+        }
         accionActual = a;
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.asistente_accion_titulo)
-                .setMessage(TextUtils.isEmpty(a.resumen) ? a.accion : a.resumen)
-                .setPositiveButton(R.string.asistente_accion_confirmar, (d, w) -> confirmarAccion())
-                .setNegativeButton(R.string.asistente_accion_cancelar, (d, w) -> cancelarAccion())
-                .setOnCancelListener(d -> cancelarAccion())   // back / tocar fuera del diálogo = cancelar
-                .show();
+        try {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.asistente_accion_titulo)
+                    .setMessage(TextUtils.isEmpty(a.resumen) ? a.accion : a.resumen)
+                    .setPositiveButton(R.string.asistente_accion_confirmar, (d, w) -> confirmarAccion())
+                    .setNegativeButton(R.string.asistente_accion_cancelar, (d, w) -> cancelarAccion())
+                    .setOnCancelListener(d -> cancelarAccion())   // back / tocar fuera del diálogo = cancelar
+                    .show();
+        } catch (Exception e) {
+            // Defensa adicional: el estado de la ventana puede cambiar justo entre la comprobación
+            // de arriba y show() (carrera real, aunque rara). No se oculta con un catch vacío: se
+            // registra el motivo real y la propuesta se descarta -- nunca se ejecuta una acción sin
+            // que el diálogo de verdad se haya llegado a mostrar.
+            accionActual = null;
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ChatAsistenteActivity.mostrarConfirmacion",
+                    "accion=" + a.accion + " fallo al mostrar: " + e.getClass().getSimpleName() + " " + e.getMessage());
+        }
     }
 
     /** Único lugar de todo el flujo que puede llamar a un método real de GeoMB (RecorridoService)
