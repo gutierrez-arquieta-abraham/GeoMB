@@ -11,6 +11,7 @@ import logging
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+from google.genai import errors as genai_errors
 from pydantic import BaseModel
 
 from . import data_loader as dl
@@ -143,7 +144,28 @@ async def chat(
     try:
         respuesta = await agente.responder(req.mensaje, contexto_dispositivo=req.contextoDispositivo)
     except Exception as e:
-        # Cualquier falla real llamando a Gemini (API key inválida, modelo retirado, error de
+        # Cuota diaria de la API de Gemini agotada (ClientError 429/RESOURCE_EXHAUSTED propagado
+        # tal cual desde generate_content() en agent.py, sin try/except propio ahí) -- se
+        # distingue por .code/.status, que son los campos que el SDK ya parsea del error de
+        # Google, en vez de adivinar por texto. Mismo contrato 429/"cuota_agotada" que ya usa
+        # ratelimit.puede_enviar() arriba, que Android ya sabe interpretar (Asistente.onCuotaAgotada).
+        if (
+            isinstance(e, genai_errors.ClientError)
+            and e.code == 429
+            and e.status == "RESOURCE_EXHAUSTED"
+        ):
+            logger.warning(
+                "Cuota de Gemini agotada (429 RESOURCE_EXHAUSTED) para device_id=%s: %s",
+                x_device_id, e.message,
+            )
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": "cuota_agotada",
+                    "mensaje": "El asistente alcanzó su límite de uso por ahora. Intenta más tarde.",
+                },
+            )
+        # Cualquier otra falla real llamando a Gemini (API key inválida, modelo retirado, error de
         # red, etc.) -- sin este catch amplio, una excepción que NO fuera RuntimeError se
         # filtraba como un 500 en texto plano sin JSON (bug real, visto en producción).
         logger.exception("Fallo llamando al asistente para device_id=%s", x_device_id)
