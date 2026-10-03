@@ -32,13 +32,75 @@ public final class TelemetriaSync {
     private TelemetriaSync() {}
 
     public static void sincronizar(Context c) {
-        FirebaseUser u = FirebaseAuth.getInstance().getCurrentUser();
-        if (u == null) return;   // sin sesión: se sincroniza la próxima vez que haya
         Context app = c.getApplicationContext();
+
+        // Los reportes de ReporteApp viven en "reportes/{reportId}" (raíz, no bajo "usuarios/{uid}")
+        // porque ReporteApp nunca exige sesión iniciada -- a diferencia del resto de la telemetría,
+        // esta parte NO se salta si no hay login.
+        IO.execute(() -> {
+            try { subirReportes(app); } catch (Exception ignore) {}   // sin conexión: Firestore encola y reintenta solo
+        });
+
+        FirebaseUser u = FirebaseAuth.getInstance().getCurrentUser();
+        if (u == null) return;   // sin sesión: el resto se sincroniza la próxima vez que haya
         String uid = u.getUid();
         IO.execute(() -> {
             try { subir(app, uid); } catch (Exception ignore) {}   // sin conexión: Firestore encola y reintenta solo
         });
+    }
+
+    /** Sube los reportes técnicos de ReporteApp pendientes a {@code reportes/{reportId}}. El ID del
+     *  documento es el propio reportId (no autogenerado): un reintento de sync nunca duplica. */
+    private static void subirReportes(Context app) {
+        AppDatabase db = AppDatabase.get(app);
+        FirebaseFirestore fs = FirebaseFirestore.getInstance();
+        com.google.firebase.firestore.CollectionReference reportes = fs.collection("reportes");
+
+        for (ReporteEntity r : db.reporteDao().pendientesSync()) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("ts", r.ts);
+            m.put("estado", r.estado);
+            m.put("prioridad", r.prioridad);
+            m.put("categoria", r.categoria);
+            m.put("descripcion", r.descripcion);
+            m.put("versionApp", r.versionApp);
+            m.put("versionCode", r.versionCode);
+            m.put("fabricante", r.fabricante);
+            m.put("modelo", r.modelo);
+            m.put("androidRelease", r.androidRelease);
+            m.put("apiLevel", r.apiLevel);
+            m.put("arquitectura", r.arquitectura);
+            m.put("conectividadTipo", r.conectividadTipo);
+            m.put("internetValidado", r.internetValidado);
+            m.put("ultimaSincronizacionTs", r.ultimaSincronizacionTs);
+            m.put("edadDatoMs", r.edadDatoMs);
+            m.put("gpsActivado", r.gpsActivado);
+            m.put("permisoUbicacion", r.permisoUbicacion);
+            m.put("proveedorUbicacion", r.proveedorUbicacion);
+            m.put("ubicacionTs", r.ubicacionTs);
+            m.put("lineaContexto", r.lineaContexto);
+            m.put("sentidoContexto", r.sentidoContexto);
+            m.put("estacionActual", r.estacionActual);
+            m.put("estacionSiguiente", r.estacionSiguiente);
+            m.put("unidadContexto", r.unidadContexto);
+            m.put("estadoSeguimiento", r.estadoSeguimiento);
+            m.put("backendEndpoint", r.backendEndpoint);
+            m.put("backendHttpStatus", r.backendHttpStatus);
+            m.put("backendLatenciaMs", r.backendLatenciaMs);
+            m.put("erroresCercanosJson", r.erroresCercanosJson);
+            m.put("creadoTs", com.google.firebase.firestore.FieldValue.serverTimestamp());
+            // Nota: NO se incluyen deviceId, correoUsuario, coordenadas ni historialEstados (ver
+            // auditoría de privacidad) -- tampoco se suben sincronizado/intentosSync/ultimoIntentoSyncTs
+            // (son solo de la cola local).
+            // Firestore ejecuta estos listeners en su Executor por defecto (el hilo PRINCIPAL),
+            // sin importar desde qué hilo se llamó a set() -- por eso hay que pasarle explícitamente
+            // el mismo IO de esta clase, o marcarSincronizado()/registrarIntento() (Room) truenan con
+            // "Cannot access database on the main thread".
+            reportes.document(r.reportId).set(m, com.google.firebase.firestore.SetOptions.merge())
+                    .addOnSuccessListener(IO, x -> db.reporteDao().marcarSincronizado(r.reportId))
+                    .addOnFailureListener(IO, e -> db.reporteDao().registrarIntento(r.reportId, System.currentTimeMillis()));
+        }
+        db.reporteDao().purgar(System.currentTimeMillis() - RETENCION_LOCAL_MS);
     }
 
     private static void subir(Context app, String uid) {

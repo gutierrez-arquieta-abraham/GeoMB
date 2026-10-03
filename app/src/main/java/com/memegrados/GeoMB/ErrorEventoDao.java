@@ -18,6 +18,11 @@ public interface ErrorEventoDao {
     @Query("SELECT * FROM errores WHERE sincronizado = 0")
     List<ErrorEventoEntity> pendientesSync();
 
+    /** Errores registrados en una ventana de tiempo (p. ej. ±5 min alrededor de un reporte), para
+     *  correlacionarlos -- ver {@link DiagnosticoReporte}. */
+    @Query("SELECT * FROM errores WHERE ts BETWEEN :desde AND :hasta ORDER BY ts")
+    List<ErrorEventoEntity> enRango(long desde, long hasta);
+
     @Query("UPDATE errores SET sincronizado = 1 WHERE id = :id")
     void marcarSincronizado(long id);
 
