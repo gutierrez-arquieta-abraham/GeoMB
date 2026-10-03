@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -65,6 +66,7 @@ public class LlegadasFragment extends Fragment {
     private TextView txtInfoAdicionalTitulo;
     private View txtMexibusTitulo;
     private static final int VERDE_OK = 0xFF2E7D32;   // "Servicio regular"
+    private static final int AMBAR_HORARIO = 0xFFFF8F00;   // "Fuera de horario" (sin afectación real)
 
     private final List<Estacion> estaciones = new ArrayList<>();
     private final List<String> sentidos = new ArrayList<>();
@@ -301,7 +303,7 @@ public class LlegadasFragment extends Fragment {
             Linea l = GtfsRepository.porNumero(requireContext(), i);
             int color = l != null ? l.color : 0xFFC8103E;
             String nombre = l != null ? l.nombre : getString(R.string.linea_formato, i);
-            llEstadoMetrobus.addView(filaEstado(String.valueOf(i), color, nombre, estado.get(i)));
+            llEstadoMetrobus.addView(filaEstado(String.valueOf(i), color, nombre, estado.get(i), i));
         }
         // Mexibús: troncales (101..104), ramales (111..113) y Mexicable (201..202); no exprés (12x).
         // Cada fila muestra el par de terminales OFICIALES (dirección). Respeta el ajuste "mostrar Mexibús".
@@ -315,7 +317,7 @@ public class LlegadasFragment extends Fragment {
                 if (!troncal && !ramal && !cable) continue;
                 String par = Planificador.terminalesMexibusPar(l.numero);
                 String nombre = par != null ? par : l.nombre;
-                llEstadoMexibus.addView(filaEstado(Planificador.etiquetaLineaCortaPub(l.numero), l.color, nombre, estado.get(l.numero)));
+                llEstadoMexibus.addView(filaEstado(Planificador.etiquetaLineaCortaPub(l.numero), l.color, nombre, estado.get(l.numero), l.numero));
                 mostradas++;
             }
         }
@@ -380,8 +382,11 @@ public class LlegadasFragment extends Fragment {
 
     /** Una fila de la tabla: badge de color con el número, nombre de la línea y su estado a la derecha.
      *  Si hay afectación con varios aspectos (tipo / info / estaciones), la celda cicla entre ellos con
-     *  una animación de desvanecer-aparecer. */
-    private View filaEstado(String num, int color, String nombre, EstadoLinea el) {
+     *  una animación de desvanecer-aparecer. Sin afectación real, se consulta Horarios.java (ya usado por
+     *  el Planificador para lo mismo) para marcar la línea como "Servicio regular" o "Fuera de horario",
+     *  mostrando además la ventana de hoy cuando se conoce -- una afectación real sigue teniendo
+     *  prioridad sobre el horario (si está cerrada por manifestación, eso es lo que importa mostrar). */
+    private View filaEstado(String num, int color, String nombre, EstadoLinea el, int linea) {
         float d = getResources().getDisplayMetrics().density;
         android.util.TypedValue tvp = new android.util.TypedValue();
         requireContext().getTheme().resolveAttribute(android.R.attr.textColorPrimary, tvp, true);
@@ -429,9 +434,33 @@ public class LlegadasFragment extends Fragment {
                 aspectos.add(getString(R.string.estado_lbl_estaciones, el.estaciones.trim()));
         }
         boolean afect = !aspectos.isEmpty();
-        est.setText(afect ? aspectos.get(0) : getString(R.string.estado_regular));
+        String textoEstado;
+        int colorEstado;
+        if (afect) {
+            textoEstado = aspectos.get(0);
+            colorEstado = 0xFFC8103E;
+        } else {
+            // Sin afectación real: ¿esta línea tiene horario documentado y, si sí, sigue circulando
+            // ahora mismo? Sin datos de horario (Horarios.tieneLinea == false, p. ej. Mexicable L2 hoy)
+            // se queda en "Servicio regular" sin ventana -- igual que el resto de la app, permisivo.
+            Calendar ahora = Calendar.getInstance();
+            boolean tieneHorario = Horarios.tieneLinea(requireContext(), linea);
+            String ventana = tieneHorario ? Horarios.ventanaHoy(requireContext(), linea, ahora) : null;
+            boolean operando = !tieneHorario || Horarios.lineaCircula(requireContext(), linea, ahora);
+            if (!tieneHorario) {
+                textoEstado = getString(R.string.estado_regular);
+                colorEstado = VERDE_OK;
+            } else if (operando) {
+                textoEstado = ventana != null ? getString(R.string.estado_regular_horario, ventana) : getString(R.string.estado_regular);
+                colorEstado = VERDE_OK;
+            } else {
+                textoEstado = ventana != null ? getString(R.string.estado_fuera_horario, ventana) : getString(R.string.estado_fuera_horario_simple);
+                colorEstado = AMBAR_HORARIO;
+            }
+        }
+        est.setText(textoEstado);
         est.setTextSize(13f);
-        est.setTextColor(afect ? 0xFFC8103E : VERDE_OK);
+        est.setTextColor(colorEstado);
         est.setGravity(android.view.Gravity.END);
         est.setMaxLines(8);                                    // deja que se vea completo (antes se cortaba en 3)
         est.setEllipsize(android.text.TextUtils.TruncateAt.END);

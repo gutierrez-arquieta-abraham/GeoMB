@@ -449,6 +449,9 @@
     <string name="estado_metrobus">METROBÚS</string>
     <string name="estado_mexibus">MEXIBÚS · MEXICABLE</string>
     <string name="estado_regular">Servicio regular</string>
+    <string name="estado_regular_horario">Servicio regular · %1$s</string>
+    <string name="estado_fuera_horario">Fuera de horario · %1$s</string>
+    <string name="estado_fuera_horario_simple">Fuera de horario</string>
     <string name="estado_lbl_tipo">Afectación: %1$s</string>
     <string name="estado_lbl_info">Info: %1$s</string>
     <string name="estado_lbl_estaciones">Estaciones: %1$s</string>
