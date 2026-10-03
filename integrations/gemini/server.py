@@ -57,6 +57,11 @@ def _ip_cliente(request: Request) -> str:
 class ChatRequest(BaseModel):
     mensaje: str
     reiniciar: bool = False
+    # Contexto de tracking del dispositivo (recorridoActivo/estacionActual/.../unidadesSeguidas),
+    # armado por DiagnosticoReporte.contextoTracking() en Android -- ver Fase 3 para las Tools que
+    # lo usan. Opcional y de forma libre (dict): el servidor nunca exige ningún campo en particular,
+    # así un cliente más viejo que no lo manda sigue funcionando exactamente igual que hoy.
+    contextoDispositivo: dict | None = None
 
 
 class ChatResponse(BaseModel):
@@ -132,7 +137,7 @@ async def chat(
     agente = _sesiones.obtener(x_device_id)
 
     try:
-        respuesta = await agente.responder(req.mensaje)
+        respuesta = await agente.responder(req.mensaje, contexto_dispositivo=req.contextoDispositivo)
     except Exception as e:
         # Cualquier falla real llamando a Gemini (API key inválida, modelo retirado, error de
         # red, etc.) -- sin este catch amplio, una excepción que NO fuera RuntimeError se

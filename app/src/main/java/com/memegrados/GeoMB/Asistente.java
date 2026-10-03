@@ -39,17 +39,29 @@ public final class Asistente {
         void onError(String mensaje);
     }
 
+    /** Compatibilidad con llamadas existentes: igual que {@link #enviar(Context, String, boolean,
+     *  JSONObject, Callback)} pero sin contexto de dispositivo. */
+    public static void enviar(Context ctx, String mensaje, boolean reiniciar, Callback cb) {
+        enviar(ctx, mensaje, reiniciar, null, cb);
+    }
+
     /** El try/catch de aquí solo cubre la petición HTTP; cb.* corre DESPUÉS, dentro del
      *  post() al hilo principal, así que se protege aparte (mismo criterio que
      *  RealtimeRepository.fetch()): una excepción de la UI que consume la respuesta no debe
-     *  tumbar el hilo de red ni dejar la app en un estado raro. */
-    public static void enviar(Context ctx, String mensaje, boolean reiniciar, Callback cb) {
+     *  tumbar el hilo de red ni dejar la app en un estado raro.
+     *
+     *  @param contextoDispositivo contexto de tracking (ver DiagnosticoReporte.contextoTracking),
+     *  o null para no mandar ninguno -- el backend lo trata como ausente igual en ambos casos. */
+    public static void enviar(Context ctx, String mensaje, boolean reiniciar, JSONObject contextoDispositivo, Callback cb) {
         String deviceId = DeviceUtils.idDispositivo(ctx);
         executor.execute(() -> {
             try {
                 JSONObject cuerpo = new JSONObject();
                 cuerpo.put("mensaje", mensaje);
                 cuerpo.put("reiniciar", reiniciar);
+                if (contextoDispositivo != null && contextoDispositivo.length() > 0) {
+                    cuerpo.put("contextoDispositivo", contextoDispositivo);
+                }
                 Resultado r = post(Config.ASISTENTE_CHAT_URL, deviceId, cuerpo.toString());
 
                 if (r.codigo == 429) {

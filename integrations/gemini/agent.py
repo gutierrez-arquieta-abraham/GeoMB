@@ -60,13 +60,23 @@ class GeoMBAgent:
         # turnos completos en vez de por número de Content sueltos, que varía según cuántas
         # herramientas se hayan llamado dentro de un mismo turno).
         self._inicios_turno: list[int] = []
+        # Contexto de tracking del último mensaje (ver responder()) -- disponible desde ya para
+        # que las Tools de Fase 3 lo puedan leer, aunque todavía ninguna lo use.
+        self._contexto_dispositivo: dict = {}
 
     def reiniciar(self) -> None:
         """Borra el historial de la conversación (nueva sesión)."""
         self._historial = []
         self._inicios_turno = []
 
-    async def responder(self, mensaje_usuario: str) -> str:
+    async def responder(self, mensaje_usuario: str, contexto_dispositivo: dict | None = None) -> str:
+        # Contexto de tracking que Android manda con cada mensaje (ver DiagnosticoReporte.
+        # contextoTracking() del lado Android y ChatRequest.contextoDispositivo en server.py).
+        # FASE 2: solo se guarda para que las Tools de Fase 3 puedan leerlo -- todavía NO se
+        # inyecta en la ejecución de ninguna herramienta (ninguna de las 16 tools actuales acepta
+        # este parámetro), así que aceptar y guardar esto no cambia el comportamiento de ninguna.
+        self._contexto_dispositivo = contexto_dispositivo or {}
+
         self._inicios_turno.append(len(self._historial))
         self._historial.append(
             types.Content(role="user", parts=[types.Part(text=mensaje_usuario)])

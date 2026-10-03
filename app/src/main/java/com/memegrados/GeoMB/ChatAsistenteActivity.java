@@ -93,7 +93,11 @@ public class ChatAsistenteActivity extends AppCompatActivity {
         fijarCargando(true);
         txtAviso.setVisibility(View.GONE);
 
-        Asistente.enviar(this, mensaje, false, new Asistente.Callback() {
+        // Contexto de tracking (recorrido/línea/estación/unidades) para que el asistente pueda
+        // responder preguntas como "¿cuál es mi estación actual?" -- reusa DiagnosticoReporte, que
+        // ya sabe leer RecorridoService/SeguimientoService/RealtimeRepository sin coordenadas ni
+        // identificadores de dispositivo (ver su javadoc). No se duplica esa lógica aquí.
+        Asistente.enviar(this, mensaje, false, DiagnosticoReporte.contextoTracking(this), new Asistente.Callback() {
             @Override
             public void onRespuesta(String texto) {
                 fijarCargando(false);

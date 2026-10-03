@@ -151,17 +151,47 @@ public final class DiagnosticoReporte {
         return loc;
     }
 
-    private static void recolectarContextoTransporte(Datos d) {
+    /** Snapshot de solo lectura del recorrido guiado en curso (RecorridoService), para no leer
+     *  sus estáticos dos veces por separado desde {@link #recolectarContextoTransporte} y
+     *  {@link #contextoTracking}. */
+    private static final class SnapshotRecorrido {
+        final boolean activo;
+        final String estacionActual, estacionSiguiente, sentido;
+        final int lineaNumero;
+        SnapshotRecorrido(boolean activo, String estacionActual, String estacionSiguiente, String sentido, int lineaNumero) {
+            this.activo = activo;
+            this.estacionActual = estacionActual;
+            this.estacionSiguiente = estacionSiguiente;
+            this.sentido = sentido;
+            this.lineaNumero = lineaNumero;
+        }
+    }
+
+    private static SnapshotRecorrido snapshotRecorrido() {
         try {
             if (RecorridoService.activo && RecorridoService.paradas != null
                     && RecorridoService.actualIdx >= 0 && RecorridoService.actualIdx < RecorridoService.paradas.size()) {
-                // Recorrido guiado en curso: la estación actual/siguiente y el sentido se conocen con certeza.
                 Planificador.Parada actual = RecorridoService.paradas.get(RecorridoService.actualIdx);
-                d.estacionActual = actual.nombre;
-                d.lineaContexto = actual.linea;
-                d.sentidoContexto = RecorridoService.terminal;
+                String siguiente = null;
                 int sig = RecorridoService.actualIdx + 1;
-                if (sig < RecorridoService.paradas.size()) d.estacionSiguiente = RecorridoService.paradas.get(sig).nombre;
+                if (sig < RecorridoService.paradas.size()) siguiente = RecorridoService.paradas.get(sig).nombre;
+                return new SnapshotRecorrido(true, actual.nombre, siguiente, RecorridoService.terminal, actual.linea);
+            }
+        } catch (Throwable t) {
+            // cae al "sin recorrido activo" de abajo
+        }
+        return new SnapshotRecorrido(false, null, null, null, 0);
+    }
+
+    private static void recolectarContextoTransporte(Datos d) {
+        try {
+            SnapshotRecorrido s = snapshotRecorrido();
+            if (s.activo) {
+                // Recorrido guiado en curso: la estación actual/siguiente y el sentido se conocen con certeza.
+                d.estacionActual = s.estacionActual;
+                d.lineaContexto = s.lineaNumero;
+                d.sentidoContexto = s.sentido;
+                d.estacionSiguiente = s.estacionSiguiente;
                 d.estadoSeguimiento = SEG_ACTIVO;
             } else if (RealtimeRepository.unidadSeleccionada != null) {
                 d.unidadContexto = RealtimeRepository.unidadSeleccionada;
@@ -189,6 +219,58 @@ public final class DiagnosticoReporte {
      *  Con 10 hex (40 bits) el mismo cálculo da colisión despreciable hasta varios cientos de
      *  miles de reportes, que es un margen razonable para el volumen esperado de esta app. */
     private static final int LARGO_HEX = 10;
+
+    /**
+     * Contexto de TRACKING para el asistente conversacional (Gemini, ver {@code
+     * integrations/gemini/}): SOLO los 7 campos acordados (recorridoActivo, estacionActual,
+     * estacionSiguiente, linea, sentido, unidadSeleccionada, unidadesSeguidas) -- reusa la MISMA
+     * lectura de {@link RecorridoService}/{@link SeguimientoService}/{@link RealtimeRepository}
+     * que ya usa {@link #recolectarContextoTransporte} para ReporteApp, sin duplicar esa lógica
+     * (ver {@link #snapshotRecorrido}). NUNCA incluye coordenadas, IMEI/Android ID, tokens, ni el
+     * diagnóstico técnico completo (eso es exclusivo de {@link #recolectar}, para reportes). Los
+     * campos sin dato se OMITEN del JSON en vez de mandarse vacíos/null, para no mandar más de lo
+     * necesario. De mejor esfuerzo: cualquier fallo deja el JSON parcial o vacío, nunca lanza.
+     */
+    public static org.json.JSONObject contextoTracking(Context ctx) {
+        org.json.JSONObject o = new org.json.JSONObject();
+        try {
+            SnapshotRecorrido s = snapshotRecorrido();
+            try { o.put("recorridoActivo", s.activo); } catch (org.json.JSONException ignore) {}
+            if (s.activo) {
+                ponerSiHay(o, "estacionActual", s.estacionActual);
+                ponerSiHay(o, "estacionSiguiente", s.estacionSiguiente);
+                ponerSiHay(o, "sentido", s.sentido);
+                ponerSiHay(o, "linea", idLinea(s.lineaNumero));
+            }
+            ponerSiHay(o, "unidadSeleccionada", RealtimeRepository.unidadSeleccionada);
+            if (!SeguimientoService.ecosSeguidos.isEmpty()) {
+                org.json.JSONArray arr = new org.json.JSONArray();
+                for (String eco : SeguimientoService.ecosSeguidos) arr.put(eco);
+                o.put("unidadesSeguidas", arr);
+            }
+        } catch (Throwable t) {
+            // mejor esfuerzo: un fallo aquí nunca debe impedir enviar un mensaje del chat
+        }
+        return o;
+    }
+
+    private static void ponerSiHay(org.json.JSONObject o, String campo, String valor) {
+        if (valor == null || valor.trim().isEmpty()) return;
+        try { o.put(campo, valor); } catch (org.json.JSONException ignore) {}
+    }
+
+    /** "<sistema>:<numero>" (mismo formato que ya espera el backend de Gemini, ver
+     *  integrations/gemini/tools.py _LINEA_DESC) a partir del número interno de línea: Metrobús
+     *  1-7, Mexibús 10X ordinario/11X ramal/12X exprés, Mexicable 20X (ver CLAUDE.md). null si no
+     *  reconoce el rango. */
+    private static String idLinea(int numero) {
+        if (numero >= 1 && numero <= 7) return "metrobus:" + numero;
+        if (numero >= 101 && numero <= 104) return "mexibus:" + (numero - 100);
+        if (numero >= 111 && numero <= 113) return "mexibus_ramal:" + (numero - 110);
+        if (numero >= 121 && numero <= 124) return "mexibus_expres:" + (numero - 120);
+        if (numero >= 201 && numero <= 202) return "mexicable:" + (numero - 200);
+        return null;
+    }
 
     /**
      * Genera un reportId único, offline y no secuencial: "GMB-" + hex de un hash SHA-256 sobre
