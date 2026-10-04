@@ -758,6 +758,13 @@ public final class Planificador {
         }
     }
 
+    /** ¿Línea troncal LINEAL sin couplet (L1/L3/L5), donde el sentido se decide por índice de estación
+     *  y puede tener vueltas cortas documentadas en horarios.json? L2/L6/L7 son couplets de terminal fija
+     *  (ver {@link #terminalCanonico}); L4 y Mexibús usan su propia lógica de terminal más abajo. */
+    private static boolean esLinealSinCouplet(int linea) {
+        return linea == 1 || linea == 3 || linea == 5;
+    }
+
     /** Ruta de una línea física en un sentido (couplet), excluyendo las paradas de la otra vía. */
     private static Route dirRoute(Linea l, String id, boolean ida, Set<String> excluir) {
         // Mexibús (numero >= 100) muestra su nombre ("Mexibús L1") en vez de "L101".
@@ -1369,19 +1376,30 @@ public final class Planificador {
             String tc = terminalCanonico(r.id);   // L2/L6/L7: terminal real (p. ej. Tacubaya, no Parque Lira)
             if (tc != null) {
                 terminal = tc;
-            } else if (r.linea != null && r.linea.numero < 100) {
+            } else if (a.linea == b.linea && esLinealSinCouplet(a.linea)) {
                 // Metrobús de troncal lineal SIN couplet (L1/L3/L5): el destino real de la unidad puede
                 // ser una vuelta corta documentada en horarios.json (p. ej. L3 Tenayuca↔La Raza) en vez
                 // del extremo absoluto de toda la línea (Pueblo Sta. Cruz Atoyac) -- mismo criterio que
                 // ya usa la voz del recorrido (RecorridoService.direccionTerminal → Horarios.terminalHorario).
-                int ia = Horarios.idxEnLinea(r.linea, a.nombre);
-                int ib = Horarios.idxEnLinea(r.linea, b.nombre);
-                if (ia >= 0 && ib >= 0 && ia != ib) {
-                    // Momento en que de verdad abordarías este tramo (no "ahora" a secas): así, si ya es
-                    // tarde y la vuelta corta cerró, esto cae en la ruta completa que siga circulando.
-                    String th = Horarios.terminalHorario(ctx, r.linea.numero, r.linea, ia, ib,
-                            proyectar(ahoraBase, dist[camino.get(i)]));
-                    if (th != null) terminal = th;
+                // Se consulta por la LÍNEA FÍSICA REAL de la parada (a.linea/b.linea), NO por r.linea: las
+                // rutas sintéticas de RutasMixtas (p. ej. L3-TB-ida/vuelta, L3-Raza) no cargan un objeto
+                // Linea propio (r.linea == null), así que antes SIEMPRE se quedaban con finStop -- el
+                // extremo de TODA la ruta sintética -- aunque el viaje solo recorriera una parte de ella
+                // (p. ej. Montevideo→La Raza mostraba "Buenavista II", el final de L3-TB-ida, en vez de
+                // consultar el horario real para ese tramo). a.linea == b.linea (int, comparación por
+                // valor) evita aplicar el horario de una sola línea cuando el tramo de una Route mixta en
+                // realidad cruza DOS líneas físicas distintas (p. ej. A31 mezcla L1 y L3 en una Route).
+                Linea lineaReal = GtfsRepository.porNumero(ctx, a.linea);
+                if (lineaReal != null) {
+                    int ia = Horarios.idxEnLinea(lineaReal, a.nombre);
+                    int ib = Horarios.idxEnLinea(lineaReal, b.nombre);
+                    if (ia >= 0 && ib >= 0 && ia != ib) {
+                        // Momento en que de verdad abordarías este tramo (no "ahora" a secas): así, si ya es
+                        // tarde y la vuelta corta cerró, esto cae en la ruta completa que siga circulando.
+                        String th = Horarios.terminalHorario(ctx, a.linea, lineaReal, ia, ib,
+                                proyectar(ahoraBase, dist[camino.get(i)]));
+                        if (th != null) terminal = th;
+                    }
                 }
             }
             // Mexibús (ordinario/exprés): usa la terminal OFICIAL del sentido (p. ej. L4 sur = La Raza,
