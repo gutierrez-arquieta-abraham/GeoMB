@@ -339,12 +339,24 @@ public final class GtfsRepository {
         } catch (Exception e) { return null; }   // sin archivo: se usan las de lineas.json
     }
 
-    /** segmentos.json (opcional) → [{"numero":1,"segmentos":[[[lat,lon],...],...]}, ...]. */
+    /**
+     * segmentos.json (opcional) → [{"numero":1,"segmentos":[[[lat,lon],...],...]}, ...].
+     * Cada tramo de "segmentos" es normalmente un array plano de puntos (formato de siempre). Un
+     * tramo puede venir en cambio como objeto {"ida":[[lat,lon],...],"vuelta":[[lat,lon],...]}
+     * cuando el camino real NO es el mismo invertido en ambos sentidos (p. ej. un retorno/lazo
+     * vial de un solo sentido): la geometría de "ida" se trata igual que siempre (se agrega a
+     * Linea.segmentos, para el mapa general), y la de "vuelta" se guarda aparte en
+     * Linea.segmentosVuelta bajo el mismo índice, para que Planificador.segmentoEntre() la use en
+     * vez de invertir la de ida. Un tramo sin variante de "vuelta" (la inmensa mayoría) no cambia
+     * de comportamiento.
+     */
     private static void cargarSegmentos(Context ctx, List<Linea> lineas) {
         try (JsonReader jr = reader(ctx, "segmentos.json")) {
             jr.beginArray();
             while (jr.hasNext()) {
-                int numero = 0; List<List<LatLng>> segs = new ArrayList<>();
+                int numero = 0;
+                List<List<LatLng>> segs = new ArrayList<>();
+                Map<Integer, List<LatLng>> segsVuelta = null;
                 jr.beginObject();
                 while (jr.hasNext()) {
                     String k = jr.nextName();
@@ -352,15 +364,38 @@ public final class GtfsRepository {
                     else if ("segmentos".equals(k)) {
                         jr.beginArray();
                         while (jr.hasNext()) {
-                            List<LatLng> pts = parseRuta(jr);
-                            if (pts.size() >= 2) segs.add(pts);
+                            if (jr.peek() == android.util.JsonToken.BEGIN_OBJECT) {
+                                List<LatLng> ida = null, vuelta = null;
+                                jr.beginObject();
+                                while (jr.hasNext()) {
+                                    String kk = jr.nextName();
+                                    if ("ida".equals(kk)) ida = parseRuta(jr);
+                                    else if ("vuelta".equals(kk)) vuelta = parseRuta(jr);
+                                    else jr.skipValue();
+                                }
+                                jr.endObject();
+                                if (ida != null && ida.size() >= 2) {
+                                    segs.add(ida);
+                                    if (vuelta != null && vuelta.size() >= 2) {
+                                        if (segsVuelta == null) segsVuelta = new HashMap<>();
+                                        segsVuelta.put(segs.size() - 1, vuelta);
+                                    }
+                                }
+                            } else {
+                                List<LatLng> pts = parseRuta(jr);
+                                if (pts.size() >= 2) segs.add(pts);
+                            }
                         }
                         jr.endArray();
                     } else jr.skipValue();
                 }
                 jr.endObject();
                 if (!segs.isEmpty()) {
-                    for (Linea x : lineas) if (x.numero == numero) { x.segmentos = segs; break; }
+                    for (Linea x : lineas) if (x.numero == numero) {
+                        x.segmentos = segs;
+                        x.segmentosVuelta = segsVuelta;
+                        break;
+                    }
                 }
             }
             jr.endArray();

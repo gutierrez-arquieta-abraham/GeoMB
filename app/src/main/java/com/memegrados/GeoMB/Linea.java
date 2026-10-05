@@ -6,6 +6,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 
 import java.util.List;
+import java.util.Map;
 
 // ============================================================
 // CLASE    : Linea
@@ -52,6 +53,15 @@ public class Linea {
      * Puede ser null si no hay datos de tramos para la línea.
      */
     public List<List<LatLng>> segmentos;
+
+    /**
+     * Geometría de VUELTA (sentido contrario), SOLO para los índices de {@link #segmentos} cuyo
+     * tramo real es de un solo sentido (p. ej. un retorno/lazo vial: la calle de ida y la de vuelta
+     * son físicamente distintas, no la misma invertida). Clave = índice en {@link #segmentos}; un
+     * índice sin entrada aquí significa "sin variante de vuelta propia" (se sigue invirtiendo la de
+     * ida, comportamiento actual). Null si segmentos.json no trajo ningún tramo con "ida"/"vuelta".
+     */
+    public Map<Integer, List<LatLng>> segmentosVuelta;
 
     /** Distancia acumulada (m) hasta cada punto de la ruta. */
     private final double[] acumulado;

@@ -1920,6 +1920,14 @@ public final class Planificador {
      * MapFragment para el mapa general) un tramo cuyos EXTREMOS (primer/último punto) estén cerca
      * de p0/p1, y lo devuelve orientado p0 → p1. Uso puntual: SOLO para el carve-out La
      * Raza↔Hospital La Raza en geomLinea(); no se generaliza a otros pares ni otras líneas.
+     *
+     * Si el tramo encontrado requiere el sentido contrario al de "ida" (el array normal de
+     * Linea.segmentos) Y existe una geometría de "vuelta" DEDICADA para ese mismo índice
+     * (Linea.segmentosVuelta, ver {@link GtfsRepository}), se usa esa geometría real tal cual
+     * (sin invertir nada) en vez de invertir la de ida -- para tramos de un solo sentido donde la
+     * calle de vuelta NO es la misma que la de ida recorrida al revés (p. ej. un retorno vial). Si
+     * no hay variante de vuelta para ese índice, se conserva el comportamiento de siempre
+     * (invertir la de ida).
      */
     private static List<LatLng> segmentoEntre(Context ctx, int linea, LatLng p0, LatLng p1) {
         Linea l = GtfsRepository.porNumero(ctx, linea);
@@ -1935,13 +1943,22 @@ public final class Planificador {
             boolean directo = cerca(ini, p0) && cerca(fin, p1);
             boolean inverso = !directo && cerca(ini, p1) && cerca(fin, p0);
             if (!directo && !inverso) continue;
-            List<LatLng> out = new ArrayList<>(seg);
-            if (inverso) java.util.Collections.reverse(out);
+            List<LatLng> vueltaDedicada = (inverso && l.segmentosVuelta != null) ? l.segmentosVuelta.get(i) : null;
+            String orientacion;
+            List<LatLng> out;
+            if (vueltaDedicada != null && vueltaDedicada.size() >= 2) {
+                out = new ArrayList<>(vueltaDedicada);
+                orientacion = "VUELTA_DEDICADA";
+            } else {
+                out = new ArrayList<>(seg);
+                if (inverso) java.util.Collections.reverse(out);
+                orientacion = inverso ? "INVERSA" : "DIRECTA";
+            }
             Log.d(TAG_DBG, "segmentoEntre(): linea=" + linea + " segmento[" + i + "] encontrado"
-                    + " orientacion=" + (inverso ? "INVERSA" : "DIRECTA")
+                    + " orientacion=" + orientacion
                     + " puntos=" + out.size()
-                    + " dIni=" + String.format(java.util.Locale.US, "%.1f", Linea.distancia(ini, directo ? p0 : p1)) + "m"
-                    + " dFin=" + String.format(java.util.Locale.US, "%.1f", Linea.distancia(fin, directo ? p1 : p0)) + "m");
+                    + " dIni=" + String.format(java.util.Locale.US, "%.1f", Linea.distancia(out.get(0), p0)) + "m"
+                    + " dFin=" + String.format(java.util.Locale.US, "%.1f", Linea.distancia(out.get(out.size() - 1), p1)) + "m");
             return out;
         }
         Log.d(TAG_DBG, "segmentoEntre(): linea=" + linea + " SIN segmento compatible entre p0=("
