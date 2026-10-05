@@ -31,7 +31,12 @@ def _normalizar_encabezado(s: str) -> str:
 
 
 async def _descargar_csv() -> str:
-    async with httpx.AsyncClient(timeout=config.HTTP_TIMEOUT_S) as client:
+    # El link de "publicar en la web" de Sheets responde 307 hacia un host de
+    # googleusercontent.com con el CSV real -- sin follow_redirects, httpx deja ese 307 tal
+    # cual y raise_for_status() lo revienta antes de llegar al contenido (nunca es un error
+    # real de la fuente, solo falta seguir la redirección). No se hardcodea el destino: es
+    # justamente una URL de redirección y puede cambiar.
+    async with httpx.AsyncClient(timeout=config.HTTP_TIMEOUT_S, follow_redirects=True) as client:
         r = await client.get(config.MODELOS_URL)
         r.raise_for_status()
         return r.text
