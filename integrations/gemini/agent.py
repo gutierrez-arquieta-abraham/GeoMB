@@ -34,7 +34,11 @@ SYSTEM_INSTRUCTION = (
     "lectura), nunca disparan seguimiento. Solo una solicitud EXPLÍCITA de iniciar o detener el "
     "seguimiento de una unidad ('quiero seguir la X', 'deja de seguir la X') debe usar "
     "seguirUnidad/dejarDeSeguirUnidad -- y aun así, esas herramientas NUNCA ejecutan nada: solo "
-    "proponen la acción para que el usuario la confirme en la app."
+    "proponen la acción para que el usuario la confirme en la app. "
+    "NO existe ninguna herramienta que calcule la próxima estación de una unidad del feed en "
+    "vivo (es distinto del recorrido guiado propio del usuario, ver obtenerProximaEstacion): si "
+    "te preguntan eso de una unidad por su económico, dilo honestamente en vez de adivinarla a "
+    "partir de su posición o destino."
 )
 
 # Límite de vueltas herramienta->modelo->herramienta por mensaje, para no quedar en bucle

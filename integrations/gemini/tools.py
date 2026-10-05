@@ -17,14 +17,47 @@ from . import backend_client, catalogo_unidades, data_loader as dl, graph
 # Implementación real de cada herramienta (async: alguna pega al backend en vivo)
 # ============================================================
 
+def _direccion_cardinal(grados: float) -> str:
+    """Grados (0-359, convención GPS estándar: 0=Norte, 90=Este, clockwise) -> Norte/Sur/Este/
+    Oeste. MISMA convención que ya usa Android: RealtimeRepository lee 'bearing' del feed tal
+    cual (sin reescalar) y lo usa directo como rotación de Marker (grados, 0=norte, sentido
+    horario) -- confirmado en código, no asumido."""
+    g = grados % 360
+    if g < 45 or g >= 315:
+        return "Norte"
+    if g < 135:
+        return "Este"
+    if g < 225:
+        return "Sur"
+    return "Oeste"
+
+
+def _nombre_linea(valor_line: Any) -> str | None:
+    """'line' del feed (string u int, según venga el JSON -- mismo criterio defensivo que
+    RealtimeRepository.java: parseInt con try/except, nunca lanza) -> nombre de exhibición
+    ('Metrobús L2', etc.) vía data_loader, SIN duplicar su tabla de líneas."""
+    try:
+        numero = int(str(valor_line).strip())
+    except (TypeError, ValueError):
+        return None
+    l = dl.linea_por_numero(numero)
+    return l.nombre if l else None
+
+
 async def buscar_unidad(economico: str) -> dict[str, Any]:
     """Busca una unidad en el feed en vivo por su número económico (coincidencia exacta, sin
-    distinguir mayúsculas) y la complementa con su ficha de catálogo (marca/modelo/empresa,
-    ver catalogo_unidades.py) cuando existe. Las dos fuentes son independientes: una unidad
-    puede estar catalogada aunque no esté transmitiendo en vivo en este momento (y viceversa)
-    -- 'encontrada' SIGUE significando exactamente lo mismo que antes (presente en el feed en
-    vivo AHORA), nunca "existe en el catálogo"; eso es lo que valida seguir_unidad antes de
-    proponer el seguimiento, así que ese contrato no cambia."""
+    distinguir mayúsculas) y la complementa con: (a) su ficha de catálogo (marca/modelo/
+    empresa/imagen/credito, ver catalogo_unidades.py) cuando existe, y (b) -si está en vivo-
+    el nombre de línea resuelto y la dirección cardinal aproximada de su rumbo. Catálogo y feed
+    en vivo son independientes: una unidad puede estar catalogada aunque no esté transmitiendo
+    ahora (y viceversa) -- 'encontrada' SIGUE significando exactamente lo mismo que antes
+    (presente en el feed en vivo AHORA), nunca "existe en el catálogo"; eso es lo que valida
+    seguir_unidad antes de proponer el seguimiento, así que ese contrato no cambia.
+
+    NO calcula "próxima estación": el feed no la trae y el backend no tiene la geometría real
+    de la ruta (eso vive solo en Linea.java/segmentos.json, del lado Android) -- inventarla a
+    partir de la estación geográficamente más cercana ignoraría el sentido real de circulación,
+    así que deliberadamente se omite en vez de aproximarla mal."""
     vehiculos = await backend_client.obtener_vehiculos()
     eco = economico.strip().lower()
     unidad_en_vivo = None
@@ -35,10 +68,12 @@ async def buscar_unidad(economico: str) -> dict[str, Any]:
             break
 
     ficha = await catalogo_unidades.ficha(economico)
-    tipo = empresa = None
+    tipo = empresa = imagen = credito = None
     if ficha:
         tipo = (f"{ficha.get('marca', '')} {ficha.get('modelo', '')}").strip() or None
         empresa = ficha.get("empresa") or None
+        imagen = ficha.get("imagen") or None
+        credito = ficha.get("credito") or None
 
     if unidad_en_vivo is None:
         if tipo is None:
@@ -50,6 +85,10 @@ async def buscar_unidad(economico: str) -> dict[str, Any]:
         }
         if empresa:
             resultado["empresa"] = empresa
+        if imagen:
+            resultado["imagen"] = imagen
+        if credito:
+            resultado["credito"] = credito
         return resultado
 
     resultado = {"encontrada": True, "unidad": unidad_en_vivo}
@@ -57,6 +96,22 @@ async def buscar_unidad(economico: str) -> dict[str, Any]:
         resultado["tipo"] = tipo
     if empresa:
         resultado["empresa"] = empresa
+    if imagen:
+        resultado["imagen"] = imagen
+    if credito:
+        resultado["credito"] = credito
+
+    nombre_linea = _nombre_linea(unidad_en_vivo.get("line"))
+    if nombre_linea:
+        resultado["linea_nombre"] = nombre_linea
+
+    bearing = unidad_en_vivo.get("bearing")
+    if bearing is not None:
+        try:
+            resultado["direccion_cardinal"] = _direccion_cardinal(float(bearing))
+        except (TypeError, ValueError):
+            pass
+
     return resultado
 
 
@@ -127,12 +182,15 @@ HERRAMIENTAS = types.Tool(function_declarations=[
     types.FunctionDeclaration(
         name="buscar_unidad",
         description=(
-            "Busca una unidad (camión/autobús) por su número económico: posición/velocidad/estado "
-            "actual (si está transmitiendo en vivo) Y su ficha de catálogo (marca/modelo/empresa), "
-            "cuando exista. Úsala para CUALQUIER pregunta informativa sobre una unidad concreta -- "
-            "'¿dónde está la X?', '¿qué es la X?', '¿qué modelo es la X?' -- nunca para iniciar o "
-            "detener su seguimiento (eso son seguirUnidad/dejarDeSeguirUnidad, acciones distintas "
-            "que SIEMPRE requieren confirmación explícita del usuario)."
+            "Busca una unidad (camión/autobús) por su número económico: posición/velocidad/línea/"
+            "dirección cardinal aproximada (si está transmitiendo en vivo) Y su ficha de catálogo "
+            "(marca/modelo/empresa/imagen/crédito), cuando exista. NO incluye la próxima estación "
+            "(no hay una fuente confiable para eso todavía -- si te la piden, dilo con honestidad, "
+            "nunca la estimes). Úsala para CUALQUIER pregunta informativa sobre una unidad concreta "
+            "-- '¿dónde está la X?', '¿qué es la X?', '¿qué modelo es la X?', '¿hacia dónde va la "
+            "X?' -- nunca para iniciar o detener su seguimiento (eso son seguirUnidad/"
+            "dejarDeSeguirUnidad, acciones distintas que SIEMPRE requieren confirmación explícita "
+            "del usuario)."
         ),
         parameters=types.Schema(
             type=types.Type.OBJECT,
