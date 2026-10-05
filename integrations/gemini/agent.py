@@ -28,7 +28,13 @@ SYSTEM_INSTRUCTION = (
     "cualquier dato real usa las herramientas disponibles. Si una herramienta devuelve un "
     "error o no encuentra algo, dilo con honestidad en vez de adivinar. "
     "Terminología: transbordo (Metrobús↔Metrobús), correspondencia (Mexibús/Mexicable entre "
-    "sí), conexión (Metrobús↔Edomex)."
+    "sí), conexión (Metrobús↔Edomex). "
+    "IMPORTANTE -- no confundas preguntas informativas con acciones: '¿dónde está/qué es/qué "
+    "modelo es la unidad X?' son SIEMPRE consultas (usa buscar_unidad u otra herramienta de "
+    "lectura), nunca disparan seguimiento. Solo una solicitud EXPLÍCITA de iniciar o detener el "
+    "seguimiento de una unidad ('quiero seguir la X', 'deja de seguir la X') debe usar "
+    "seguirUnidad/dejarDeSeguirUnidad -- y aun así, esas herramientas NUNCA ejecutan nada: solo "
+    "proponen la acción para que el usuario la confirme en la app."
 )
 
 # Límite de vueltas herramienta->modelo->herramienta por mensaje, para no quedar en bucle

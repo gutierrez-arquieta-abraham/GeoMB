@@ -27,6 +27,14 @@ PATH_VEHICLES = "/data/vehicles.json"
 PATH_AFECT_MXB = "/data/afectaciones_mexibus.json"  # incluye Metrobús + Mexibús + avisos manuales
 HTTP_TIMEOUT_S = float(os.environ.get("GEOMB_HTTP_TIMEOUT_S", "10"))
 
+# --- Catálogo de marca/modelo por económico (ver catalogo_unidades.py) ---
+# MISMO link público "publicar en la web" que ya usa Android (Config.java#MODELOS_URL) -- no
+# es una credencial, solo un CSV de solo lectura sin autenticación.
+MODELOS_URL = os.environ.get(
+    "GEOMB_MODELOS_URL",
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSzbtEUq4-cocjqJOydQZj5HnWLmD4_oURYbXzNLu2wxvSGZxkUMq3QQ-rwVb2_5KB1GyYLs0ddpydR/pub?gid=0&single=true&output=csv",
+)
+
 # --- Datos locales (los mismos assets que empaqueta la app Android) ---
 # Por defecto asume que este script vive dentro del repo GeoMB, en integrations/gemini/.
 _REPO_ROOT = Path(__file__).resolve().parents[2]

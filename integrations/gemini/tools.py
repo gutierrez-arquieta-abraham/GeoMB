@@ -10,7 +10,7 @@ from typing import Any
 
 from google.genai import types
 
-from . import backend_client, data_loader as dl, graph
+from . import backend_client, catalogo_unidades, data_loader as dl, graph
 
 
 # ============================================================
@@ -18,15 +18,46 @@ from . import backend_client, data_loader as dl, graph
 # ============================================================
 
 async def buscar_unidad(economico: str) -> dict[str, Any]:
-    """Busca una unidad en el feed en vivo por su número económico (coincidencia exacta,
-    sin distinguir mayúsculas)."""
+    """Busca una unidad en el feed en vivo por su número económico (coincidencia exacta, sin
+    distinguir mayúsculas) y la complementa con su ficha de catálogo (marca/modelo/empresa,
+    ver catalogo_unidades.py) cuando existe. Las dos fuentes son independientes: una unidad
+    puede estar catalogada aunque no esté transmitiendo en vivo en este momento (y viceversa)
+    -- 'encontrada' SIGUE significando exactamente lo mismo que antes (presente en el feed en
+    vivo AHORA), nunca "existe en el catálogo"; eso es lo que valida seguir_unidad antes de
+    proponer el seguimiento, así que ese contrato no cambia."""
     vehiculos = await backend_client.obtener_vehiculos()
     eco = economico.strip().lower()
+    unidad_en_vivo = None
     for v in vehiculos:
         label = str(v.get("label") or v.get("id") or "").strip().lower()
         if label == eco:
-            return {"encontrada": True, "unidad": v}
-    return {"encontrada": False, "mensaje": f"No se encontró la unidad '{economico}' en el feed actual."}
+            unidad_en_vivo = v
+            break
+
+    ficha = await catalogo_unidades.ficha(economico)
+    tipo = empresa = None
+    if ficha:
+        tipo = (f"{ficha.get('marca', '')} {ficha.get('modelo', '')}").strip() or None
+        empresa = ficha.get("empresa") or None
+
+    if unidad_en_vivo is None:
+        if tipo is None:
+            return {"encontrada": False, "mensaje": f"No se encontró la unidad '{economico}' en el feed actual."}
+        resultado: dict[str, Any] = {
+            "encontrada": False,
+            "tipo": tipo,
+            "mensaje": f"La unidad '{economico}' no está transmitiendo en vivo ahora, pero sí está catalogada como {tipo}.",
+        }
+        if empresa:
+            resultado["empresa"] = empresa
+        return resultado
+
+    resultado = {"encontrada": True, "unidad": unidad_en_vivo}
+    if tipo:
+        resultado["tipo"] = tipo
+    if empresa:
+        resultado["empresa"] = empresa
+    return resultado
 
 
 async def estado_servicio(linea: str = "") -> dict[str, Any]:
@@ -95,7 +126,14 @@ _LINEA_DESC = (
 HERRAMIENTAS = types.Tool(function_declarations=[
     types.FunctionDeclaration(
         name="buscar_unidad",
-        description="Busca la posición y estado actual de una unidad (camión/autobús) por su número económico.",
+        description=(
+            "Busca una unidad (camión/autobús) por su número económico: posición/velocidad/estado "
+            "actual (si está transmitiendo en vivo) Y su ficha de catálogo (marca/modelo/empresa), "
+            "cuando exista. Úsala para CUALQUIER pregunta informativa sobre una unidad concreta -- "
+            "'¿dónde está la X?', '¿qué es la X?', '¿qué modelo es la X?' -- nunca para iniciar o "
+            "detener su seguimiento (eso son seguirUnidad/dejarDeSeguirUnidad, acciones distintas "
+            "que SIEMPRE requieren confirmación explícita del usuario)."
+        ),
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
