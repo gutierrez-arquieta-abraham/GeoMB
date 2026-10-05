@@ -1732,6 +1732,13 @@ public final class Planificador {
             // Se dibuja por PARES consecutivos: así el trazo pasa por CADA estación intermedia
             // (p. ej. Terminal 1 entre San Lázaro y Terminal 2) y no se salta ninguna al rebanar.
             if (grupo.size() >= 2) {
+                // Continuidad entre pares consecutivos: cuando dos tramos seguidos usan fuentes de
+                // geometría distintas (p. ej. "L3-vuelta" para uno y "L1-ida"/"L1-vuelta" para el
+                // siguiente), sus proyecciones de la MISMA estación compartida pueden no coincidir
+                // espacialmente (cada shape pasa por una calle distinta) -- eso se veía como un
+                // "gancho" en el mapa. 'ultimoPunto' se reinicia en cada 'grupo' (cambio de línea),
+                // así nunca se compara entre estaciones que no son realmente consecutivas.
+                LatLng ultimoPunto = null;
                 for (int t = 0; t + 1 < grupo.size(); t++) {
                     LatLng pa = grupo.get(t), pb = grupo.get(t + 1);
                     List<LatLng> par = java.util.Arrays.asList(pa, pb);
@@ -1741,10 +1748,20 @@ public final class Planificador {
                     // larga (el bus rodea de T1 a T2 ~4.7 km): ahí NO se aplica la guarda de longitud.
                     // En el resto, si la rebanada se va por el lado largo del lazo, mejor recto.
                     boolean aero = (linea == 4 && enZonaAeropuerto(ctx, par));
-                    if (sub != null && sub.size() >= 2
+                    List<LatLng> tramo = (sub != null && sub.size() >= 2
                             && (aero || longitud(sub) <= 2.2 * Linea.distancia(pa, pb) + 400))
-                        out.addAll(sub);
-                    else { out.add(pa); out.add(pb); }
+                            ? sub : java.util.Arrays.asList(pa, pb);
+                    // 'pa' (= grupo.get(t)) es la estación REAL compartida con el tramo anterior: es
+                    // el mismo valor que ya era 'pb' en la iteración previa, conocido por topología
+                    // (nunca se infiere por cercanía). Si el salto entre lo ya dibujado y el nuevo
+                    // tramo supera 10 m, se inserta esa posición real como punto de unión, SIN
+                    // desplazar ningún punto de las geometrías originales.
+                    if (ultimoPunto != null && !tramo.isEmpty()
+                            && Linea.distancia(ultimoPunto, tramo.get(0)) > 10.0) {
+                        out.add(pa);
+                    }
+                    out.addAll(tramo);
+                    ultimoPunto = tramo.get(tramo.size() - 1);
                 }
             } else {
                 out.addAll(grupo);
