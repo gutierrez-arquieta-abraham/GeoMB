@@ -1879,14 +1879,19 @@ public final class Planificador {
                         GtfsRepository.sublinea(ctx, "L1-vuelta"), grupo.get(0), grupo.get(1));
                 if (l1 != null && l1.size() >= 2) return l1;
             }
-            // El PAR La Raza↔Hospital La Raza no tiene shape calle-por-calle disponible en los datos
-            // (L1 pasa a ~340-375 m de Hospital La Raza; "L3-vuelta" pasa a ~269 m de La Raza): mejor
-            // una recta honesta entre las 2 posiciones reales -- que trazoMixto() YA usa como
-            // respaldo cuando esta función devuelve null -- que una rebanada de "L3-vuelta" que
-            // aparenta ser geometría real pero queda desplazada de la estación.
+            // El PAR La Raza↔Hospital La Raza SÍ tiene shape calle-por-calle real, pero NO en
+            // sublineas.json (L1 pasa a ~340-375 m de Hospital La Raza; "L3-vuelta" pasa a ~269 m de
+            // La Raza) sino en segmentos.json (Linea.segmentos), que ya usa MapFragment para el mapa
+            // general ("trazado oficial por tramos, sin huecos"): el segmento[4] de L3 conecta ambas
+            // estaciones con 9 puntos reales. Se busca ese tramo por EXTREMOS (ver segmentoEntre());
+            // si algún día no calzara, se conserva la recta honesta como respaldo.
             boolean tocaLaRazaHospital = (g0LaRaza && cerca(grupo.get(1), hospitalLaRaza))
                     || (cerca(grupo.get(0), hospitalLaRaza) && g1LaRaza);
-            if (tocaLaRazaHospital) return null;
+            if (tocaLaRazaHospital) {
+                List<LatLng> seg = segmentoEntre(ctx, 3, grupo.get(0), grupo.get(1));
+                if (seg != null && seg.size() >= 2) return seg;
+                return null;   // sin segmento compatible: recta honesta (respaldo ya usado por trazoMixto())
+            }
 
             // El PAR que toca Buenavista II o III usa el desvío dedicado (shape propio del GTFS):
             // la troncal genérica ("L3-vuelta", vía geomSentido) pasa de largo ~500 m al este y
@@ -1908,6 +1913,42 @@ public final class Planificador {
     private static boolean cerca(LatLng p, LatLng ref) {
         return ref != null && p != null && Linea.distancia(p, ref) < 300;
     }
+
+    // === LOG TEMPORAL DE DIAGNÓSTICO (quitar después) ===============================
+    /**
+     * Busca en Linea.segmentos (segmentos.json, el trazado "por tramos, sin huecos" que ya usa
+     * MapFragment para el mapa general) un tramo cuyos EXTREMOS (primer/último punto) estén cerca
+     * de p0/p1, y lo devuelve orientado p0 → p1. Uso puntual: SOLO para el carve-out La
+     * Raza↔Hospital La Raza en geomLinea(); no se generaliza a otros pares ni otras líneas.
+     */
+    private static List<LatLng> segmentoEntre(Context ctx, int linea, LatLng p0, LatLng p1) {
+        Linea l = GtfsRepository.porNumero(ctx, linea);
+        final String TAG_DBG = "GEOMB_TRAZO_DEBUG";
+        if (l == null || l.segmentos == null) {
+            Log.d(TAG_DBG, "segmentoEntre(): linea=" + linea + " sin Linea.segmentos (null)");
+            return null;
+        }
+        for (int i = 0; i < l.segmentos.size(); i++) {
+            List<LatLng> seg = l.segmentos.get(i);
+            if (seg.size() < 2) continue;
+            LatLng ini = seg.get(0), fin = seg.get(seg.size() - 1);
+            boolean directo = cerca(ini, p0) && cerca(fin, p1);
+            boolean inverso = !directo && cerca(ini, p1) && cerca(fin, p0);
+            if (!directo && !inverso) continue;
+            List<LatLng> out = new ArrayList<>(seg);
+            if (inverso) java.util.Collections.reverse(out);
+            Log.d(TAG_DBG, "segmentoEntre(): linea=" + linea + " segmento[" + i + "] encontrado"
+                    + " orientacion=" + (inverso ? "INVERSA" : "DIRECTA")
+                    + " puntos=" + out.size()
+                    + " dIni=" + String.format(java.util.Locale.US, "%.1f", Linea.distancia(ini, directo ? p0 : p1)) + "m"
+                    + " dFin=" + String.format(java.util.Locale.US, "%.1f", Linea.distancia(fin, directo ? p1 : p0)) + "m");
+            return out;
+        }
+        Log.d(TAG_DBG, "segmentoEntre(): linea=" + linea + " SIN segmento compatible entre p0=("
+                + p0.latitude + "," + p0.longitude + ") y p1=(" + p1.latitude + "," + p1.longitude + ")");
+        return null;
+    }
+    // === FIN LOG TEMPORAL ============================================================
 
     /** ¿El tramo pasa por la zona del aeropuerto (cerca de Terminal 1/2)? */
     private static boolean enZonaAeropuerto(Context ctx, List<LatLng> grupo) {
