@@ -19,6 +19,7 @@ detenerRecorrido ya estaba implementada desde Fase 3B; iniciarRecorrido sigue co
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from google.genai import types
@@ -26,6 +27,14 @@ from google.genai import types
 from . import tools
 
 _NO_IMPLEMENTADO = {"error": "no implementado todavía"}
+
+# Tope para la validación de seguir_unidad contra el feed en vivo (tools.buscar_unidad ->
+# backend_client, que ya tiene SU PROPIO failover de hasta HTTP_TIMEOUT_S=10s por intento, hasta
+# 20s en el peor caso con el de respaldo). Una acción confirmable ya implica 2 vueltas a Gemini
+# dentro del readTimeout de 30s de Android (ver Asistente.java); sin este tope, un backend lento
+# puede acercar o superar ese presupuesto y el teléfono muestra "no se pudo conectar" aunque el
+# servidor esté sano -- mejor fallar rápido y claro que arriesgar el timeout completo del cliente.
+_TIMEOUT_VALIDACION_S = 8.0
 
 
 # ============================================================
@@ -127,7 +136,15 @@ async def seguir_unidad(economico: str) -> dict[str, Any]:
     economico = (economico or "").strip()
     if not economico:
         return {"error": "Falta el número económico de la unidad a seguir."}
-    resultado = await tools.buscar_unidad(economico)
+    try:
+        resultado = await asyncio.wait_for(
+            tools.buscar_unidad(economico), timeout=_TIMEOUT_VALIDACION_S
+        )
+    except asyncio.TimeoutError:
+        return {
+            "error": f"No se pudo verificar la unidad '{economico}' a tiempo "
+                     "(el feed en vivo no respondió). Intenta de nuevo en un momento."
+        }
     if not resultado.get("encontrada"):
         return {"error": f"No se encontró la unidad '{economico}' en el feed actual, no se puede seguir."}
     return {
