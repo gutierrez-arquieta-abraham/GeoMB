@@ -1808,6 +1808,31 @@ public final class Planificador {
             }
         }
         if (linea == 3 && grupo.size() == 2) {
+            // Desvío de "La Raza": medí contra sublineas.json que el shape genérico de L3
+            // ("L3-vuelta", el que usa geomSentido() más abajo) pasa a ~269 m de la estación real
+            // "La Raza" -- la calle que SÍ pasa por ahí es la de Línea 1 (comparte corredor con el
+            // acceso al CETRAM La Raza): a 63-68 m de "La Raza" y a 53-80 m de "Circuito". Por eso
+            // el PAR Circuito↔La Raza usa L1-ida/L1-vuelta en vez del shape de L3.
+            LatLng laRaza = posEstacion(ctx, "la raza");
+            LatLng hospitalLaRaza = posEstacion(ctx, "hospital la raza");
+            LatLng circuito = posEstacion(ctx, "circuito");
+            boolean g0LaRaza = cerca(grupo.get(0), laRaza), g1LaRaza = cerca(grupo.get(1), laRaza);
+            boolean tocaCircuitoLaRaza = (cerca(grupo.get(0), circuito) && g1LaRaza)
+                    || (g0LaRaza && cerca(grupo.get(1), circuito));
+            if (tocaCircuitoLaRaza) {
+                List<LatLng> l1 = elegirSentido(GtfsRepository.sublinea(ctx, "L1-ida"),
+                        GtfsRepository.sublinea(ctx, "L1-vuelta"), grupo.get(0), grupo.get(1));
+                if (l1 != null && l1.size() >= 2) return l1;
+            }
+            // El PAR La Raza↔Hospital La Raza no tiene shape calle-por-calle disponible en los datos
+            // (L1 pasa a ~340-375 m de Hospital La Raza; "L3-vuelta" pasa a ~269 m de La Raza): mejor
+            // una recta honesta entre las 2 posiciones reales -- que trazoMixto() YA usa como
+            // respaldo cuando esta función devuelve null -- que una rebanada de "L3-vuelta" que
+            // aparenta ser geometría real pero queda desplazada de la estación.
+            boolean tocaLaRazaHospital = (g0LaRaza && cerca(grupo.get(1), hospitalLaRaza))
+                    || (cerca(grupo.get(0), hospitalLaRaza) && g1LaRaza);
+            if (tocaLaRazaHospital) return null;
+
             // El PAR que toca Buenavista II o III usa el desvío dedicado (shape propio del GTFS):
             // la troncal genérica ("L3-vuelta", vía geomSentido) pasa de largo ~500 m al este y
             // NUNCA llega a esas 2 plataformas. El resto del tramo (Tenayuca hasta Ricardo Flores
