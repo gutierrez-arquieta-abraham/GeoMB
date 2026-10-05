@@ -8,14 +8,22 @@ FASE 3A: las 5 de LECTURA leen SOLO `contexto_dispositivo` (el dict que Android 
 mensaje, ver DiagnosticoReporte.contextoTracking() y agent.py#_ejecutar_herramienta -- se inyecta
 automáticamente porque estas funciones lo declaran en su firma). Nunca consultan GPS, nunca
 calculan nada nuevo, nunca devuelven coordenadas: si el campo no vino en el contexto, es
-"sin dato", nunca se inventa. Las de ACCIÓN siguen siendo placeholders de Fase 1 -- en Fase 4
-devolverán "requiere_confirmacion" para que Android decida y ejecute, nunca se ejecutan aquí.
+"sin dato", nunca se inventa.
+
+ACCIÓN: "seguirUnidad"/"dejarDeSeguirUnidad" (seguimiento de proximidad, SeguimientoService) ya
+están activas -- devuelven "requiere_confirmacion" para que Android decida, confirme y ejecute
+(ver SeguimientoService.iniciar()/.detener() y ChatAsistenteActivity.confirmarAccion()); JAMÁS se
+ejecutan aquí. "iniciarRecorrido"/"detenerRecorrido" son un flujo DISTINTO (RecorridoService, el
+recorrido guiado por voz, no el seguimiento de una unidad) y siguen fuera de este alcance:
+detenerRecorrido ya estaba implementada desde Fase 3B; iniciarRecorrido sigue como placeholder.
 """
 from __future__ import annotations
 
 from typing import Any
 
 from google.genai import types
+
+from . import tools
 
 _NO_IMPLEMENTADO = {"error": "no implementado todavía"}
 
@@ -111,16 +119,44 @@ def detener_recorrido() -> dict[str, Any]:
     }
 
 
-def seguir_unidad(economico: str) -> dict[str, Any]:
-    """Propone empezar a seguir (alertas de proximidad) la unidad 'economico'. Nunca ejecuta
-    nada por sí misma."""
-    return _NO_IMPLEMENTADO
+async def seguir_unidad(economico: str) -> dict[str, Any]:
+    """Propone empezar a seguir (alertas de proximidad) la unidad 'economico'. Comprueba primero
+    que la unidad exista en el feed en vivo (reusa tools.buscar_unidad, SIN duplicar esa lógica
+    ni tocar tools.py) para no proponerle a Android una confirmación que de todos modos no podría
+    cumplir. Nunca ejecuta nada por sí misma -- solo arma la propuesta, ver SeguimientoService."""
+    economico = (economico or "").strip()
+    if not economico:
+        return {"error": "Falta el número económico de la unidad a seguir."}
+    resultado = await tools.buscar_unidad(economico)
+    if not resultado.get("encontrada"):
+        return {"error": f"No se encontró la unidad '{economico}' en el feed actual, no se puede seguir."}
+    return {
+        "requiere_confirmacion": True,
+        "accion": "seguirUnidad",
+        "parametros": {"economico": economico},
+        "resumen": f"Seguir la unidad {economico} (te avisará cuando esté cerca)",
+    }
 
 
 def dejar_de_seguir_unidad(economico: str = "") -> dict[str, Any]:
-    """Propone dejar de seguir una unidad ('economico') o todas (si se omite). Nunca ejecuta
-    nada por sí misma."""
-    return _NO_IMPLEMENTADO
+    """Propone dejar de seguir una unidad ('economico') o TODAS (si se omite). A diferencia de
+    seguir_unidad, no valida contra el feed en vivo: dejar de seguir una unidad que ya no está en
+    seguimiento (o que nunca se encontró) es una operación segura e idempotente del lado Android
+    (ver SeguimientoService.detener()). Nunca ejecuta nada por sí misma."""
+    economico = (economico or "").strip()
+    if economico:
+        return {
+            "requiere_confirmacion": True,
+            "accion": "dejarDeSeguirUnidad",
+            "parametros": {"economico": economico},
+            "resumen": f"Dejar de seguir la unidad {economico}",
+        }
+    return {
+        "requiere_confirmacion": True,
+        "accion": "dejarDeSeguirUnidad",
+        "parametros": {},
+        "resumen": "Dejar de seguir todas las unidades en seguimiento",
+    }
 
 
 # ============================================================

@@ -1,5 +1,8 @@
 package com.memegrados.GeoMB;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -11,9 +14,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -24,7 +30,8 @@ import com.google.android.material.button.MaterialButton;
 
 import org.json.JSONObject;
 
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -35,11 +42,13 @@ import java.util.Set;
  */
 public class ChatAsistenteActivity extends AppCompatActivity {
 
-    /** Lista blanca de acciones que esta pantalla sabe ejecutar -- Fase 3B solo valida
-     *  "detenerRecorrido". Cualquier otro nombre que mande el backend se ignora SIN mostrar
+    /** Lista blanca de acciones que esta pantalla sabe ejecutar: "detenerRecorrido" (Fase 3B) y,
+     *  desde esta fase, "seguirUnidad"/"dejarDeSeguirUnidad" (seguimiento de proximidad, ver
+     *  SeguimientoService). Cualquier otro nombre que mande el backend se ignora SIN mostrar
      *  diálogo (ver {@link #onAccionPendiente}): Android decide si una acción es conocida y
      *  permitida, nunca confía ciegamente en lo que propone Gemini. */
-    private static final Set<String> ACCIONES_PERMITIDAS = Collections.singleton("detenerRecorrido");
+    private static final Set<String> ACCIONES_PERMITIDAS = new HashSet<>(Arrays.asList(
+            "detenerRecorrido", "seguirUnidad", "dejarDeSeguirUnidad"));
 
     private EditText inMensaje;
     private MaterialButton btnEnviar;
@@ -54,6 +63,33 @@ public class ChatAsistenteActivity extends AppCompatActivity {
      *  ver {@link AccionPendiente}. Un mensaje de chat como "sí" NUNCA la ejecuta: la ejecución
      *  real solo puede salir de {@link #confirmarAccion()}. */
     private AccionPendiente accionActual;
+
+    /** Económico pendiente mientras se resuelve el flujo de permisos de "seguirUnidad" -- igual
+     *  criterio que {@link #accionActual}: vive solo en memoria de esta instancia, nunca se
+     *  persiste. Null cuando no hay ningún "seguirUnidad" en curso esperando un permiso. */
+    private String economicoPendienteSeguimiento;
+
+    /** Mismo flujo que MapFragment.permisoUbicacionCarta: sin ACCESS_FINE_LOCATION,
+     *  SeguimientoService no puede medir distancias (ver su tienePermisoUbicacion()), así que
+     *  aquí SÍ se bloquea la acción si el usuario la niega -- nunca se arranca el seguimiento
+     *  sin este permiso. */
+    private final ActivityResultLauncher<String> permisoUbicacionAsistente =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> {
+                if (ok) {
+                    continuarSeguirUnidadTrasPermisoUbicacion();
+                } else {
+                    economicoPendienteSeguimiento = null;
+                    Toast.makeText(this, R.string.seguir_permiso_ubicacion, Toast.LENGTH_LONG).show();
+                }
+            });
+
+    /** Mismo criterio que MapFragment.permisoNotifCarta: las notificaciones son de mejor
+     *  esfuerzo (solo afectan las alertas de proximidad, ver SeguimientoService.lanzarAlerta()),
+     *  así que el seguimiento arranca con el resultado que sea -- nunca se reinventa aquí una
+     *  política de permisos más estricta que la que ya usa el resto de la app. */
+    private final ActivityResultLauncher<String> permisoNotifAsistente =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                    ok -> arrancarSeguimientoAsistente());
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -159,7 +195,7 @@ public class ChatAsistenteActivity extends AppCompatActivity {
         inMensaje.setEnabled(!cargando);
     }
 
-    // ---- confirmación de acciones (Fase 3B: solo "detenerRecorrido") ----
+    // ---- confirmación de acciones (ver ACCIONES_PERMITIDAS) ----
 
     /** ¿Esta instancia de la Activity sigue en un estado válido para mostrar un diálogo? La
      *  respuesta de Asistente es asíncrona (hasta 30 s de espera, ciclo de Function Calling con
@@ -218,22 +254,83 @@ public class ChatAsistenteActivity extends AppCompatActivity {
         }
     }
 
-    /** Único lugar de todo el flujo que puede llamar a un método real de GeoMB (RecorridoService)
-     *  -- nunca se llama desde el texto del chat, solo desde el botón "Confirmar" de arriba. */
+    /** Único lugar de todo el flujo que puede llamar a un método real de GeoMB (RecorridoService,
+     *  SeguimientoService) -- nunca se llama desde el texto del chat, solo desde el botón
+     *  "Confirmar" de arriba. */
     private void confirmarAccion() {
         AccionPendiente propuesta = accionActual;
         accionActual = null;   // PRIMERA operación: evita una segunda ejecución aunque este
                                 // método se disparara dos veces (doble toque, etc.)
-        if (propuesta == null || !"detenerRecorrido".equals(propuesta.accion)) return;
+        if (propuesta == null) return;
         if (propuesta.expirada()) {
             Toast.makeText(this, R.string.asistente_accion_expirada, Toast.LENGTH_SHORT).show();
             return;
         }
-        RecorridoService.detener(this);
-        Toast.makeText(this, R.string.asistente_recorrido_detenido, Toast.LENGTH_SHORT).show();
+        switch (propuesta.accion) {
+            case "detenerRecorrido":
+                RecorridoService.detener(this);
+                Toast.makeText(this, R.string.asistente_recorrido_detenido, Toast.LENGTH_SHORT).show();
+                break;
+            case "seguirUnidad":
+                iniciarSeguirUnidad(propuesta.parametros.optString("economico", ""));
+                break;
+            case "dejarDeSeguirUnidad":
+                detenerSeguirUnidad(propuesta.parametros.optString("economico", ""));
+                break;
+            default:
+                break;   // ACCIONES_PERMITIDAS ya filtró en onAccionPendiente: no debería pasar
+        }
     }
 
     private void cancelarAccion() {
         accionActual = null;
+    }
+
+    // ---- "seguirUnidad" / "dejarDeSeguirUnidad" confirmados (seguimiento de proximidad) ----
+
+    /** Punto de entrada de "seguirUnidad" ya confirmado por el usuario: primero pide (si falta)
+     *  ACCESS_FINE_LOCATION -- bloqueante, sin él SeguimientoService no puede arrancar de forma
+     *  útil -- y de ahí sigue a {@link #continuarSeguirUnidadTrasPermisoUbicacion()}. Mismo
+     *  criterio exacto que MapFragment.intentarSeguirCarta(): esta pantalla no inventa una
+     *  política de permisos propia. */
+    private void iniciarSeguirUnidad(String economico) {
+        if (TextUtils.isEmpty(economico)) return;
+        economicoPendienteSeguimiento = economico;
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            permisoUbicacionAsistente.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+            return;
+        }
+        continuarSeguirUnidadTrasPermisoUbicacion();
+    }
+
+    private void continuarSeguirUnidadTrasPermisoUbicacion() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            permisoNotifAsistente.launch(Manifest.permission.POST_NOTIFICATIONS);
+            return;
+        }
+        arrancarSeguimientoAsistente();
+    }
+
+    /** Ya se resolvió el permiso de ubicación (el de notificaciones es de mejor esfuerzo, ver el
+     *  comentario de {@link #permisoNotifAsistente}): ejecuta de verdad SeguimientoService.iniciar(). */
+    private void arrancarSeguimientoAsistente() {
+        String eco = economicoPendienteSeguimiento;
+        economicoPendienteSeguimiento = null;
+        if (TextUtils.isEmpty(eco)) return;
+        SeguimientoService.iniciar(this, eco);
+        Toast.makeText(this, getString(R.string.seguir_activado, eco), Toast.LENGTH_LONG).show();
+    }
+
+    /** "dejarDeSeguirUnidad" confirmado: nunca necesita permisos (detener no depende de GPS), así
+     *  que se ejecuta directo. Económico vacío = todas las unidades en seguimiento. */
+    private void detenerSeguirUnidad(String economico) {
+        String eco = TextUtils.isEmpty(economico) ? null : economico;
+        SeguimientoService.detener(this, eco);
+        Toast.makeText(this, eco == null
+                ? getString(R.string.asistente_seguimiento_detenido_todas)
+                : getString(R.string.asistente_seguimiento_detenido_uno, eco), Toast.LENGTH_SHORT).show();
     }
 }

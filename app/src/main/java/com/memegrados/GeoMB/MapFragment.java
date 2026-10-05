@@ -1013,11 +1013,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cartaVistas.btnSeguir.setOnClickListener(b -> {
             if (ecoCartaActual == null) return;
             if (SeguimientoService.sigue(ecoCartaActual)) {
-                Intent i = new Intent(requireContext(), SeguimientoService.class)
-                        .setAction(SeguimientoService.ACCION_DETENER)
-                        .putExtra(SeguimientoService.EXTRA_ECO, ecoCartaActual);
-                requireContext().startService(i);
-                SeguimientoService.ecosSeguidos.remove(ecoCartaActual);
+                SeguimientoService.detener(requireContext(), ecoCartaActual);
                 actualizarBotonSeguirCarta();
             } else {
                 intentarSeguirCarta();
@@ -1071,10 +1067,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     /** Detiene el seguimiento de TODAS las unidades (antes exclusivo de la pestaña Buscar). */
     private void detenerTodosCarta() {
-        Intent i = new Intent(requireContext(), SeguimientoService.class)
-                .setAction(SeguimientoService.ACCION_DETENER);   // sin económico = todas
-        requireContext().startService(i);
-        SeguimientoService.ecosSeguidos.clear();
+        SeguimientoService.detener(requireContext(), null);   // sin económico = todas
         actualizarBotonSeguirCarta();
     }
 
@@ -1096,10 +1089,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     private void arrancarSeguimientoCarta() {
         if (!isAdded() || ecoCartaActual == null) return;
-        Intent i = new Intent(requireContext(), SeguimientoService.class)
-                .putExtra(SeguimientoService.EXTRA_ECO, ecoCartaActual);
-        try { ContextCompat.startForegroundService(requireContext(), i); } catch (Exception ignore) {}
-        SeguimientoService.ecosSeguidos.add(ecoCartaActual);
+        SeguimientoService.iniciar(requireContext(), ecoCartaActual);
         actualizarBotonSeguirCarta();
         Toast.makeText(requireContext(),
                 getString(R.string.seguir_activado, ecoCartaActual), Toast.LENGTH_LONG).show();

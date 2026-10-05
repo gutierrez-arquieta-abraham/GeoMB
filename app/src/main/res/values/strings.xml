@@ -503,6 +503,8 @@
     <string name="asistente_accion_cancelar">Cancelar</string>
     <string name="asistente_accion_expirada">Esa solicitud ya expiró, dime de nuevo qué quieres hacer.</string>
     <string name="asistente_recorrido_detenido">Recorrido detenido.</string>
+    <string name="asistente_seguimiento_detenido_uno">Dejaste de seguir la unidad %1$s.</string>
+    <string name="asistente_seguimiento_detenido_todas">Dejaste de seguir todas las unidades.</string>
 
     <!-- Reporte de un problema DE LA APP (no del servicio de Metrobús), a los correos de soporte -->
     <string name="config_reportar_app">Reportar un problema de la app</string>

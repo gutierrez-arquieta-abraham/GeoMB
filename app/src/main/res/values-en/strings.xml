@@ -469,6 +469,8 @@
     <string name="asistente_accion_cancelar">Cancel</string>
     <string name="asistente_accion_expirada">That request expired, tell me again what you want to do.</string>
     <string name="asistente_recorrido_detenido">Trip stopped.</string>
+    <string name="asistente_seguimiento_detenido_uno">You stopped following unit %1$s.</string>
+    <string name="asistente_seguimiento_detenido_todas">You stopped following all units.</string>
 
     <!-- Report a problem WITH THE APP (not the Metrobús service), to the support emails -->
     <string name="config_reportar_app">Report a problem with the app</string>

@@ -65,6 +65,32 @@ public class SeguimientoService extends Service {
     /** ¿Se está siguiendo esta unidad? */
     public static boolean sigue(String eco) { return eco != null && ecosSeguidos.contains(eco); }
 
+    /**
+     * Arranca (o añade a) el seguimiento de {@code eco}. El llamador debe haber comprobado YA el
+     * permiso ACCESS_FINE_LOCATION (ver MapFragment.intentarSeguirCarta() / ChatAsistenteActivity):
+     * este método es puramente mecánico y NUNCA comprueba permisos por sí mismo, igual criterio
+     * que {@link RecorridoService#iniciar}. Sin ese permiso, el servicio arranca pero
+     * {@code procesarTodas()} se queda avisando "sin permiso" en vez de negarse a arrancar.
+     */
+    public static void iniciar(android.content.Context c, String eco) {
+        if (eco == null || eco.isEmpty()) return;
+        ecosSeguidos.add(eco);
+        Intent i = new Intent(c, SeguimientoService.class).putExtra(EXTRA_ECO, eco);
+        try { ContextCompat.startForegroundService(c, i); } catch (Exception ignore) {}
+    }
+
+    /** Detiene el seguimiento de {@code eco}, o de TODAS las unidades si {@code eco} es null/vacío. */
+    public static void detener(android.content.Context c, String eco) {
+        Intent i = new Intent(c, SeguimientoService.class).setAction(ACCION_DETENER);
+        if (eco != null && !eco.isEmpty()) {
+            i.putExtra(EXTRA_ECO, eco);
+            ecosSeguidos.remove(eco);
+        } else {
+            ecosSeguidos.clear();
+        }
+        try { c.startService(i); } catch (Exception ignore) {}
+    }
+
     /** Estado de aviso por unidad. */
     private static final class Est {
         boolean avisadoLejos = false;   // "ya viene" (5 km)
