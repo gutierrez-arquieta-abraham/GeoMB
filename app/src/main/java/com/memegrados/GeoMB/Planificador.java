@@ -1,6 +1,7 @@
 package com.memegrados.GeoMB;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -1423,6 +1424,43 @@ public final class Planificador {
             if (claveTerminal(instrucciones.get(t).linea) != claveTerminal(instrucciones.get(t - 1).linea)) transbordos++;
         int minutos = (int) Math.round(dist[fin] / 60.0);
         motivoFallo = MOTIVO_OK; estacionCerrada = null; lineaHorarioCerrado = 0;
+
+        // === LOG TEMPORAL DE DIAGNÓSTICO (quitar después) ===============================
+        final String TAG_DBG = "GEOMB_TRAZO_DEBUG";
+        Log.d(TAG_DBG, "Ruta.trazo total puntos=" + trazo.size());
+        LatLng pCircuito = posEstacion(ctx, "circuito");
+        LatLng pLaRaza = posEstacion(ctx, "la raza");
+        LatLng pHospital = posEstacion(ctx, "hospital la raza");
+        LatLng pHeroe = posEstacion(ctx, "heroe de nacozari");
+        String[] nombresInteres = {"Circuito", "La Raza", "Hospital La Raza", "Héroe de Nacozari"};
+        LatLng[] puntosInteres = {pCircuito, pLaRaza, pHospital, pHeroe};
+        for (int idx = 0; idx < trazo.size(); idx++) {
+            LatLng pt = trazo.get(idx);
+            for (int k = 0; k < puntosInteres.length; k++) {
+                if (puntosInteres[k] == null) continue;
+                double d = Linea.distancia(pt, puntosInteres[k]);
+                if (d <= 300.0) {
+                    double distPrev = idx > 0 ? Linea.distancia(trazo.get(idx - 1), pt) : -1;
+                    Log.d(TAG_DBG, "trazo[" + idx + "] cerca de " + nombresInteres[k]
+                            + " dist=" + String.format(java.util.Locale.US, "%.1f", d) + "m"
+                            + " pt=(" + pt.latitude + "," + pt.longitude + ")"
+                            + " distConAnterior=" + (distPrev < 0 ? "N/A" : String.format(java.util.Locale.US, "%.1f", distPrev) + "m"));
+                }
+            }
+        }
+        Log.d(TAG_DBG, "Ruta.pasos total=" + pasos.size());
+        for (int pi = 0; pi < pasos.size(); pi++) {
+            Paso p = pasos.get(pi);
+            LatLng primero = p.puntos.isEmpty() ? null : p.puntos.get(0);
+            LatLng ultimo = p.puntos.isEmpty() ? null : p.puntos.get(p.puntos.size() - 1);
+            Log.d(TAG_DBG, "pasos[" + pi + "] linea=" + p.linea + " mixta=" + p.mixta
+                    + " " + p.origen + " -> " + p.destino
+                    + " puntos=" + p.puntos.size()
+                    + " primerPt=" + (primero == null ? "null" : "(" + primero.latitude + "," + primero.longitude + ")")
+                    + " ultimoPt=" + (ultimo == null ? "null" : "(" + ultimo.latitude + "," + ultimo.longitude + ")"));
+        }
+        // === FIN LOG TEMPORAL ============================================================
+
         return new Ruta(pasos, instrucciones, paradasTot, transbordos, minutos, trazo, secuencia);
     }
 

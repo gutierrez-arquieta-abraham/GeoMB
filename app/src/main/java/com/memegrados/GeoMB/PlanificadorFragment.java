@@ -8,6 +8,7 @@ import android.graphics.Canvas;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -797,9 +798,14 @@ public class PlanificadorFragment extends Fragment {
     }
 
     private void dibujar(Planificador.Ruta r, String destino) {
+        // === LOG TEMPORAL DE DIAGNÓSTICO (quitar después) ===========================
+        final String TAG_DBG = "GEOMB_TRAZO_DEBUG";
+        Log.d(TAG_DBG, "dibujar(): polylines previas en 'trazo' antes de limpiar=" + trazo.size());
+        // ==============================================================================
         for (Polyline p : trazo) p.remove();
         trazo.clear();
         mapa.clear();
+        Log.d(TAG_DBG, "dibujar(): mapa.clear() ejecutado, trazo.clear() ejecutado");
         marcadoresUnidad.clear();               // mapa.clear() ya los quitó
         mkUsuario = null; progresoLine = null;
         rutaPuntos = new java.util.ArrayList<>();
@@ -810,16 +816,34 @@ public class PlanificadorFragment extends Fragment {
                     .addAll(p.puntos).color(p.color).width(18f).zIndex(5f)));
             rutaPuntos.addAll(p.puntos);
             for (LatLng pt : p.puntos) bounds.include(pt);
+            // === LOG TEMPORAL ===
+            LatLng prim = p.puntos.isEmpty() ? null : p.puntos.get(0);
+            LatLng ult = p.puntos.isEmpty() ? null : p.puntos.get(p.puntos.size() - 1);
+            Log.d(TAG_DBG, "dibujar(): polyline PRINCIPAL linea=" + p.linea + " " + p.origen + "->" + p.destino
+                    + " puntos=" + p.puntos.size()
+                    + " primerPt=" + (prim == null ? "null" : "(" + prim.latitude + "," + prim.longitude + ")")
+                    + " ultimoPt=" + (ult == null ? "null" : "(" + ult.latitude + "," + ult.longitude + ")"));
+            // === FIN LOG TEMPORAL ===
         }
         anclasZona = densificar(rutaPuntos, PASO_TRAZO_M);   // puntos finos: filtro de unidades + progreso suave
         // conector entre tramos (transbordo o cruce de ruta mixta) para que no quede hueco
         for (int k = 1; k < r.pasos.size(); k++) {
             List<LatLng> ant = r.pasos.get(k - 1).puntos, act = r.pasos.get(k).puntos;
             if (ant.isEmpty() || act.isEmpty()) continue;
+            LatLng finAnt = ant.get(ant.size() - 1), inicioAct = act.get(0);
+            // === LOG TEMPORAL ===
+            Log.d(TAG_DBG, "dibujar(): polyline CONECTOR entre pasos[" + (k - 1) + "] y pasos[" + k + "]"
+                    + " finAnt=(" + finAnt.latitude + "," + finAnt.longitude + ")"
+                    + " inicioAct=(" + inicioAct.latitude + "," + inicioAct.longitude + ")"
+                    + " distancia=" + String.format(java.util.Locale.US, "%.1f", Linea.distancia(finAnt, inicioAct)) + "m");
+            // === FIN LOG TEMPORAL ===
             trazo.add(mapa.addPolyline(new PolylineOptions()
                     .add(ant.get(ant.size() - 1)).add(act.get(0))
                     .color(r.pasos.get(k).color).width(12f).zIndex(4f)));
         }
+        // === LOG TEMPORAL DE DIAGNÓSTICO (quitar después) ===========================
+        Log.d(TAG_DBG, "dibujar(): TOTAL polylines creadas en 'trazo'=" + trazo.size());
+        // ==============================================================================
         // logos (pictogramas) de las estaciones de la ruta: actúan como marcadores (sin punteros)
         for (int i = 0; i < r.secuencia.size(); i++) {
             Planificador.Parada p = r.secuencia.get(i);
