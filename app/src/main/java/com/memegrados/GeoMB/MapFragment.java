@@ -1058,8 +1058,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 intentarSeguirCarta();
             }
         });
-        // Mantener presionado "Seguir" = guardar/quitar de favoritos (persiste entre reinicios:
-        // ArranqueReceiver retoma el seguimiento de los favoritos guardados al arrancar el teléfono).
+        // Mantener presionado "Seguir" = guardar/quitar de "unidades guardadas" (persiste entre
+        // reinicios, pero es un estado INDEPENDIENTE de si se está siguiendo: guardar NO inicia el
+        // seguimiento ni dejar de seguir la quita de guardadas -- ver EconomicoFavoritoEntity).
         cartaVistas.btnSeguir.setOnLongClickListener(b -> {
             if (ecoCartaActual == null || !isAdded()) return false;
             String favEco = ecoCartaActual;

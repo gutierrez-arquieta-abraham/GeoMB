@@ -44,27 +44,12 @@ public class ArranqueReceiver extends BroadcastReceiver {
             } catch (Exception ignore) {}
             // Aviso de llegada a una estación vigilada: retoma la misma parada de antes del reinicio.
             try { LlegadaService.reanudarSiHay(context); } catch (Exception ignore) {}
-            // Económicos guardados como favoritos: retoma el aviso de cercanía de cada uno. La consulta
-            // a Room es async, así que se usa goAsync() para que el sistema no mate el proceso antes
-            // de que termine y se alcance a arrancar el foreground service.
-            try {
-                PendingResult espera = goAsync();
-                Telemetria.listaFavoritos(context, favoritos -> {
-                    // espera.finish() debe llamarse SIEMPRE (si no, el sistema puede matar el proceso
-                    // pensando que sigue trabajando): va en finally, no al final del bloque normal.
-                    try {
-                        for (EconomicoFavoritoEntity f : favoritos) {
-                            try {
-                                Intent i = new Intent(context, SeguimientoService.class)
-                                        .putExtra(SeguimientoService.EXTRA_ECO, f.economico);
-                                androidx.core.content.ContextCompat.startForegroundService(context, i);
-                            } catch (Exception ignore) {}
-                        }
-                    } finally {
-                        espera.finish();
-                    }
-                });
-            } catch (Exception ignore) {}
+            // NOTA: las unidades GUARDADAS (EconomicoFavoritoEntity/Telemetria.listaFavoritos) ya NO
+            // reinician su seguimiento aquí. "Guardada" y "Siguiendo" son estados independientes: el
+            // seguimiento solo debe arrancar por una acción explícita del usuario ("Seguir"), nunca
+            // como efecto secundario de reiniciar el teléfono. SeguimientoService no persiste qué
+            // unidades se seguían antes del reinicio (ecosSeguidos es solo en memoria), así que tras
+            // un reinicio simplemente no queda nada en seguimiento hasta que el usuario lo pida de nuevo.
         }
     }
 }
