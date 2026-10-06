@@ -423,6 +423,12 @@
     <string name="viene_texto">El eco %1$s que sigues ya viene: está a %2$s de ti.</string>
     <string name="cerca_titulo">¡Tu unidad está por llegar!</string>
     <string name="cerca_texto">El eco %1$s que estás siguiendo está por llegar (a %2$s).</string>
+    <!-- Alerta de proximidad por FCM (ver MensajesService, tipo="unidad_cerca"): distinta de
+         cerca_titulo/cerca_texto de arriba, que son del seguimiento LOCAL de SeguimientoService.
+         Esta solo significa "entró al radio configurado", nunca "está llegando". -->
+    <string name="unidad_cerca_titulo">GeoMB — Unidad cercana</string>
+    <string name="unidad_cerca_texto_con_linea">La unidad %1$s de %2$s está a %3$s.</string>
+    <string name="unidad_cerca_texto_sin_linea">La unidad %1$s está a %2$s.</string>
     <string name="seguir_activado">Siguiendo la unidad %1$s. Te aviso a 5 km y a 800 m.</string>
     <string name="seguir_permiso_ubicacion">Activa el permiso de ubicación para seguir la unidad.</string>
     <string name="favorito_guardado">%1$s guardada en Mis unidades.</string>

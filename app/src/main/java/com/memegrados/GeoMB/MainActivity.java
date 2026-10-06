@@ -48,6 +48,17 @@ public class MainActivity extends AppCompatActivity {
     /** Extra: abrir directamente el planificador (p.ej. al tocar la notificación de recorrido). */
     public static final String EXTRA_ABRIR_RUTA = "abrir_ruta";
 
+    /** Extra: enfocar esta unidad en el mapa (p. ej. al tocar la notificación FCM de
+     *  "unidad_cerca", ver MensajesService) -- mismo mecanismo que ya usa "Mis unidades" para
+     *  centrar el mapa en una unidad guardada (RealtimeRepository.unidadSeleccionada +
+     *  MapFragment.aplicarSeleccionUnidad()), solo que disparado desde un Intent en vez de un
+     *  toque en la lista. PENDIENTE (fuera de alcance de esta etapa, ver su informe): esa misma
+     *  lógica existente nunca inventa una posición si la unidad ya no está en el feed, pero
+     *  tampoco le avisa nada al usuario -- simplemente sigue esperando el próximo refresco en
+     *  silencio. Un mensaje explícito de "unidad ya no disponible" requeriría tocar
+     *  MapFragment.aplicarSeleccionUnidad(), que esta etapa decidió no ampliar. */
+    public static final String EXTRA_ECONOMICO_FOCO = "economico_foco";
+
     private int seleccionadoId = -1;
     private BottomNavigationView bottomNav;
     private AdView banner;
@@ -122,8 +133,15 @@ public class MainActivity extends AppCompatActivity {
         bottomNav = findViewById(R.id.bottom_nav);
         bottomNav.setOnItemSelectedListener(item -> { seleccionar(item.getItemId()); return true; });
         if (savedInstanceState == null) {
-            int inicial = (getIntent() != null && getIntent().getBooleanExtra(EXTRA_ABRIR_RUTA, false))
-                    ? R.id.nav_ruta : R.id.nav_mapa;
+            String ecoFoco = getIntent() != null ? getIntent().getStringExtra(EXTRA_ECONOMICO_FOCO) : null;
+            int inicial;
+            if (ecoFoco != null && !ecoFoco.isEmpty()) {
+                RealtimeRepository.unidadSeleccionada = ecoFoco;
+                inicial = R.id.nav_mapa;
+            } else {
+                inicial = (getIntent() != null && getIntent().getBooleanExtra(EXTRA_ABRIR_RUTA, false))
+                        ? R.id.nav_ruta : R.id.nav_mapa;
+            }
             // setSelectedItemId() no dispara el listener si ese ítem ya está seleccionado por
             // defecto (el primero del menú): seleccionar() de todos modos es idempotente.
             bottomNav.setSelectedItemId(inicial);
@@ -200,7 +218,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (intent != null && intent.getBooleanExtra(EXTRA_ABRIR_RUTA, false)) {
+        if (intent == null) return;
+        String ecoFoco = intent.getStringExtra(EXTRA_ECONOMICO_FOCO);
+        if (ecoFoco != null && !ecoFoco.isEmpty()) {
+            RealtimeRepository.unidadSeleccionada = ecoFoco;
+            bottomNav.setSelectedItemId(R.id.nav_mapa);
+            seleccionar(R.id.nav_mapa);
+            return;
+        }
+        if (intent.getBooleanExtra(EXTRA_ABRIR_RUTA, false)) {
             bottomNav.setSelectedItemId(R.id.nav_ruta);
             seleccionar(R.id.nav_ruta);
         }

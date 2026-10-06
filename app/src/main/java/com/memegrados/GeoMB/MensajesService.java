@@ -21,11 +21,15 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Recibe notificaciones push (FCM). Dos tipos, según el campo "tipo" del data:
+ * Recibe notificaciones push (FCM). Según el campo "tipo" del data:
  *  - "afectacion": muestra la tarjeta de afectación (mismos campos que el monitoreo local).
  *  - "actualizacion": avisa que hay una nueva versión y abre la ficha de la tienda.
+ *  - "unidad_cerca": una unidad guardada con alerta activa entró al radio configurado (ver
+ *    push_metrobus.enviar_alerta_unidad_cerca en metrobus_app) -- a diferencia de los otros dos
+ *    (difundidos por tema a todos los suscritos), este SIEMPRE llega dirigido a ESTE
+ *    dispositivo en particular, por su token (ver AlertasBackend/onNewToken).
  * Con esto los avisos llegan como en WhatsApp (sin servicio en primer plano) cuando el
- * backend envíe el push; el envío lo hace el servidor (Railway), no el teléfono.
+ * backend envíe el push; el envío lo hace el servidor (Railway/EC2), no el teléfono.
  */
 // ============================================================
 // CLASE    : MensajesService   (extends FirebaseMessagingService)
@@ -48,8 +52,16 @@ public class MensajesService extends FirebaseMessagingService {
 
     private static final String CANAL = "avisos_push";
     private static final String CANAL_ACT = "actualizaciones";
+    // Mismo ID de canal que SeguimientoService.CH_ALERTA ("alertas de cercanía") -- a propósito:
+    // para el usuario es el MISMO concepto ("tu unidad está cerca"), solo que esta llega por FCM
+    // en vez de calcularse localmente; así comparten el mismo control de Ajustes del sistema
+    // (silenciar/importancia) en vez de duplicar un canal casi idéntico. No se puede referenciar
+    // la constante privada de SeguimientoService desde aquí (y no se debe tocar ese archivo en
+    // esta etapa), así que se repite el mismo literal -- si alguna vez cambia allá, cambiar aquí.
+    private static final String CANAL_PROXIMIDAD = "alertas";
     private static final int ID_ACT = 4501;
     private static final int ID_BASE = 4510;
+    private static final int ID_PROXIMIDAD_BASE = 4520;
 
     @Override
     public void onMessageReceived(RemoteMessage msg) {
@@ -62,6 +74,10 @@ public class MensajesService extends FirebaseMessagingService {
 
             if ("actualizacion".equals(tipo)) {
                 notificarActualizacion(d.get("titulo"), d.get("texto"), largo(d.get("version_code")));
+                return;
+            }
+            if ("unidad_cerca".equals(tipo)) {
+                notificarUnidadCerca(d);
                 return;
             }
             // Por defecto: afectación al servicio.
@@ -215,6 +231,56 @@ public class MensajesService extends FirebaseMessagingService {
                 }));
     }
 
+    /** "unidad_cerca": una unidad guardada con alerta activa entró al radio configurado (ver
+     *  push_metrobus.enviar_alerta_unidad_cerca). Contenido fijo, no dinámico/traducido como
+     *  afectación/actualización (no viene del backend en español libre, son campos estructurados
+     *  ya resueltos aquí con los strings de la app, igual que SeguimientoService ya hace para su
+     *  propia versión LOCAL de este mismo tipo de aviso). Solo informa que ENTRÓ al radio --
+     *  nunca que "está llegando" (ver el string unidad_cerca_texto_*: eso sería inventar un dato
+     *  que el evento no tiene). */
+    private void notificarUnidadCerca(Map<String, String> d) {
+        String economico = valor(d.get("economico"), "");
+        if (economico.isEmpty()) return;   // payload incompleto: nada que mostrar
+        int lineaNum = entero(d.get("linea"));
+        int distanciaM = entero(d.get("distancia_m"));
+        String lineaLabel = etiquetaLineaNotif(lineaNum);
+        String distTxt = distanciaM >= 1000
+                ? String.format(java.util.Locale.getDefault(), "%.1f km", distanciaM / 1000f)
+                : Math.max(distanciaM, 0) + " m";
+        String texto = lineaLabel.isEmpty()
+                ? getString(R.string.unidad_cerca_texto_sin_linea, economico, distTxt)
+                : getString(R.string.unidad_cerca_texto_con_linea, economico, lineaLabel, distTxt);
+
+        Notification n = new NotificationCompat.Builder(this, CANAL_PROXIMIDAD)
+                .setSmallIcon(R.drawable.ic_bus)
+                .setContentTitle(getString(R.string.unidad_cerca_titulo))
+                .setContentText(texto)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(texto))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setAutoCancel(true)
+                .setContentIntent(piAbrirUnidad(economico))
+                .build();
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm != null) nm.notify(idUnidadCerca(economico), n);
+    }
+
+    private static int idUnidadCerca(String eco) {
+        return ID_PROXIMIDAD_BASE + Math.abs(eco.hashCode() % 10000);
+    }
+
+    /** Abre GeoMB enfocando esta unidad en el mapa (ver MainActivity.EXTRA_ECONOMICO_FOCO) --
+     *  reutiliza la infraestructura de navegación que ya existe para "Mis unidades", no una
+     *  nueva. requestCode por económico (como idUnidadCerca) para que el PendingIntent de una
+     *  unidad no pise el de otra si llegan varias notificaciones "unidad_cerca" a la vez. */
+    private PendingIntent piAbrirUnidad(String economico) {
+        Intent i = new Intent(this, MainActivity.class)
+                .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_ECONOMICO_FOCO, economico);
+        return PendingIntent.getActivity(this, idUnidadCerca(economico), i,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
     private PendingIntent piApp() {
         Intent i = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         return PendingIntent.getActivity(this, 0, i,
@@ -229,6 +295,13 @@ public class MensajesService extends FirebaseMessagingService {
                     getString(R.string.canal_manifestaciones_avisos), NotificationManager.IMPORTANCE_DEFAULT));
             nm.createNotificationChannel(new NotificationChannel(CANAL_ACT,
                     getString(R.string.canal_actualizaciones), NotificationManager.IMPORTANCE_DEFAULT));
+            // Mismas propiedades que SeguimientoService.crearCanales() para este mismo ID de
+            // canal (ver CANAL_PROXIMIDAD arriba) -- createNotificationChannel() es idempotente,
+            // así que no importa cuál de los dos servicios lo registre primero.
+            NotificationChannel proximidad = new NotificationChannel(CANAL_PROXIMIDAD,
+                    getString(R.string.canal_alertas), NotificationManager.IMPORTANCE_HIGH);
+            proximidad.enableVibration(true);
+            nm.createNotificationChannel(proximidad);
         }
     }
 
