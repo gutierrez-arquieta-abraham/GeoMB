@@ -44,6 +44,11 @@ public final class CartaUnidad {
         public final ImageView imgUnidad;
         public final MaterialButton btnVerMapa, btnSeguir;
         public final ImageView btnSeguirOpciones;
+        /** Píldora (estado colapsado) y el contenedor de todo lo demás (estado expandido): las
+         *  alterna MapFragment.expandirCarta()/colapsarCarta(), nunca esta clase. */
+        public final View filaPildora;
+        public final View contenidoExpandido;
+        public final TextView txtPildoraTitulo, txtPildoraDestino, txtPildoraEstado;
 
         public Vistas(View raiz) {
             card = raiz.findViewById(R.id.card_resultado);
@@ -59,6 +64,11 @@ public final class CartaUnidad {
             btnVerMapa = raiz.findViewById(R.id.btn_ver_mapa);
             btnSeguir = raiz.findViewById(R.id.btn_seguir);
             btnSeguirOpciones = raiz.findViewById(R.id.btn_seguir_opciones);
+            filaPildora = raiz.findViewById(R.id.fila_pildora);
+            contenidoExpandido = raiz.findViewById(R.id.contenido_expandido);
+            txtPildoraTitulo = raiz.findViewById(R.id.txt_pildora_titulo);
+            txtPildoraDestino = raiz.findViewById(R.id.txt_pildora_destino);
+            txtPildoraEstado = raiz.findViewById(R.id.txt_pildora_estado);
         }
     }
 
@@ -69,7 +79,8 @@ public final class CartaUnidad {
      * buscó otra unidad mientras tanto), la foto vieja NO se aplica.
      */
     public static void bind(Context ctx, Vistas v, String numero, UnidadReal u, Supplier<String> ecoVigente) {
-        v.txtUnidad.setText(ctx.getString(R.string.unidad_numero, numero));
+        String tituloUnidad = ctx.getString(R.string.unidad_numero, numero);
+        v.txtUnidad.setText(tituloUnidad);
 
         // Ficha del catálogo (Drive) — disponible siempre, aunque no esté en servicio.
         Modelos.Ficha ficha = Modelos.paraEconomico(numero);
@@ -82,20 +93,28 @@ public final class CartaUnidad {
         v.badgeEstado.setVisibility(View.VISIBLE);
         if (u != null) {
             v.badgeEstado.setText(R.string.estado_en_ruta);
-            v.txtLinea.setText(descripcionLinea(ctx, u));
+            String linea = descripcionLinea(ctx, u);
+            v.txtLinea.setText(linea);
             Ruta r = RutasRepository.porRouteId(u.ruta);
+            String ruta;
             if (r != null) {
-                v.txtRuta.setText(ctx.getString(R.string.ruta_codigo_formato, r.codigo) + " · " + r.recorrido());
+                ruta = ctx.getString(R.string.ruta_codigo_formato, r.codigo) + " · " + r.recorrido();
             } else if (u.destino != null && !u.destino.isEmpty()) {
-                v.txtRuta.setText(ctx.getString(R.string.destino_formato, u.destino));
+                ruta = ctx.getString(R.string.destino_formato, u.destino);
             } else {
-                v.txtRuta.setText(R.string.estado_en_ruta);
+                ruta = ctx.getString(R.string.estado_en_ruta);
             }
+            v.txtRuta.setText(ruta);
             v.txtRuta.setVisibility(View.VISIBLE);
             v.txtActualizacion.setText(u.placa != null && !u.placa.isEmpty()
                     ? ctx.getString(R.string.placa_formato, u.placa) : ctx.getString(R.string.estado_en_ruta));
             v.btnVerMapa.setVisibility(View.VISIBLE);
             v.btnSeguir.setVisibility(View.VISIBLE);
+
+            // Píldora: MISMAS cadenas ya calculadas arriba (linea/ruta), nunca derivadas de nuevo.
+            v.txtPildoraTitulo.setText(tituloUnidad + " · " + linea);
+            v.txtPildoraDestino.setText(ruta);
+            v.txtPildoraDestino.setVisibility(View.VISIBLE);
         } else {
             v.badgeEstado.setText(R.string.estado_fuera_servicio);
             v.txtLinea.setText(R.string.sin_ubicacion_vivo);
@@ -103,6 +122,10 @@ public final class CartaUnidad {
             v.txtActualizacion.setText(R.string.info_catalogo);
             v.btnVerMapa.setVisibility(View.GONE);
             v.btnSeguir.setVisibility(View.GONE);
+
+            v.txtPildoraTitulo.setText(tituloUnidad);
+            v.txtPildoraDestino.setText(R.string.estado_fuera_servicio);
+            v.txtPildoraDestino.setVisibility(View.VISIBLE);
         }
 
         aplicarTagline(ctx, v, u);

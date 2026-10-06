@@ -22,6 +22,96 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- PÍLDORA (estado colapsado, por defecto): identificación rápida de la unidad sin tapar
+             el mapa. Se llena en CartaUnidad.bind() con los MISMOS datos/cadenas que ya calcula para
+             el contenido expandido (ver txt_pildora_titulo/txt_pildora_destino), nunca un cómputo
+             aparte. Tocarla expande la carta completa (MapFragment.expandirCarta()). -->
+        <LinearLayout
+            android:id="@+id/fila_pildora"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingEnd="40dp">
+
+            <FrameLayout
+                android:layout_width="40dp"
+                android:layout_height="40dp">
+
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_circle"
+                    android:contentDescription="@string/nav_buscar"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_bus"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/txt_pildora_titulo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="Unidad 1234"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/txt_pildora_destino"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="Ruta"
+                    android:textColor="@color/mb_gray"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/txt_pildora_estado"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_badge"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="@string/siguiendo"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:visibility="gone" />
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right"
+                app:tint="@color/mb_gray" />
+        </LinearLayout>
+
+        <!-- CONTENIDO EXPANDIDO: todo lo que ya existía antes de esta fase (ficha, ruta, foto,
+             créditos, acciones), GONE por defecto; MapFragment.expandirCarta()/colapsarCarta()
+             alternan esta sección con fila_pildora, sin duplicar ninguno de estos datos. -->
+        <LinearLayout
+            android:id="@+id/contenido_expandido"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -180,6 +270,7 @@
                 android:src="@drawable/ic_more_vert"
                 android:visibility="gone"
                 app:tint="@color/mb_gray" />
+        </LinearLayout>
         </LinearLayout>
     </LinearLayout>
     </androidx.core.widget.NestedScrollView>

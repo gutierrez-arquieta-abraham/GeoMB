@@ -185,6 +185,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private ViewGroup cartaContainer;
     private CartaUnidad.Vistas cartaVistas;
     private String ecoCartaActual;   // económico mostrado en la tarjeta flotante
+    private boolean cartaExpandida;  // false = píldora compacta, true = carta completa (misma vista)
     private View panelZoom;   // controles de zoom/brújula/ubicación (ver ajustarPanelZoom())
 
     private final ActivityResultLauncher<String> permisoUbicacionCarta =
@@ -1081,7 +1082,15 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cartaVistas.btnSeguirOpciones.setOnClickListener(this::mostrarMenuSeguimiento);
         View btnCerrar = v.findViewById(R.id.btn_cerrar_carta);
         btnCerrar.setVisibility(View.VISIBLE);
-        btnCerrar.setOnClickListener(b -> ocultarCarta());
+        // Cierre en dos pasos ("isla contextual"): si está expandida, el primer toque solo
+        // colapsa a la píldora; recién el segundo toque (ya colapsada) oculta todo.
+        btnCerrar.setOnClickListener(b -> { if (cartaExpandida) colapsarCarta(); else ocultarCarta(); });
+        // Toda selección nueva arranca COLAPSADA (píldora): identificar la unidad sin tapar el
+        // mapa es el estado por defecto; el usuario decide si quiere expandir (ver expandirCarta()).
+        cartaExpandida = false;
+        cartaVistas.contenidoExpandido.setVisibility(View.GONE);
+        cartaVistas.filaPildora.setVisibility(View.VISIBLE);
+        cartaVistas.filaPildora.setOnClickListener(b -> expandirCarta());
         cartaContainer.setVisibility(View.VISIBLE);
         ajustarPanelZoom();
         LatLng posUnidad = u != null ? u.posicion : null;
@@ -1090,6 +1099,31 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (mUnidad != null) posUnidad = mUnidad.getPosition();
         }
         if (posUnidad != null) destelloUnidad(posUnidad, ContextCompat.getColor(requireContext(), R.color.mb_red));
+    }
+
+    /** Píldora → carta completa: transición simple (fundido + reacomodo de alto, ~150ms, igual
+     *  duración que ya usa ajustarPanelZoom()) sobre la MISMA tarjeta inflada -- no hay una
+     *  segunda carta ni un segundo bind(), solo se intercambia qué sección se ve. */
+    private void expandirCarta() {
+        if (cartaVistas == null || cartaContainer == null) return;
+        cartaExpandida = true;
+        android.transition.TransitionManager.beginDelayedTransition(cartaContainer,
+                new android.transition.AutoTransition().setDuration(150));
+        cartaVistas.filaPildora.setVisibility(View.GONE);
+        cartaVistas.contenidoExpandido.setVisibility(View.VISIBLE);
+        ajustarPanelZoom();
+    }
+
+    /** Carta completa → píldora (ver btn_cerrar_carta en mostrarCartaUnidad(): el primer toque de
+     *  cerrar colapsa, no oculta). */
+    private void colapsarCarta() {
+        if (cartaVistas == null || cartaContainer == null) return;
+        cartaExpandida = false;
+        android.transition.TransitionManager.beginDelayedTransition(cartaContainer,
+                new android.transition.AutoTransition().setDuration(150));
+        cartaVistas.contenidoExpandido.setVisibility(View.GONE);
+        cartaVistas.filaPildora.setVisibility(View.VISIBLE);
+        ajustarPanelZoom();
     }
 
     /** "Seguir" (inactivo) vs. "Siguiendo" (activo): mismo botón primario, solo cambia texto +
@@ -1109,6 +1143,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             cartaVistas.btnSeguir.setIconResource(R.drawable.ic_my_location);
             cartaVistas.btnSeguir.setBackgroundTintList(null);   // vuelve al color primario por defecto del estilo
         }
+        // Misma bandera "sigue" reflejada en la píldora: NO es un estado paralelo, solo se nota
+        // también cuando la carta está colapsada (selección != seguimiento, pero ambos deben
+        // poder verse sin expandir).
+        cartaVistas.txtPildoraEstado.setVisibility(sigue ? View.VISIBLE : View.GONE);
         // Botón de opciones de seguimiento múltiple: solo relevante cuando ya hay unidad(es) en curso.
         boolean hay = !SeguimientoService.ecosSeguidos.isEmpty();
         cartaVistas.btnSeguirOpciones.setVisibility(hay ? View.VISIBLE : View.GONE);
@@ -1604,6 +1642,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cartaContainer = null;
         cartaVistas = null;
         ecoCartaActual = null;
+        cartaExpandida = false;
         panelZoom = null;
         super.onDestroyView();
     }
