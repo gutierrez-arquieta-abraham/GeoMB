@@ -217,6 +217,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final ActivityResultLauncher<String> permisoNotifCarta =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> arrancarSeguimientoCarta());
 
+    /** Permiso de ubicación para 🔔 Alertas (ver toggleAlertaUnidad()) -- independiente de
+     *  permisoUbicacionCarta, que es para 🚌 Seguir. La preferencia ya se guardó de todos modos
+     *  (Telemetria.actualizarAlertaUnidad no depende de esto); si lo niega, solo se le avisa que
+     *  por ahora no va a recibir el aviso. */
+    private final ActivityResultLauncher<String> permisoUbicacionAlerta =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> {
+                if (!ok && isAdded()) Toast.makeText(requireContext(),
+                        getString(R.string.alerta_permiso_ubicacion), Toast.LENGTH_LONG).show();
+            });
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -1274,6 +1284,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private void toggleAlertaUnidad(String eco, boolean activaAhora, int radioActual) {
         if (!isAdded()) return;
         boolean nuevaActiva = !activaAhora;
+        // Pide el permiso (si falta) para que AlertasUnidadesService pueda arrancar de verdad --
+        // independiente de guardar la preferencia abajo: se pide y se guarda siempre juntos, sin
+        // esperar la respuesta del permiso (ver permisoUbicacionAlerta y el javadoc de
+        // AlertasUnidadesService.iniciar()).
+        if (nuevaActiva && ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permisoUbicacionAlerta.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
         UnidadReal u = RealtimeRepository.get().buscar(eco);
         int linea = (u != null && u.linea != null) ? u.linea : 0;
         Telemetria.actualizarAlertaUnidad(requireContext(), eco, linea, nuevaActiva, () -> {

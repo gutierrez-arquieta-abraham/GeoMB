@@ -1,5 +1,7 @@
 package com.memegrados.GeoMB;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -9,8 +11,11 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -33,6 +38,16 @@ public class UnidadesGuardadasFragment extends Fragment {
     private UnidadGuardadaAdapter adapter;
     private TextView vacio;
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /** Mismo criterio que MapFragment.permisoUbicacionAlerta: la preferencia ya se guarda de
+     *  todos modos (ver mostrarMenuFila()); esto solo pide el permiso para que
+     *  AlertasUnidadesService pueda arrancar de verdad. */
+    private final ActivityResultLauncher<String> permisoUbicacionAlerta =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> {
+                if (!ok && isAdded()) Toast.makeText(requireContext(),
+                        getString(R.string.alerta_permiso_ubicacion), Toast.LENGTH_LONG).show();
+            });
+
     // Refresco periódico SOLO para reflejar cambios de "Siguiendo" hechos desde otra pantalla/
     // notificación mientras esta lista está abierta -- es una consulta a Room en el hilo de E/S
     // (Telemetria.listaFavoritos), no un poll al feed ni ninguna detección de proximidad.
@@ -115,6 +130,10 @@ public class UnidadesGuardadasFragment extends Fragment {
                 refrescar();
             } else if (id == R.id.menu_alerta_unidad_lista) {
                 boolean nuevaActiva = !f.alertaActiva;
+                if (nuevaActiva && ContextCompat.checkSelfPermission(requireContext(),
+                        Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    permisoUbicacionAlerta.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+                }
                 Telemetria.actualizarAlertaUnidad(requireContext(), f.economico, f.linea, nuevaActiva, () -> {
                     if (!isAdded()) return;
                     Toast.makeText(requireContext(), nuevaActiva

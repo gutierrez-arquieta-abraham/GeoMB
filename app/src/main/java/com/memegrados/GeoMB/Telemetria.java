@@ -213,11 +213,31 @@ public final class Telemetria {
         if (economico == null) return;
         Context app = c.getApplicationContext();
         ioSeguro(() -> {
-            db(app).economicoFavoritoDao().borrar(economico);
+            EconomicoFavoritoDao dao = db(app).economicoFavoritoDao();
+            dao.borrar(economico);
             // Baja también en el backend (ver AlertasBackend.eliminarAlerta): evita que quede una
             // fila huérfana si la unidad tenía alerta activa -- no-op silencioso en el backend si
             // no la tenía o si ya no existía ahí.
             AlertasBackend.eliminarAlerta(app, economico);
+            // Si esta era la última unidad con alerta activa, AlertasUnidadesService ya no tiene
+            // nada que hacer -- ver evaluarServicioAlertas().
+            evaluarServicioAlertas(app, dao);
+        });
+    }
+
+    /** ¿AlertasUnidadesService debe estar corriendo? Sí, si al menos una unidad guardada tiene
+     *  la alerta activa -- se llama siempre desde el hilo de E/S (dao ya abierto), nunca desde el
+     *  arranque de la app (ver GeoMBApplication/AlertasUnidadesService.javadoc: el servicio NUNCA
+     *  se resume solo, solo por una acción explícita del usuario mientras la app está visible). */
+    private static void evaluarServicioAlertas(Context app, EconomicoFavoritoDao dao) {
+        boolean hayAlguna = false;
+        for (EconomicoFavoritoEntity f : dao.listar()) {
+            if (f.alertaActiva) { hayAlguna = true; break; }
+        }
+        boolean finalHayAlguna = hayAlguna;
+        MAIN.post(() -> {
+            if (finalHayAlguna) AlertasUnidadesService.iniciar(app);
+            else AlertasUnidadesService.detener(app);
         });
     }
 
@@ -280,6 +300,9 @@ public final class Telemetria {
             // Sincroniza con metrobus_app (ver AlertasBackend): Room ya quedó actualizado arriba,
             // así que un fallo de red aquí nunca revierte ni bloquea la preferencia local.
             AlertasBackend.actualizarAlerta(app, economico, activa, radioM);
+            // Arranca/detiene AlertasUnidadesService según si queda alguna alerta activa -- NUNCA
+            // SeguimientoService (ver su javadoc: son servicios completamente independientes).
+            evaluarServicioAlertas(app, dao);
             if (alTerminar != null) MAIN.post(() -> { try { alTerminar.run(); } catch (Exception ignore) {} });
         });
     }

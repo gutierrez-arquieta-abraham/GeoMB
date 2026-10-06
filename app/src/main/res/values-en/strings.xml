@@ -406,6 +406,11 @@
     <string name="alerta_activada_toast">%1$s: proximity alerts enabled (radius %2$s).</string>
     <string name="alerta_desactivada_toast">%1$s: proximity alerts disabled.</string>
     <string name="radio_actualizado_toast">%1$s: alert radius changed to %2$s.</string>
+    <!-- Does not reuse seguir_permiso_ubicacion: this is for 🔔 Alerts, not 🚌 Follow. -->
+    <string name="alerta_permiso_ubicacion">Enable location permission so the proximity alert can notify you.</string>
+    <string name="canal_alertas_ubicacion">Active unit alerts</string>
+    <string name="alertas_ubicacion_notif_titulo">GeoMB — Active unit alerts</string>
+    <string name="alertas_ubicacion_notif_texto">We\'ll let you know when a saved unit is nearby.</string>
 
     <!-- "My units" screen (see UnidadesGuardadasFragment) -->
     <string name="mis_unidades_titulo">⭐ My units</string>

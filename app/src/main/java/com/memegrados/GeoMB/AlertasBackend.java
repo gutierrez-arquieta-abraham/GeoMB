@@ -104,6 +104,29 @@ public final class AlertasBackend {
         });
     }
 
+    // ---------------------------------------------------------------- ubicación (para el detector de proximidad)
+
+    /** Manda la ubicación ACTUAL de este dispositivo (ver {@link AlertasUnidadesService}, que es
+     *  el único llamador: solo corre mientras hay al menos una alerta activa). El backend guarda
+     *  solo la última -- nunca un historial (ver device_alertas.actualizar_ubicacion en
+     *  metrobus_app). No hay nada que cachear localmente aquí (a diferencia del token): si esta
+     *  llamada falla, la siguiente actualización de {@link AlertasUnidadesService} la reemplaza
+     *  sin necesitar reintento explícito. */
+    public static void actualizarUbicacion(Context c, double lat, double lon) {
+        Context app = c.getApplicationContext();
+        executor.execute(() -> {
+            try {
+                JSONObject cuerpo = new JSONObject();
+                cuerpo.put("lat", lat);
+                cuerpo.put("lon", lon);
+                cuerpo.put("timestamp", System.currentTimeMillis() / 1000L);
+                enviar(Config.DEVICE_UBICACION_URL, "POST", DeviceUtils.idDispositivo(app), cuerpo.toString());
+            } catch (Exception e) {
+                registrarFallo(app, "AlertasBackend.actualizarUbicacion", e);
+            }
+        });
+    }
+
     // ---------------------------------------------------------------- reconciliación al iniciar la app
 
     /** Re-declara al backend el token cacheado (si hay uno) y TODAS las unidades con alerta

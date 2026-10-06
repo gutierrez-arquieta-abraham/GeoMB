@@ -59,6 +59,12 @@ public final class Config {
      */
     public static final String DEVICE_TOKEN_URL = BASE_URL + "/device/token";
     public static final String DEVICE_ALERTA_URL = BASE_URL + "/device/alerta";
+    public static final String DEVICE_UBICACION_URL = BASE_URL + "/device/ubicacion";
+
+    /** Cada cuánto manda AlertasUnidadesService la ubicación actual mientras haya al menos una
+     *  alerta activa (ms). No tiene sentido más frecuente que el ciclo de push_metrobus.py (60 s,
+     *  ver metrobus_app) -- nadie va a leer una ubicación más fresca que eso. */
+    public static final long ALERTA_UBICACION_POLL_MS = 60000;
 
     /**
      * Catálogo colaborativo de marca/modelo por económico.

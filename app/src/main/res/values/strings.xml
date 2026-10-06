@@ -440,6 +440,11 @@
     <string name="alerta_activada_toast">%1$s: alertas de proximidad activadas (radio %2$s).</string>
     <string name="alerta_desactivada_toast">%1$s: alertas de proximidad desactivadas.</string>
     <string name="radio_actualizado_toast">%1$s: radio de aviso cambiado a %2$s.</string>
+    <!-- No reutiliza seguir_permiso_ubicacion: esto es para 🔔 Alertas, no para 🚌 Seguir. -->
+    <string name="alerta_permiso_ubicacion">Activa el permiso de ubicación para que la alerta de proximidad pueda avisarte.</string>
+    <string name="canal_alertas_ubicacion">Alertas de unidades activas</string>
+    <string name="alertas_ubicacion_notif_titulo">GeoMB — Alertas de unidades activas</string>
+    <string name="alertas_ubicacion_notif_texto">Te avisaremos cuando una unidad guardada esté cerca.</string>
 
     <!-- Pantalla "Mis unidades" (ver UnidadesGuardadasFragment) -->
     <string name="mis_unidades_titulo">⭐ Mis unidades</string>

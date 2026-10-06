@@ -78,6 +78,13 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Exclusivo de 🔔 Alertas de proximidad (ver su javadoc): NUNCA sigue una unidad, solo
+             manda la ubicación actual al backend mientras haya al menos una alerta activa. -->
+        <service
+            android:name=".AlertasUnidadesService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <service
             android:name=".LlegadaService"
             android:exported="false"
