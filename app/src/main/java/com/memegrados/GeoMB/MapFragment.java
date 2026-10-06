@@ -93,6 +93,15 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private static final float ZOOM_CERCANO = 14f;        // ~2 km a la vista al iniciar
     private static final double RADIO_MAPA_M = 2000.0;    // radio máx. de carga (estaciones/unidades)
 
+    // === Resaltado visual de "Siguiendo" (ver iconoUnidad/dibujarHalo/iniciarPulso) ===============
+    private static final int TAMANO_UNIDAD_DP = 40;                 // tamaño normal del icono (igual que antes)
+    private static final int TAMANO_UNIDAD_SEGUIDA_DP = 50;         // 50/40 = 1.25x el normal
+    private static final float ALFA_UNIDAD_NO_SEGUIDA = 0.55f;      // atenuación del resto mientras hay una seguida
+    private static final double PULSO_RADIO_BASE_M = 16.0;          // radio del anillo pulsante en reposo
+    private static final double PULSO_RADIO_EXTRA_M = 10.0;         // cuánto "respira" hacia afuera
+    private static final int PULSO_ALFA_BASE = 70;                  // 0-255: discreto, no estridente
+    private static final long PULSO_DURACION_MS = 1400;             // medio ciclo (crece/decrece), lento y suave
+
     private GoogleMap mapa;
     private RedViewModel red;   // capa de datos de la red (Metrobús + Mexibús) vía LiveData
     private FusedLocationProviderClient locationClient;
@@ -106,6 +115,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final Set<String> halosSeguimiento = new HashSet<>();
     private UnidadAnimador animUnidades;   // anima las unidades pegadas al grafo y por su velocidad
     private final Map<Integer, Integer> coloresLinea = new HashMap<>();
+
+    // === Resaltado visual de "Siguiendo" (ver iconoParaUnidad/aplicarEstadoSeguimiento) ==========
+    /** Caché de BitmapDescriptor por (económico, color, siguiendo) -- evita regenerar el bitmap del
+     *  icono cuando no hace falta (solo se recalcula si no está en caché: una unidad nueva, o su
+     *  color/siguiendo cambió). Se purga por económico cuando su marcador se quita del mapa. */
+    private final Map<String, BitmapDescriptor> cacheIconoUnidad = new HashMap<>();
+    /** Anillo animado (Circle, no bitmap) alrededor de cada unidad SIGUIENDO: pulsación continua y
+     *  suave sin recrear icono ni bitmap -- solo cambia radio/alfa de un overlay vectorial. */
+    private final Map<String, com.google.android.gms.maps.model.Circle> pulsosSeguimiento = new HashMap<>();
+    private final Map<String, android.animation.ValueAnimator> pulsoAnimadores = new HashMap<>();
 
     /** Datos de todas las estaciones; sus marcadores se crean por demanda (radio). */
     private static final class EstMapa {
@@ -325,6 +344,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             for (Marker m : marcadoresUnidad.values()) m.remove();
             marcadoresUnidad.clear();
             halosSeguimiento.clear();
+            detenerTodosPulsos();
         } else if (mapa != null) {
             actualizarUnidades(RealtimeRepository.get().getUltimo());
         }
@@ -870,6 +890,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 for (Marker m : marcadoresUnidad.values()) m.remove();
                 marcadoresUnidad.clear();
                 animUnidades.limpiar();
+                detenerTodosPulsos();
             }
             return;
         }
@@ -887,6 +908,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (!enRango) continue;   // fuera de la vista: no se crea marcador
             vistos.add(u.numero);
             boolean siguiendoAhora = SeguimientoService.sigue(u.numero);
+            boolean haySeguidaGlobal = !SeguimientoService.ecosSeguidos.isEmpty();
             Marker m = marcadoresUnidad.get(u.numero);
             if (m == null) {
                 m = mapa.addMarker(new MarkerOptions()
@@ -895,10 +917,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                         .snippet(snippet(u))
                         .icon(iconoParaUnidad(u))   // ya refleja siguiendoAhora
                         .anchor(0.5f, 0.5f)
-                        .zIndex(10f));
+                        .zIndex(siguiendoAhora ? 20f : 10f));
                 if (m != null) {
                     marcadoresUnidad.put(u.numero, m);
-                    if (siguiendoAhora) halosSeguimiento.add(u.numero);
+                    m.setAlpha(siguiendoAhora ? 1f : (haySeguidaGlobal ? ALFA_UNIDAD_NO_SEGUIDA : 1f));
+                    if (siguiendoAhora) {
+                        halosSeguimiento.add(u.numero);
+                        iniciarPulso(u.numero, m.getPosition());
+                    }
                 }
             } else {
                 animUnidades.animar(u, m);   // pegada al grafo + avance por velocidad (tiempo real)
@@ -910,9 +936,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 boolean teniaHalo = halosSeguimiento.contains(u.numero);
                 if (siguiendoAhora != teniaHalo) {
                     m.setIcon(iconoParaUnidad(u));
-                    if (siguiendoAhora) halosSeguimiento.add(u.numero);
-                    else halosSeguimiento.remove(u.numero);
+                    m.setZIndex(siguiendoAhora ? 20f : 10f);
+                    if (siguiendoAhora) {
+                        halosSeguimiento.add(u.numero);
+                        iniciarPulso(u.numero, m.getPosition());
+                    } else {
+                        halosSeguimiento.remove(u.numero);
+                        detenerPulso(u.numero);
+                    }
                 }
+                // Prominencia (alfa): se reevalúa SIEMPRE, no solo al cambiar el icono -- otra
+                // unidad puede empezar/dejar de seguirse mientras ESTA no cambia su propio estado,
+                // y su atenuación relativa debe reflejarlo igual. No regenera ningún bitmap.
+                m.setAlpha(siguiendoAhora ? 1f : (haySeguidaGlobal ? ALFA_UNIDAD_NO_SEGUIDA : 1f));
             }
         }
 
@@ -924,6 +960,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 e.getValue().remove();
                 animUnidades.olvidar(e.getKey());
                 halosSeguimiento.remove(e.getKey());
+                detenerPulso(e.getKey());
+                limpiarCacheIconoUnidad(e.getKey());
                 it.remove();
             }
         }
@@ -1058,6 +1096,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (SeguimientoService.sigue(ecoCartaActual)) {
                 SeguimientoService.detener(requireContext(), ecoCartaActual);
                 actualizarBotonSeguirCarta();
+                refrescarResaltadoSeguimiento(ecoCartaActual);   // quita el resaltado AL INSTANTE, sin esperar al poll
             } else {
                 intentarSeguirCarta();
             }
@@ -1267,8 +1306,44 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     /** Detiene el seguimiento de TODAS las unidades (antes exclusivo de la pestaña Buscar). */
     private void detenerTodosCarta() {
+        List<String> previamenteSeguidas = new ArrayList<>(SeguimientoService.ecosSeguidos);
         SeguimientoService.detener(requireContext(), null);   // sin económico = todas
         actualizarBotonSeguirCarta();
+        // Quita el resaltado de cada una AL INSTANTE (sin esperar el poll de 10s).
+        for (String eco : previamenteSeguidas) refrescarResaltadoSeguimiento(eco);
+    }
+
+    /** Aplica AL INSTANTE (sin esperar el siguiente poll) el cambio de resaltado visual de
+     *  "Siguiendo" para {@code eco} tras una acción explícita desde la carta (Seguir/Detener/
+     *  Detener todo), y reevalúa la atenuación de las demás unidades visibles. Mismo camino que ya
+     *  usa el poll normal (icono solo se regenera si el estado realmente cambió); si {@code eco} ya
+     *  no tiene marcador o no hay datos en vivo para recalcular su icono, el siguiente poll normal
+     *  lo completa -- esto no bloquea ni falla por eso. */
+    private void refrescarResaltadoSeguimiento(String eco) {
+        Marker m = marcadoresUnidad.get(eco);
+        if (m != null) {
+            boolean siguiendoAhora = SeguimientoService.sigue(eco);
+            boolean teniaHalo = halosSeguimiento.contains(eco);
+            if (siguiendoAhora != teniaHalo) {
+                UnidadReal u = RealtimeRepository.get().buscar(eco);
+                if (u != null) m.setIcon(iconoParaUnidad(u));
+                m.setZIndex(siguiendoAhora ? 20f : 10f);
+                if (siguiendoAhora) { halosSeguimiento.add(eco); iniciarPulso(eco, m.getPosition()); }
+                else { halosSeguimiento.remove(eco); detenerPulso(eco); }
+            }
+        }
+        refrescarProminenciaUnidades();
+    }
+
+    /** Reevalúa la atenuación (alfa) de TODAS las unidades visibles según si hay alguna
+     *  siguiéndose ahora mismo -- nunca regenera ningún icono/bitmap, solo ajusta transparencia
+     *  de marcadores ya existentes (ver Marker.setAlpha, propiedad nativa del SDK de Maps). */
+    private void refrescarProminenciaUnidades() {
+        boolean haySeguidaGlobal = !SeguimientoService.ecosSeguidos.isEmpty();
+        for (Map.Entry<String, Marker> e : marcadoresUnidad.entrySet()) {
+            boolean sigueEsta = SeguimientoService.sigue(e.getKey());
+            e.getValue().setAlpha(sigueEsta ? 1f : (haySeguidaGlobal ? ALFA_UNIDAD_NO_SEGUIDA : 1f));
+        }
     }
 
     /** Verifica permisos y arranca el seguimiento de la unidad de la tarjeta. */
@@ -1291,6 +1366,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (!isAdded() || ecoCartaActual == null) return;
         SeguimientoService.iniciar(requireContext(), ecoCartaActual);
         actualizarBotonSeguirCarta();
+        refrescarResaltadoSeguimiento(ecoCartaActual);   // resaltado visible AL INSTANTE, sin esperar al poll
         Toast.makeText(requireContext(),
                 getString(R.string.seguir_activado, ecoCartaActual), Toast.LENGTH_LONG).show();
     }
@@ -1480,7 +1556,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     /** Icono de la unidad: degradado diagonal si va en ruta mixta, normal si no. Agrega un anillo
      *  (ver dibujarHalo) cuando la unidad está en SeguimientoService -- distinto del destello de
-     *  selección (mb_red, animado y efímero): este es fijo mientras dure el seguimiento. */
+     *  selección (mb_red, animado y efímero): este es fijo mientras dure el seguimiento.
+     *  CACHEADO (cacheIconoUnidad): el bitmap solo se regenera la primera vez que se ve esa
+     *  combinación de (número, color[es], siguiendo); las llamadas repetidas (p. ej. al volver a
+     *  evaluar en cada poll si hace falta repintar) reusan el BitmapDescriptor ya construido. */
     private BitmapDescriptor iconoParaUnidad(UnidadReal u) {
         boolean siguiendo = SeguimientoService.sigue(u.numero);
         RutasMixtas.Tramo t = RutasMixtas.tramo(u.origen, u.destino);
@@ -1491,9 +1570,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return iconoUnidad(colorDeLinea(u.linea), u.numero, siguiendo);
     }
 
-    /** Bus del color de la línea (con halo blanco) y el económico en el parabrisas. */
+    /** Bus del color de la línea (con halo blanco) y el económico en el parabrisas; si
+     *  {@code siguiendo}, ~1.25x más grande, con halo más marcado y una cápsula con el económico
+     *  debajo del bus (ver dibujarBadgeEconomico). La pulsación es un overlay aparte (Circle, ver
+     *  iniciarPulso) -- este bitmap es siempre estático, nunca se anima ni se regenera por eso. */
     private BitmapDescriptor iconoUnidad(int color, String numero, boolean siguiendo) {
-        int d = (int) (40 * getResources().getDisplayMetrics().density);
+        String clave = numero + "|" + siguiendo + "|" + color;
+        BitmapDescriptor cacheado = cacheIconoUnidad.get(clave);
+        if (cacheado != null) return cacheado;
+
+        int d = (int) ((siguiendo ? TAMANO_UNIDAD_SEGUIDA_DP : TAMANO_UNIDAD_DP) * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Drawable bus = ContextCompat.getDrawable(requireContext(), R.drawable.ic_bus);
@@ -1505,15 +1591,23 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             bus.draw(c);
         }
         dibujarNumeroParabrisas(c, d, numero);
-        return BitmapDescriptorFactory.fromBitmap(bmp);
+        if (siguiendo) dibujarBadgeEconomico(c, d, numero);
+        BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
+        cacheIconoUnidad.put(clave, bd);
+        return bd;
     }
 
     /**
      * Bus con degradado diagonal para unidades en ruta mixta (arriba línea de
-     * salida, abajo línea de término), con el económico en el parabrisas.
+     * salida, abajo línea de término), con el económico en el parabrisas. Mismo trato de
+     * tamaño/halo/cápsula/caché que {@link #iconoUnidad} cuando {@code siguiendo}.
      */
     private BitmapDescriptor iconoUnidadMixta(int colorArriba, int colorAbajo, String numero, boolean siguiendo) {
-        int d = (int) (40 * getResources().getDisplayMetrics().density);
+        String clave = numero + "|" + siguiendo + "|" + colorArriba + "," + colorAbajo;
+        BitmapDescriptor cacheado = cacheIconoUnidad.get(clave);
+        if (cacheado != null) return cacheado;
+
+        int d = (int) ((siguiendo ? TAMANO_UNIDAD_SEGUIDA_DP : TAMANO_UNIDAD_DP) * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Drawable bus = ContextCompat.getDrawable(requireContext(), R.drawable.ic_bus);
@@ -1539,19 +1633,30 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             c.drawBitmap(capa, 0, 0, null);
         }
         dibujarNumeroParabrisas(c, d, numero);
-        return BitmapDescriptorFactory.fromBitmap(bmp);
+        if (siguiendo) dibujarBadgeEconomico(c, d, numero);
+        BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
+        cacheIconoUnidad.put(clave, bd);
+        return bd;
+    }
+
+    /** Quita del caché de iconos cualquier entrada de {@code eco} (normal Y siguiendo, con
+     *  cualquier color que haya tenido) -- se llama cuando su marcador se quita del mapa por no
+     *  seguir en servicio, para no acumular bitmaps de unidades que ya no se ven. */
+    private void limpiarCacheIconoUnidad(String eco) {
+        cacheIconoUnidad.keySet().removeIf(k -> k.startsWith(eco + "|"));
     }
 
     /** Silueta blanca un poco más grande detrás del bus, para que resalte en el mapa. Si
-     *  {@code siguiendo}, agrega ANTES un anillo verde (mb_exito) al borde del icono -- separado
-     *  del halo blanco por un espacio, para que nunca se confunda con el color de la línea (ni
-     *  siquiera en L7, cuyo color de línea coincide con mb_exito) ni con el destello rojo
-     *  (efímero) de selección. */
+     *  {@code siguiendo}, agrega ANTES un anillo verde (mb_exito) MÁS GRUESO que el de una unidad
+     *  normal -- separado del halo blanco por un espacio, para que nunca se confunda con el color
+     *  de la línea (ni siquiera en L7, cuyo color de línea coincide con mb_exito) ni con el
+     *  destello rojo (efímero) de selección. El halo "en vivo" (pulsación) es un overlay aparte
+     *  sobre el mapa (ver iniciarPulso), NO este anillo fijo del bitmap. */
     private void dibujarHalo(Canvas c, int d, Drawable bus, boolean siguiendo) {
         if (siguiendo) {
             Paint anillo = new Paint(Paint.ANTI_ALIAS_FLAG);
             anillo.setStyle(Paint.Style.STROKE);
-            anillo.setStrokeWidth(d * 0.09f);
+            anillo.setStrokeWidth(d * 0.11f);   // más grueso que el 0.09f de antes: "más evidente"
             anillo.setColor(ContextCompat.getColor(requireContext(), R.color.mb_exito));
             c.drawCircle(d / 2f, d / 2f, d / 2f - anillo.getStrokeWidth() / 2f, anillo);
         }
@@ -1562,7 +1667,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         bus.draw(c);
     }
 
-    /** Económico centrado en el parabrisas del bus: blanco con contorno oscuro. */
+    /** Económico centrado en el parabrisas del bus: blanco con contorno oscuro. Mismo tratamiento
+     *  para unidades normales y seguidas -- al ser {@code d} ~1.25x mayor cuando se sigue, el
+     *  número ya sale proporcionalmente más grande solo por eso (ver dibujarBadgeEconomico para el
+     *  refuerzo adicional, exclusivo de "Siguiendo"). */
     private void dibujarNumeroParabrisas(Canvas c, int d, String numero) {
         if (numero == null || numero.isEmpty()) return;
         int margen = d / 5;
@@ -1586,6 +1694,92 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         tp.setStyle(Paint.Style.FILL);
         tp.setColor(Color.WHITE);
         c.drawText(numero, cx, y, tp);
+    }
+
+    /** Cápsula con el económico COMPLETO, centrada en la parte inferior del icono (sobre el halo) --
+     *  solo para la unidad SIGUIENDO (nunca por estar guardada ni por tener alerta activa: ver
+     *  actualizarUnidades()/iconoParaUnidad(), que solo pasan siguiendo=true cuando
+     *  SeguimientoService.sigue() lo es). El número del parabrisas (dibujarNumeroParabrisas) ya
+     *  crece con el icono más grande, pero esta cápsula da una segunda referencia, de mayor
+     *  contraste, que no depende de distinguir un número pequeño dentro del bus. Centrada (no en
+     *  una esquina) para que un económico de 4-5 dígitos nunca se corte contra el borde del bitmap. */
+    private void dibujarBadgeEconomico(Canvas c, int d, String numero) {
+        if (numero == null || numero.isEmpty()) return;
+        Paint tp = new Paint(Paint.ANTI_ALIAS_FLAG);
+        tp.setTextAlign(Paint.Align.CENTER);
+        tp.setTypeface(Tipografia.metro(requireContext()));
+        tp.setFakeBoldText(true);
+        float ts = d * 0.22f;
+        tp.setTextSize(ts);
+        float textW = tp.measureText(numero);
+
+        float padH = d * 0.06f, padV = d * 0.03f;
+        float capW = textW + padH * 2f, capH = ts + padV * 2f;
+        float cx = d * 0.5f, cy = d * 0.84f;   // centrada, parte inferior, dentro de los límites del bitmap
+        android.graphics.RectF rect = new android.graphics.RectF(cx - capW / 2f, cy - capH / 2f, cx + capW / 2f, cy + capH / 2f);
+
+        Paint fondo = new Paint(Paint.ANTI_ALIAS_FLAG);
+        fondo.setColor(0xFF10233A);   // mismo tono oscuro que el contorno del número del parabrisas
+        c.drawRoundRect(rect, capH / 2f, capH / 2f, fondo);
+        Paint borde = new Paint(Paint.ANTI_ALIAS_FLAG);
+        borde.setStyle(Paint.Style.STROKE);
+        borde.setStrokeWidth(d * 0.015f);
+        borde.setColor(Color.WHITE);
+        c.drawRoundRect(rect, capH / 2f, capH / 2f, borde);
+
+        tp.setColor(Color.WHITE);
+        float y = cy - (tp.descent() + tp.ascent()) / 2f;
+        c.drawText(numero, cx, y, tp);
+    }
+
+    /**
+     * Pulsación suave y continua alrededor de la unidad SIGUIENDO: un {@link
+     * com.google.android.gms.maps.model.Circle} (overlay vectorial del mapa, NO un bitmap) cuyo
+     * radio/alfa oscilan con un {@link android.animation.ValueAnimator} infinito. No regenera
+     * ningún icono ni bitmap -- es intencionalmente la opción simple (una sola forma geométrica
+     * animada) en vez de redibujar el marcador en cada frame. En cada tick se reposiciona sobre
+     * la posición ACTUAL del marcador (que puede estar a media animación de deslizamiento, ver
+     * UnidadAnimador), así que el halo nunca se desincroniza aunque el bus se esté moviendo.
+     */
+    private void iniciarPulso(String eco, LatLng posInicial) {
+        if (mapa == null || pulsosSeguimiento.containsKey(eco)) return;
+        int color = ContextCompat.getColor(requireContext(), R.color.mb_exito);
+        com.google.android.gms.maps.model.Circle circulo = mapa.addCircle(
+                new com.google.android.gms.maps.model.CircleOptions()
+                        .center(posInicial)
+                        .radius(PULSO_RADIO_BASE_M)
+                        .strokeWidth(0f)
+                        .fillColor(colorConAlfa(color, PULSO_ALFA_BASE))
+                        .zIndex(5f));   // bajo los marcadores (10f/20f), sobre el mapa base
+        android.animation.ValueAnimator anim = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        anim.setDuration(PULSO_DURACION_MS);
+        anim.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        anim.setRepeatMode(android.animation.ValueAnimator.REVERSE);   // crece y decrece, nunca "salta"
+        anim.addUpdateListener(a -> {
+            try {
+                float t = (float) a.getAnimatedValue();
+                Marker m = marcadoresUnidad.get(eco);
+                if (m != null) circulo.setCenter(m.getPosition());   // sigue al bus aunque se esté deslizando
+                circulo.setRadius(PULSO_RADIO_BASE_M + t * PULSO_RADIO_EXTRA_M);
+                circulo.setFillColor(colorConAlfa(color, Math.round(PULSO_ALFA_BASE * (1 - t * 0.5f))));
+            } catch (Exception ignore) {}   // el fragment pudo cerrarse a medio camino
+        });
+        anim.start();
+        pulsosSeguimiento.put(eco, circulo);
+        pulsoAnimadores.put(eco, anim);
+    }
+
+    /** Detiene y quita el pulso de {@code eco} (si tenía uno). Seguro de llamar aunque no tuviera. */
+    private void detenerPulso(String eco) {
+        android.animation.ValueAnimator anim = pulsoAnimadores.remove(eco);
+        if (anim != null) anim.cancel();
+        com.google.android.gms.maps.model.Circle circulo = pulsosSeguimiento.remove(eco);
+        if (circulo != null) { try { circulo.remove(); } catch (Exception ignore) {} }
+    }
+
+    /** Detiene TODOS los pulsos activos (limpieza general del mapa). */
+    private void detenerTodosPulsos() {
+        for (String eco : new ArrayList<>(pulsosSeguimiento.keySet())) detenerPulso(eco);
     }
 
     private boolean tienePermisoUbicacion() {
@@ -1725,6 +1919,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         marcadoresEstacion.clear();
         marcadoresUnidad.clear();
         halosSeguimiento.clear();
+        detenerTodosPulsos();
+        cacheIconoUnidad.clear();   // el GoogleMap de esta vista ya no existe; nada que reusar
         if (animUnidades != null) animUnidades.limpiar();
         estaciones.clear();
         mexibusEst.clear();
