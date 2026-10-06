@@ -930,8 +930,17 @@ public final class Planificador {
     }
 
     /** Segundos de sesgo por usar el servicio NO preferido de una línea troncal (soft: permite fallback). */
-    private static final double PENAL_SERVICIO = 500.0;       // fija, al abordar/transbordar (desempate en origen)
-    private static final double PENAL_SERVICIO_TRAMO = 350.0; // por CADA tramo viajado en el servicio no preferido
+    private static final double PENAL_SERVICIO = 500.0;   // fija, al abordar/transbordar (desempate en origen)
+    // K del modelo C1 de penalTramo (ver más abajo): calibrado experimentalmente en un arnés de diagnóstico
+    // fuera del repositorio (barrido de K contra una docena de pares reales en las 4 bases troncales con
+    // exprés). 0.75 es el mayor valor que no revierte el sesgo de corredor (RATIO_ESCAPE) en ningún caso
+    // probado; valores >=0.90 sí lo hacen en al menos un corredor corto.
+    private static final double K_PENAL_TRAMO = 0.75;
+    // Margen mínimo (ver calcular()) para aceptar una ruta que abandona la base/corredor preferido en vez
+    // de la ruta confinada a ella: la externa debe tardar <= tiempoCorredor / RATIO_ESCAPE. Calibrado en el
+    // mismo arnés: 1.10 es el valor más pequeño que ya no deja pasar el rodeo detectado (cruzar a Metrobús
+    // L1 y volver) con un margen razonable sobre el punto exacto donde empieza a filtrarse.
+    private static final double RATIO_ESCAPE = 1.10;
 
     /** Penalización al ABORDAR/transbordar una línea Mexibús troncal cuyo servicio (10X ordinario / 12X
      *  exprés) NO es el preferido por el usuario para esa base. Suave: si el preferido no conecta, se usa el otro. */
@@ -939,10 +948,14 @@ public final class Planificador {
         return noPreferido(linea, pref) ? PENAL_SERVICIO : 0;
     }
 
-    /** Penalización por VIAJAR un tramo (arista de viaje) en el servicio no preferido. Acumulativa: mientras
-     *  más se avanza en ordinario cuando se pidió exprés (o viceversa), más conviene el otro donde exista. */
-    private static double penalTramo(int linea, java.util.Map<Integer, Boolean> pref) {
-        return noPreferido(linea, pref) ? PENAL_SERVICIO_TRAMO : 0;
+    /** Penalización por VIAJAR un tramo (arista de viaje) en el servicio no preferido. Proporcional al
+     *  tiempo real de ESE tramo (no una penalización fija por arista): un tramo largo en el servicio no
+     *  preferido pesa más que uno corto, en vez de que cada arista cueste lo mismo sin importar su
+     *  distancia. Acumulativa por diseño: mientras más se avanza en ordinario cuando se pidió exprés (o
+     *  viceversa), más conviene el otro donde exista. {@code costoBaseArista} es el costo YA calculado de
+     *  esa arista (costoTramo(a,b), el mismo valor que ya se suma a dist[] antes de llamar aquí). */
+    private static double penalTramo(int linea, java.util.Map<Integer, Boolean> pref, double costoBaseArista) {
+        return noPreferido(linea, pref) ? K_PENAL_TRAMO * Math.max(0, costoBaseArista - DWELL_S) : 0;
     }
 
     /** ¿La línea es una troncal Mexibús cuyo servicio NO coincide con el preferido para su base? */
@@ -1166,7 +1179,47 @@ public final class Planificador {
             grafoAero = aeropuerto; grafoMexibus = mexibus; grafoCortes = cortesKey;
         }
 
-        // 3. Dijkstra desde cualquier nodo del origen a cualquiera del destino.
+        // 3-4. Búsqueda del camino + reconstrucción de la Ruta (ver buscarYConstruir()).
+        //
+        // D+E: cuando el usuario fijó una preferencia de servicio (svcPref), primero se busca una ruta
+        // CONFINADA a la(s) base(s) troncal(es) preferida(s) -- Exprés/Ordinario siguen siendo
+        // intercambiables dentro de cada base (okLineaPref no cambia), así que el fallback entre ambos
+        // cuando uno no cubre el recorrido sigue funcionando igual que siempre. Solo si esa ruta
+        // confinada no existe, o si una ruta SIN confinar resulta al menos RATIO_ESCAPE veces más
+        // rápida, se acepta abandonar la base preferida. Sin preferencia (la enorme mayoría de las
+        // llamadas, incluida la propia ruta "base" que PlanificadorFragment calcula antes de preguntar
+        // el servicio), esto es exactamente una sola búsqueda sin confinar -- igual que siempre.
+        if (svcPref == null || svcPref.isEmpty()) {
+            return buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, null);
+        }
+        java.util.Set<Integer> basesPreferidas = svcPref.keySet();
+        Ruta corredor = buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, basesPreferidas);
+        Ruta externa = buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, null);
+        if (corredor == null) return externa;   // la base preferida no conecta en absoluto: no hay otra opción
+        if (externa == null) {
+            // No debería ocurrir (la búsqueda sin confinar nunca tiene MENOS opciones que la confinada),
+            // pero por seguridad se restaura el estado de éxito que ya había dejado 'corredor'.
+            motivoFallo = MOTIVO_OK; estacionCerrada = null; lineaHorarioCerrado = 0;
+            return corredor;
+        }
+        return externa.minutos <= corredor.minutos / RATIO_ESCAPE ? externa : corredor;
+    }
+
+    /**
+     * Núcleo de {@link #calcular(Context, String, String, int, int, java.util.Map)}: A* de origen a
+     * destino sobre el grafo ya construido, más la reconstrucción de la {@link Ruta} resultante.
+     * Separado de calcular() para poder correrlo DOS VECES cuando hay preferencia de servicio activa
+     * (ver ahí): una confinada a {@code confinarBases} (FASE 1, corredor) y otra sin confinar (FASE 2,
+     * ruta externa), para comparar cuál usar. {@code confinarBases} null o vacío = sin confinar (el
+     * comportamiento de siempre, para cualquier llamada sin preferencia de servicio). Cuando SÍ hay
+     * confinamiento, ningún TRANSBORDO puede llegar a un nodo cuya base (baseLinea) esté fuera del
+     * conjunto -- Exprés y Ordinario de la MISMA base nunca se filtran entre sí (comparten baseLinea),
+     * así que esto nunca convierte la preferencia de servicio en una restricción dura, solo impide
+     * abandonar la base por completo sin pasar por la comparación de calcular().
+     */
+    private static Ruta buscarYConstruir(Context ctx, List<Route> rutas, List<int[]> node, int[][] rango,
+            List<List<double[]>> adj, int n, String origen, String destino, int lineaO, int lineaD,
+            java.util.Map<Integer, Boolean> svcPref, java.util.Set<Integer> confinarBases) {
         String on = norm(origen), dn = norm(destino);
         // Momento de salida (ahora): sirve para proyectar, al abordar cada línea de horario limitado
         // (exprés/ramal Mexibús), si seguirá circulando cuando el viaje realmente llegue a ese punto.
@@ -1240,6 +1293,9 @@ public final class Planificador {
                 Stop s = stopDe(rutas, node.get(i));
                 // Espera inicial por abordar en origen: 0 para Metrobús, más para líneas de baja frecuencia.
                 if (s.nn.equals(on) && okLineaPref(lineaO, s.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i))) {
+                    // D+E, FASE 1 (confinada): no sembrar un abordaje que ya nazca fuera de la base preferida.
+                    if (confinarBases != null && !confinarBases.isEmpty()
+                            && !confinarBases.contains(baseLinea(s.linea))) continue;
                     double e0 = esperaExtra(s.linea) + penalServicio(s.linea, svcPref);   // sesgo por servicio al abordar
                     // No sembrar el abordaje si esta línea (exprés/ramal de horario propio, o un patrón
                     // Metrobús que no cubre esta estación) ya habrá cerrado para cuando de verdad
@@ -1264,11 +1320,17 @@ public final class Planificador {
                     // Correspondencia forzada a la misma estación (parada exprés) en la 1ª pasada.
                     if (transbordo && restringir
                             && !corrMismaEstacion(ctx, stopDe(rutas, node.get(u)), stopDe(rutas, node.get(v)))) continue;
+                    // D+E, FASE 1 (confinada): un transbordo que llegue a una base fuera de confinarBases
+                    // queda bloqueado; Exprés<->Ordinario de la MISMA base nunca se bloquea (comparten
+                    // baseLinea), así que la preferencia de servicio sigue siendo suave, no una restricción.
+                    if (transbordo && confinarBases != null && !confinarBases.isEmpty()
+                            && !confinarBases.contains(baseLinea(stopDe(rutas, node.get(v)).linea))) continue;
                     double nd = dist[u] + ar[1];
                     // Al transbordar a una línea, sesga si su servicio no es el preferido (soft; fallback al otro).
                     if (transbordo) nd += penalServicio(stopDe(rutas, node.get(v)).linea, svcPref);
-                    // Al VIAJAR un tramo, sesga por cada segmento en el servicio no preferido (acumulativo).
-                    else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref);
+                    // Al VIAJAR un tramo, sesga por cada segmento en el servicio no preferido (proporcional,
+                    // ver penalTramo): un tramo largo pesa más que uno corto, acumulativo por diseño.
+                    else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref, ar[1]);
                     // Al TRANSBORDAR (abordar una línea distinta EN ESA ESTACIÓN), no permitirlo si para
                     // cuando de verdad llegarías ahí (nd proyectado) ya habrá cerrado su horario (exprés/
                     // ramal Mexibús, o un patrón Metrobús que no cubre esa estación): el A* cae al
@@ -1545,7 +1607,7 @@ public final class Planificador {
                 if (transbordo && (nodoBloqueado(ctx, rutas, node.get(u)) || nodoBloqueado(ctx, rutas, node.get(v)))) continue;
                 double nd = dist[u] + ar[1];
                 if (transbordo) nd += penalServicio(stopDe(rutas, node.get(v)).linea, svcPref);
-                else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref);
+                else nd += penalTramo(stopDe(rutas, node.get(u)).linea, svcPref, ar[1]);
                 if (transbordo && !ignorarHorario && !lineaAbierta(ctx, stopDe(rutas, node.get(v)), proyectar(ahoraBase, nd))) continue;
                 if (nd < dist[v]) { dist[v] = nd; prev[v] = u; pq.add(new double[]{nd + heur[v], v, nd}); }
             }
