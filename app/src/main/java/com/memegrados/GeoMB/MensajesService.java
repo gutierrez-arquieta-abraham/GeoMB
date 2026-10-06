@@ -73,7 +73,12 @@ public class MensajesService extends FirebaseMessagingService {
 
     @Override
     public void onNewToken(String token) {
-        // El backend difunde por temas (subscribeToTopic), así que no hace falta subir el token.
+        // Para afectaciones/actualizaciones el backend sigue difundiendo por temas (no hace
+        // falta este token para eso). Pero las alertas de proximidad de unidades guardadas SÍ
+        // necesitan mandar a ESTE dispositivo en particular (ver AlertasBackend) -- cualquier
+        // token nuevo (primera vez, rotación, reinstalación) se cachea y se registra en el
+        // backend. No bloquea nada: AlertasBackend ya corre en su propio hilo.
+        AlertasBackend.registrarToken(this, token);
     }
 
     /** Notificación de afectación: texto plano y limpio (tipografía del sistema) + logo de línea. */

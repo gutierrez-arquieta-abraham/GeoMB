@@ -212,7 +212,13 @@ public final class Telemetria {
     public static void quitarFavorito(Context c, String economico) {
         if (economico == null) return;
         Context app = c.getApplicationContext();
-        ioSeguro(() -> db(app).economicoFavoritoDao().borrar(economico));
+        ioSeguro(() -> {
+            db(app).economicoFavoritoDao().borrar(economico);
+            // Baja también en el backend (ver AlertasBackend.eliminarAlerta): evita que quede una
+            // fila huérfana si la unidad tenía alerta activa -- no-op silencioso en el backend si
+            // no la tenía o si ya no existía ahí.
+            AlertasBackend.eliminarAlerta(app, economico);
+        });
     }
 
     public static void listaFavoritos(Context c, OnFavoritos cb) {
@@ -255,7 +261,9 @@ public final class Telemetria {
         Context app = c.getApplicationContext();
         ioSeguro(() -> {
             EconomicoFavoritoDao dao = db(app).economicoFavoritoDao();
-            if (dao.obtener(economico) == null) {
+            EconomicoFavoritoEntity existente = dao.obtener(economico);
+            int radioM;
+            if (existente == null) {
                 EconomicoFavoritoEntity f = new EconomicoFavoritoEntity();
                 f.economico = economico;
                 f.fechaGuardado = System.currentTimeMillis();
@@ -263,10 +271,15 @@ public final class Telemetria {
                 f.linea = linea;
                 f.alertaActiva = activa;
                 dao.insertar(f);
+                radioM = f.radioAlertaM;   // default de la entidad (500) para una fila nueva
             } else {
                 dao.actualizarAlertaActiva(economico, activa);
+                radioM = existente.radioAlertaM;   // conserva el radio que ya tenía configurado
             }
             TelemetriaSync.sincronizar(app);
+            // Sincroniza con metrobus_app (ver AlertasBackend): Room ya quedó actualizado arriba,
+            // así que un fallo de red aquí nunca revierte ni bloquea la preferencia local.
+            AlertasBackend.actualizarAlerta(app, economico, activa, radioM);
             if (alTerminar != null) MAIN.post(() -> { try { alTerminar.run(); } catch (Exception ignore) {} });
         });
     }
@@ -277,7 +290,13 @@ public final class Telemetria {
         if (economico == null || economico.isEmpty()) return;
         Context app = c.getApplicationContext();
         ioSeguro(() -> {
-            db(app).economicoFavoritoDao().actualizarRadioAlerta(economico, radioM);
+            EconomicoFavoritoDao dao = db(app).economicoFavoritoDao();
+            dao.actualizarRadioAlerta(economico, radioM);
+            // Relee la fila para mandar al backend el alertaActiva REAL (este método solo toca
+            // el radio; nunca se debe mandar un alertaActiva=false por defecto solo porque este
+            // método no lo conoce de entrada -- ver AlertasBackend.actualizarAlerta).
+            EconomicoFavoritoEntity f = dao.obtener(economico);
+            if (f != null) AlertasBackend.actualizarAlerta(app, economico, f.alertaActiva, radioM);
             if (alTerminar != null) MAIN.post(() -> { try { alTerminar.run(); } catch (Exception ignore) {} });
         });
     }

@@ -50,6 +50,17 @@ public final class Config {
     public static final String ASISTENTE_CHAT_URL = BASE_URL + "/gemini/chat";
 
     /**
+     * Alertas de proximidad de unidades guardadas: endpoints de {@code metrobus_app} (repo
+     * aparte, mismo EC2 y dominio que {@link #BASE_URL}), NO del asistente Gemini. Device-only
+     * (identificados por X-Device-ID, ver DeviceUtils) — nunca uid de Firebase Auth. A propósito
+     * SIN failover a {@link #FALLBACK_URL}: estos endpoints ESCRIBEN en el SQLite que
+     * push_metrobus.py lee en el EC2; una escritura "exitosa" contra Railway no la vería nunca
+     * el detector de proximidad (ver AlertasBackend).
+     */
+    public static final String DEVICE_TOKEN_URL = BASE_URL + "/device/token";
+    public static final String DEVICE_ALERTA_URL = BASE_URL + "/device/alerta";
+
+    /**
      * Catálogo colaborativo de marca/modelo por económico.
      * Apunta directo al Google Sheet publicado como CSV (colaborativo y en vivo):
      * al editar la hoja, la app se actualiza en el siguiente arranque.
