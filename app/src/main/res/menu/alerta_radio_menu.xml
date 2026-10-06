@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Elegir el radio de aviso (radioAlertaM) de la unidad guardada que tiene la alerta activa.
+     Ver MapFragment.mostrarMenuRadioAlerta(). -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/radio_250"
+        android:title="250 m" />
+    <item
+        android:id="@+id/radio_500"
+        android:title="500 m" />
+    <item
+        android:id="@+id/radio_1000"
+        android:title="1 km" />
+</menu>

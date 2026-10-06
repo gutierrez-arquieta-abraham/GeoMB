@@ -125,6 +125,8 @@ public class ConfiguracionFragment extends Fragment {
         view.findViewById(R.id.btn_reportar_app).setOnClickListener(x -> mostrarReporteApp());
         view.findViewById(R.id.btn_asistente).setOnClickListener(x ->
                 startActivity(new android.content.Intent(requireContext(), ChatAsistenteActivity.class)));
+        view.findViewById(R.id.btn_mis_unidades).setOnClickListener(x ->
+                ((MainActivity) requireActivity()).mostrarUnidadesGuardadas());
         configurarOpcionesPrivacidad(view);
         configurarSimulador(view);
 

@@ -393,6 +393,34 @@
     <string name="seguir_permiso_ubicacion">Enable location permission to follow the unit.</string>
     <string name="favorito_guardado">%1$s saved to My units.</string>
     <string name="favorito_quitado">%1$s removed from My units.</string>
+
+    <!-- Unit card context menu: save + proximity alert (see seguimiento_opciones_menu.xml) -->
+    <string name="menu_guardar_unidad">⭐ Save</string>
+    <string name="menu_unidad_guardada">★ Saved (remove)</string>
+    <string name="menu_alerta_activar">🔔 Notify me when it\'s nearby</string>
+    <string name="menu_alerta_desactivar">🔕 Alerts off (tap to enable)</string>
+    <string name="menu_alerta_radio_fmt">Alert radius: %1$s</string>
+    <string name="radio_250m">250 m</string>
+    <string name="radio_500m">500 m</string>
+    <string name="radio_1km">1 km</string>
+    <string name="alerta_activada_toast">%1$s: proximity alerts enabled (radius %2$s).</string>
+    <string name="alerta_desactivada_toast">%1$s: proximity alerts disabled.</string>
+    <string name="radio_actualizado_toast">%1$s: alert radius changed to %2$s.</string>
+
+    <!-- "My units" screen (see UnidadesGuardadasFragment) -->
+    <string name="mis_unidades_titulo">⭐ My units</string>
+    <string name="mis_unidades_vacio">You haven\'t saved any units yet.\nLong-press or use the ⋮ menu on a unit\'s card to save it.</string>
+    <string name="unidad_alerta_activada_badge">🔔 Alerts on</string>
+    <string name="unidad_alerta_desactivada_badge">🔕 Alerts off</string>
+    <string name="unidad_siguiendo_badge">🚌 Following</string>
+    <string name="unidad_linea_desconocida">Unknown line</string>
+    <string name="unidad_quitar_guardada">Remove from My units</string>
+    <string name="unidad_abrir_en_mapa">Open on map</string>
+
+    <!-- Settings: entry point to "My units" -->
+    <string name="config_mis_unidades_titulo">My saved units</string>
+    <string name="config_mis_unidades_desc">Save your favorite units and enable a proximity alert for each one.</string>
+    <string name="config_mis_unidades_boton">⭐ View my units</string>
     <string name="favorito_pista">Long-press \"Follow\" to save/remove this unit from your favorites.</string>
 
     <!-- Info by unit number -->

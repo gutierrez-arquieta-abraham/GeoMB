@@ -1049,6 +1049,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         CartaUnidad.bind(requireContext(), cartaVistas, eco, u, () -> ecoCartaActual);
         cartaVistas.btnVerMapa.setVisibility(View.GONE);        // ya estás viéndola en el mapa
         actualizarBotonSeguirCarta();
+        // Si esta unidad está guardada, aprovecha tener datos frescos del feed para refrescar su
+        // caché de línea (solo presentación, ver EconomicoFavoritoEntity.linea). Si no está
+        // guardada, el UPDATE no afecta ninguna fila -- no hace falta comprobarlo antes.
+        if (u != null && u.linea != null) Telemetria.refrescarLineaCache(requireContext(), eco, u.linea);
         cartaVistas.btnSeguir.setOnClickListener(b -> {
             if (ecoCartaActual == null) return;
             if (SeguimientoService.sigue(ecoCartaActual)) {
@@ -1064,15 +1068,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cartaVistas.btnSeguir.setOnLongClickListener(b -> {
             if (ecoCartaActual == null || !isAdded()) return false;
             String favEco = ecoCartaActual;
+            // Mismo helper que usa "⭐ Guardar" en el menú ⋮ (ver toggleGuardarUnidad): cachea
+            // línea si hay datos en vivo, mismo toast, nunca toca SeguimientoService.
             Telemetria.esFavorito(requireContext(), favEco, esFav -> {
                 if (!isAdded()) return;
-                if (esFav) {
-                    Telemetria.quitarFavorito(requireContext(), favEco);
-                    Toast.makeText(requireContext(), getString(R.string.favorito_quitado, favEco), Toast.LENGTH_SHORT).show();
-                } else {
-                    Telemetria.guardarFavorito(requireContext(), favEco);
-                    Toast.makeText(requireContext(), getString(R.string.favorito_guardado, favEco), Toast.LENGTH_LONG).show();
-                }
+                toggleGuardarUnidad(favEco, esFav);
             });
             return true;
         });
@@ -1080,7 +1080,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // del mismo tamaño que "Seguir"; ahora un menú contextual para que no compitan
         // visualmente con la acción primaria -- misma lógica de siempre (intentarSeguirCarta()/
         // detenerTodosCarta()), solo se movió de dónde se dispara.
-        cartaVistas.btnSeguirOpciones.setOnClickListener(this::mostrarMenuSeguimiento);
+        cartaVistas.btnSeguirOpciones.setOnClickListener(this::abrirMenuOpcionesCarta);
         View btnCerrar = v.findViewById(R.id.btn_cerrar_carta);
         btnCerrar.setVisibility(View.VISIBLE);
         // Cierre en dos pasos ("isla contextual"): si está expandida, el primer toque solo
@@ -1148,25 +1148,118 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // también cuando la carta está colapsada (selección != seguimiento, pero ambos deben
         // poder verse sin expandir).
         cartaVistas.txtPildoraEstado.setVisibility(sigue ? View.VISIBLE : View.GONE);
-        // Botón de opciones de seguimiento múltiple: solo relevante cuando ya hay unidad(es) en curso.
-        boolean hay = !SeguimientoService.ecosSeguidos.isEmpty();
-        cartaVistas.btnSeguirOpciones.setVisibility(hay ? View.VISIBLE : View.GONE);
+        // Botón de opciones (seguimiento múltiple + guardar + alerta de proximidad): visible
+        // siempre que haya una carta abierta -- guardar/alertar NO dependen de estar siguiendo.
+        cartaVistas.btnSeguirOpciones.setVisibility(ecoCartaActual != null ? View.VISIBLE : View.GONE);
     }
 
-    /** Menú contextual de "Seguir también"/"Detener todo" -- mismas acciones que ya existían,
-     *  solo se movieron del botón principal a este menú secundario (ver btn_seguir_opciones). */
-    private void mostrarMenuSeguimiento(View ancla) {
-        boolean sigueEsta = ecoCartaActual != null && SeguimientoService.sigue(ecoCartaActual);
+    /** Punto de entrada del menú contextual de la carta (botón ⋮): primero consulta el estado
+     *  GUARDADA/ALERTA (Room, async) de la unidad actual, y solo entonces construye y muestra el
+     *  menú con las etiquetas correctas -- "Siguiendo" ya se conoce sin consultar nada (en
+     *  memoria, ver SeguimientoService.sigue()), así que no hace falta esperarlo. */
+    private void abrirMenuOpcionesCarta(View ancla) {
+        if (ecoCartaActual == null || !isAdded()) return;
+        final String eco = ecoCartaActual;
+        Telemetria.obtenerFavorito(requireContext(), eco, fav -> {
+            if (!isAdded() || !eco.equals(ecoCartaActual)) return;   // la carta cambió mientras consultaba
+            mostrarMenuOpcionesCarta(ancla, eco, fav);
+        });
+    }
+
+    /** Menú contextual de la carta: "Seguir también"/"Detener todo" (seguimiento múltiple, sin
+     *  cambios de lógica, solo se movieron aquí) + "Guardar"/"Alerta de proximidad" (unidades
+     *  guardadas). Los tres conceptos (Guardada/Siguiendo/Alerta) son independientes: ninguna
+     *  acción de guardar o de alerta llama jamás a SeguimientoService.iniciar()/detener(), y
+     *  viceversa. {@code fav} es la fila actual de "economicos_favoritos" para {@code eco}, o
+     *  null si todavía no está guardada. */
+    private void mostrarMenuOpcionesCarta(View ancla, String eco, EconomicoFavoritoEntity fav) {
+        boolean sigueEsta = SeguimientoService.sigue(eco);
+        boolean guardada = fav != null;
+        boolean alertaActiva = fav != null && fav.alertaActiva;
+        int radioActual = fav != null ? fav.radioAlertaM : 500;
+
         android.widget.PopupMenu menu = new android.widget.PopupMenu(requireContext(), ancla);
         menu.inflate(R.menu.seguimiento_opciones_menu);
-        menu.getMenu().findItem(R.id.menu_seguir_tambien).setEnabled(!sigueEsta);
+        android.view.Menu m = menu.getMenu();
+        m.findItem(R.id.menu_seguir_tambien).setEnabled(!sigueEsta);
+        m.findItem(R.id.menu_guardar_unidad).setTitle(guardada ? R.string.menu_unidad_guardada : R.string.menu_guardar_unidad);
+        m.findItem(R.id.menu_alerta_unidad).setTitle(alertaActiva ? R.string.menu_alerta_desactivar : R.string.menu_alerta_activar);
+        // El radio solo tiene sentido (y solo se muestra) con la alerta ya activa.
+        android.view.MenuItem itemRadio = m.findItem(R.id.menu_alerta_radio);
+        itemRadio.setVisible(alertaActiva);
+        itemRadio.setTitle(getString(R.string.menu_alerta_radio_fmt, etiquetaRadio(radioActual)));
+
         menu.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
             if (id == R.id.menu_seguir_tambien) {
                 if (!sigueEsta) intentarSeguirCarta();
             } else if (id == R.id.menu_detener_todo) {
                 detenerTodosCarta();
+            } else if (id == R.id.menu_guardar_unidad) {
+                toggleGuardarUnidad(eco, guardada);
+            } else if (id == R.id.menu_alerta_unidad) {
+                toggleAlertaUnidad(eco, alertaActiva, radioActual);
+            } else if (id == R.id.menu_alerta_radio) {
+                mostrarMenuRadioAlerta(ancla, eco);
             }
+            return true;
+        });
+        menu.show();
+    }
+
+    private static String etiquetaRadio(int metros) {
+        return metros >= 1000 ? (metros / 1000) + " km" : metros + " m";
+    }
+
+    /** ⭐ Guardar / ★ Guardada (quitar) -- jamás toca SeguimientoService. Al guardar, cachea la
+     *  línea actual si la unidad está en vivo en este momento (0/desconocida si no). */
+    private void toggleGuardarUnidad(String eco, boolean yaGuardada) {
+        if (!isAdded()) return;
+        if (yaGuardada) {
+            Telemetria.quitarFavorito(requireContext(), eco);
+            Toast.makeText(requireContext(), getString(R.string.favorito_quitado, eco), Toast.LENGTH_SHORT).show();
+        } else {
+            UnidadReal u = RealtimeRepository.get().buscar(eco);
+            int linea = (u != null && u.linea != null) ? u.linea : 0;
+            Telemetria.guardarFavorito(requireContext(), eco, linea);
+            Toast.makeText(requireContext(), getString(R.string.favorito_guardado, eco), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** 🔔 Avisarme cuando esté cerca / 🔕 desactivar -- jamás toca SeguimientoService. Activarla
+     *  guarda la unidad si todavía no lo estaba (no hay dónde persistir la preferencia si no);
+     *  desactivarla nunca quita la unidad de guardadas. */
+    private void toggleAlertaUnidad(String eco, boolean activaAhora, int radioActual) {
+        if (!isAdded()) return;
+        boolean nuevaActiva = !activaAhora;
+        UnidadReal u = RealtimeRepository.get().buscar(eco);
+        int linea = (u != null && u.linea != null) ? u.linea : 0;
+        Telemetria.actualizarAlertaUnidad(requireContext(), eco, linea, nuevaActiva, () -> {
+            if (!isAdded()) return;
+            if (nuevaActiva) {
+                Toast.makeText(requireContext(),
+                        getString(R.string.alerta_activada_toast, eco, etiquetaRadio(radioActual)),
+                        Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(requireContext(),
+                        getString(R.string.alerta_desactivada_toast, eco), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /** Submenú de radio (250/500/1km) para la unidad con alerta ya activa. */
+    private void mostrarMenuRadioAlerta(View ancla, String eco) {
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(requireContext(), ancla);
+        menu.inflate(R.menu.alerta_radio_menu);
+        menu.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            int radioM = id == R.id.radio_250 ? 250 : id == R.id.radio_1000 ? 1000 : 500;
+            Telemetria.actualizarRadioAlerta(requireContext(), eco, radioM, () -> {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(),
+                        getString(R.string.radio_actualizado_toast, eco, etiquetaRadio(radioM)),
+                        Toast.LENGTH_SHORT).show();
+            });
             return true;
         });
         menu.show();

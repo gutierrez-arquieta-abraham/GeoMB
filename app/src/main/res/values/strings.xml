@@ -427,6 +427,34 @@
     <string name="seguir_permiso_ubicacion">Activa el permiso de ubicación para seguir la unidad.</string>
     <string name="favorito_guardado">%1$s guardada en Mis unidades.</string>
     <string name="favorito_quitado">%1$s ya no está en Mis unidades.</string>
+
+    <!-- Menú contextual de la carta: guardar + alerta de proximidad (ver seguimiento_opciones_menu.xml) -->
+    <string name="menu_guardar_unidad">⭐ Guardar</string>
+    <string name="menu_unidad_guardada">★ Guardada (quitar)</string>
+    <string name="menu_alerta_activar">🔔 Avisarme cuando esté cerca</string>
+    <string name="menu_alerta_desactivar">🔕 Alertas desactivadas (tocar para activar)</string>
+    <string name="menu_alerta_radio_fmt">Radio de aviso: %1$s</string>
+    <string name="radio_250m">250 m</string>
+    <string name="radio_500m">500 m</string>
+    <string name="radio_1km">1 km</string>
+    <string name="alerta_activada_toast">%1$s: alertas de proximidad activadas (radio %2$s).</string>
+    <string name="alerta_desactivada_toast">%1$s: alertas de proximidad desactivadas.</string>
+    <string name="radio_actualizado_toast">%1$s: radio de aviso cambiado a %2$s.</string>
+
+    <!-- Pantalla "Mis unidades" (ver UnidadesGuardadasFragment) -->
+    <string name="mis_unidades_titulo">⭐ Mis unidades</string>
+    <string name="mis_unidades_vacio">Todavía no has guardado ninguna unidad.\nMantén presionado o usa el menú ⋮ de la carta de una unidad para guardarla.</string>
+    <string name="unidad_alerta_activada_badge">🔔 Alertas activadas</string>
+    <string name="unidad_alerta_desactivada_badge">🔕 Alertas desactivadas</string>
+    <string name="unidad_siguiendo_badge">🚌 Siguiendo</string>
+    <string name="unidad_linea_desconocida">Línea desconocida</string>
+    <string name="unidad_quitar_guardada">Quitar de Mis unidades</string>
+    <string name="unidad_abrir_en_mapa">Abrir en el mapa</string>
+
+    <!-- Configuración: entrada a "Mis unidades" -->
+    <string name="config_mis_unidades_titulo">Mis unidades guardadas</string>
+    <string name="config_mis_unidades_desc">Guarda tus unidades favoritas y actívales un aviso de proximidad para cada una.</string>
+    <string name="config_mis_unidades_boton">⭐ Ver mis unidades</string>
     <string name="favorito_pista">Mantén presionado \"Seguir\" para guardar/quitar esta unidad de tus favoritas.</string>
 
     <!-- Info por económico -->

@@ -184,7 +184,18 @@ public final class Telemetria {
 
     public interface OnFavoritos { void listo(List<EconomicoFavoritoEntity> favoritos); }
 
-    public static void guardarFavorito(Context c, String economico) {
+    public static void guardarFavorito(Context c, String economico) { guardarFavorito(c, economico, 0); }
+
+    /**
+     * Igual, pero cacheando también {@code linea} (si se conoce AHORA, p. ej. porque se guarda
+     * desde la carta con la unidad en vivo a la mano) -- puramente para presentación en "Mis
+     * unidades" (ver EconomicoFavoritoEntity.linea), nunca fuente de verdad. 0 = desconocida.
+     * OJO: usa INSERT-OR-REPLACE, así que solo debe llamarse cuando el económico NO está ya
+     * guardado (los llamadores ya comprueban {@link #esFavorito} antes) -- si se llamara sobre
+     * una fila existente, REPLACE la reescribiría completa y perdería alertaActiva/radioAlertaM
+     * que el usuario ya hubiera configurado.
+     */
+    public static void guardarFavorito(Context c, String economico, int linea) {
         if (economico == null || economico.isEmpty()) return;
         Context app = c.getApplicationContext();
         ioSeguro(() -> {
@@ -192,6 +203,7 @@ public final class Telemetria {
             f.economico = economico;
             f.fechaGuardado = System.currentTimeMillis();
             f.sincronizado = false;
+            f.linea = linea;
             db(app).economicoFavoritoDao().insertar(f);
             TelemetriaSync.sincronizar(app);
         });
@@ -218,5 +230,63 @@ public final class Telemetria {
             boolean si = economico != null && db(app).economicoFavoritoDao().existe(economico);
             MAIN.post(() -> { try { cb.accept(si); } catch (Exception ignore) {} });
         });
+    }
+
+    /** La fila guardada de {@code economico} (con su alertaActiva/radioAlertaM/linea cacheada),
+     *  o null si esa unidad no está guardada. */
+    public static void obtenerFavorito(Context c, String economico, Consumer<EconomicoFavoritoEntity> cb) {
+        Context app = c.getApplicationContext();
+        ioSeguro(() -> {
+            EconomicoFavoritoEntity f = economico != null ? db(app).economicoFavoritoDao().obtener(economico) : null;
+            MAIN.post(() -> { try { cb.accept(f); } catch (Exception ignore) {} });
+        });
+    }
+
+    /**
+     * Activa/desactiva "avisarme cuando esté cerca" para {@code economico}. Si la unidad TODAVÍA
+     * no estaba guardada, esta llamada la guarda primero (no tiene sentido una alerta sin una fila
+     * donde persistirla) -- "Guardada" y "Alerta" siguen siendo estados independientes: activar la
+     * alerta puede implicar guardar, pero guardar nunca activa la alerta, y NUNCA toca
+     * SeguimientoService en ningún sentido. {@code linea} se cachea solo si hubo que guardar ahora
+     * (si ya estaba guardada, su caché de línea no se toca aquí).
+     */
+    public static void actualizarAlertaUnidad(Context c, String economico, int linea, boolean activa, Runnable alTerminar) {
+        if (economico == null || economico.isEmpty()) return;
+        Context app = c.getApplicationContext();
+        ioSeguro(() -> {
+            EconomicoFavoritoDao dao = db(app).economicoFavoritoDao();
+            if (dao.obtener(economico) == null) {
+                EconomicoFavoritoEntity f = new EconomicoFavoritoEntity();
+                f.economico = economico;
+                f.fechaGuardado = System.currentTimeMillis();
+                f.sincronizado = false;
+                f.linea = linea;
+                f.alertaActiva = activa;
+                dao.insertar(f);
+            } else {
+                dao.actualizarAlertaActiva(economico, activa);
+            }
+            TelemetriaSync.sincronizar(app);
+            if (alTerminar != null) MAIN.post(() -> { try { alTerminar.run(); } catch (Exception ignore) {} });
+        });
+    }
+
+    /** Cambia solo el radio de aviso (250/500/1000 m) de una unidad YA guardada. Sin efecto si no
+     *  está guardada (no hay fila donde escribirlo). */
+    public static void actualizarRadioAlerta(Context c, String economico, int radioM, Runnable alTerminar) {
+        if (economico == null || economico.isEmpty()) return;
+        Context app = c.getApplicationContext();
+        ioSeguro(() -> {
+            db(app).economicoFavoritoDao().actualizarRadioAlerta(economico, radioM);
+            if (alTerminar != null) MAIN.post(() -> { try { alTerminar.run(); } catch (Exception ignore) {} });
+        });
+    }
+
+    /** Refresca la caché de línea de una unidad ya guardada (p. ej. al volver a verla en el feed
+     *  con datos actuales). Solo presentación -- ver EconomicoFavoritoEntity.linea. */
+    public static void refrescarLineaCache(Context c, String economico, int linea) {
+        if (economico == null || economico.isEmpty() || linea <= 0) return;
+        Context app = c.getApplicationContext();
+        ioSeguro(() -> db(app).economicoFavoritoDao().actualizarLinea(economico, linea));
     }
 }

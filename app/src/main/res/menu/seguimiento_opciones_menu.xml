@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- "Seguir también"/"Detener todo": antes dos MaterialButton del mismo tamaño que "Seguir" en
-     una fila aparte de la carta; ahora un menú contextual para que no compitan visualmente con
-     la acción primaria. Mismas acciones de siempre (ver MapFragment.mostrarMenuSeguimiento()). -->
+<!-- Menú contextual de la carta de unidad: "Seguir también"/"Detener todo" (seguimiento múltiple),
+     más "Guardar"/"Alerta de proximidad" (unidades guardadas): tres conceptos INDEPENDIENTES
+     (ver MapFragment.mostrarMenuOpcionesCarta()). Ninguna de las acciones de guardar/alerta llama
+     jamás a SeguimientoService, ni viceversa. -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/menu_seguir_tambien"
@@ -9,4 +10,14 @@
     <item
         android:id="@+id/menu_detener_todo"
         android:title="@string/dejar_todo" />
+    <item
+        android:id="@+id/menu_guardar_unidad"
+        android:title="@string/menu_guardar_unidad" />
+    <item
+        android:id="@+id/menu_alerta_unidad"
+        android:title="@string/menu_alerta_activar" />
+    <item
+        android:id="@+id/menu_alerta_radio"
+        android:title="@string/menu_alerta_radio_fmt"
+        android:visible="false" />
 </menu>

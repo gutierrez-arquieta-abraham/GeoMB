@@ -270,6 +270,15 @@ public class MainActivity extends AppCompatActivity {
                 .commitAllowingStateLoss();
     }
 
+    /** Abre "Mis unidades" (unidades guardadas + alertas de proximidad, con botón atrás). */
+    public void mostrarUnidadesGuardadas() {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, new UnidadesGuardadasFragment())
+                .addToBackStack("unidades_guardadas")
+                .commitAllowingStateLoss();
+    }
+
     /** Abre el planificador de ruta hacia una estación (con botón atrás), sin línea fija: si el
      *  nombre existe en varias líneas, el propio planificador pregunta a cuál te refieres. */
     public void mostrarPlanificador(String destino) { mostrarPlanificador(destino, 0); }

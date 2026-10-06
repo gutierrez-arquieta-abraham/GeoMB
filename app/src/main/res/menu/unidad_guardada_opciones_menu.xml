@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Menú ⋮ de una fila en "Mis unidades" (ver UnidadesGuardadasFragment). Abrir/seguir/detener
+     seguimiento viven en la carta (un toque en la fila ya la abre); aquí solo quitar + alerta. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_abrir_en_mapa"
+        android:title="@string/unidad_abrir_en_mapa" />
+    <item
+        android:id="@+id/menu_alerta_unidad_lista"
+        android:title="@string/menu_alerta_activar" />
+    <item
+        android:id="@+id/menu_alerta_radio_lista"
+        android:title="@string/menu_alerta_radio_fmt"
+        android:visible="false" />
+    <item
+        android:id="@+id/menu_quitar_guardada"
+        android:title="@string/unidad_quitar_guardada" />
+</menu>
