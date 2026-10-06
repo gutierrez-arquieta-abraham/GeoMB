@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Controles secundarios del mapa (poco frecuentes), agrupados bajo el botón "Capas" en vez de
+     ser 3 botones permanentes más, ver MapFragment.mostrarMenuCapas(). Ninguna función nueva:
+     cada ítem llama al mismo método privado que ya existía. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_capas_trafico"
+        android:checkable="true"
+        android:title="@string/mapa_trafico" />
+    <item
+        android:id="@+id/menu_capas_tipo"
+        android:title="@string/mapa_tipo" />
+    <item
+        android:id="@+id/menu_capas_3d"
+        android:checkable="true"
+        android:title="@string/mapa_3d" />
+</menu>

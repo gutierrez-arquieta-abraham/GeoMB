@@ -101,6 +101,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     private final List<Marker> marcadoresEstacion = new ArrayList<>();
     private final Map<String, Marker> marcadoresUnidad = new HashMap<>();
+    /** Económicos cuyo marcador YA tiene pintado el halo de "en seguimiento" -- permite repintar
+     *  el icono solo cuando ese estado cambia, no en cada ciclo de refresco. Ver actualizarUnidades(). */
+    private final Set<String> halosSeguimiento = new HashSet<>();
     private UnidadAnimador animUnidades;   // anima las unidades pegadas al grafo y por su velocidad
     private final Map<Integer, Integer> coloresLinea = new HashMap<>();
 
@@ -241,11 +244,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         view.findViewById(R.id.search_icon).setOnClickListener(v ->
                 buscarEnMapa(inputMapa.getText().toString()));
 
-        // Entrada al asistente conversacional (Gemini): el campo de "entrada" de la tarjeta es
-        // solo visual (no editable aquí, ver fragment_map.xml) -- escribir de verdad ocurre en
-        // ChatAsistenteActivity, que ya tiene todo el flujo (Function Calling, confirmación de
-        // acciones, etc.). No se duplica esa lógica en el mapa.
-        view.findViewById(R.id.chat_bar).setOnClickListener(v ->
+        // Acceso al asistente conversacional (Gemini): antes una segunda barra completa debajo
+        // del buscador; ahora un ícono al final de la MISMA barra de búsqueda (recupera espacio
+        // vertical del mapa). Sigue abriendo ChatAsistenteActivity sin cambios -- ese flujo
+        // (Function Calling, confirmación de acciones, etc.) no se tocó ni se duplicó aquí.
+        view.findViewById(R.id.btn_chat_mapa).setOnClickListener(v ->
                 startActivity(new android.content.Intent(requireContext(), ChatAsistenteActivity.class)));
 
         chipFiltros = view.findViewById(R.id.chip_filtros);
@@ -258,8 +261,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         });
         actualizarChip();
 
-        view.findViewById(R.id.btn_trafico).setOnClickListener(v -> alternarTrafico());
-        view.findViewById(R.id.btn_tipo).setOnClickListener(v -> alternarTipo());
+        // "Capas": agrupa tráfico/tipo de mapa/vista 3D (secundarios, poco frecuentes) en un
+        // menú contextual -- antes eran 3 botones permanentes más en esta misma barra. Ninguna
+        // de las 3 funciones se eliminó ni cambió de lógica, solo de jerarquía visual.
+        view.findViewById(R.id.btn_capas).setOnClickListener(this::mostrarMenuCapas);
         view.findViewById(R.id.btn_centrar).setOnClickListener(v -> ajustarRed());
         view.findViewById(R.id.btn_zoom_in).setOnClickListener(v -> {
             if (mapa != null) mapa.animateCamera(CameraUpdateFactory.zoomIn());
@@ -272,7 +277,24 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         view.findViewById(R.id.btn_unidades).setOnClickListener(v -> alternarUnidades());
         view.findViewById(R.id.btn_iconos).setOnClickListener(v -> alternarIconos());
         actualizarLogoIconos(Modos.iconosNuevos(requireContext()));   // logo inicial del botón según el modo guardado
-        view.findViewById(R.id.btn_3d).setOnClickListener(v -> alternar3d());
+    }
+
+    /** Menú "Capas": tráfico / tipo de mapa / vista 3D -- cada ítem llama al mismo método
+     *  privado que ya existía (alternarTrafico/alternarTipo/alternar3d), sin ningún cambio de
+     *  lógica, solo agrupados bajo un único botón en vez de 3 permanentes. */
+    private void mostrarMenuCapas(View ancla) {
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(requireContext(), ancla);
+        menu.inflate(R.menu.mapa_capas_menu);
+        menu.getMenu().findItem(R.id.menu_capas_trafico).setChecked(trafico);
+        menu.getMenu().findItem(R.id.menu_capas_3d).setChecked(vista3d);
+        menu.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.menu_capas_trafico) alternarTrafico();
+            else if (id == R.id.menu_capas_tipo) alternarTipo();
+            else if (id == R.id.menu_capas_3d) alternar3d();
+            return true;
+        });
+        menu.show();
     }
 
     /** Muestra u oculta los iconos (pictogramas) de las estaciones. */
@@ -301,6 +323,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (!mostrarUnidades) {
             for (Marker m : marcadoresUnidad.values()) m.remove();
             marcadoresUnidad.clear();
+            halosSeguimiento.clear();
         } else if (mapa != null) {
             actualizarUnidades(RealtimeRepository.get().getUltimo());
         }
@@ -862,19 +885,33 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     : (centroForzado == null || Linea.distancia(u.posicion, centroForzado) <= RADIO_MAPA_M);
             if (!enRango) continue;   // fuera de la vista: no se crea marcador
             vistos.add(u.numero);
+            boolean siguiendoAhora = SeguimientoService.sigue(u.numero);
             Marker m = marcadoresUnidad.get(u.numero);
             if (m == null) {
                 m = mapa.addMarker(new MarkerOptions()
                         .position(animUnidades.inicial(u))
                         .title("Unidad " + u.numero)
                         .snippet(snippet(u))
-                        .icon(iconoParaUnidad(u))
+                        .icon(iconoParaUnidad(u))   // ya refleja siguiendoAhora
                         .anchor(0.5f, 0.5f)
                         .zIndex(10f));
-                if (m != null) marcadoresUnidad.put(u.numero, m);
+                if (m != null) {
+                    marcadoresUnidad.put(u.numero, m);
+                    if (siguiendoAhora) halosSeguimiento.add(u.numero);
+                }
             } else {
                 animUnidades.animar(u, m);   // pegada al grafo + avance por velocidad (tiempo real)
                 m.setSnippet(snippet(u));
+                // El halo de "en seguimiento" solo se repinta cuando el estado CAMBIÓ desde la
+                // última vez (no en cada ciclo de 10s): detecta tanto el toggle hecho en esta
+                // misma carta como uno hecho desde la notificación de SeguimientoService o desde
+                // "Detener todo", sin que MapFragment necesite enterarse de dónde vino el cambio.
+                boolean teniaHalo = halosSeguimiento.contains(u.numero);
+                if (siguiendoAhora != teniaHalo) {
+                    m.setIcon(iconoParaUnidad(u));
+                    if (siguiendoAhora) halosSeguimiento.add(u.numero);
+                    else halosSeguimiento.remove(u.numero);
+                }
             }
         }
 
@@ -885,6 +922,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (!vistos.contains(e.getKey())) {
                 e.getValue().remove();
                 animUnidades.olvidar(e.getKey());
+                halosSeguimiento.remove(e.getKey());
                 it.remove();
             }
         }
@@ -1036,12 +1074,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             });
             return true;
         });
-        // Fila de seguimiento múltiple ("Seguir también"/"Detener todos"): antes exclusiva de la
-        // pestaña Buscar (ya eliminada), ahora vive aquí para no perder esa función.
-        cartaVistas.btnAnadirSeguir.setOnClickListener(b -> {
-            if (ecoCartaActual != null && !SeguimientoService.sigue(ecoCartaActual)) intentarSeguirCarta();
-        });
-        cartaVistas.btnDetenerTodos.setOnClickListener(b -> detenerTodosCarta());
+        // Acciones de seguimiento MÚLTIPLE ("Seguir también"/"Detener todo"): antes dos botones
+        // del mismo tamaño que "Seguir"; ahora un menú contextual para que no compitan
+        // visualmente con la acción primaria -- misma lógica de siempre (intentarSeguirCarta()/
+        // detenerTodosCarta()), solo se movió de dónde se dispara.
+        cartaVistas.btnSeguirOpciones.setOnClickListener(this::mostrarMenuSeguimiento);
         View btnCerrar = v.findViewById(R.id.btn_cerrar_carta);
         btnCerrar.setVisibility(View.VISIBLE);
         btnCerrar.setOnClickListener(b -> ocultarCarta());
@@ -1055,14 +1092,45 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (posUnidad != null) destelloUnidad(posUnidad, ContextCompat.getColor(requireContext(), R.color.mb_red));
     }
 
+    /** "Seguir" (inactivo) vs. "Siguiendo" (activo): mismo botón primario, solo cambia texto +
+     *  icono + color para que el estado se note sin competir con ninguna otra acción -- la
+     *  lógica de qué hace el click (iniciar/detener seguimiento) no cambia aquí. */
     private void actualizarBotonSeguirCarta() {
         if (cartaVistas == null) return;
         boolean sigue = ecoCartaActual != null && SeguimientoService.sigue(ecoCartaActual);
-        cartaVistas.btnSeguir.setText(sigue ? R.string.dejar_de_seguir : R.string.seguir);
-        // Fila de acciones múltiples: solo cuando ya hay unidad(es) en seguimiento en curso.
+        if (sigue) {
+            cartaVistas.btnSeguir.setText(R.string.siguiendo);
+            cartaVistas.btnSeguir.setIconResource(R.drawable.ic_check);
+            cartaVistas.btnSeguir.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            ContextCompat.getColor(requireContext(), R.color.mb_exito)));
+        } else {
+            cartaVistas.btnSeguir.setText(R.string.seguir);
+            cartaVistas.btnSeguir.setIconResource(R.drawable.ic_my_location);
+            cartaVistas.btnSeguir.setBackgroundTintList(null);   // vuelve al color primario por defecto del estilo
+        }
+        // Botón de opciones de seguimiento múltiple: solo relevante cuando ya hay unidad(es) en curso.
         boolean hay = !SeguimientoService.ecosSeguidos.isEmpty();
-        cartaVistas.filaSeguirMulti.setVisibility(hay ? View.VISIBLE : View.GONE);
-        cartaVistas.btnAnadirSeguir.setEnabled(ecoCartaActual != null && !sigue);
+        cartaVistas.btnSeguirOpciones.setVisibility(hay ? View.VISIBLE : View.GONE);
+    }
+
+    /** Menú contextual de "Seguir también"/"Detener todo" -- mismas acciones que ya existían,
+     *  solo se movieron del botón principal a este menú secundario (ver btn_seguir_opciones). */
+    private void mostrarMenuSeguimiento(View ancla) {
+        boolean sigueEsta = ecoCartaActual != null && SeguimientoService.sigue(ecoCartaActual);
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(requireContext(), ancla);
+        menu.inflate(R.menu.seguimiento_opciones_menu);
+        menu.getMenu().findItem(R.id.menu_seguir_tambien).setEnabled(!sigueEsta);
+        menu.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.menu_seguir_tambien) {
+                if (!sigueEsta) intentarSeguirCarta();
+            } else if (id == R.id.menu_detener_todo) {
+                detenerTodosCarta();
+            }
+            return true;
+        });
+        menu.show();
     }
 
     /** Detiene el seguimiento de TODAS las unidades (antes exclusivo de la pestaña Buscar). */
@@ -1278,24 +1346,27 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
 
-    /** Icono de la unidad: degradado diagonal si va en ruta mixta, normal si no. */
+    /** Icono de la unidad: degradado diagonal si va en ruta mixta, normal si no. Agrega un anillo
+     *  (ver dibujarHalo) cuando la unidad está en SeguimientoService -- distinto del destello de
+     *  selección (mb_red, animado y efímero): este es fijo mientras dure el seguimiento. */
     private BitmapDescriptor iconoParaUnidad(UnidadReal u) {
+        boolean siguiendo = SeguimientoService.sigue(u.numero);
         RutasMixtas.Tramo t = RutasMixtas.tramo(u.origen, u.destino);
         if (t != null) {
             // arriba color de la línea de salida (origen), abajo la de término (destino)
-            return iconoUnidadMixta(colorDeLinea(t.salida), colorDeLinea(t.termino), u.numero);
+            return iconoUnidadMixta(colorDeLinea(t.salida), colorDeLinea(t.termino), u.numero, siguiendo);
         }
-        return iconoUnidad(colorDeLinea(u.linea), u.numero);
+        return iconoUnidad(colorDeLinea(u.linea), u.numero, siguiendo);
     }
 
     /** Bus del color de la línea (con halo blanco) y el económico en el parabrisas. */
-    private BitmapDescriptor iconoUnidad(int color, String numero) {
+    private BitmapDescriptor iconoUnidad(int color, String numero, boolean siguiendo) {
         int d = (int) (40 * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Drawable bus = ContextCompat.getDrawable(requireContext(), R.drawable.ic_bus);
         if (bus != null) {
-            dibujarHalo(c, d, bus);
+            dibujarHalo(c, d, bus, siguiendo);
             int margen = d / 5;
             bus.setBounds(margen, margen, d - margen, d - margen);
             bus.setTint(color);
@@ -1309,13 +1380,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      * Bus con degradado diagonal para unidades en ruta mixta (arriba línea de
      * salida, abajo línea de término), con el económico en el parabrisas.
      */
-    private BitmapDescriptor iconoUnidadMixta(int colorArriba, int colorAbajo, String numero) {
+    private BitmapDescriptor iconoUnidadMixta(int colorArriba, int colorAbajo, String numero, boolean siguiendo) {
         int d = (int) (40 * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Drawable bus = ContextCompat.getDrawable(requireContext(), R.drawable.ic_bus);
         if (bus != null) {
-            dibujarHalo(c, d, bus);
+            dibujarHalo(c, d, bus, siguiendo);
             int margen = d / 5;
             // Se pinta el bus en blanco y se tiñe mitad/mitad en diagonal a 45° (SRC_IN).
             Bitmap capa = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);
@@ -1339,8 +1410,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return BitmapDescriptorFactory.fromBitmap(bmp);
     }
 
-    /** Silueta blanca un poco más grande detrás del bus, para que resalte en el mapa. */
-    private void dibujarHalo(Canvas c, int d, Drawable bus) {
+    /** Silueta blanca un poco más grande detrás del bus, para que resalte en el mapa. Si
+     *  {@code siguiendo}, agrega ANTES un anillo verde (mb_exito) al borde del icono -- separado
+     *  del halo blanco por un espacio, para que nunca se confunda con el color de la línea (ni
+     *  siquiera en L7, cuyo color de línea coincide con mb_exito) ni con el destello rojo
+     *  (efímero) de selección. */
+    private void dibujarHalo(Canvas c, int d, Drawable bus, boolean siguiendo) {
+        if (siguiendo) {
+            Paint anillo = new Paint(Paint.ANTI_ALIAS_FLAG);
+            anillo.setStyle(Paint.Style.STROKE);
+            anillo.setStrokeWidth(d * 0.09f);
+            anillo.setColor(ContextCompat.getColor(requireContext(), R.color.mb_exito));
+            c.drawCircle(d / 2f, d / 2f, d / 2f - anillo.getStrokeWidth() / 2f, anillo);
+        }
         int margen = d / 5;
         int h = Math.round(d * 0.05f);
         bus.setBounds(margen - h, margen - h, d - margen + h, d - margen + h);
@@ -1510,6 +1592,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         handler.removeCallbacks(poll);
         marcadoresEstacion.clear();
         marcadoresUnidad.clear();
+        halosSeguimiento.clear();
         if (animUnidades != null) animUnidades.limpiar();
         estaciones.clear();
         mexibusEst.clear();
