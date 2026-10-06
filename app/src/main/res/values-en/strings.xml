@@ -36,6 +36,7 @@
     <string name="creditos_imagen_sin">Reference image · rights of its author</string>
     <string name="mapa_trafico">Traffic level</string>
     <string name="mapa_tipo">Map type</string>
+    <string name="mapa_capas">Layers</string>
     <string name="mapa_centrar">Center on the network</string>
     <string name="mapa_tipo_normal">Normal map</string>
     <string name="mapa_tipo_satelite">Satellite</string>
@@ -352,9 +353,11 @@
 
     <!-- Following -->
     <string name="seguir">Follow</string>
+    <string name="siguiendo">Following</string>
     <string name="seguir_tambien">Follow another</string>
     <string name="dejar_de_seguir">Unfollow</string>
     <string name="dejar_todo">Stop all</string>
+    <string name="seguimiento_opciones">More tracking options</string>
     <string name="siguiendo_titulo">Following unit %1$s</string>
     <string name="siguiendo_varias_titulo">Unit tracking</string>
     <string name="siguiendo_resumen">%1$d unit(s) tracked</string>

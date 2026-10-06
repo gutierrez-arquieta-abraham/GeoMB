@@ -34,6 +34,7 @@
     <string name="creditos_imagen_sin">Imagen de referencia · derechos de su autor</string>
     <string name="mapa_trafico">Nivel de tráfico</string>
     <string name="mapa_tipo">Tipo de mapa</string>
+    <string name="mapa_capas">Capas</string>
     <string name="mapa_centrar">Centrar en la red</string>
     <string name="mapa_tipo_normal">Mapa normal</string>
     <string name="mapa_tipo_satelite">Satélite</string>
@@ -386,9 +387,11 @@
 
     <!-- Seguimiento -->
     <string name="seguir">Seguir</string>
+    <string name="siguiendo">Siguiendo</string>
     <string name="seguir_tambien">Seguir también</string>
     <string name="dejar_de_seguir">Dejar de seguir</string>
     <string name="dejar_todo">Detener todo</string>
+    <string name="seguimiento_opciones">Más opciones de seguimiento</string>
     <string name="siguiendo_titulo">Siguiendo unidad %1$s</string>
     <string name="siguiendo_varias_titulo">Seguimiento de unidades</string>
     <string name="siguiendo_resumen">%1$d unidad(es) en seguimiento</string>

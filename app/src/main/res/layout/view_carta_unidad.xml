@@ -141,6 +141,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
@@ -153,6 +154,9 @@
                 android:text="@string/ver_en_mapa"
                 app:icon="@drawable/ic_map" />
 
+            <!-- Acción PRIMARIA: "Seguir" (estado inactivo) / "Siguiendo" (estado activo: icono y
+                 color cambian en código, ver CartaUnidad.bind()/actualizarBotonSeguirCarta(); misma
+                 lógica de click de siempre, solo cambia cómo se ve). -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_seguir"
                 android:layout_width="0dp"
@@ -160,34 +164,22 @@
                 android:layout_weight="1"
                 android:text="@string/seguir"
                 app:icon="@drawable/ic_my_location" />
-        </LinearLayout>
 
-        <!-- Fila de acciones de seguimiento múltiple: solo visible cuando ya hay unidad(es) en curso. -->
-        <LinearLayout
-            android:id="@+id/fila_seguir_multi"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_anadir_seguir"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
-                android:text="@string/seguir_tambien"
-                app:icon="@drawable/ic_my_location" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_detener_todos"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/dejar_todo" />
+            <!-- Acciones de seguimiento MÚLTIPLE ("Seguir también"/"Detener todo"): antes dos
+                 botones del mismo tamaño que "Seguir" en una fila aparte; ahora un menú contextual
+                 para que no compitan visualmente con la acción primaria. Mismo criterio de
+                 visibilidad que antes (solo si ya hay alguna unidad en seguimiento). -->
+            <ImageButton
+                android:id="@+id/btn_seguir_opciones"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/seguimiento_opciones"
+                android:padding="8dp"
+                android:src="@drawable/ic_more_vert"
+                android:visibility="gone"
+                app:tint="@color/mb_gray" />
         </LinearLayout>
     </LinearLayout>
     </androidx.core.widget.NestedScrollView>

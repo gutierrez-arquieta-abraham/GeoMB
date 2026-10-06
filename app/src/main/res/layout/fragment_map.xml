@@ -16,7 +16,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Barra de búsqueda flotante -->
+    <!-- Barra de búsqueda flotante + acceso al asistente (Gemini): antes eran dos barras
+         completas apiladas (52dp cada una); el ícono de chat al final de ESTA MISMA barra abre
+         ChatAsistenteActivity (igual que antes, misma Activity/lógica) sin ocupar una segunda
+         fila permanente: recupera ~60dp de alto fijo sobre el mapa. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/search_bar"
         android:layout_width="0dp"
@@ -49,8 +52,9 @@
 
             <EditText
                 android:id="@+id/input_mapa"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:layout_marginStart="12dp"
                 android:background="@android:color/transparent"
                 android:hint="@string/buscar_hint"
@@ -60,62 +64,17 @@
                 android:textColor="?attr/colorOnSurface"
                 android:textColorHint="@color/mb_gray"
                 android:textSize="16sp" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
 
-    <!-- Entrada al asistente conversacional (Gemini): misma apariencia que la barra de búsqueda
-         (ícono + "entrada" de texto), pero no es un campo editable de verdad: al tocarla, en
-         cualquier parte de la tarjeta, abre ChatAsistenteActivity, donde sí se escribe y aparece
-         el teclado. Mantenerla como EditText (no TextView) replica fielmente el look de "barra de
-         texto lista para escribir" que tiene la de búsqueda, en vez de una fila de botón genérica. -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/chat_bar"
-        android:layout_width="0dp"
-        android:layout_height="52dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="8dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="?attr/selectableItemBackground"
-        app:cardCornerRadius="26dp"
-        app:cardElevation="4dp"
-        app:layout_constraintTop_toBottomOf="@id/search_bar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp">
-
-            <ImageView
+            <ImageButton
+                android:id="@+id/btn_chat_mapa"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:layout_marginStart="4dp"
                 android:padding="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/asistente_titulo"
                 android:src="@drawable/ic_chat"
                 app:tint="?attr/colorPrimary" />
-
-            <EditText
-                android:id="@+id/input_chat_mapa"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginStart="12dp"
-                android:background="@android:color/transparent"
-                android:clickable="false"
-                android:cursorVisible="false"
-                android:focusable="false"
-                android:focusableInTouchMode="false"
-                android:hint="@string/asistente_hint"
-                android:inputType="none"
-                android:longClickable="false"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:textColor="?attr/colorOnSurface"
-                android:textColorHint="@color/mb_gray"
-                android:textSize="16sp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -137,7 +96,7 @@
         app:drawableStartCompat="@drawable/ic_close_small"
         app:drawableTint="@color/white"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/chat_bar" />
+        app:layout_constraintTop_toBottomOf="@id/search_bar" />
 
     <!-- Contador de unidades visibles -->
     <TextView
@@ -256,22 +215,15 @@
             android:orientation="horizontal"
             android:paddingHorizontal="4dp">
 
+            <!-- Agrupa tráfico/tipo de mapa/vista 3D (secundarios, de uso poco frecuente) en un
+                 menú contextual: antes eran 3 botones permanentes más en esta misma barra.
+                 Ninguna de esas 3 funciones se eliminó, solo cambió su jerarquía visual. -->
             <ImageButton
-                android:id="@+id/btn_trafico"
+                android:id="@+id/btn_capas"
                 android:layout_width="44dp"
                 android:layout_height="44dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/mapa_trafico"
-                android:padding="10dp"
-                android:src="@drawable/ic_traffic"
-                app:tint="?attr/colorPrimary" />
-
-            <ImageButton
-                android:id="@+id/btn_tipo"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/mapa_tipo"
+                android:contentDescription="@string/mapa_capas"
                 android:padding="10dp"
                 android:src="@drawable/ic_layers"
                 app:tint="?attr/colorPrimary" />
@@ -294,16 +246,6 @@
                 android:contentDescription="@string/mapa_unidades"
                 android:padding="10dp"
                 android:src="@drawable/ic_bus"
-                app:tint="?attr/colorPrimary" />
-
-            <ImageButton
-                android:id="@+id/btn_3d"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/mapa_3d"
-                android:padding="10dp"
-                android:src="@drawable/ic_3d"
                 app:tint="?attr/colorPrimary" />
 
             <ImageButton

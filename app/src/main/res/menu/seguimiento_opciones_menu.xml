@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Seguir también"/"Detener todo": antes dos MaterialButton del mismo tamaño que "Seguir" en
+     una fila aparte de la carta; ahora un menú contextual para que no compitan visualmente con
+     la acción primaria. Mismas acciones de siempre (ver MapFragment.mostrarMenuSeguimiento()). -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_seguir_tambien"
+        android:title="@string/seguir_tambien" />
+    <item
+        android:id="@+id/menu_detener_todo"
+        android:title="@string/dejar_todo" />
+</menu>

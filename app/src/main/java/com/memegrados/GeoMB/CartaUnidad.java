@@ -42,8 +42,8 @@ public final class CartaUnidad {
         public final MaterialCardView card;
         public final TextView txtUnidad, txtLinea, txtFicha, txtRuta, txtActualizacion, badgeEstado, txtCredito, txtTagline;
         public final ImageView imgUnidad;
-        public final MaterialButton btnVerMapa, btnSeguir, btnAnadirSeguir, btnDetenerTodos;
-        public final View filaSeguirMulti;
+        public final MaterialButton btnVerMapa, btnSeguir;
+        public final ImageView btnSeguirOpciones;
 
         public Vistas(View raiz) {
             card = raiz.findViewById(R.id.card_resultado);
@@ -58,9 +58,7 @@ public final class CartaUnidad {
             imgUnidad = raiz.findViewById(R.id.img_unidad);
             btnVerMapa = raiz.findViewById(R.id.btn_ver_mapa);
             btnSeguir = raiz.findViewById(R.id.btn_seguir);
-            btnAnadirSeguir = raiz.findViewById(R.id.btn_anadir_seguir);
-            btnDetenerTodos = raiz.findViewById(R.id.btn_detener_todos);
-            filaSeguirMulti = raiz.findViewById(R.id.fila_seguir_multi);
+            btnSeguirOpciones = raiz.findViewById(R.id.btn_seguir_opciones);
         }
     }
 
