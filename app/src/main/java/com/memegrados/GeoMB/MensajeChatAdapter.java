@@ -27,35 +27,96 @@ import java.util.List;
 // mensajes del usuario alineados a la derecha, del asistente a la izquierda, con el mismo
 // item_mensaje_chat.xml para ambos (solo cambia gravedad + color de la burbuja).
 // ============================================================
-public class MensajeChatAdapter extends RecyclerView.Adapter<MensajeChatAdapter.VH> {
+public class MensajeChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    /** Un turno de la conversación. */
+    private static final int TIPO_MENSAJE = 0;
+    /** Burbuja de confirmación inline (ver {@link #agregarConfirmacion}) -- SOLO la usa
+     *  AsistenteOverlayFragment; ChatAsistenteActivity nunca llama agregarConfirmacion(), así
+     *  que para ella este tipo de item nunca existe y su comportamiento queda idéntico a antes. */
+    private static final int TIPO_CONFIRMACION = 1;
+
+    /** Un turno de la conversación, o (si {@code accion != null}) una propuesta de Gemini
+     *  pendiente de Confirmar/Cancelar (ver {@link #agregarConfirmacion}). */
     public static final class Mensaje {
         final String texto;
         final boolean deUsuario;
-        public Mensaje(String texto, boolean deUsuario) { this.texto = texto; this.deUsuario = deUsuario; }
+        final AccionPendiente accion;   // null para un mensaje normal
+        boolean resuelta;               // true tras tocar Confirmar o Cancelar (solo si accion != null)
+        public Mensaje(String texto, boolean deUsuario) {
+            this.texto = texto; this.deUsuario = deUsuario; this.accion = null;
+        }
+        Mensaje(AccionPendiente accion) {
+            this.texto = accion.resumen; this.deUsuario = false; this.accion = accion;
+        }
+    }
+
+    /** Implementada SOLO por quien use {@link #agregarConfirmacion} (AsistenteOverlayFragment) --
+     *  igual que antes, la ejecución real de la acción nunca vive aquí, solo se avisa. */
+    public interface ListenerConfirmacion {
+        void onConfirmar(AccionPendiente a);
+        void onCancelar(AccionPendiente a);
     }
 
     private final List<Mensaje> items = new ArrayList<>();
+    private ListenerConfirmacion listenerConfirmacion;
+
+    public void setListenerConfirmacion(ListenerConfirmacion l) { listenerConfirmacion = l; }
 
     public void agregar(String texto, boolean deUsuario) {
         items.add(new Mensaje(texto, deUsuario));
         notifyItemInserted(items.size() - 1);
     }
 
+    /** Agrega la burbuja de confirmación de {@code a} (ver {@link #setListenerConfirmacion}). */
+    public void agregarConfirmacion(AccionPendiente a) {
+        items.add(new Mensaje(a));
+        notifyItemInserted(items.size() - 1);
+    }
+
     public int cantidad() { return items.size(); }
+
+    @Override
+    public int getItemViewType(int position) {
+        return items.get(position).accion != null ? TIPO_CONFIRMACION : TIPO_MENSAJE;
+    }
 
     @NonNull
     @Override
-    public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (viewType == TIPO_CONFIRMACION) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_chat_confirmacion, parent, false);
+            return new VHConfirmacion(v);
+        }
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_mensaje_chat, parent, false);
         return new VH(v);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull VH h, int position) {
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         Mensaje m = items.get(position);
+        if (holder instanceof VHConfirmacion) {
+            VHConfirmacion h = (VHConfirmacion) holder;
+            h.texto.setText(m.texto);
+            h.btnConfirmar.setEnabled(!m.resuelta);
+            h.btnCancelar.setEnabled(!m.resuelta);
+            h.btnConfirmar.setOnClickListener(v -> {
+                if (m.resuelta) return;
+                m.resuelta = true;
+                notifyItemChanged(position);
+                if (listenerConfirmacion != null) listenerConfirmacion.onConfirmar(m.accion);
+            });
+            h.btnCancelar.setOnClickListener(v -> {
+                if (m.resuelta) return;
+                m.resuelta = true;
+                notifyItemChanged(position);
+                if (listenerConfirmacion != null) listenerConfirmacion.onCancelar(m.accion);
+            });
+            return;
+        }
+
+        VH h = (VH) holder;
         h.texto.setText(m.texto);
 
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) h.card.getLayoutParams();
@@ -82,6 +143,17 @@ public class MensajeChatAdapter extends RecyclerView.Adapter<MensajeChatAdapter.
             super(v);
             card = v.findViewById(R.id.card_mensaje);
             texto = v.findViewById(R.id.txt_mensaje);
+        }
+    }
+
+    static final class VHConfirmacion extends RecyclerView.ViewHolder {
+        final TextView texto;
+        final com.google.android.material.button.MaterialButton btnConfirmar, btnCancelar;
+        VHConfirmacion(View v) {
+            super(v);
+            texto = v.findViewById(R.id.txt_confirmacion_resumen);
+            btnConfirmar = v.findViewById(R.id.btn_confirmacion_confirmar);
+            btnCancelar = v.findViewById(R.id.btn_confirmacion_cancelar);
         }
     }
 }

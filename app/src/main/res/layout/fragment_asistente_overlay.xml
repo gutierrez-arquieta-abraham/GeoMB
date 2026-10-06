@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Contenido del BottomSheetDialogFragment del asistente (ver AsistenteOverlayFragment): mismo
+     armado de header/conversación/input que activity_chat_asistente.xml, pero sin EdgeToEdge ni
+     back arrow propios (× cierra el modal, no navega); el BottomSheetDialog ya aporta esquinas
+     redondeadas y scrim de fondo por defecto del tema Material3 (ver FiltrosSheet/bottomsheet_filtros.xml,
+     mismo criterio, sin estilo propio). La altura real (~75-80% de pantalla) y el soft input mode se
+     fijan en AsistenteOverlayFragment.onStart(), sobre la ventana PROPIA de este diálogo, nunca la
+     de MainActivity (ver su comentario "NUNCA" sobre el SurfaceView del mapa). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/asistente_overlay_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/asistente_overlay_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/txt_asistente_overlay_titulo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/asistente_titulo"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ProgressBar
+            android:id="@+id/prog_asistente_overlay"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_asistente_overlay_cerrar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@android:string/cancel"
+            android:src="@drawable/ic_close_small" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_asistente_overlay_mensajes"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp" />
+
+    <TextView
+        android:id="@+id/txt_asistente_overlay_aviso"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        android:background="@drawable/bg_afect_card"
+        android:padding="12dp"
+        android:textColor="?attr/colorError"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/asistente_overlay_input_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="10dp">
+
+        <EditText
+            android:id="@+id/in_asistente_overlay_mensaje"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_afect_card"
+            android:hint="@string/asistente_hint"
+            android:imeOptions="actionSend"
+            android:inputType="text|textCapSentences"
+            android:maxLines="4"
+            android:padding="12dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_asistente_overlay_enviar"
+            style="@style/Widget.Material3.Button.IconButton.Filled"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@string/asistente_enviar"
+            app:icon="@drawable/ic_enviar" />
+
+    </LinearLayout>
+
+</LinearLayout>

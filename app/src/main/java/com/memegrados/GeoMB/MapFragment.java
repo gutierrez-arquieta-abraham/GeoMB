@@ -266,10 +266,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
         // Acceso al asistente conversacional (Gemini): antes una segunda barra completa debajo
         // del buscador; ahora un ícono al final de la MISMA barra de búsqueda (recupera espacio
-        // vertical del mapa). Sigue abriendo ChatAsistenteActivity sin cambios -- ese flujo
-        // (Function Calling, confirmación de acciones, etc.) no se tocó ni se duplicó aquí.
+        // vertical del mapa). Ahora abre AsistenteOverlayFragment (ventana flotante sobre el
+        // mapa, ver su javadoc) en vez de ChatAsistenteActivity de pantalla completa -- mismo
+        // backend/flujo de Function Calling y confirmación de acciones, solo cambia la
+        // presentación. ChatAsistenteActivity sigue existiendo sin cambios (se abre desde
+        // Configuración).
         view.findViewById(R.id.btn_chat_mapa).setOnClickListener(v ->
-                startActivity(new android.content.Intent(requireContext(), ChatAsistenteActivity.class)));
+                new AsistenteOverlayFragment().show(getChildFragmentManager(), "asistente"));
 
         chipFiltros = view.findViewById(R.id.chip_filtros);
         txtConteo = view.findViewById(R.id.txt_conteo);
