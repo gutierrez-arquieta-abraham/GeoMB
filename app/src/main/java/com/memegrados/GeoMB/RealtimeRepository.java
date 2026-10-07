@@ -166,18 +166,6 @@ public final class RealtimeRepository {
             if (lineaStr != null && !lineaStr.isEmpty()) {
                 try { linea = Integer.parseInt(lineaStr.trim()); } catch (NumberFormatException ignore) {}
             }
-            // Override "control maestro": unidades recién enviadas al corredor L1 que el feed todavía
-            // no mapea (line vacío). Se fuerzan a L1 para que aparezcan con color y se filtren por línea.
-            // Se comparan por el número "pelado" (solo dígitos, sin ceros a la izquierda) para tolerar
-            // etiquetas como "09507", "9507 " o "MB-9507" que trae el feed. NOTA: solo asigna la línea;
-            // si la unidad NO viene en el feed (sin GPS), no hay posición y no se puede dibujar.
-            // Quitar de esta lista cuando el feed ya las mapee.
-            String eco = numero.replaceAll("\\D", "").replaceFirst("^0+", "");
-            if ("9516".equals(eco) || "9517".equals(eco) || "9518".equals(eco)
-                    || "9507".equals(eco) || "9524".equals(eco)) {
-                linea = 1;
-            }
-
             String destino = o.isNull("destino") ? null : o.optString("destino", null);
             String origen = o.isNull("origen") ? null : o.optString("origen", null);
             String ruta = o.isNull("route_id") ? null : o.optString("route_id", null);
