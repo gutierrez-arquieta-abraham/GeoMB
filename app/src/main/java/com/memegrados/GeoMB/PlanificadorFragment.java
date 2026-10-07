@@ -567,7 +567,17 @@ public class PlanificadorFragment extends Fragment {
 
         ultimaManifest = Manifestaciones.actualizado();
         final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
-        calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld), r -> {
+        // Preferencia SUAVE sembrada desde el servicio con el que origen/destino ya quedaron fijados
+        // (ver sembrarPrefServicio): sin esto, el primer cálculo queda PINNEADO a exactamente esa línea
+        // (102 u 122, p. ej.) sin que Planificador.okLineaPref() pueda caer al otro servicio de la MISMA
+        // base si justo ese cerró -- el viaje fallaba entero aunque el servicio hermano siguiera abierto,
+        // y nunca se llegaba a preguntar Ordinario/Exprés porque esa pregunta solo ocurre DESPUÉS de un
+        // primer cálculo exitoso (ver abajo). No cambia el resultado cuando el servicio fijado sí está
+        // abierto (A* lo sigue prefiriendo, sin penalización).
+        final java.util.Map<Integer, Boolean> prefInicial = new java.util.HashMap<>();
+        sembrarPrefServicio(prefInicial, flo);
+        sembrarPrefServicio(prefInicial, fld);
+        calcularAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, prefInicial), r -> {
             if (r == null) {
                 Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show();
                 return;
@@ -605,6 +615,17 @@ public class PlanificadorFragment extends Fragment {
         avisoUnidad = false;
         origenPos = r.pasos.isEmpty() ? null : r.pasos.get(0).puntos.get(0);
         dibujar(r, destino);
+    }
+
+    /** Si {@code linea} es un servicio troncal Mexibús con exprés propio (101-104 ordinario / 121-124
+     *  exprés), registra en {@code pref} su base → es-exprés. Siembra una preferencia SUAVE (no un
+     *  pin duro) para que Planificador.okLineaPref() permita, desde el primer cálculo, caer al servicio
+     *  hermano de la MISMA base si el fijado inicialmente ya cerró -- ver trazarResuelto(). No aplica a
+     *  ramales (111-119, sin exprés) ni a Metrobús (línea 0 o <100). */
+    private static void sembrarPrefServicio(java.util.Map<Integer, Boolean> pref, int linea) {
+        if (linea < 101 || linea > 124) return;
+        if (linea >= 111 && linea <= 119) return;   // ramales 1A/2A/3A: sin exprés
+        pref.put(Servicios.base(linea), linea >= 121 && linea <= 124);
     }
 
     /** Bases troncales Mexibús (101..104) con servicio exprés que aparecen en la ruta, en orden. */
