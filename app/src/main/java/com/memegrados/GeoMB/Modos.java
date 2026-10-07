@@ -134,7 +134,9 @@ public final class Modos {
         p(c).edit().putBoolean("notif_linea_" + linea, v).apply();
     }
 
-    // --- Mostrar Mexibús: activa la capa del Mexibús en el mapa y su ruteo en el planificador. ---
+    // --- Mostrar Mexibús / Mexicable: activan su capa en el mapa y su ruteo en el planificador,
+    // cada sistema por separado (antes de este split, una sola bandera "mostrarMexibus" controlaba
+    // ambos a la vez, porque mexibus.json los trae juntos). ---
 
     public static boolean mostrarMexibus(Context c) {
         return p(c).getBoolean("mostrar_mexibus", false);
@@ -142,6 +144,29 @@ public final class Modos {
 
     public static void setMostrarMexibus(Context c, boolean v) {
         p(c).edit().putBoolean("mostrar_mexibus", v).apply();
+    }
+
+    private static final String K_MXC_MIGRADO = "mxc_migrado_v1";
+
+    /** Mexicable es NUEVO como bandera independiente: a quien ya tenía "mostrarMexibus" (cuando
+     *  representaba a los dos sistemas) se le hereda ese mismo valor UNA SOLA VEZ, para que la
+     *  actualización de GeoMB no le apague Mexicable de golpe sin que lo haya decidido. */
+    private static void migrarMexicableSiHaceFalta(Context c) {
+        SharedPreferences prefs = p(c);
+        if (prefs.contains(K_MXC_MIGRADO)) return;
+        prefs.edit()
+                .putBoolean("mostrar_mexicable", mostrarMexibus(c))
+                .putBoolean(K_MXC_MIGRADO, true)
+                .apply();
+    }
+
+    public static boolean mostrarMexicable(Context c) {
+        migrarMexicableSiHaceFalta(c);
+        return p(c).getBoolean("mostrar_mexicable", false);
+    }
+
+    public static void setMostrarMexicable(Context c, boolean v) {
+        p(c).edit().putBoolean("mostrar_mexicable", v).putBoolean(K_MXC_MIGRADO, true).apply();
     }
 
     // --- Estilo de iconos de estación: true = pictogramas nuevos; false = puntos simples (antiguos). ---

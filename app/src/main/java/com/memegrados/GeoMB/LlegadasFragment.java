@@ -306,20 +306,22 @@ public class LlegadasFragment extends Fragment {
             llEstadoMetrobus.addView(filaEstado(String.valueOf(i), color, nombre, estado.get(i), i));
         }
         // Mexibús: troncales (101..104), ramales (111..113) y Mexicable (201..202); no exprés (12x).
-        // Cada fila muestra el par de terminales OFICIALES (dirección). Respeta el ajuste "mostrar Mexibús".
+        // Cada fila muestra el par de terminales OFICIALES (dirección). Respeta cada ajuste por su cuenta.
         llEstadoMexibus.removeAllViews();
         int mostradas = 0;
-        if (Modos.mostrarMexibus(requireContext())) {
-            for (Linea l : GtfsRepository.getMexibus(requireContext())) {
-                boolean troncal = l.numero >= 101 && l.numero <= 104;
-                boolean ramal = l.numero >= 111 && l.numero <= 113;
-                boolean cable = l.numero >= 201 && l.numero <= 202;
-                if (!troncal && !ramal && !cable) continue;
-                String par = Planificador.terminalesMexibusPar(l.numero);
-                String nombre = par != null ? par : l.nombre;
-                llEstadoMexibus.addView(filaEstado(Planificador.etiquetaLineaCortaPub(l.numero), l.color, nombre, estado.get(l.numero), l.numero));
-                mostradas++;
-            }
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        boolean mxc = Modos.mostrarMexicable(requireContext());
+        for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+            boolean troncal = l.numero >= 101 && l.numero <= 104;
+            boolean ramal = l.numero >= 111 && l.numero <= 113;
+            boolean cable = l.numero >= 201 && l.numero <= 202;
+            if (!troncal && !ramal && !cable) continue;
+            if ((troncal || ramal) && !mxb) continue;
+            if (cable && !mxc) continue;
+            String par = Planificador.terminalesMexibusPar(l.numero);
+            String nombre = par != null ? par : l.nombre;
+            llEstadoMexibus.addView(filaEstado(Planificador.etiquetaLineaCortaPub(l.numero), l.color, nombre, estado.get(l.numero), l.numero));
+            mostradas++;
         }
         int vis = mostradas > 0 ? View.VISIBLE : View.GONE;
         if (txtMexibusTitulo != null) txtMexibusTitulo.setVisibility(vis);

@@ -652,19 +652,11 @@ public class PlanificadorFragment extends Fragment {
         CartaDesambiguacion.mostrar(requireContext(), getString(R.string.servicio_titulo_linea, "L" + et), op);
     }
 
-    /**
-     * Resuelve el campo a (nombre, línea). Si la estación es homónima de otra:
-     *  · en otro SISTEMA (Metrobús vs Mexibús) y el Mexibús está visible → carta para elegir sistema;
-     *  · en otra LÍNEA del Mexibús (sin ser correspondencia) → toast "Falta especificar línea" y toma
-     *    la línea más baja por defecto (p. ej. "Las Américas" → L1).
-     */
-    private static int sistema(int n) { return n >= 200 ? 2 : (n >= 100 ? 1 : 0); }   // 0 Metrobús, 1 Mexibús, 2 Mexicable
-
     /** Reduce los candidatos de un sistema a una opción por LÍNEA BASE (la de menor número). */
     private static java.util.List<Planificador.Match> porLineaBase(java.util.List<Planificador.Match> cs, int sis) {
         java.util.LinkedHashMap<Integer, Planificador.Match> m = new java.util.LinkedHashMap<>();
         for (Planificador.Match c : cs) {
-            if (sistema(c.linea) != sis) continue;
+            if (Sistemas.sistemaDe(c.linea) != sis) continue;
             int b = Servicios.base(c.linea);
             Planificador.Match prev = m.get(b);
             if (prev == null || c.linea < prev.linea) m.put(b, c);
@@ -678,9 +670,16 @@ public class PlanificadorFragment extends Fragment {
         if (lineaRec != 0 && canon.equals(canonRec)) { cb.run(canon, lineaRec); return; }   // ya fijada y sin cambios
 
         java.util.List<Planificador.Match> cs = Planificador.candidatos(requireContext(), canon);
-        if (!Modos.mostrarMexibus(requireContext())) {   // sin Mexibús visible, solo Metrobús
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        boolean mxc = Modos.mostrarMexicable(requireContext());
+        if (!mxb || !mxc) {   // al menos un sistema no-Metrobús oculto: filtra por el que corresponda
             java.util.List<Planificador.Match> f = new java.util.ArrayList<>();
-            for (Planificador.Match m : cs) if (sistema(m.linea) == 0) f.add(m);
+            for (Planificador.Match m : cs) {
+                int sis = Sistemas.sistemaDe(m.linea);
+                if (sis == Sistemas.METROBUS
+                        || (sis == Sistemas.MEXIBUS && mxb)
+                        || (sis == Sistemas.MEXICABLE && mxc)) f.add(m);
+            }
             cs = f;
         }
         if (cs.isEmpty()) { cb.run(canon, 0); return; }

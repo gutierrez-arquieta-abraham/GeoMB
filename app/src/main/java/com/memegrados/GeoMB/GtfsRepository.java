@@ -59,8 +59,9 @@ public final class GtfsRepository {
     // Referencias "en la sombra": null hasta que la carga en 2º plano publica la lista inmutable.
     private static volatile List<Linea> lineas;             // Metrobús
     private static volatile List<Linea> mexibus;            // Mexibús
-    private static volatile List<Linea> ruteables;          // Metrobús (+ Mexibús si la capa está visible)
+    private static volatile List<Linea> ruteables;          // Metrobús (+ Mexibús/Mexicable según sus capas)
     private static volatile boolean ruteablesConMxb;
+    private static volatile boolean ruteablesConMxc;
     private static volatile Map<String, List<LatLng>> sublineas;
 
     // Un único candado SOLO para la construcción (no para las lecturas ya publicadas).
@@ -107,19 +108,24 @@ public final class GtfsRepository {
     }
 
     /**
-     * Líneas ruteables por el planificador: Metrobús, y también Mexibús si el usuario activó
-     * "Mostrar Mexibús". Se recalcula si el ajuste cambia; por lo demás devuelve la referencia cacheada.
+     * Líneas ruteables por el planificador: Metrobús siempre, y además Mexibús/Mexicable según sus
+     * respectivos ajustes ("Mostrar Mexibús"/"Mostrar Mexicable"), cada uno independiente. Se
+     * recalcula si alguno cambia; por lo demás devuelve la referencia cacheada.
      */
     public static List<Linea> getRuteables(Context c) {
         boolean mxb = Modos.mostrarMexibus(c);
+        boolean mxc = Modos.mostrarMexicable(c);
         List<Linea> r = ruteables;
-        if (r != null && ruteablesConMxb == mxb) return r;
+        if (r != null && ruteablesConMxb == mxb && ruteablesConMxc == mxc) return r;
         List<Linea> base = getLineas(c);
-        if (!mxb) { ruteables = base; ruteablesConMxb = false; return base; }
+        if (!mxb && !mxc) { ruteables = base; ruteablesConMxb = false; ruteablesConMxc = false; return base; }
         List<Linea> t = new ArrayList<>(base);
-        t.addAll(getMexibus(c));
+        for (Linea l : getMexibus(c)) {
+            int sis = Sistemas.sistemaDe(l.numero);
+            if ((sis == Sistemas.MEXIBUS && mxb) || (sis == Sistemas.MEXICABLE && mxc)) t.add(l);
+        }
         List<Linea> ro = Collections.unmodifiableList(t);
-        ruteables = ro; ruteablesConMxb = true;
+        ruteables = ro; ruteablesConMxb = mxb; ruteablesConMxc = mxc;
         return ro;
     }
 

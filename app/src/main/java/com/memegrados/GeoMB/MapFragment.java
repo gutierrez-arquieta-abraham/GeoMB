@@ -430,10 +430,17 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         for (Linea l : GtfsRepository.getLineas(requireContext())) {
             for (LatLng p : l.ruta) { b.include(p); hay = true; }
         }
-        // Si la capa Mexibús está activa, el botón "centrar" también abarca su red.
-        if (Modos.mostrarMexibus(requireContext())) {
-            for (Polyline p : mexibusLineas)
+        // Si Mexibús/Mexicable están activos, el botón "centrar" también abarca su red (cada uno
+        // según su propio ajuste; el tag del polyline dice a qué sistema pertenece).
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        boolean mxc = Modos.mostrarMexicable(requireContext());
+        if (mxb || mxc) {
+            for (Polyline p : mexibusLineas) {
+                Object tag = p.getTag();
+                int sis = tag instanceof Integer ? Sistemas.sistemaDe((Integer) tag) : Sistemas.MEXIBUS;
+                if ((sis == Sistemas.MEXICABLE && !mxc) || (sis != Sistemas.MEXICABLE && !mxb)) continue;
                 for (LatLng pt : p.getPoints()) { b.include(pt); hay = true; }
+            }
         }
         if (hay) mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(b.build(), 80));
         else mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(CDMX, ZOOM_INICIAL));
@@ -646,9 +653,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             double d = Linea.distancia(em.e.posicion, p);
             if (d < best) { best = d; mejor = em.e; }
         }
-        // Si "Mostrar Mexibús" está activo, también considera sus estaciones para la más cercana.
-        if (Modos.mostrarMexibus(requireContext())) {
+        // Según cada ajuste activo, también considera las estaciones de Mexibús y/o Mexicable.
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        boolean mxc = Modos.mostrarMexicable(requireContext());
+        if (mxb || mxc) {
             for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+                boolean esMxc = Sistemas.sistemaDe(l.numero) == Sistemas.MEXICABLE;
+                if (esMxc ? !mxc : !mxb) continue;
                 for (Estacion e : l.estaciones) {
                     double d = Linea.distancia(e.posicion, p);
                     if (d < best) { best = d; mejor = e; }
@@ -705,20 +716,26 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     /**
-     * Capa del Mexibús (servicio ordinario): dibuja sus líneas y estaciones. Su visibilidad la
-     * controla el ajuste "Mostrar Mexibús" (Acerca de), aplicado con {@link #aplicarMexibus()}.
+     * Capa del Mexibús + Mexicable: dibuja sus líneas y estaciones. La visibilidad de cada sistema
+     * la controla su propio ajuste ("Mostrar Mexibús"/"Mostrar Mexicable", Acerca de), aplicado con
+     * {@link #aplicarMexibus()}.
      */
     private void dibujarMexibus() {
-        boolean vis = Modos.mostrarMexibus(requireContext());
+        boolean visMxb = Modos.mostrarMexibus(requireContext());
+        boolean visMxc = Modos.mostrarMexicable(requireContext());
         List<PatternItem> punteado = java.util.Arrays.asList(new Dash(24f), new Gap(18f));
         for (Linea l : GtfsRepository.getMexibus(requireContext())) {
             coloresLinea.put(l.numero, l.color);
+            boolean esMxc = Sistemas.sistemaDe(l.numero) == Sistemas.MEXICABLE;
+            boolean vis = esMxc ? visMxc : visMxb;
             boolean expres = l.numero >= 121 && l.numero <= 124;   // exprés Mexibús: punteado (Mexicable 201+ va sólido)
             PolylineOptions po = new PolylineOptions()
                     .addAll(l.ruta).color(l.color).geodesic(false).visible(vis)
                     .width(expres ? 7f : 9f).zIndex(expres ? 5f : 3f);
             if (expres) po.pattern(punteado);
-            mexibusLineas.add(mapa.addPolyline(po));
+            Polyline pl = mapa.addPolyline(po);
+            pl.setTag(l.numero);   // permite reconocer su sistema (Mexibús/Mexicable) después, sin otra lista
+            mexibusLineas.add(pl);
             // Los MARCADORES NO se crean aquí (eran cientos de golpe → congelaba el arranque). Solo se
             // registran; se crean por demanda al acercar, en crearMexibusVisibles() (igual que el Metrobús).
             for (Estacion e : l.estaciones) {
@@ -738,9 +755,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
     }
 
-    /** Crea los marcadores Mexibús visibles por demanda (zoom + región), como el Metrobús. */
+    /** Crea los marcadores Mexibús/Mexicable visibles por demanda (zoom + región), como el Metrobús.
+     *  Crea mientras CUALQUIERA de los dos esté activo; {@link #aplicarMexibus()} oculta después los
+     *  del sistema que siga apagado. */
     private void crearMexibusVisibles() {
-        if (mapa == null || !Modos.mostrarMexibus(requireContext())) return;
+        if (mapa == null || (!Modos.mostrarMexibus(requireContext()) && !Modos.mostrarMexicable(requireContext()))) return;
         if (mapa.getCameraPosition().zoom < ZOOM_ESTACIONES) return;
         LatLngBounds vista = rangoVisible();
         for (EstMapa em : mexibusEst) {
@@ -840,14 +859,23 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return false;
     }
 
-    /** Aplica la visibilidad del Mexibús según el ajuste "Mostrar Mexibús" (Acerca de). */
+    /** Aplica la visibilidad de Mexibús/Mexicable, cada uno según su propio ajuste ("Mostrar
+     *  Mexibús"/"Mostrar Mexicable", Acerca de): una línea o estación de un sistema apagado se
+     *  oculta aunque el otro sistema esté encendido. */
     private void aplicarMexibus() {
         if (mapa == null) return;
-        boolean vis = Modos.mostrarMexibus(requireContext());
+        boolean visMxb = Modos.mostrarMexibus(requireContext());
+        boolean visMxc = Modos.mostrarMexicable(requireContext());
         boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;   // igual que el Metrobús
-        boolean mostrar = vis && porZoom && mostrarEstaciones;                 // el botón "estaciones" del mapa también aplica a Mexibús
-        for (Polyline p : mexibusLineas) p.setVisible(vis);                    // las líneas siempre (si el toggle está on)
+        for (Polyline p : mexibusLineas) {
+            Object tag = p.getTag();
+            boolean esMxc = tag instanceof Integer && Sistemas.sistemaDe((Integer) tag) == Sistemas.MEXICABLE;
+            p.setVisible(esMxc ? visMxc : visMxb);   // las líneas siempre (si el toggle de SU sistema está on)
+        }
         for (EstMapa em : mexibusEst) if (em.marker != null) {
+            boolean esMxc = Sistemas.sistemaDe(em.linea) == Sistemas.MEXICABLE;
+            boolean vis = esMxc ? visMxc : visMxb;
+            boolean mostrar = vis && porZoom && mostrarEstaciones;   // el botón "estaciones" del mapa también aplica aquí
             if (mostrar && !em.marker.isVisible()) em.marker.setIcon(iconoMexibus(em));  // refresca al reaparecer (modo actual)
             em.marker.setVisible(mostrar);   // estaciones por zoom
         }
@@ -1886,9 +1914,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      */
     private void buscarEstacionEnMapa(String texto) {
         java.util.List<Planificador.Match> cs = Planificador.candidatos(requireContext(), texto);
-        if (!Modos.mostrarMexibus(requireContext())) {   // sin Mexibús visible, solo Metrobús
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        boolean mxc = Modos.mostrarMexicable(requireContext());
+        if (!mxb || !mxc) {   // al menos un sistema no-Metrobús oculto: filtra por el que corresponda
             java.util.List<Planificador.Match> f = new java.util.ArrayList<>();
-            for (Planificador.Match m : cs) if (m.linea < 100) f.add(m);
+            for (Planificador.Match m : cs) {
+                int sis = Sistemas.sistemaDe(m.linea);
+                if (sis == Sistemas.METROBUS
+                        || (sis == Sistemas.MEXIBUS && mxb)
+                        || (sis == Sistemas.MEXICABLE && mxc)) f.add(m);
+            }
             cs = f;
         }
         if (cs.isEmpty()) {

@@ -66,7 +66,6 @@ public final class Locuciones {
         if (n >= 100) return 100 + (n % 10);
         return n;
     }
-    static int sistemaDe(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }
     static String numLinea(int base) {
         return String.valueOf(base >= 200 ? base - 200 : (base >= 100 ? base - 100 : base));
     }
@@ -110,14 +109,14 @@ public final class Locuciones {
     static TreeSet<Integer> lineasEnEstacion(Context ctx, int linea, String nombre, LatLng pos) {
         TreeSet<Integer> s = new TreeSet<>();
         if (pos == null) return s;
-        int bp = baseLinea(linea), sisP = sistemaDe(linea);
+        int bp = baseLinea(linea), sisP = Sistemas.sistemaDe(linea);
         try {
             String pn = Planificador.norm(Planificador.sinMxb(nombre));
             List<Linea> todas = new ArrayList<>(GtfsRepository.getLineas(ctx));
             todas.addAll(GtfsRepository.getMexibus(ctx));
             for (Linea l : todas) {
                 if (baseLinea(l.numero) == bp) continue;
-                boolean mismoSistema = sistemaDe(l.numero) == sisP;
+                boolean mismoSistema = Sistemas.sistemaDe(l.numero) == sisP;
                 for (Estacion e : l.estaciones) {
                     if (e.soloMapa) continue;
                     // Mismo sistema: mismo nombre, o mismo núcleo como respaldo (p. ej. Buenavista L1/L4 vs
@@ -149,17 +148,20 @@ public final class Locuciones {
     static TreeSet<Integer> basesCorresp(Context ctx, int linea, String nombre, LatLng pos) {
         TreeSet<Integer> bases = lineasEnEstacion(ctx, linea, nombre, pos);
         correspManuales(nombre, linea, bases);
-        if (!Modos.mostrarMexibus(ctx)) {
-            java.util.Iterator<Integer> it = bases.iterator();
-            while (it.hasNext()) if (it.next() >= 100) it.remove();
+        boolean mxb = Modos.mostrarMexibus(ctx);
+        boolean mxc = Modos.mostrarMexicable(ctx);
+        java.util.Iterator<Integer> it = bases.iterator();
+        while (it.hasNext()) {
+            int sis = Sistemas.sistemaDe(it.next());
+            if ((sis == Sistemas.MEXIBUS && !mxb) || (sis == Sistemas.MEXICABLE && !mxc)) it.remove();
         }
         return bases;
     }
 
     private static String listaLineas(Context ctx, int lineaActual, TreeSet<Integer> bases) {
-        int sisAct = sistemaDe(lineaActual);
+        int sisAct = Sistemas.sistemaDe(lineaActual);
         LinkedHashMap<Integer, List<String>> porSis = new LinkedHashMap<>();
-        for (int n : bases) porSis.computeIfAbsent(sistemaDe(n), k -> new ArrayList<>()).add(numLinea(n));
+        for (int n : bases) porSis.computeIfAbsent(Sistemas.sistemaDe(n), k -> new ArrayList<>()).add(numLinea(n));
         List<String> partes = new ArrayList<>();
         for (Map.Entry<Integer, List<String>> e : porSis.entrySet()) {
             List<String> nums = e.getValue();

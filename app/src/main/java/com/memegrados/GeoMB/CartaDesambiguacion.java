@@ -54,7 +54,7 @@ public final class CartaDesambiguacion {
         List<List<Planificador.Match>> ordenados = new ArrayList<>(grupos);
         Collections.sort(ordenados, (g1, g2) -> {
             Planificador.Match r1 = repGrupo(g1), r2 = repGrupo(g2);
-            int s = Integer.compare(sistemaDe(r1.linea), sistemaDe(r2.linea));
+            int s = Integer.compare(Sistemas.sistemaDe(r1.linea), Sistemas.sistemaDe(r2.linea));
             return s != 0 ? s : Integer.compare(r1.linea, r2.linea);
         });
         int px = Math.round(40 * ctx.getResources().getDisplayMetrics().density);
@@ -75,8 +75,6 @@ public final class CartaDesambiguacion {
         for (Planificador.Match m : g) if (m.linea < rep.linea) rep = m;
         return rep;
     }
-
-    private static int sistemaDe(int n) { return n >= 200 ? 2 : (n >= 100 ? 1 : 0); }   // 0 Metrobús, 1 Mexibús, 2 Mexicable
 
     /** Etiqueta de una estación física: "Nombre (Sistema Lx y Ly)" con sus líneas distintas. */
     public static String etiquetaEstacion(Context ctx, List<Planificador.Match> g) {

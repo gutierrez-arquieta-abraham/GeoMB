@@ -66,18 +66,20 @@ public class LinesFragment extends Fragment {
         });
     }
 
-    /** Metrobús 1..7 siempre; si "Mostrar Mexibús" está activo (Acerca de), agrega Mexibús
-     *  troncal/ramal (101..104, 111..113) y Mexicable (201..202). No incluye exprés (12x): no
-     *  son una línea física distinta, sino un servicio más rápido sobre la misma vía. */
+    /** Metrobús 1..7 siempre; según cada ajuste independiente (Acerca de), agrega Mexibús
+     *  troncal/ramal (101..104, 111..113) si "Mostrar Mexibús" y/o Mexicable (201..202) si
+     *  "Mostrar Mexicable". No incluye exprés (12x): no son una línea física distinta, sino un
+     *  servicio más rápido sobre la misma vía. */
     private List<Linea> lineasAMostrar() {
         List<Linea> res = new ArrayList<>(GtfsRepository.getLineas(requireContext()));
-        if (Modos.mostrarMexibus(requireContext())) {
-            for (Linea l : GtfsRepository.getMexibus(requireContext())) {
-                boolean troncal = l.numero >= 101 && l.numero <= 104;
-                boolean ramal = l.numero >= 111 && l.numero <= 113;
-                boolean cable = l.numero >= 201 && l.numero <= 202;
-                if (troncal || ramal || cable) res.add(l);
-            }
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        boolean mxc = Modos.mostrarMexicable(requireContext());
+        for (Linea l : GtfsRepository.getMexibus(requireContext())) {
+            boolean troncal = l.numero >= 101 && l.numero <= 104;
+            boolean ramal = l.numero >= 111 && l.numero <= 113;
+            boolean cable = l.numero >= 201 && l.numero <= 202;
+            if ((troncal || ramal) && mxb) res.add(l);
+            else if (cable && mxc) res.add(l);
         }
         return res;
     }

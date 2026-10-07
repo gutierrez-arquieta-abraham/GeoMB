@@ -1247,13 +1247,17 @@ public class RecorridoService extends Service {
         return v.append(transferenciaTexto(p.linea, basesCorresp(p))).toString();
     }
 
-    /** Bases de correspondencia de la parada, respetando la visibilidad de la capa Mexibús/Mexicable. */
+    /** Bases de correspondencia de la parada, respetando la visibilidad de cada capa (Mexibús/Mexicable
+     *  se controlan por separado: si una está apagada, no se anuncia ESE sistema, no ambos). */
     private java.util.TreeSet<Integer> basesCorresp(Planificador.Parada p) {
         java.util.TreeSet<Integer> bases = lineasEnEstacion(p);
         correspManuales(p, bases);   // enlaces que no tienen estación física del otro sistema en los datos
-        if (!Modos.mostrarMexibus(this)) {   // capa Mexibús/Mexicable apagada: no anunciar esos sistemas
-            java.util.Iterator<Integer> it = bases.iterator();
-            while (it.hasNext()) if (it.next() >= 100) it.remove();
+        boolean mxb = Modos.mostrarMexibus(this);
+        boolean mxc = Modos.mostrarMexicable(this);
+        java.util.Iterator<Integer> it = bases.iterator();
+        while (it.hasNext()) {
+            int sis = Sistemas.sistemaDe(it.next());
+            if ((sis == Sistemas.MEXIBUS && !mxb) || (sis == Sistemas.MEXICABLE && !mxc)) it.remove();
         }
         return bases;
     }
@@ -1300,9 +1304,9 @@ public class RecorridoService extends Service {
     /** Lista de líneas agrupadas por sistema: "Líneas 1 y 3" (mismo sistema) o "Metrobús Líneas 1 y 3"
      *  / "Meksibús Línea 4 y Meksicable Línea 2" (otro sistema, con su nombre). */
     private String listaLineas(int lineaActual, java.util.TreeSet<Integer> bases) {
-        int sisAct = sistemaDe(lineaActual);
+        int sisAct = Sistemas.sistemaDe(lineaActual);
         java.util.LinkedHashMap<Integer, java.util.List<String>> porSis = new java.util.LinkedHashMap<>();
-        for (int n : bases) porSis.computeIfAbsent(sistemaDe(n), k -> new java.util.ArrayList<>()).add(numLinea(n));
+        for (int n : bases) porSis.computeIfAbsent(Sistemas.sistemaDe(n), k -> new java.util.ArrayList<>()).add(numLinea(n));
         java.util.List<String> partes = new java.util.ArrayList<>();
         for (java.util.Map.Entry<Integer, java.util.List<String>> e : porSis.entrySet()) {
             java.util.List<String> nums = e.getValue();
@@ -1430,8 +1434,6 @@ public class RecorridoService extends Service {
         return n;
     }
 
-    private static int sistemaDe(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }   // 0 Metrobús, 1 Mexibús, 2 Mexicable
-
     // Palabras a ignorar al extraer el NÚCLEO de un nombre de estación (prefijos de sistema, "conexión", etc.).
     private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(
             "mxb", "mxc", "mb", "conexion", "mexibus", "meksibus", "mexicable", "meksicable",
@@ -1492,14 +1494,14 @@ public class RecorridoService extends Service {
         java.util.TreeSet<Integer> s = new java.util.TreeSet<>();
         if (p == null || p.pos == null) return s;
         int bp = baseLinea(p.linea);
-        int sisP = sistemaDe(p.linea);
+        int sisP = Sistemas.sistemaDe(p.linea);
         try {
             String pn = Planificador.norm(Planificador.sinMxb(p.nombre));
             java.util.List<Linea> todas = new java.util.ArrayList<>(GtfsRepository.getLineas(this));
             todas.addAll(GtfsRepository.getMexibus(this));
             for (Linea l : todas) {
                 if (baseLinea(l.numero) == bp) continue;   // misma línea/servicio: no es transbordo
-                boolean mismoSistema = sistemaDe(l.numero) == sisP;
+                boolean mismoSistema = Sistemas.sistemaDe(l.numero) == sisP;
                 for (Estacion e : l.estaciones) {
                     if (e.soloMapa) continue;
                     // Mismo sistema: MISMO nombre, o mismo NÚCLEO como respaldo (p. ej. Buenavista L1/L4 vs
