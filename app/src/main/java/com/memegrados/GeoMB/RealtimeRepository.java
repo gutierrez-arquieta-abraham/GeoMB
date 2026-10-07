@@ -144,7 +144,7 @@ public final class RealtimeRepository {
         });
     }
 
-    private List<UnidadReal> parsear(String json) throws Exception {
+    private List<UnidadReal> parsear(String json) throws org.json.JSONException {
         List<UnidadReal> lista = new ArrayList<>();
         JSONArray arr = new JSONArray(json);
         for (int i = 0; i < arr.length(); i++) {

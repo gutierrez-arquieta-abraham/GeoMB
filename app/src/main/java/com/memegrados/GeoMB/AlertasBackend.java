@@ -147,7 +147,7 @@ public final class AlertasBackend {
         Telemetria.registrarError(app, Telemetria.ERR_RED, origen, String.valueOf(e.getMessage()));
     }
 
-    private static void enviar(String urlStr, String metodo, String deviceId, String cuerpoJson) throws Exception {
+    private static void enviar(String urlStr, String metodo, String deviceId, String cuerpoJson) throws java.io.IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         try {
             conn.setRequestMethod(metodo);

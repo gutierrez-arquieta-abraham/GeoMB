@@ -126,7 +126,7 @@ public final class Asistente {
         Resultado(int codigo, String cuerpo) { this.codigo = codigo; this.cuerpo = cuerpo; }
     }
 
-    private static Resultado post(String urlStr, String deviceId, String cuerpoJson) throws Exception {
+    private static Resultado post(String urlStr, String deviceId, String cuerpoJson) throws java.io.IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         try {
             conn.setRequestMethod("POST");

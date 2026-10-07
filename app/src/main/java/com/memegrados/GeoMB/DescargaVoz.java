@@ -159,7 +159,7 @@ public final class DescargaVoz {
     }
 
     /** Baja un texto a la caché de voz (si no está ya). Devuelve true si quedó el archivo. */
-    private static boolean descargarUno(Context ctx, String texto) throws Exception {
+    private static boolean descargarUno(Context ctx, String texto) throws java.io.IOException {
         File out = archivoVoz(ctx, texto);
         if (out == null) return false;
         if (out.exists() && out.length() > 0) return true;   // ya cacheado

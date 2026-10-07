@@ -137,7 +137,7 @@ public final class Modelos {
     // se pueden añadir columnas nuevas (imagen, credito) sin romper nada. Nombres
     // reconocidos: economico, empresa, marca, modelo, imagen/foto/url, credito(s).
     // Si no hay encabezado, se asume: economico,marca,modelo,empresa,imagen,credito.
-    private static void parse(BufferedReader r, Map<Integer, Ficha> out) throws Exception {
+    private static void parse(BufferedReader r, Map<Integer, Ficha> out) throws java.io.IOException {
         String linea;
         int iEco = 0, iEmp = 3, iMar = 1, iMod = 2, iImg = 4, iCred = 5;  // posicional por defecto
         boolean headerListo = false;

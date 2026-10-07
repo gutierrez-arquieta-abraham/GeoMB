@@ -92,7 +92,7 @@ public final class Backend {
     //
     // ========================================================
     /** GET de un path (p. ej. "/data/vehicles.json") con failover entre los dos backends. */
-    public static String descargar(String path) throws Exception {
+    public static String descargar(String path) throws java.io.IOException {
         boolean tocaReintentarPrimario = !activo.equals(Config.BASE_URL)
                 && (System.currentTimeMillis() - ultimoIntentoPrimario) > REINTENTO_PRIMARIO_MS;
         String primero = tocaReintentarPrimario ? Config.BASE_URL : activo;
@@ -128,7 +128,7 @@ public final class Backend {
     //     no error (buena práctica: liberar recursos).
     //
     // ========================================================
-    private static String get(String urlStr) throws Exception {
+    private static String get(String urlStr) throws java.io.IOException {
         long inicio = System.currentTimeMillis();
         ultimoHttpStatus = 0;   // 0 = sin respuesta HTTP (falla de conexión/timeout), distinto de un código real
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
@@ -141,7 +141,7 @@ public final class Backend {
             ultimoEndpoint = urlStr;
             ultimoHttpStatus = status;
             ultimaLatenciaMs = System.currentTimeMillis() - inicio;
-            if (status / 100 != 2) throw new Exception("HTTP " + status);
+            if (status / 100 != 2) throw new java.io.IOException("HTTP " + status);
             StringBuilder sb = new StringBuilder();
             try (BufferedReader r = new BufferedReader(
                     new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {

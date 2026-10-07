@@ -331,13 +331,13 @@ public class PanelAdminActivity extends AppCompatActivity {
         }, "panel-admin-post").start();
     }
 
-    private static void agregarParam(StringBuilder body, String nombre, String valor) throws Exception {
+    private static void agregarParam(StringBuilder body, String nombre, String valor) throws java.io.UnsupportedEncodingException {
         if (valor == null) valor = "";
         if (body.length() > 0) body.append('&');
         body.append(nombre).append('=').append(URLEncoder.encode(valor, "UTF-8"));
     }
 
-    private static String leer(InputStream in) throws Exception {
+    private static String leer(InputStream in) throws java.io.IOException {
         if (in == null) return "";
         StringBuilder sb = new StringBuilder();
         byte[] buf = new byte[4096];
