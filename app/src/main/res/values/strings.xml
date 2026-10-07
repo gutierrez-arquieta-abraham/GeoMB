@@ -405,8 +405,12 @@
     <string name="canal_sincronizacion">Sincronización en segundo plano</string>
     <string name="sincro_switch">Sincronizar en segundo plano</string>
     <string name="sincro_switch_desc">Mantiene los datos de las unidades actualizados aunque la app esté cerrada. Muestra un aviso permanente y puede consumir algo más de batería.</string>
-    <string name="mexibus_switch">Mostrar Mexibús y Mexicable</string>
-    <string name="mexibus_switch_desc">Muestra las líneas y estaciones del Mexibús y el Mexicable en el mapa y las incluye en el planificador de rutas.</string>
+    <string name="sistemas_titulo">Sistemas de transporte</string>
+    <string name="sistemas_desc">Elige qué sistemas se muestran en el mapa y se consideran al planificar una ruta. Metrobús siempre está disponible.</string>
+    <string name="sistema_metrobus">Metrobús</string>
+    <string name="sistema_mexibus">Mexibús</string>
+    <string name="sistema_mexicable">Mexicable</string>
+    <string name="sistema_disponible">Disponible</string>
     <string name="ahorro_datos_switch">Ahorro de datos</string>
     <string name="ahorro_datos_switch_desc">En datos móviles, espacia la actualización de unidades en vivo y usa la voz del teléfono en vez de descargar la voz Mia, para no gastar de más tu paquete de datos. Actívalo/desactívalo según tu plan.</string>
     <string name="notif_titulo">Notificaciones</string>

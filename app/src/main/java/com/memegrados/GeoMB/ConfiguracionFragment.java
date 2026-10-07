@@ -163,16 +163,17 @@ public class ConfiguracionFragment extends Fragment {
             }
         });
 
-        // "Mostrar Mexibús": capa en el mapa + que el planificador considere sus estaciones.
-        // Mexibús y Mexicable ya son ajustes independientes (Modos.mostrarMexibus/mostrarMexicable),
-        // pero este único switch sigue controlando AMBOS a la vez -- todavía no existe el selector
-        // por sistema; eso llega en la siguiente etapa, sin cambiar el comportamiento visible de hoy.
+        // Sistemas de transporte: Mexibús y Mexicable se alternan cada uno por su cuenta (Metrobús
+        // no tiene control: siempre está disponible, es el único con feed de unidades en vivo).
         SwitchMaterial swMexibus = view.findViewById(R.id.sw_mexibus);
         swMexibus.setChecked(Modos.mostrarMexibus(requireContext()));
-        swMexibus.setOnCheckedChangeListener((btn, activar) -> {
-            Modos.setMostrarMexibus(requireContext(), activar);
-            Modos.setMostrarMexicable(requireContext(), activar);
-        });
+        swMexibus.setOnCheckedChangeListener((btn, activar) ->
+                Modos.setMostrarMexibus(requireContext(), activar));
+
+        SwitchMaterial swMexicable = view.findViewById(R.id.sw_mexicable);
+        swMexicable.setChecked(Modos.mostrarMexicable(requireContext()));
+        swMexicable.setOnCheckedChangeListener((btn, activar) ->
+                Modos.setMostrarMexicable(requireContext(), activar));
 
         // "Ahorro de datos": activo por defecto; espacia el refresco de unidades en vivo y evita
         // descargar la voz Mia mientras se está en datos móviles (ver Red.java).

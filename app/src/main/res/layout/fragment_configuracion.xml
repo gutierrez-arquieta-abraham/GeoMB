@@ -153,28 +153,105 @@
                 android:textSize="13sp"
                 android:lineSpacingExtra="2dp" />
 
-            <!-- Mostrar Mexibús -->
+            <!-- Sistemas de transporte: Metrobús siempre disponible (el feed en vivo es solo suyo);
+                 Mexibús y Mexicable se alternan cada uno por su cuenta (Modos.mostrarMexibus/
+                 mostrarMexicable), nunca juntos desde aquí. -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="18dp"
                 android:background="@color/mb_outline" />
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/sw_mexibus"
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="@string/mexibus_switch" />
+                android:text="@string/sistemas_titulo"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="@string/mexibus_switch_desc"
+                android:text="@string/sistemas_desc"
                 android:textColor="@color/mb_gray"
                 android:textSize="13sp"
                 android:lineSpacingExtra="2dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:contentDescription="@string/sistema_metrobus"
+                    android:src="@drawable/logo_metrobus_nuevo" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/sistema_metrobus"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sistema_disponible"
+                    android:textColor="@color/mb_gray"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:contentDescription="@string/sistema_mexibus"
+                    android:src="@drawable/logo_mexibus_nuevo" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_mexibus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/sistema_mexibus" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:contentDescription="@string/sistema_mexicable"
+                    android:src="@drawable/logo_mexicable_nuevo" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_mexicable"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/sistema_mexicable" />
+            </LinearLayout>
 
             <!-- Ahorro de datos -->
             <View
