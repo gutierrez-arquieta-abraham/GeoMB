@@ -230,14 +230,19 @@ public class RecorridoService extends Service {
         if (r != null) handler.post(r);
     }
 
-    /** Se llama cuando TERMINA de sonar un aviso completo (tururu + voz): dispara la acción pendiente
-     *  de fin de recorrido (si la hay) y de inmediato sigue con el siguiente aviso en cola, si hay. Si
-     *  el usuario ya pidió salir del recorrido, solo apaga el servicio hasta que la cola quede VACÍA
-     *  (no tras el primer aviso que termine): procesarSiguienteVoz() dejó vozOcupada=false si ya no
-     *  queda nada pendiente. */
+    /** Se llama cuando TERMINA de sonar un aviso completo (tururu + voz): sigue con el siguiente aviso
+     *  en cola si hay, y SOLO si la cola queda REALMENTE vacía (procesarSiguienteVoz() dejó
+     *  vozOcupada=false) dispara la acción pendiente de fin de recorrido, si la hay -- igual que ya
+     *  hacía {@code detenerPendiente} para la salida manual. Antes se disparaba ANTES de intentar sacar
+     *  el siguiente de la cola: si el aviso final ("llegaste") se encolaba detrás de uno que ya estaba
+     *  sonando (p. ej. "próxima estación: terminal" todavía reproduciéndose cuando el GPS detecta la
+     *  llegada), ese aviso anterior terminaba, alFinVoz disparaba stopSelf() de inmediato, y onDestroy()
+     *  llamaba colaVoz.clear()+tts.shutdown() -- el aviso final nunca llegaba a sonar completo (o ni
+     *  llegaba a empezar). Por eso se notaba sobre todo en la última estación: es el único lugar del
+     *  archivo donde se fija alFinVoz. */
     private void vozTerminada() {
-        dispararFinVoz();
         procesarSiguienteVoz();
+        if (!vozOcupada) dispararFinVoz();
         if (detenerPendiente && !vozOcupada) detenerDeVerdad();
     }
     private int ultVoz = -99;              // índice ya anunciado por voz (solo "llegaste" al final)
