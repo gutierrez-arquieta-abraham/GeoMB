@@ -490,28 +490,38 @@ public class RecorridoService extends Service {
      *  eran "3 estaciones", pero el espaciado entre estaciones varía mucho entre sistemas (Metrobús
      *  vs. Mexibús L4), así que un umbral de distancia es más consistente. */
     private static final float SALTO_MIN_METROS = 800f;
-    // Sin esto, el reanclaje solo exigía estar PARADO sobre una estación de otro trazo, sin verificar
-    // que hubiera un enlace real (correspondencia/conexión/transbordo, por nombre o "sistemático"
-    // declarado, p. ej. Delegación Cuauhtémoc↔El Chopo) cerca de tu posición que explicara cómo
-    // llegaste ahí. Dos trazos de la ruta pueden coincidir en el mapa por pura casualidad geográfica
-    // sin que exista una correspondencia real en ese punto; sin este resguardo el recorrido podía
-    // "reanclarse" ahí igual. 700 m es un margen razonable de caminata desde el punto de enlace real.
-    private static final float RADIO_ENLACE_M = 700f;
+    // Umbral de REUBICACIÓN: qué tan lejos de una parada de OTRA línea de la ruta puede estar tu GPS
+    // para considerar que estás viajando en ella. Antes (RADIO_ENLACE_M=700) esto se medía CONTRA EL
+    // PUNTO DE ENLACE fijo (seq.get(inicio), donde la ruta aborda ese trazo) en vez de contra la propia
+    // parada candidata: con 2 líneas (A→B) alcanzaba a colar por geometría (abordar B poco después del
+    // enlace A→B todavía cae, por casualidad, dentro de esos 700 m del enlace), pero con 3+ líneas
+    // (A→B→C) la combinación era imposible de cumplir a la vez que SALTO_MIN_METROS: ya ≥800 m DENTRO
+    // de C (tras el enlace B→C) tu posición real deja de estar a 700 m del enlace B→C, así que el
+    // reanclaje nunca encontraba C (se quedaba clavado en A/B). El radio se mide ahora contra la propia
+    // parada candidata (ya es, por construcción, una parada real y planificada de esa línea), lo que
+    // además cubre ir sin detenerse justo sobre el nombre de una estación (unidad en movimiento).
+    private static final float RADIO_REUBICACION_M = 900f;
 
     /**
-     * Si la ubicación está sobre una parada de OTRA línea de la ruta, a ≥{@link #SALTO_MIN_METROS}
-     * de recorrido dentro de esa línea (después de la correspondencia), Y además tu posición está a
-     * ≤{@link #RADIO_ENLACE_M} del punto real donde la ruta entra a ese trazo (el enlace ya construido
-     * por el planificador, sea por nombre/cercanía o declarado manualmente), devuelve su índice para
-     * reanclar ahí. Si no, devuelve {@code best}.
+     * Si la ubicación está a ≤{@link #RADIO_REUBICACION_M} de una parada de OTRA línea de la ruta
+     * (adelante de {@code best}, respetando el orden de la ruta), Y esa parada queda a
+     * ≥{@link #SALTO_MIN_METROS} de recorrido dentro de su propio trazo (tras la correspondencia que
+     * ya construyó el planificador -- descarta la mera primera parada, donde una coincidencia
+     * geográfica es más probable), es una candidata válida. Devuelve la MÁS CERCANA de todas las
+     * candidatas válidas (de cualquier línea posterior, no solo la siguiente) -- no la más adelantada:
+     * si dos líneas distintas de la ruta califican a la vez (p. ej. vas por B pero una parada de C,
+     * más adelante en la ruta, también cae dentro del radio), la distancia real es la que distingue en
+     * cuál de las dos estás de verdad. Si ninguna califica, devuelve {@code best}.
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
+        double mejorDist = Double.MAX_VALUE;
         int trazoBest = seq.get(best).linea;                          // trazo = servicio (ordinario≠exprés≠ramal)
         for (int j = best + 1; j < seq.size(); j++) {
             Planificador.Parada pj = seq.get(j);
             if (pj.linea == trazoBest) continue;                       // mismo trazo/servicio que el actual: no aplica
-            if (distParada(l, pj) > radioCerca(pj)) continue;          // no estás sobre esa parada
+            double d = distParada(l, pj);
+            if (d > RADIO_REUBICACION_M) continue;                     // no estás cerca de esa parada
             // 'inicio' = primer índice de la racha de ESE trazo que termina en j (el nodo donde la ruta
             // ABORDA ese trazo: el propio punto de correspondencia/conexión/transbordo que construyó el
             // planificador). Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS
@@ -519,8 +529,7 @@ public class RecorridoService extends Service {
             int inicio = j;
             for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) inicio = k;
             if (distanciaTrazo(seq, inicio, j) < SALTO_MIN_METROS) continue;
-            if (!enlaceCerca(l, seq, inicio)) continue;                // sin un enlace real cerca: no reanclar
-            mejor = j;                                                 // toma la más adelantada válida
+            if (d < mejorDist) { mejor = j; mejorDist = d; }           // la candidata válida más cercana
         }
         return mejor;
     }
@@ -533,15 +542,6 @@ public class RecorridoService extends Service {
             if (a != null && b != null) d += haversine(a.latitude, a.longitude, b.latitude, b.longitude);
         }
         return d;
-    }
-
-    /** ¿Hay un enlace real (correspondencia/conexión/transbordo) cerca de tu posición, en el punto
-     *  donde la ruta aborda el trazo que empieza en 'inicio'? Se mide contra esa propia parada y la
-     *  anterior (de donde bajas para hacer el enlace), lo que quede más cerca. */
-    private boolean enlaceCerca(android.location.Location l, List<Planificador.Parada> seq, int inicio) {
-        double d = distParada(l, seq.get(inicio));
-        if (inicio > 0) d = Math.min(d, distParada(l, seq.get(inicio - 1)));
-        return d <= RADIO_ENLACE_M;
     }
 
     /** Envoltura de {@link #procesarInterno}: se llama en CADA fix de GPS de un recorrido activo
@@ -631,9 +631,11 @@ public class RecorridoService extends Service {
                 bd = d; best = i;
             }
         }
-        // Reanclaje a OTRA línea: si la ubicación ya está claramente sobre una parada MUY adentro de otra
-        // línea de la ruta (≥3 estaciones después de la correspondencia), el aviso salta a esa línea. Así,
-        // si te subiste directo o la línea previa cerró, el recorrido no queda clavado en la anterior.
+        // Reanclaje a OTRA línea: si la ubicación ya está claramente sobre una parada de CUALQUIER línea
+        // posterior de la ruta (no solo la siguiente -- recorre TODAS las que falten, en orden, y evita
+        // retroceder a una ya pasada) a ≥SALTO_MIN_METROS de recorrido dentro de su propio trazo, el
+        // aviso salta ahí. Así, si te subiste directo, te saltaste una correspondencia intermedia sin
+        // pasar por ella, o la línea previa cerró, el recorrido no queda clavado en una línea anterior.
         int salto = reanclarOtraLinea(l, seq, best);
         if (salto > best) {
             Telemetria.registrarError(this, Telemetria.ERR_REANCLAJE, "RecorridoService.reanclarOtraLinea",
