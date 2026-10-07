@@ -165,7 +165,7 @@ public final class ReporteIrregularidad {
         try {
             ctx.startActivity(Intent.createChooser(i, "Reportar irregularidad")
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (Exception ignore) {
+        } catch (android.content.ActivityNotFoundException ignore) {
             // Sin cliente de correo instalado: no truena.
         }
     }

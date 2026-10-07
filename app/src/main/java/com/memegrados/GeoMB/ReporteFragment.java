@@ -375,7 +375,7 @@ public class ReporteFragment extends Fragment {
             File f = new File(dir, "ev_" + System.currentTimeMillis() + "." + ext);
             return FileProvider.getUriForFile(requireContext(),
                     requireContext().getPackageName() + ".fileprovider", f);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return null;
         }
     }

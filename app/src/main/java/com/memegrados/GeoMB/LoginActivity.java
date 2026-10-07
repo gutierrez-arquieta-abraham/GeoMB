@@ -208,9 +208,7 @@ public class LoginActivity extends AppCompatActivity {
         datos.put("tipo", tipo == Perfil.AFICIONADO ? "aficionado" : "normal");
         datos.put("movilidadReducida", movilidad);
         datos.put("genero", genero == Perfil.MUJER ? "mujer" : "hombre");
-        try {
-            FirebaseFirestore.getInstance().collection("usuarios")
-                    .document(u.getUid()).set(datos, SetOptions.merge());
-        } catch (Exception ignore) {}
+        FirebaseFirestore.getInstance().collection("usuarios")
+                .document(u.getUid()).set(datos, SetOptions.merge());
     }
 }

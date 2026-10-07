@@ -139,7 +139,7 @@ public final class Traductor {
     }
 
     private static void cerrar() {
-        if (cliente != null) { try { cliente.close(); } catch (Throwable ignore) {} }
+        if (cliente != null) { try { cliente.close(); } catch (RuntimeException ignore) {} }
         cliente = null; clienteLang = null; modeloListo = false;
     }
 

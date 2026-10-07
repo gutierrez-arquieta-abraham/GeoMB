@@ -127,7 +127,9 @@ public class ManifestacionesService extends Service {
         try {
             androidx.core.content.ContextCompat.startForegroundService(
                     c, new Intent(c, ManifestacionesService.class));
-        } catch (Exception ignore) {}   // Android puede negar el arranque del foreground service
+        } catch (IllegalStateException e) {   // Android puede negar el arranque del foreground service
+            Telemetria.registrarError(c, Telemetria.ERR_EXCEPCION, "ManifestacionesService.iniciar", String.valueOf(e));
+        }
     }
 
     @Override
@@ -342,7 +344,7 @@ public class ManifestacionesService extends Service {
         catch (Exception e) { payload = jsonValue != null ? jsonValue : ""; }
 
         JSONArray rows = null;
-        try { rows = new JSONObject(payload).optJSONArray("rows"); } catch (Exception ignore) {}
+        try { rows = new JSONObject(payload).optJSONArray("rows"); } catch (org.json.JSONException ignore) {}
 
         Set<String> afect = afectAcc;
         List<Manifestaciones.Afectacion> lista = listaAcc;
@@ -354,7 +356,7 @@ public class ManifestacionesService extends Service {
                 if (r == null) continue;
                 String tipo = r.optString("tipo", "");
                 int nlinea = -1;
-                try { nlinea = Integer.parseInt(r.optString("linea", "").trim()); } catch (Exception ignore) {}
+                try { nlinea = Integer.parseInt(r.optString("linea", "").trim()); } catch (NumberFormatException ignore) {}
                 String lineaLabel = nlinea > 0 ? getString(R.string.manifest_linea_fmt, String.valueOf(nlinea)) : "";
 
                 Manifestaciones.Afectacion a;
@@ -1041,7 +1043,7 @@ public class ManifestacionesService extends Service {
             if (s.isEmpty()) return;
             JSONArray arr = new JSONArray(s);
             for (int i = 0; i < arr.length(); i++) notifClaves.add(arr.optString(i));
-        } catch (Exception ignore) {}
+        } catch (org.json.JSONException ignore) {}
     }
 
     /** Persiste el conjunto de claves avisadas. */

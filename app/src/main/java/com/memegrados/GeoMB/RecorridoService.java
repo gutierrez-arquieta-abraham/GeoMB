@@ -301,7 +301,7 @@ public class RecorridoService extends Service {
             o.put("paradas", arr);
             c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
                     .edit().putString("ruta", o.toString()).apply();
-        } catch (Exception ignore) {}
+        } catch (org.json.JSONException ignore) {}
     }
 
     /** Reconstruye {@link #paradas} desde disco cuando el proceso revivió sin la ruta en memoria. */
@@ -324,13 +324,13 @@ public class RecorridoService extends Service {
             if (seq.isEmpty()) return false;
             paradas = seq; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
             return true;
-        } catch (Exception e) { return false; }
+        } catch (org.json.JSONException e) { return false; }
     }
 
     private void limpiarPersistencia() { limpiarPersistencia(this); }
     private static void limpiarPersistencia(android.content.Context c) {
-        try { c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-                .edit().remove("ruta").apply(); } catch (Exception ignore) {}
+        c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                .edit().remove("ruta").apply();
     }
 
     @Override public void onCreate() {
@@ -821,12 +821,12 @@ public class RecorridoService extends Service {
                     float vs = volumenSistema();
                     mp.setVolume(TURURU_VOL * vs, TURURU_VOL * vs);   // ~70% para que no reviente los oídos
                     mp.setOnCompletionListener(m -> {
-                        try { m.release(); } catch (Exception ignore) {}
+                        try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
                         handler.postDelayed(() -> decirConVoz(texto), 250);   // deja respirar antes de la voz
                     });
                     mp.setOnErrorListener((m, a, b) -> {
-                        try { m.release(); } catch (Exception ignore) {}
+                        try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
                         decirConVoz(texto);
                         return true;
@@ -842,8 +842,8 @@ public class RecorridoService extends Service {
     /** Detiene y libera el reproductor en curso (tururu o voz) para que no se encimen. */
     private void soltarActual() {
         if (mpActual != null) {
-            try { mpActual.stop(); } catch (Exception ignore) {}
-            try { mpActual.release(); } catch (Exception ignore) {}
+            try { mpActual.stop(); } catch (IllegalStateException ignore) {}
+            try { mpActual.release(); } catch (IllegalStateException ignore) {}
             mpActual = null;
         }
     }
@@ -958,7 +958,7 @@ public class RecorridoService extends Service {
                 while ((n = in.read(buf)) > 0) fo.write(buf, 0, n);
             }
             return out.length() > 0 ? out : null;
-        } catch (Exception e) {
+        } catch (java.io.IOException e) {
             return null;
         } finally {
             if (c != null) c.disconnect();
@@ -977,7 +977,7 @@ public class RecorridoService extends Service {
             float vs = volumenSistema();
             mp.setVolume(VOZ_VOL * vs, VOZ_VOL * vs);   // respeta el volumen de medios puesto por el usuario
             mp.setOnCompletionListener(m -> {
-                try { m.release(); } catch (Exception ignore) {}
+                try { m.release(); } catch (IllegalStateException ignore) {}
                 if (mpActual == m) mpActual = null;
                 vozTerminada();   // terminó la voz: acción pendiente de fin + siguiente aviso en cola
             });

@@ -133,7 +133,11 @@ public class PlanificadorFragment extends Fragment {
         if (progressTrazando != null) progressTrazando.setVisibility(View.VISIBLE);
         calcExec.execute(() -> {
             Planificador.Ruta r;
-            try { r = tarea.call(); } catch (Exception e) { r = null; }
+            try { r = tarea.call(); } catch (Exception e) {
+                r = null;
+                android.content.Context ctx = getContext();
+                if (ctx != null) Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "PlanificadorFragment.calcularAsync.tarea", String.valueOf(e.getMessage()));
+            }
             final Planificador.Ruta res = r;
             if (!isAdded()) return;
             handler.post(() -> {

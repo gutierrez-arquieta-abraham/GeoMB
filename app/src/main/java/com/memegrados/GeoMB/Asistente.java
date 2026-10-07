@@ -105,7 +105,7 @@ public final class Asistente {
     private static String extraerCampo(String cuerpoJson, String campo, String porDefecto) {
         try {
             return new JSONObject(cuerpoJson).optString(campo, porDefecto);
-        } catch (Exception e) {
+        } catch (org.json.JSONException e) {
             return porDefecto;
         }
     }
@@ -115,7 +115,7 @@ public final class Asistente {
     private static JSONObject extraerAccionPendiente(String cuerpoJson) {
         try {
             return new JSONObject(cuerpoJson).optJSONObject("accionPendiente");
-        } catch (Exception e) {
+        } catch (org.json.JSONException e) {
             return null;
         }
     }

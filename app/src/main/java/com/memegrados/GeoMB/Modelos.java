@@ -104,7 +104,7 @@ public final class Modelos {
                     combinado.putAll(remoto);   // el remoto manda
                     tabla = combinado;
                 }
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 // descargarRemoto() ya atajaba sus propios errores de red; esto cubre el combinado.
                 // Una falla aquí no debe tumbar la app, solo dejar la tabla en su versión empaquetada.
                 Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "Modelos.init", String.valueOf(t));

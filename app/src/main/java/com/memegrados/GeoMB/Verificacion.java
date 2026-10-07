@@ -95,7 +95,7 @@ public final class Verificacion {
             com.google.firebase.auth.FirebaseUser u =
                     com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
             return u != null ? u.getUid() : null;
-        } catch (Throwable t) {
+        } catch (IllegalStateException t) {
             return null;
         }
     }

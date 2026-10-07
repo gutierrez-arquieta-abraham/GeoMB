@@ -38,14 +38,18 @@ public final class TelemetriaSync {
         // porque ReporteApp nunca exige sesión iniciada -- a diferencia del resto de la telemetría,
         // esta parte NO se salta si no hay login.
         IO.execute(() -> {
-            try { subirReportes(app); } catch (Exception ignore) {}   // sin conexión: Firestore encola y reintenta solo
+            try { subirReportes(app); } catch (RuntimeException e) {
+                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "TelemetriaSync.subirReportes", String.valueOf(e));
+            }
         });
 
         FirebaseUser u = FirebaseAuth.getInstance().getCurrentUser();
         if (u == null) return;   // sin sesión: el resto se sincroniza la próxima vez que haya
         String uid = u.getUid();
         IO.execute(() -> {
-            try { subir(app, uid); } catch (Exception ignore) {}   // sin conexión: Firestore encola y reintenta solo
+            try { subir(app, uid); } catch (RuntimeException e) {
+                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "TelemetriaSync.subir", String.valueOf(e));
+            }
         });
     }
 

@@ -110,27 +110,25 @@ public final class Locuciones {
         TreeSet<Integer> s = new TreeSet<>();
         if (pos == null) return s;
         int bp = baseLinea(linea), sisP = Sistemas.sistemaDe(linea);
-        try {
-            String pn = Planificador.norm(Planificador.sinMxb(nombre));
-            List<Linea> todas = new ArrayList<>(GtfsRepository.getLineas(ctx));
-            todas.addAll(GtfsRepository.getMexibus(ctx));
-            for (Linea l : todas) {
-                if (baseLinea(l.numero) == bp) continue;
-                boolean mismoSistema = Sistemas.sistemaDe(l.numero) == sisP;
-                for (Estacion e : l.estaciones) {
-                    if (e.soloMapa) continue;
-                    // Mismo sistema: mismo nombre, o mismo núcleo como respaldo (p. ej. Buenavista L1/L4 vs
-                    // "Buenavista II"/"Buenavista III" de L3): debe mantenerse en sincronía con
-                    // RecorridoService.lineasEnEstacion(), si no las frases pre-descargadas no calzan con
-                    // las que se generan en vivo y siempre se cae al respaldo en línea/TTS.
-                    boolean nombreOk = mismoSistema
-                            ? (Planificador.norm(Planificador.sinMxb(e.nombre)).equals(pn) || nucleoCoincide(nombre, e.nombre))
-                            : nucleoCoincide(nombre, e.nombre);
-                    if (!nombreOk) continue;
-                    if (Linea.distancia(pos, e.posicion) <= CORRESP_VOZ_M) { s.add(baseLinea(l.numero)); break; }
-                }
+        String pn = Planificador.norm(Planificador.sinMxb(nombre));
+        List<Linea> todas = new ArrayList<>(GtfsRepository.getLineas(ctx));
+        todas.addAll(GtfsRepository.getMexibus(ctx));
+        for (Linea l : todas) {
+            if (baseLinea(l.numero) == bp) continue;
+            boolean mismoSistema = Sistemas.sistemaDe(l.numero) == sisP;
+            for (Estacion e : l.estaciones) {
+                if (e.soloMapa) continue;
+                // Mismo sistema: mismo nombre, o mismo núcleo como respaldo (p. ej. Buenavista L1/L4 vs
+                // "Buenavista II"/"Buenavista III" de L3): debe mantenerse en sincronía con
+                // RecorridoService.lineasEnEstacion(), si no las frases pre-descargadas no calzan con
+                // las que se generan en vivo y siempre se cae al respaldo en línea/TTS.
+                boolean nombreOk = mismoSistema
+                        ? (Planificador.norm(Planificador.sinMxb(e.nombre)).equals(pn) || nucleoCoincide(nombre, e.nombre))
+                        : nucleoCoincide(nombre, e.nombre);
+                if (!nombreOk) continue;
+                if (Linea.distancia(pos, e.posicion) <= CORRESP_VOZ_M) { s.add(baseLinea(l.numero)); break; }
             }
-        } catch (Exception ignore) {}
+        }
         return s;
     }
 

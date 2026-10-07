@@ -84,7 +84,7 @@ public final class DiagnosticoReporte {
             PackageInfo pi = app.getPackageManager().getPackageInfo(app.getPackageName(), 0);
             if (pi.versionName != null) d.versionApp = pi.versionName;
             d.versionCode = pi.versionCode;
-        } catch (Exception ignore) {}
+        } catch (android.content.pm.PackageManager.NameNotFoundException ignore) {}
 
         recolectarConectividad(app, d);
         recolectarGps(app, d);
@@ -136,7 +136,7 @@ public final class DiagnosticoReporte {
                     }
                 }
             }
-        } catch (Throwable t) {
+        } catch (RuntimeException t) {
             // deja los valores por defecto (NO_DISPONIBLE / null)
         }
     }

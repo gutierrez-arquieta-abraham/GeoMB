@@ -296,7 +296,11 @@ public final class GtfsRepository {
                 if (clave != null && ruta != null && ruta.size() >= 2) m.put(clave, ruta);
             }
             jr.endArray();
-        } catch (Exception e) { /* sin sublineas.json: mixtos por estaciones (recto) */ }
+        } catch (java.io.FileNotFoundException e) {
+            /* sin sublineas.json: mixtos por estaciones (recto) */
+        } catch (IOException | NumberFormatException | IllegalStateException e) {
+            Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "GtfsRepository.cargarSublineas", String.valueOf(e));
+        }
         return m;
     }
 
@@ -342,7 +346,12 @@ public final class GtfsRepository {
             }
             jr.endObject();
             return mapa;
-        } catch (Exception e) { return null; }   // sin archivo: se usan las de lineas.json
+        } catch (java.io.FileNotFoundException e) {
+            return null;   // sin archivo: se usan las de lineas.json
+        } catch (IOException | NumberFormatException | IllegalStateException e) {
+            Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "GtfsRepository.leerEstaciones", String.valueOf(e));
+            return null;
+        }
     }
 
     /**
@@ -405,6 +414,10 @@ public final class GtfsRepository {
                 }
             }
             jr.endArray();
-        } catch (Exception e) { /* sin segmentos.json: trazado simple (linea.ruta) */ }
+        } catch (java.io.FileNotFoundException e) {
+            /* sin segmentos.json: trazado simple (linea.ruta) */
+        } catch (IOException | NumberFormatException | IllegalStateException e) {
+            Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "GtfsRepository.cargarSegmentos", String.valueOf(e));
+        }
     }
 }

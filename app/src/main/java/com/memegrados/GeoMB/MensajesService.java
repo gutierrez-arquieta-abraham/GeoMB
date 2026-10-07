@@ -310,10 +310,12 @@ public class MensajesService extends FirebaseMessagingService {
     }
 
     private static int entero(String s) {
-        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return -1; }
+        if (s == null) return -1;
+        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return -1; }
     }
 
     private static long largo(String s) {
-        try { return Long.parseLong(s.trim()); } catch (Exception e) { return 0L; }
+        if (s == null) return 0L;
+        try { return Long.parseLong(s.trim()); } catch (NumberFormatException e) { return 0L; }
     }
 }

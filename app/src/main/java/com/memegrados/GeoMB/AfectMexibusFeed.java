@@ -469,7 +469,7 @@ public final class AfectMexibusFeed {
             while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
             in.close();
             return bo.toByteArray();
-        } catch (Exception e) {
+        } catch (java.io.IOException e) {
             return null;
         } finally {
             if (c != null) c.disconnect();

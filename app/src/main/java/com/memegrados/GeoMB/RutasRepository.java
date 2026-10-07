@@ -58,7 +58,7 @@ public final class RutasRepository {
                     porId = mapa;
                     cargado = true;
                 }
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 // descargar() ya atajaba sus propios errores de red; esto cubre asignarCodigos()
                 // y RutasMixtas.comoRutas(), que no lo hacían -- una falla aquí no debe tumbar la
                 // app, solo dejar el catálogo de rutas sin cargar (se reintenta en el próximo init()).
