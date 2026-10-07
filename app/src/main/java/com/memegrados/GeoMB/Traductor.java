@@ -232,12 +232,10 @@ public final class Traductor {
 
         try {
             t.translate(src).addOnSuccessListener(res -> {
-                try {
-                    if (res == null || res.isEmpty()) return;
-                    cache.put(src, res);
-                    // Solo si la vista sigue mostrando el texto original (no cambió mientras tanto).
-                    if (src.contentEquals(tv.getText())) tv.setText(res);
-                } catch (Exception ignore) {}
+                if (res == null || res.isEmpty()) return;
+                cache.put(src, res);
+                // Solo si la vista sigue mostrando el texto original (no cambió mientras tanto).
+                if (src.contentEquals(tv.getText())) tv.setText(res);
             });
         } catch (Exception ignore) {}
     }

@@ -197,7 +197,7 @@ public class MensajesService extends FirebaseMessagingService {
                 long propia = androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(
                         getPackageManager().getPackageInfo(getPackageName(), 0));
                 if (propia >= versionRemota) return;
-            } catch (Exception ignore) {}
+            } catch (android.content.pm.PackageManager.NameNotFoundException ignore) {}
         }
         Intent tienda = new Intent(Intent.ACTION_VIEW,
                 Uri.parse("market://details?id=" + getPackageName()))

@@ -466,8 +466,7 @@ public class PlanificadorFragment extends Fragment {
     private final Runnable ajusteMapaAccion = () -> {
         View root = getView();
         if (root != null && ajusteMapaListener != null) {
-            try { root.getViewTreeObserver().removeOnGlobalLayoutListener(ajusteMapaListener); }
-            catch (Exception ignore) {}
+            root.getViewTreeObserver().removeOnGlobalLayoutListener(ajusteMapaListener);
         }
         ajusteMapaListener = null;
         if (!isAdded() || mapa == null) return;
@@ -1674,8 +1673,7 @@ public class PlanificadorFragment extends Fragment {
         handler.removeCallbacks(tickRecorrido);
         handler.removeCallbacks(ajusteMapaAccion);
         if (ajusteMapaListener != null && getView() != null) {
-            try { getView().getViewTreeObserver().removeOnGlobalLayoutListener(ajusteMapaListener); }
-            catch (Exception ignore) {}
+            getView().getViewTreeObserver().removeOnGlobalLayoutListener(ajusteMapaListener);
         }
         ajusteMapaListener = null;
         trazo.clear();

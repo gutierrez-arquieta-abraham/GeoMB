@@ -195,7 +195,7 @@ public class SincronizacionService extends Service {
     public void onTimeout(int startId) {
         activo = false;
         handler.removeCallbacksAndMessages(null);
-        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignore) {}
+        stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
 

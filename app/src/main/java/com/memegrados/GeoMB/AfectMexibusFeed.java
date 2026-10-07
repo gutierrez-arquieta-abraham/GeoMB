@@ -200,17 +200,17 @@ public final class AfectMexibusFeed {
                 JSONArray arr = new JSONArray(raw);
                 for (int i = 0; i < arr.length(); i++) s.add(arr.optString(i));
             }
-        } catch (Exception ignore) {}
+        } catch (org.json.JSONException e) {
+            Telemetria.registrarError(c, Telemetria.ERR_EXCEPCION, "AfectMexibusFeed.cargarVistos", String.valueOf(e));
+        }
         return s;
     }
 
     private static void guardarVistos(Context c, Set<String> s) {
-        try {
-            JSONArray arr = new JSONArray();
-            for (String k : s) arr.put(k);
-            c.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
-                    .putString(KEY_VISTOS, arr.toString()).apply();
-        } catch (Exception ignore) {}
+        JSONArray arr = new JSONArray();
+        for (String k : s) arr.put(k);
+        c.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
+                .putString(KEY_VISTOS, arr.toString()).apply();
     }
 
     // ==================================================================== PARSER (port de Python)
@@ -447,7 +447,9 @@ public final class AfectMexibusFeed {
     private static long parseFecha(String pub) {
         if (pub == null || pub.trim().isEmpty()) return System.currentTimeMillis();
         try { Date d = RFC822.parse(pub.trim()); if (d != null) return d.getTime(); }
-        catch (Exception ignore) {}
+        catch (java.text.ParseException e) {
+            android.util.Log.w("AfectMexibusFeed", "fecha no reconocida: " + pub, e);
+        }
         return System.currentTimeMillis();
     }
 

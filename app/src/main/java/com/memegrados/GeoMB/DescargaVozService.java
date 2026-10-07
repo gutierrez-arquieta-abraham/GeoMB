@@ -76,7 +76,11 @@ public class DescargaVozService extends Service {
         Intent i = new Intent(c, DescargaVozService.class)
                 .putExtra(EXTRA_LINEAS, arr)
                 .putExtra(EXTRA_NOMBRE, nombre);
-        try { ContextCompat.startForegroundService(c, i); } catch (Exception ignore) {}
+        try {
+            ContextCompat.startForegroundService(c, i);
+        } catch (IllegalStateException | SecurityException e) {
+            Telemetria.registrarError(c, Telemetria.ERR_EXCEPCION, "DescargaVozService.iniciar", String.valueOf(e));
+        }
     }
 
     /** Cancela la descarga en curso (botón "Cancelar" del diálogo o de la notificación). */
@@ -250,7 +254,7 @@ public class DescargaVozService extends Service {
     @Override
     public void onTimeout(int startId) {
         corriendo = false;
-        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignore) {}
+        stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
 

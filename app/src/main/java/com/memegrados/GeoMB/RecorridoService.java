@@ -935,13 +935,11 @@ public class RecorridoService extends Service {
     // Si por lo que sea no hay almacenamiento externo disponible (SD extraíble desmontada, etc.),
     // cae al interno para no perder la función.
     private java.io.File archivoVoz(String texto) {
-        try {
-            java.io.File base = getExternalFilesDir(null);
-            if (base == null) base = getFilesDir();
-            java.io.File dir = new java.io.File(base, "voz");
-            if (!dir.exists()) dir.mkdirs();
-            return new java.io.File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
-        } catch (Exception e) { return null; }
+        java.io.File base = getExternalFilesDir(null);
+        if (base == null) base = getFilesDir();
+        java.io.File dir = new java.io.File(base, "voz");
+        if (!dir.exists()) dir.mkdirs();
+        return new java.io.File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
     }
 
     private java.io.File descargarVoz(String texto) {

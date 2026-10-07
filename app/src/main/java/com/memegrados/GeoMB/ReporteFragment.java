@@ -247,22 +247,22 @@ public class ReporteFragment extends Fragment {
     private LatLng posicionEstacion(String nn) {
         double lat = 0, lon = 0;
         int c = 0;
-        try {
-            for (Linea l : GtfsRepository.getLineas(requireContext()))
-                for (Estacion e : l.estaciones)
-                    if (Planificador.norm(e.nombre).equals(nn)) {
-                        lat += e.posicion.latitude; lon += e.posicion.longitude; c++;
-                    }
-        } catch (Exception ignore) {}
+        for (Linea l : GtfsRepository.getLineas(requireContext()))
+            for (Estacion e : l.estaciones) {
+                if (e.nombre == null || e.posicion == null) continue;
+                if (Planificador.norm(e.nombre).equals(nn)) {
+                    lat += e.posicion.latitude; lon += e.posicion.longitude; c++;
+                }
+            }
         return c == 0 ? null : new LatLng(lat / c, lon / c);
     }
 
     private int lineaEstacion(String nn) {
-        try {
-            for (Linea l : GtfsRepository.getLineas(requireContext()))
-                for (Estacion e : l.estaciones)
-                    if (Planificador.norm(e.nombre).equals(nn)) return l.numero;
-        } catch (Exception ignore) {}
+        for (Linea l : GtfsRepository.getLineas(requireContext()))
+            for (Estacion e : l.estaciones) {
+                if (e.nombre == null || e.posicion == null) continue;
+                if (Planificador.norm(e.nombre).equals(nn)) return l.numero;
+            }
         return 0;
     }
 

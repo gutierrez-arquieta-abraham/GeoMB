@@ -75,15 +75,11 @@ public class MainActivity extends AppCompatActivity {
         Modelos.init(getApplicationContext());
         // Carga el catálogo de rutas (route_id → línea, origen, destino).
         RutasRepository.init();
-        // Reanuda la sincronización en segundo plano si el usuario la dejó activa.
-        // Android 12+ puede negar el arranque del foreground service (p. ej. justo tras un
-        // timeout del FGS anterior); sin este try-catch, ForegroundServiceStartNotAllowedException
-        // tumbaba la app en CADA apertura (MainActivity.onCreate corre siempre al abrir).
-        try {
-            if (Modos.sincronizacionFondo(this)) SincronizacionService.iniciar(this);
-        } catch (Exception ignore) {}
-        // Vigila afectaciones del servicio (manifestaciones) cada minuto.
-        try { ManifestacionesService.iniciar(this); } catch (Exception ignore) {}
+        // Reanuda la sincronización en segundo plano si el usuario la dejó activa. iniciar() ya
+        // envuelve su propio arranque del foreground service (Android 12+ puede negarlo).
+        if (Modos.sincronizacionFondo(this)) SincronizacionService.iniciar(this);
+        // Vigila afectaciones del servicio (manifestaciones) cada minuto. iniciar() ya se protege igual.
+        ManifestacionesService.iniciar(this);
         // Suscribe a los temas de push (FCM) para recibir afectaciones y avisos de actualización.
         try {
             com.google.firebase.messaging.FirebaseMessaging fm =

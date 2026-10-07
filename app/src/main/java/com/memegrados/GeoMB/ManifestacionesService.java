@@ -545,7 +545,7 @@ public class ManifestacionesService extends Service {
         if (mes != c.get(java.util.Calendar.MONTH)) return false;
         java.util.List<Integer> dias = new java.util.ArrayList<>();
         java.util.regex.Matcher mm = java.util.regex.Pattern.compile("\\d{1,2}").matcher(p);
-        while (mm.find()) { try { dias.add(Integer.parseInt(mm.group())); } catch (Exception ignore) {} }
+        while (mm.find()) { dias.add(Integer.parseInt(mm.group())); }
         if (dias.isEmpty()) return true;
         int hoy = c.get(java.util.Calendar.DAY_OF_MONTH);
         return hoy >= java.util.Collections.min(dias) && hoy <= java.util.Collections.max(dias);
@@ -614,8 +614,7 @@ public class ManifestacionesService extends Service {
         String seg = segmentoParcial(normFull);
         if (seg == null) return;
 
-        List<Linea> lineas;
-        try { lineas = GtfsRepository.getLineas(this); } catch (Exception e) { return; }
+        List<Linea> lineas = GtfsRepository.getLineas(this);
 
         // Rangos "en servicio" por número de línea. L4/L7 quedan FUERA: no son troncales lineales
         // (se rutean por sus SERVICIOS reales -- San Lázaro, Aeropuerto, Alameda, Buenavista...), así
@@ -1047,12 +1046,10 @@ public class ManifestacionesService extends Service {
 
     /** Persiste el conjunto de claves avisadas. */
     private void guardarNotifEstado() {
-        try {
-            JSONArray arr = new JSONArray();
-            for (String c : notifClaves) arr.put(c);
-            getSharedPreferences("geomb", MODE_PRIVATE).edit()
-                    .putString("notif_estado", arr.toString()).apply();
-        } catch (Exception ignore) {}
+        JSONArray arr = new JSONArray();
+        for (String c : notifClaves) arr.put(c);
+        getSharedPreferences("geomb", MODE_PRIVATE).edit()
+                .putString("notif_estado", arr.toString()).apply();
     }
 
     /**
@@ -1178,7 +1175,7 @@ public class ManifestacionesService extends Service {
     @Override
     public void onTimeout(int startId) {
         handler.removeCallbacksAndMessages(null);
-        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignore) {}
+        stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
 

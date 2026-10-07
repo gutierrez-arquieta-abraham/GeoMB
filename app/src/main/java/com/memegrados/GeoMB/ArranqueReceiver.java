@@ -36,12 +36,10 @@ public class ArranqueReceiver extends BroadcastReceiver {
                 || Intent.ACTION_MY_PACKAGE_REPLACED.equals(a)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(a)
                 || "com.htc.intent.action.QUICKBOOT_POWERON".equals(a)) {
-            // Vigila afectaciones del servicio (siempre).
-            try { ManifestacionesService.iniciar(context); } catch (Exception ignore) {}
-            // Sincronización en segundo plano solo si el usuario la dejó activa.
-            try {
-                if (Modos.sincronizacionFondo(context)) SincronizacionService.iniciar(context);
-            } catch (Exception ignore) {}
+            // Vigila afectaciones del servicio (siempre). iniciar() ya envuelve su propio arranque.
+            ManifestacionesService.iniciar(context);
+            // Sincronización en segundo plano solo si el usuario la dejó activa; iniciar() ya se protege igual.
+            if (Modos.sincronizacionFondo(context)) SincronizacionService.iniciar(context);
             // Aviso de llegada a una estación vigilada: retoma la misma parada de antes del reinicio.
             try { LlegadaService.reanudarSiHay(context); } catch (Exception ignore) {}
             // NOTA: las unidades GUARDADAS (EconomicoFavoritoEntity/Telemetria.listaFavoritos) ya NO

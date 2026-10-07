@@ -218,15 +218,11 @@ public final class DescargaVoz {
     // de getFilesDir() sí es accesible con un explorador de archivos, sin permisos especiales. Si no
     // hay almacenamiento externo disponible, cae al interno para no perder la función. ---
     private static File archivoVoz(Context ctx, String texto) {
-        try {
-            File base = ctx.getExternalFilesDir(null);
-            if (base == null) base = ctx.getFilesDir();
-            File dir = new File(base, "voz");
-            if (!dir.exists()) dir.mkdirs();
-            return new File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
-        } catch (Exception e) {
-            return null;
-        }
+        File base = ctx.getExternalFilesDir(null);
+        if (base == null) base = ctx.getFilesDir();
+        File dir = new File(base, "voz");
+        if (!dir.exists()) dir.mkdirs();
+        return new File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
     }
 
     /** Réplica exacta de RecorridoService.nom(): sin 'MXB ' y cortando en '('. */

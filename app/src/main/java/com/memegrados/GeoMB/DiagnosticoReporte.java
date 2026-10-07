@@ -235,7 +235,7 @@ public final class DiagnosticoReporte {
         org.json.JSONObject o = new org.json.JSONObject();
         try {
             SnapshotRecorrido s = snapshotRecorrido();
-            try { o.put("recorridoActivo", s.activo); } catch (org.json.JSONException ignore) {}
+            o.put("recorridoActivo", s.activo);
             if (s.activo) {
                 ponerSiHay(o, "estacionActual", s.estacionActual);
                 ponerSiHay(o, "estacionSiguiente", s.estacionSiguiente);
