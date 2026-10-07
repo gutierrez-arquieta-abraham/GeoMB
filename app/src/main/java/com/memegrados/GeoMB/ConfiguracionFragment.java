@@ -128,6 +128,7 @@ public class ConfiguracionFragment extends Fragment {
         view.findViewById(R.id.btn_mis_unidades).setOnClickListener(x ->
                 ((MainActivity) requireActivity()).mostrarUnidadesGuardadas());
         configurarOpcionesPrivacidad(view);
+        configurarPrivacidadPublicaYEliminarCuenta(view);
         configurarSimulador(view);
 
         panel = view.findViewById(R.id.panel_personalizado);
@@ -306,6 +307,66 @@ public class ConfiguracionFragment extends Fragment {
         btn.setVisibility(View.VISIBLE);
         btn.setOnClickListener(x -> UserMessagingPlatform.showPrivacyOptionsForm(requireActivity(),
                 formError -> {}));
+    }
+
+    /**
+     * Política de privacidad pública (web, abre en el navegador — nunca dentro de la app, así se
+     * puede revisar/compartir como una URL normal) y "Eliminar mi cuenta" (flujo real, no un
+     * simple enlace): ver {@link EliminarCuenta}. Ambos botones son siempre visibles, a
+     * diferencia de "Opciones de privacidad" (AdMob) que solo aparece si UMP lo exige.
+     */
+    private void configurarPrivacidadPublicaYEliminarCuenta(View view) {
+        view.findViewById(R.id.btn_politica_privacidad).setOnClickListener(x -> {
+            try {
+                startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        Uri.parse(Config.PRIVACY_URL)));
+            } catch (Exception e) {
+                Toast.makeText(requireContext(), R.string.eliminar_cuenta_error_token, Toast.LENGTH_SHORT).show();
+            }
+        });
+        view.findViewById(R.id.btn_eliminar_cuenta).setOnClickListener(x -> confirmarEliminarCuenta());
+    }
+
+    /** Confirmación explícita (acción destructiva) antes de llamar a {@link EliminarCuenta#eliminar}. */
+    private void confirmarEliminarCuenta() {
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.eliminar_cuenta_confirmar_titulo)
+                .setMessage(R.string.eliminar_cuenta_confirmar_mensaje)
+                .setPositiveButton(R.string.eliminar_cuenta_confirmar_boton, (d, w) -> ejecutarEliminarCuenta())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void ejecutarEliminarCuenta() {
+        AlertDialog progreso = new AlertDialog.Builder(requireContext())
+                .setMessage(R.string.eliminar_cuenta_eliminando)
+                .setCancelable(false)
+                .show();
+        EliminarCuenta.eliminar(requireContext(), new EliminarCuenta.Callback() {
+            @Override public void onExito() {
+                cerrarYCerrarSesion(progreso, R.string.eliminar_cuenta_exito);
+            }
+            @Override public void onCuentaYaEliminada() {
+                cerrarYCerrarSesion(progreso, R.string.eliminar_cuenta_ya_eliminada);
+            }
+            @Override public void onError(String mensaje) {
+                if (progreso.isShowing()) progreso.dismiss();
+                if (isAdded()) Toast.makeText(requireContext(), mensaje, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    /** Éxito o "ya estaba eliminada": mismo resultado para el usuario -- cierra sesión y vuelve
+     *  a {@link LoginActivity} con la pila de tareas limpia (no debe poder "regresar" a Main). */
+    private void cerrarYCerrarSesion(AlertDialog progreso, int mensajeResId) {
+        if (progreso.isShowing()) progreso.dismiss();
+        if (!isAdded()) return;
+        try { FirebaseAuth.getInstance().signOut(); } catch (Exception ignore) {}
+        Toast.makeText(requireContext(), mensajeResId, Toast.LENGTH_LONG).show();
+        android.content.Intent i = new android.content.Intent(requireContext(), LoginActivity.class)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i);
+        requireActivity().finish();
     }
 
     /**

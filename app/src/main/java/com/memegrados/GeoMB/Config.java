@@ -61,6 +61,17 @@ public final class Config {
     public static final String DEVICE_ALERTA_URL = BASE_URL + "/device/alerta";
     public static final String DEVICE_UBICACION_URL = BASE_URL + "/device/ubicacion";
 
+    /**
+     * Política de privacidad pública y eliminación de cuenta (cumplimiento de Google Play) —
+     * endpoints de {@code metrobus_app} (repo aparte), mismo EC2 y dominio que {@link #BASE_URL}.
+     * SIN failover a {@link #FALLBACK_URL} a propósito: el borrado toca Firebase Auth/Firestore
+     * y el SQLite de alertas del EC2 principal; una respuesta "exitosa" del respaldo no
+     * garantizaría que de verdad se borró nada ahí.
+     */
+    public static final String PRIVACY_URL = BASE_URL + "/privacy";
+    public static final String DELETE_ACCOUNT_URL = BASE_URL + "/delete-account";
+    public static final String ACCOUNT_DELETE_API_URL = BASE_URL + "/api/account/delete";
+
     /** Cada cuánto manda AlertasUnidadesService la ubicación actual mientras haya al menos una
      *  alerta activa (ms). No tiene sentido más frecuente que el ciclo de push_metrobus.py (60 s,
      *  ver metrobus_app) -- nadie va a leer una ubicación más fresca que eso. */

@@ -513,6 +513,24 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/config_privacidad"
                 android:visibility="gone" />
+
+            <!-- Política de privacidad pública (web) y eliminación de cuenta: siempre visibles. -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_politica_privacidad"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/config_politica_privacidad" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_eliminar_cuenta"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="?attr/colorError"
+                android:text="@string/config_eliminar_cuenta" />
         </LinearLayout>
 
         <!-- Modo personalizado (oculto hasta 5 toques al logo) -->
