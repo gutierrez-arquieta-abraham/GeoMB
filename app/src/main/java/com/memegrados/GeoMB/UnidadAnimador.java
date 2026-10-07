@@ -9,6 +9,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -23,6 +24,14 @@ import java.util.Map;
  *
  * El sentido de avance se toma del cambio de posición entre actualizaciones (fiable) y, la primera vez,
  * del destino. Cada pantalla (mapa general, planificador) usa su propia instancia.
+ *
+ * <p><b>Un solo ticker compartido</b> (no uno por unidad): todas las unidades que se están animando en
+ * este momento viven en {@link #animaciones}, y un único {@code Handler.postDelayed} recorre ese mapa
+ * en cada tick, mueve lo que corresponda y se reprograma SOLO si queda algo vivo. Antes, cada llamada a
+ * {@link #animar}/{@code recta} arrancaba su PROPIO bucle independiente -- con muchas unidades a la vez
+ * (p. ej. 50+ visibles), eso eran igual de muchos bucles de Handler compitiendo por el hilo principal.
+ * Una actualización que llega a media animación no crea un segundo bucle: solo reemplaza el estado de
+ * esa unidad en el mapa, que el ticker ya vigente recoge en su siguiente vuelta.
  */
 // ============================================================
 // CLASE    : UnidadAnimador
@@ -46,6 +55,9 @@ import java.util.Map;
 // TRUCO ANTI-"REGRESONES": solo avanza una FRACCIÓN de la velocidad
 // (FACTOR_VEL) para quedar un poco atrás y corregir HACIA ADELANTE, sin
 // saltos hacia atrás. Cada pantalla usa su PROPIA instancia.
+//
+// UN SOLO TICKER: todas las unidades en movimiento comparten un único
+// Handler.postDelayed (ver {@link #tick()}) en vez de uno por unidad.
 // ============================================================
 public final class UnidadAnimador {
 
@@ -56,12 +68,36 @@ public final class UnidadAnimador {
     // sin "regresones" (que aparecían al extrapolar a velocidad completa y sobrepasar la próxima posición).
     private static final double FACTOR_VEL    = 0.4;     // 60% (rango razonable ~0.5–0.8)
 
+    private static final long TICK_MS = 16;    // cadencia del ticker compartido (igual que el respaldo recto de antes)
+    // Fase de avance por velocidad (dead-reckoning): se sigue recalculando/repintando cada 80 ms, EXACTO
+    // igual que el bucle propio que tenía antes -- el ticker corre a 16 ms, pero esta fase se autolimita
+    // para no hacer más trabajo del que ya hacía (es deliberadamente menos frecuente, "ligera").
+    private static final long DEAD_RECKONING_MS = 80;
+
     private final Context ctx;
     private final Handler h = new Handler(Looper.getMainLooper());
-    private long seq = 0;
-    private final Map<String, Long>    token   = new HashMap<>();   // animación vigente por unidad
-    private final Map<String, Double>  distAct = new HashMap<>();   // distancia-along actual (m)
-    private final Map<String, Double>  ultObj  = new HashMap<>();   // último objetivo (para el sentido)
+    private final Runnable ticker = this::tick;
+    private boolean tickerActivo = false;
+
+    /** Estado de animación vigente de una unidad; el ticker compartido lo lee/actualiza cada tick. */
+    private static final class Estado {
+        Marker marker;
+        boolean recta;          // true = respaldo en línea recta; false = pegado al grafo
+        // --- modo "pegado al grafo" ---
+        Linea linea;
+        double dIni, dObj;
+        int dir;
+        float vel;
+        double largo;
+        long t0;
+        long ultDeadReckoning;  // 0 = todavía no entró a esa fase
+        // --- modo "recta" (respaldo) ---
+        LatLng inicio, destino;
+    }
+
+    private final Map<String, Estado> animaciones = new HashMap<>();   // unidades animándose AHORA
+    private final Map<String, Double> distAct = new HashMap<>();   // distancia-along actual (m), sobrevive entre animaciones
+    private final Map<String, Double> ultObj  = new HashMap<>();   // último objetivo (para el sentido), ídem
 
     public UnidadAnimador(Context ctx) { this.ctx = ctx.getApplicationContext(); }
 
@@ -78,18 +114,6 @@ public final class UnidadAnimador {
 
     /** Anima el marcador de {@code u}: corrige hacia su posición (por el grafo) y luego avanza por velocidad. */
     public void animar(UnidadReal u, Marker marker) {
-        // DEAD-RECKONING "rebuscado": el feed solo llega cada ~10 s; para que el marcador
-        // NO brinque, lo movemos en DOS fases, todo medido como distancia 'd' a lo largo
-        // de la ruta (y convertido a LatLng con puntoEn = "snap" a la vía):
-        //   Fase 1 (el < ANIM_MS): DESLIZA suave desde donde estaba hasta la posición
-        //           reportada (interpolación).
-        //   Fase 2 (después): sigue AVANZANDO solo con la velocidad reportada (por eso
-        //           "dead-reckoning": estima sin dato nuevo), a una FRACCIÓN (FACTOR_VEL)
-        //           para quedar un poco atrás y que el siguiente update corrija hacia
-        //           adelante, sin "regresones".
-        // 'token'/'seq' es un TRUCO de cancelación: cada llamada saca un número nuevo; si
-        // llega una actualización más reciente, el bucle viejo se detiene solo (compara su
-        // token con el vigente). Corre a ~12 fps (postDelayed 80 ms).
         Linea l = lineaDe(u);
         LatLng cruda = u.posicion;
         if (l == null || Linea.distancia(cruda, l.puntoEn(l.distanciaEn(cruda))) > CERCA_LINEA_M) {
@@ -102,46 +126,87 @@ public final class UnidadAnimador {
                 ? (dObj >= prev ? 1 : -1) : sentido(l, dObj, u.destino);
         ultObj.put(u.numero, dObj);
 
-        final long tk = ++seq; token.put(u.numero, tk);
-        final double dIni = distAct.containsKey(u.numero) ? distAct.get(u.numero) : dObj;
-        final long t0 = SystemClock.uptimeMillis();
-        final float vel = u.velMs;
-        final double largo = l.largoTotal();
-        final String num = u.numero;
-        final Linea lf = l;
-        h.post(new Runnable() {
-            @Override public void run() {
-                Long a = token.get(num);
-                if (a == null || a != tk) return;   // reemplazada por una actualización más nueva
-                long el = SystemClock.uptimeMillis() - t0;
-                double d;
-                boolean seguir;
-                if (el < Config.ANIM_MS) {
-                    double t = el / (double) Config.ANIM_MS;
-                    d = dIni + (dObj - dIni) * t;    // desliza por la RUTA hacia la posición reportada
-                    seguir = true;
-                } else {
-                    // Ya alcanzó la posición reportada: avanza sobre la ruta a una FRACCIÓN de su velocidad
-                    // (queda un poco atrás para que el próximo update corrija hacia adelante, sin regresones).
-                    d = dObj + dir * (vel * FACTOR_VEL) * ((el - Config.ANIM_MS) / 1000.0);
-                    seguir = vel > VEL_MIN_MS;       // detenida: no hace falta seguir animando
-                }
-                d = Math.max(0, Math.min(largo, d));
-                distAct.put(num, d);
-                try { marker.setPosition(lf.puntoEn(d)); } catch (Exception e) { return; }
-                if (seguir) h.postDelayed(this, 80);   // ~12 fps: suave y ligero
-            }
-        });
+        Estado e = new Estado();
+        e.marker = marker;
+        e.recta = false;
+        e.linea = l;
+        e.dIni = distAct.containsKey(u.numero) ? distAct.get(u.numero) : dObj;
+        e.dObj = dObj;
+        e.dir = dir;
+        e.vel = u.velMs;
+        e.largo = l.largoTotal();
+        e.t0 = SystemClock.uptimeMillis();
+        animaciones.put(u.numero, e);   // reemplaza cualquier animación previa de esta unidad -- nunca dos a la vez
+        arrancarTicker();
     }
 
     /** Olvida el estado de una unidad (al quitar su marcador). */
     public void olvidar(String numero) {
-        token.remove(numero); distAct.remove(numero); ultObj.remove(numero);
+        animaciones.remove(numero); distAct.remove(numero); ultObj.remove(numero);
     }
 
-    /** Limpia todo (al borrar todos los marcadores). */
+    /** Limpia todo y detiene el ticker (al borrar todos los marcadores / destruir la vista). */
     public void limpiar() {
-        token.clear(); distAct.clear(); ultObj.clear();
+        animaciones.clear(); distAct.clear(); ultObj.clear();
+        h.removeCallbacks(ticker);
+        tickerActivo = false;
+    }
+
+    // ---- ticker compartido ----
+
+    private void arrancarTicker() {
+        if (tickerActivo) return;
+        tickerActivo = true;
+        h.postDelayed(ticker, TICK_MS);
+    }
+
+    /** Una vuelta: avanza cada unidad animándose y se reprograma solo si queda alguna viva. */
+    private void tick() {
+        if (animaciones.isEmpty()) { tickerActivo = false; return; }
+        long ahora = SystemClock.uptimeMillis();
+        Iterator<Map.Entry<String, Estado>> it = animaciones.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Estado> entry = it.next();
+            Estado e = entry.getValue();
+            boolean seguir = e.recta ? tickRecta(e, ahora) : tickGrafo(entry.getKey(), e, ahora);
+            if (!seguir) it.remove();
+        }
+        if (animaciones.isEmpty()) tickerActivo = false;
+        else h.postDelayed(ticker, TICK_MS);
+    }
+
+    /** Respaldo en línea recta: desliza de {@code inicio} a {@code destino} en {@link Config#ANIM_MS}. */
+    private boolean tickRecta(Estado e, long ahora) {
+        float t = Math.min(1f, (ahora - e.t0) / (float) Config.ANIM_MS);
+        double lat = e.inicio.latitude + t * (e.destino.latitude - e.inicio.latitude);
+        double lon = e.inicio.longitude + t * (e.destino.longitude - e.inicio.longitude);
+        try { e.marker.setPosition(new LatLng(lat, lon)); } catch (Exception ex) { return false; }
+        return t < 1f;
+    }
+
+    /** Pegado al grafo: desliza hasta la posición reportada y luego avanza por velocidad (dead-reckoning). */
+    private boolean tickGrafo(String numero, Estado e, long ahora) {
+        long el = ahora - e.t0;
+        double d;
+        boolean seguir;
+        if (el < Config.ANIM_MS) {
+            double t = el / (double) Config.ANIM_MS;
+            d = e.dIni + (e.dObj - e.dIni) * t;    // desliza por la RUTA hacia la posición reportada
+            seguir = true;
+        } else {
+            // Autolimitado a DEAD_RECKONING_MS: igual que el bucle propio que tenía antes, no hace más
+            // trabajo solo porque el ticker compartido pase cada 16 ms.
+            if (e.ultDeadReckoning != 0 && ahora - e.ultDeadReckoning < DEAD_RECKONING_MS) {
+                return e.vel > VEL_MIN_MS;   // sigue vivo, pero este tick no toca el marcador
+            }
+            e.ultDeadReckoning = ahora;
+            d = e.dObj + e.dir * (e.vel * FACTOR_VEL) * ((el - Config.ANIM_MS) / 1000.0);
+            seguir = e.vel > VEL_MIN_MS;     // detenida: no hace falta seguir animando
+        }
+        d = Math.max(0, Math.min(e.largo, d));
+        distAct.put(numero, d);
+        try { e.marker.setPosition(e.linea.puntoEn(d)); } catch (Exception ex) { return false; }
+        return seguir;
     }
 
     // ---- internos ----
@@ -164,21 +229,19 @@ public final class UnidadAnimador {
 
     /** Respaldo: interpolación en LÍNEA RECTA (unidades sin línea o fuera del trazo). */
     private void recta(String numero, Marker marker, LatLng destino) {
-        final LatLng inicio = marker.getPosition();
-        if (inicio.latitude == destino.latitude && inicio.longitude == destino.longitude) return;
-        final long tk = ++seq; token.put(numero, tk);
+        LatLng inicio = marker.getPosition();
+        if (inicio.latitude == destino.latitude && inicio.longitude == destino.longitude) {
+            animaciones.remove(numero);   // ya está en destino: nada que animar
+            return;
+        }
         distAct.remove(numero); ultObj.remove(numero);
-        final long t0 = SystemClock.uptimeMillis();
-        h.post(new Runnable() {
-            @Override public void run() {
-                Long a = token.get(numero);
-                if (a == null || a != tk) return;
-                float t = Math.min(1f, (SystemClock.uptimeMillis() - t0) / (float) Config.ANIM_MS);
-                double lat = inicio.latitude + t * (destino.latitude - inicio.latitude);
-                double lon = inicio.longitude + t * (destino.longitude - inicio.longitude);
-                try { marker.setPosition(new LatLng(lat, lon)); } catch (Exception e) { return; }
-                if (t < 1f) h.postDelayed(this, 16);
-            }
-        });
+        Estado e = new Estado();
+        e.marker = marker;
+        e.recta = true;
+        e.inicio = inicio;
+        e.destino = destino;
+        e.t0 = SystemClock.uptimeMillis();
+        animaciones.put(numero, e);
+        arrancarTicker();
     }
 }

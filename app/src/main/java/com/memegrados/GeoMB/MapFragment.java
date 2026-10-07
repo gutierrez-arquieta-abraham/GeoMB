@@ -146,8 +146,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private boolean mostrarUnidades = true;
     private boolean vista3d = false;
     private int tipoMapa = GoogleMap.MAP_TYPE_NORMAL;
-    private final Map<String, Long> animToken = new HashMap<>();
-    private long animSeq = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private boolean avisoError = false;
@@ -1010,33 +1008,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         avisoError = false;
         actualizarConteo(total);
         aplicarSeleccionUnidad();
-    }
-
-    /** Desliza un marcador desde su posición actual hasta la nueva de forma suave. */
-    private void moverMarcador(String numero, Marker marker, LatLng destino) {
-        final LatLng inicio = marker.getPosition();
-        if (inicio.latitude == destino.latitude && inicio.longitude == destino.longitude) return;
-
-        final long token = ++animSeq;
-        animToken.put(numero, token);
-        final long t0 = SystemClock.uptimeMillis();
-
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                Long actual = animToken.get(numero);
-                if (mapa == null || actual == null || actual != token) return; // reemplazado/destruido
-                float t = Math.min(1f, (SystemClock.uptimeMillis() - t0) / (float) Config.ANIM_MS);
-                double lat = inicio.latitude + t * (destino.latitude - inicio.latitude);
-                double lon = inicio.longitude + t * (destino.longitude - inicio.longitude);
-                try {
-                    marker.setPosition(new LatLng(lat, lon));
-                } catch (Exception e) {
-                    return; // el marcador ya fue removido
-                }
-                if (t < 1f) handler.postDelayed(this, 16);
-            }
-        });
     }
 
     private String snippet(UnidadReal u) {
@@ -1983,7 +1954,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mexibusLineas.clear();
         centroCarga = null;
         coloresLinea.clear();
-        animToken.clear();
         mapa = null;
         cartaContainer = null;
         cartaVistas = null;
