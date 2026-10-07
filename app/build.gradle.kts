@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.memegrados.GeoMB"
-        minSdk = 24
+        minSdk = 23
         targetSdk = 36
         versionCode = 23
         versionName = "1.6.3"
@@ -30,6 +30,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Retrofitta en API 23 los métodos default de Map/Collection/List (computeIfAbsent,
+        // removeIf, sort) que el código ya usa -- sin esto minSdk no podría bajar de 24. Ver
+        // commit "Expand legacy Android support to API 23" para el detalle de la auditoría.
+        isCoreLibraryDesugaringEnabled = true
     }
 }
 
@@ -61,4 +65,10 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+
+    // Core library desugaring: retrofitta Map.computeIfAbsent/Collection.removeIf/List.sort
+    // (usados en ManifestacionesService, Manifestaciones, Locuciones, RecorridoService,
+    // MapFragment, AfectMexibusFeed) para que existan en API 23. Sin esto, minSdk = 23
+    // compilaría pero crashearía en runtime con NoSuchMethodError en esos dispositivos.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
