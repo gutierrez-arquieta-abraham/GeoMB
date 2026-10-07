@@ -287,10 +287,18 @@ public class SeguimientoService extends Service {
         if (primerPlano) { actualizarResumen(); return; }
         primerPlano = true;
         Notification n = construirResumen();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID_RESUMEN, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
-        } else {
-            startForeground(ID_RESUMEN, n);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(ID_RESUMEN, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                startForeground(ID_RESUMEN, n);
+            }
+        } catch (Exception e) {
+            // El SO puede negar el inicio en primer plano (permiso revocado, restricción de fondo,
+            // límite de tipo de servicio, etc.): nunca debe tumbar la app, solo se detiene limpio.
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "SeguimientoService.arrancarPrimerPlano", String.valueOf(e));
+            primerPlano = false;
+            stopSelf();
         }
     }
 

@@ -188,10 +188,17 @@ public class DescargaVozService extends Service {
 
     private void arrancarPrimerPlano() {
         Notification n = construir(0, 0);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(ID_ONGOING, n);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(ID_ONGOING, n);
+            }
+        } catch (Exception e) {
+            // El SO puede negar el inicio en primer plano -- nunca debe tumbar la app, solo se
+            // detiene limpio (la descarga de voz queda indisponible por ahora).
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "DescargaVozService.arrancarPrimerPlano", String.valueOf(e));
+            stopSelf();
         }
     }
 

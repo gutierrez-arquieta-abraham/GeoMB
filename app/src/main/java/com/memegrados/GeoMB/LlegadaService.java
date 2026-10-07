@@ -185,10 +185,17 @@ public class LlegadaService extends Service {
                 .addAction(R.drawable.ic_bell, getString(R.string.llegada_dejar), piDetener())
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(ID_ONGOING, n);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(ID_ONGOING, n);
+            }
+        } catch (Exception e) {
+            // El SO puede negar el inicio en primer plano -- nunca debe tumbar la app, solo se
+            // detiene limpio (el aviso de llegada queda indisponible por ahora).
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "LlegadaService.arrancarPrimerPlano", String.valueOf(e));
+            stopSelf();
         }
     }
 

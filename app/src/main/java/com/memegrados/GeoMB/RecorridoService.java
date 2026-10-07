@@ -385,10 +385,19 @@ public class RecorridoService extends Service {
         ultVoz = -99; ultLlegando = -99; ultProxima = -99; afectacionAvisada = false;
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
         Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
-        } else {
-            startForeground(ID, n);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                startForeground(ID, n);
+            }
+        } catch (Exception e) {
+            // El SO puede negar el inicio en primer plano -- nunca debe tumbar la app, solo
+            // cancela el recorrido en vez de dejar la excepción subir.
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "RecorridoService.onStartCommand", String.valueOf(e));
+            limpiarPersistencia();
+            stopSelf();
+            return START_NOT_STICKY;
         }
         pedirUbicacion();
         return START_STICKY;

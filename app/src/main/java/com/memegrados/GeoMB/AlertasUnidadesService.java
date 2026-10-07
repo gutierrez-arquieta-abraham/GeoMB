@@ -158,10 +158,18 @@ public class AlertasUnidadesService extends Service {
         if (primerPlano) return;
         primerPlano = true;
         Notification n = construirNotificacion();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID_NOTIF, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
-        } else {
-            startForeground(ID_NOTIF, n);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(ID_NOTIF, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                startForeground(ID_NOTIF, n);
+            }
+        } catch (Exception e) {
+            // Igual que SeguimientoService: el SO puede negar el inicio en primer plano -- nunca
+            // debe tumbar la app, solo se detiene limpio (alertas no disponibles por ahora).
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "AlertasUnidadesService.arrancarPrimerPlano", String.valueOf(e));
+            primerPlano = false;
+            stopSelf();
         }
     }
 

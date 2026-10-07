@@ -171,10 +171,17 @@ public class SincronizacionService extends Service {
 
     private void arrancarPrimerPlano() {
         Notification n = construir(getString(R.string.sincro_texto_inicial));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(ID_ONGOING, n);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(ID_ONGOING, n);
+            }
+        } catch (Exception e) {
+            // El SO puede negar el inicio en primer plano -- nunca debe tumbar la app, solo se
+            // detiene limpio (la sincronización en segundo plano queda indisponible por ahora).
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "SincronizacionService.arrancarPrimerPlano", String.valueOf(e));
+            stopSelf();
         }
     }
 

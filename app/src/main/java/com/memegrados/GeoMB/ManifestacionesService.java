@@ -913,10 +913,17 @@ public class ManifestacionesService extends Service {
                 .setPriority(NotificationCompat.PRIORITY_MIN)
                 .setContentIntent(piAbrir(this))
                 .build();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(ID_ONGOING, n);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(ID_ONGOING, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(ID_ONGOING, n);
+            }
+        } catch (Exception e) {
+            // El SO puede negar el inicio en primer plano -- nunca debe tumbar la app, solo se
+            // detiene limpio (el monitoreo de afectaciones queda indisponible por ahora).
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "ManifestacionesService.arrancarPrimerPlano", String.valueOf(e));
+            stopSelf();
         }
     }
 

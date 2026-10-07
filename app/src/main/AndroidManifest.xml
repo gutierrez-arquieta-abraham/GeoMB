@@ -15,6 +15,14 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Sin esto, ACCESS_FINE_LOCATION/RECORD_AUDIO hacen que Play Store exija GPS/micrófono por
+         default (uses-feature implícito): se declaran opcionales para no excluir equipos de gama
+         baja que no los traigan. GeoMB ya funciona sin GPS (ubicación por red) y sin micrófono
+         (el reporte de irregularidad solo ofrece audio si el hardware existe). -->
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
         android:name=".GeoMBApplication"
