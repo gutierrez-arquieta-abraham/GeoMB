@@ -90,6 +90,7 @@ public class LlegadaService extends Service {
         sentido = intent.getStringExtra(EXTRA_SENTIDO);
         pos = new LatLng(intent.getDoubleExtra(EXTRA_LAT, 0), intent.getDoubleExtra(EXTRA_LON, 0));
         if (estacion == null) { stopSelf(); return START_NOT_STICKY; }
+        android.util.Log.d("LlegadaService", "onStartCommand: arrancando vigilancia de " + estacion);
 
         paradaSeguida = estacion;
         avisados.clear();
@@ -247,18 +248,30 @@ public class LlegadaService extends Service {
         c.getSharedPreferences(PREFS, MODE_PRIVATE).edit().clear().apply();
     }
 
-    /** Si había una estación vigilada antes del reinicio, la retoma (llamado por ArranqueReceiver). */
+    /** ¿Hay una alerta de llegada persistida? Lo usa ArranqueReceiver para decidir si vale la pena
+     *  programar la reanudación diferida (ver su javadoc) sin tener que conocer la clave interna. */
+    public static boolean hayAlertaPersistida(android.content.Context c) {
+        return c.getSharedPreferences(PREFS, MODE_PRIVATE).getString("estacion", null) != null;
+    }
+
+    /** Si había una estación vigilada antes del reinicio, la retoma (llamado, diferido vía alarma
+     *  exacta, por ArranqueReceiver -- ver su javadoc sobre por qué no se llama directo desde ahí). */
     public static void reanudarSiHay(android.content.Context c) {
         android.content.SharedPreferences p = c.getSharedPreferences(PREFS, MODE_PRIVATE);
         String estacion = p.getString("estacion", null);
-        if (estacion == null) return;
+        if (estacion == null) {
+            android.util.Log.d("LlegadaService", "reanudarSiHay: no había alerta de llegada persistida.");
+            return;
+        }
         Intent i = new Intent(c, LlegadaService.class)
                 .putExtra(EXTRA_LINEA, p.getInt("linea", 1))
                 .putExtra(EXTRA_ESTACION, estacion)
                 .putExtra(EXTRA_SENTIDO, p.getString("sentido", null))
                 .putExtra(EXTRA_LAT, (double) p.getFloat("lat", 0f))
                 .putExtra(EXTRA_LON, (double) p.getFloat("lon", 0f));
+        android.util.Log.d("LlegadaService", "reanudarSiHay: reanudando alerta persistida de " + estacion);
         androidx.core.content.ContextCompat.startForegroundService(c, i);
+        android.util.Log.d("LlegadaService", "reanudarSiHay: startForegroundService() invocado.");
     }
 
     /** Android 14+: límite de tiempo del FGS dataSync. Detener limpio para no crashear. */
