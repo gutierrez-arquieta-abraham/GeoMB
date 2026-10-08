@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.memegrados.GeoMB"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.memegrados.GeoMB"
         minSdk = 23
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 24
         versionName = "1.6.3"
 
