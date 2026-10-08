@@ -506,27 +506,43 @@ public class RecorridoService extends Service {
     // parada candidata (ya es, por construcción, una parada real y planificada de esa línea), lo que
     // además cubre ir sin detenerse justo sobre el nombre de una estación (unidad en movimiento).
     private static final float RADIO_REUBICACION_M = 900f;
+    // Cuánto debe MEJORAR un candidato de otra línea sobre la posición actual (distBestActual) para
+    // que valga la pena saltar -- sin esto, "estar a <900 m de otra línea" podía ganar aunque el
+    // usuario siguiera mucho mejor ubicado en su línea actual (p. ej. L4 en la zona de Puente de
+    // Fierro, a <10 m de su parada real, saltando a UPE de Mexibús L2 -- ambas líneas corren a
+    // ~900 m una de otra en ese corredor -- con solo ~18 m de ruido de GPS). 25 m es consistente con
+    // el margen de error de GPS que ya usa el resto de este archivo para lo mismo (ver
+    // CAMBIO_LINEA_M=15, "se deja un poco más por el error típico del GPS"; COBERTURA_EXTRA_M=50).
+    // NO hace que el candidato dependa del punto de enlace/correspondencia (eso era RADIO_ENLACE_M,
+    // quitado a propósito en el fix de A→B→C): sigue midiendo contra la propia parada candidata.
+    private static final float MARGEN_MEJORA_M = 25f;
 
     /**
      * Si la ubicación está a ≤{@link #RADIO_REUBICACION_M} de una parada de OTRA línea de la ruta
-     * (adelante de {@code best}, respetando el orden de la ruta), Y esa parada queda a
-     * ≥{@link #SALTO_MIN_METROS} de recorrido dentro de su propio trazo (tras la correspondencia que
-     * ya construyó el planificador -- descarta la mera primera parada, donde una coincidencia
-     * geográfica es más probable), es una candidata válida. Devuelve la MÁS CERCANA de todas las
-     * candidatas válidas (de cualquier línea posterior, no solo la siguiente) -- no la más adelantada:
-     * si dos líneas distintas de la ruta califican a la vez (p. ej. vas por B pero una parada de C,
-     * más adelante en la ruta, también cae dentro del radio), la distancia real es la que distingue en
-     * cuál de las dos estás de verdad. Si ninguna califica, devuelve {@code best}.
+     * (adelante de {@code best}, respetando el orden de la ruta), Y esa parada representa una
+     * mejora real sobre qué tan bien ubicado está el usuario en su línea actual (ver
+     * {@link #MARGEN_MEJORA_M}), Y esa parada queda a ≥{@link #SALTO_MIN_METROS} de recorrido
+     * dentro de su propio trazo (tras la correspondencia que ya construyó el planificador --
+     * descarta la mera primera parada, donde una coincidencia geográfica es más probable), es una
+     * candidata válida. Devuelve la MÁS CERCANA de todas las candidatas válidas (de cualquier línea
+     * posterior, no solo la siguiente) -- no la más adelantada: si dos líneas distintas de la ruta
+     * califican a la vez (p. ej. vas por B pero una parada de C, más adelante en la ruta, también
+     * cae dentro del radio), la distancia real es la que distingue en cuál de las dos estás de
+     * verdad. Si ninguna califica, devuelve {@code best}.
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
         double mejorDist = Double.MAX_VALUE;
         int trazoBest = seq.get(best).linea;                          // trazo = servicio (ordinario≠exprés≠ramal)
+        // Qué tan bien ajustado está 'best' AHORA MISMO, con la misma función que se usa para
+        // evaluar a los candidatos (consistente con el manejo de "zona" de Indios Verdes).
+        double distBestActual = distParada(l, seq.get(best));
         for (int j = best + 1; j < seq.size(); j++) {
             Planificador.Parada pj = seq.get(j);
             if (pj.linea == trazoBest) continue;                       // mismo trazo/servicio que el actual: no aplica
             double d = distParada(l, pj);
             if (d > RADIO_REUBICACION_M) continue;                     // no estás cerca de esa parada
+            if (d >= distBestActual - MARGEN_MEJORA_M) continue;        // no es una mejora real sobre 'best'
             // 'inicio' = primer índice de la racha de ESE trazo que termina en j (el nodo donde la ruta
             // ABORDA ese trazo: el propio punto de correspondencia/conexión/transbordo que construyó el
             // planificador). Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS
