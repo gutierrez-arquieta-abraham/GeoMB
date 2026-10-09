@@ -23,6 +23,7 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -480,7 +481,9 @@ public class ManifestacionesService extends Service {
      * Insurgentes") —donde las terminales son extremos de tramo, no un sentido— con un cierre de un
      * solo carril: en ese caso se corta AMBOS sentidos (se parte la línea).
      */
-    private String terminalEnTexto(int linea, String textoNorm) {
+    // static: no usa Context ni estado de instancia (solo Planificador.terminales(), estático) --
+    // puede probarse directamente en JUnit puro, igual que filaDescribeCierre()/segmentoParcial().
+    static String terminalEnTexto(int linea, String textoNorm) {
         // OJO: las terminales NO se sacan de l.estaciones.get(0)/get(size-1) -- estaciones.json (si
         // existe) reemplaza la lista de esa línea y agrega andenes "soloMapa" (2ª plataforma) AL FINAL,
         // así que el último elemento deja de ser la terminal real (p. ej. L1 termina en 51 estaciones
@@ -699,16 +702,33 @@ public class ManifestacionesService extends Service {
                         // palabra " a " entre los dos nombres -- sin esto el chunk quedaba sin "a" y se
                         // descartaba entero (ap<3), aunque el marcador "servicio de"/"provisional de" sí
                         // se reconociera. Solo el guion RODEADO DE ESPACIOS cuenta como separador de rango
-                        // (uno pegado a letras, como "Ex-Hacienda", no se toca). Local a este llamado: NO
-                        // afecta a bloquearTramosServicios (L4/L7, línea ~517), que sigue su propio
-                        // Planificador.norm(info) sin esta sustitución -- ver nota ahí sobre el mismo gap.
-                        String infoParaTramos = info.replaceAll("[\\s\\u00A0]+-[\\s\\u00A0]+", " a ");
-                        bloquearTramos(Planificador.norm(infoParaTramos), afect, ambos ? nlinea : 0);
-                        // L4 y L7 se rutean por SERVICIOS (couplet/ramas), no por un tramo lineal:
-                        // bloquearTramos las salta. Un aviso que nombre ESTACIONES reales ("Servicio de
-                        // Campo Marte a Glorieta Cuitláhuac") se resuelve aquí usando las secuencias de
-                        // RutasMixtas como referencia de orden (ver bloquearTramosServicios).
-                        if (porServicios(nlinea)) bloquearTramosServicios(nlinea, Planificador.norm(info), afect);
+                        // (uno pegado a letras, como "Ex-Hacienda", no se toca).
+                        //
+                        // Defecto confirmado: "info" puede traer VARIAS oraciones ajenas entre sí,
+                        // separadas por punto en el texto original (caso real de L7: "...a Hamburgo. Sin
+                        // servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac") -- Planificador.norm()
+                        // quita los puntos, así que si se normalizara "info" COMPLETO de una sola vez, la
+                        // segunda oración quedaba pegada como cola de la primera ANTES de que
+                        // segmentoParcial()/" a "/" y " pudieran distinguirlas: el fragmento resultante ya
+                        // no es ninguna de las dos oraciones reales, y bloquearTramosServicios() podía
+                        // resolver un tramo por COINCIDENCIA DE SUBCADENA contra ese texto mezclado (p. ej.
+                        // "Glorieta Cuitláhuac" apareciendo al final de un bloque que en realidad describía
+                        // un tramo distinto). Se procesa cada oración de "info" POR SEPARADO (ver
+                        // oracionesDe(), que no parte abreviaturas reales del catálogo como "Av."/"Dr."/
+                        // "Sta."/"Gustavo A. Madero"); una oración sin marcador de tramo reconocido
+                        // (segmentoParcial devuelve null) simplemente no aporta nada, en vez de arriesgar
+                        // un rango mal armado por fusión accidental con la oración siguiente.
+                        for (String oracion : oracionesDe(info)) {
+                            String infoParaTramos = oracion.replaceAll("[\\s\\u00A0]+-[\\s\\u00A0]+", " a ");
+                            bloquearTramos(Planificador.norm(infoParaTramos), afect, ambos ? nlinea : 0);
+                            // L4 y L7 se rutean por SERVICIOS (couplet/ramas), no por un tramo lineal:
+                            // bloquearTramos las salta. Un aviso que nombre ESTACIONES reales ("Servicio de
+                            // Campo Marte a Glorieta Cuitláhuac") se resuelve aquí usando las secuencias de
+                            // RutasMixtas como referencia de orden (ver bloquearTramosServicios). Sigue su
+                            // propio Planificador.norm(oracion) sin la sustitución de guion -- ver nota en
+                            // bloquearTramosServicios sobre ese gap, ya acotado por oración.
+                            if (porServicios(nlinea)) bloquearTramosServicios(nlinea, Planificador.norm(oracion), afect);
+                        }
                         // L4 además puede nombrar la ruta por su NOMBRE ("Ruta Norte"/"Ruta Sur") en vez
                         // de estaciones: bloquea sus estaciones exclusivas (ver bloquearRutaL4).
                         if (sinServicio) bloquearRutaL4(nlinea, sev, info, lineaLabel, estado, afect, extraPorEstacionAcc);
@@ -765,6 +785,43 @@ public class ManifestacionesService extends Service {
         if (texto == null) return "";
         java.util.regex.Matcher m = P_DIR.matcher(texto);
         return m.find() ? m.group(1).trim() : "";
+    }
+
+    // Palabra justo antes de un punto que NO marca fin de oración -- son abreviaturas REALES del
+    // catálogo (confirmadas por grep contra estaciones.json): "Av. Talismán" (L7), "Dr. Gálvez" (L1),
+    // "Dr. Márquez" (L3), "Pueblo Sta. Cruz Atoyac" (L3). Una sola letra ("Gustavo A. Madero", L6/L7)
+    // se cubre aparte, no por esta lista.
+    private static final Set<String> ABREV_PUNTO = new HashSet<>(Arrays.asList("av", "dr", "sta"));
+
+    /**
+     * Divide un texto en "oraciones" por punto, sin partir una abreviatura real del catálogo (ver
+     * {@link #ABREV_PUNTO} y el caso de una sola letra, "Gustavo A. Madero"). Usada para que un
+     * "info" con VARIAS afirmaciones ajenas entre sí, separadas por punto en el texto original
+     * ("Servicio de A a B. Sin servicio la ruta C a D."), no se procese como un solo bloque fusionado
+     * -- {@link Planificador#norm} quita los puntos, así que normalizar el texto COMPLETO de una
+     * sola vez pegaría la segunda oración como cola de la primera ANTES de que la extracción de
+     * tramos pudiera distinguirlas (riesgo real: coincidencia de subcadena entre fragmentos de
+     * oraciones distintas -- ver la nota en el llamador de {@link #bloquearTramosServicios}).
+     *
+     * <p>Sin punto en el texto, devuelve una lista de un solo elemento (el texto completo), igual
+     * que el comportamiento de siempre.
+     */
+    static List<String> oracionesDe(String texto) {
+        List<String> out = new ArrayList<>();
+        if (texto == null) return out;
+        int inicio = 0;
+        for (int i = 0; i < texto.length(); i++) {
+            if (texto.charAt(i) != '.') continue;
+            int j = i - 1;
+            while (j >= inicio && Character.isLetter(texto.charAt(j))) j--;
+            String palabra = texto.substring(j + 1, i).toLowerCase();
+            boolean abreviatura = palabra.length() == 1 || ABREV_PUNTO.contains(palabra);
+            if (abreviatura) continue;
+            out.add(texto.substring(inicio, i + 1));
+            inicio = i + 1;
+        }
+        if (inicio < texto.length()) out.add(texto.substring(inicio));
+        return out;
     }
 
     /**
@@ -1177,8 +1234,10 @@ public class ManifestacionesService extends Service {
     }
 
     /** Índice de una estación DENTRO de una secuencia de {@link RutasMixtas} (solo sus tramos de la
-     *  línea {@code nlinea}), por nombre normalizado con coincidencia difusa. */
-    private static int idxEnSecuencia(RutasMixtas.SeqMixta sm, int nlinea, String q) {
+     *  línea {@code nlinea}), por nombre normalizado con coincidencia difusa. Paquete-visible (no
+     *  Context/instancia): reutilizada por las pruebas JUnit contra las secuencias REALES de
+     *  RutasMixtas.SECUENCIAS, sin necesidad de una copia de datos a mano. */
+    static int idxEnSecuencia(RutasMixtas.SeqMixta sm, int nlinea, String q) {
         String qn = Planificador.norm(q);
         for (int k = 0; k < sm.estaciones.length; k++) {
             if (sm.lineas[k] != nlinea) continue;

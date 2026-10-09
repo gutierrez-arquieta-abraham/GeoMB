@@ -58,6 +58,35 @@ public class ManifestacionesServiceBloquearTramosTest {
     private static final ManifestacionesService.CandidatoLinea L1_CANDIDATO =
             new ManifestacionesService.CandidatoLinea(1, L1);
 
+    // Orden REAL de L6 (copiado de estaciones.json, índices 0-36), usado por el caso de regresión
+    // de la auditoría de coloreado ("GeoMB -- Auditoría y corrección integral del coloreado de
+    // estaciones afectadas"): aviso real de "estado" con estado="Obstrucción de carril",
+    // estaciones="Montevideo - San Bartolo", info="Servicio provisional de El Rosario a Norte 45 y
+    // de Villa de Aragón a Instituto Politécnico Nacional".
+    private static final List<Estacion> L6 = new ArrayList<>(Arrays.asList(
+            new Estacion("El Rosario", 0, 0), new Estacion("Colegio de Bachilleres 1", 0, 0),
+            new Estacion("De Las Culturas", 0, 0), new Estacion("Ferrocarriles Nacionales", 0, 0),
+            new Estacion("UAM Azcapotzalco", 0, 0), new Estacion("Tecnoparque", 0, 0),
+            new Estacion("Norte 59", 0, 0), new Estacion("Norte 45", 0, 0),
+            new Estacion("Montevideo", 0, 0), new Estacion("Lindavista-Vallejo", 0, 0),
+            new Estacion("Instituto del Petróleo", 0, 0), new Estacion("San Bartolo", 0, 0),
+            new Estacion("Instituto Politécnico Nacional", 0, 0), new Estacion("Riobamba", 0, 0),
+            new Estacion("Deportivo 18 de Marzo", 0, 0), new Estacion("La Villa", 0, 0),
+            new Estacion("De los Misterios", 0, 0), new Estacion("Hospital Infantil La Villa", 0, 0),
+            new Estacion("Gustavo A. Madero", 0, 0), new Estacion("Martín Carrera", 0, 0),
+            new Estacion("Hospital General La Villa", 0, 0), new Estacion("San Juan de Aragón", 0, 0),
+            new Estacion("Gran Canal", 0, 0), new Estacion("Casas Alemán", 0, 0),
+            new Estacion("Pueblo San Juan de Aragón", 0, 0), new Estacion("Loreto Fabela", 0, 0),
+            new Estacion("416 Poniente", 0, 0), new Estacion("Deportivo Los Galeana", 0, 0),
+            new Estacion("482", 0, 0), new Estacion("Ampliación Providencia", 0, 0),
+            new Estacion("Volcán de Fuego", 0, 0), new Estacion("414", 0, 0),
+            new Estacion("416 Oriente", 0, 0), new Estacion("La Pradera", 0, 0),
+            new Estacion("Colegio de Bachilleres 9", 0, 0), new Estacion("Francisco Morazán", 0, 0),
+            new Estacion("Villa de Aragón", 0, 0)));
+
+    private static final ManifestacionesService.CandidatoLinea L6_CANDIDATO =
+            new ManifestacionesService.CandidatoLinea(6, L6);
+
     // Caso real del audit (Caso B): ambos tramos, estaciones intermedias correctas (El Chopo,
     // Revolución, Plaza de la República, Reforma, Hamburgo -- idx 9-13), extremos de AMBOS tramos
     // NO bloqueados.
@@ -177,5 +206,31 @@ public class ManifestacionesServiceBloquearTramosTest {
         assertEquals(Arrays.asList(0, 3), resultado.get(101));   // Terminal Norte y Sur quedan fuera
         assertNull("la segunda línea (102) NUNCA debe recibir el rango: la primera ya lo reclamó",
                 resultado.get(102));
+    }
+
+    // ============================================================================================
+    // Fixture real de la auditoría de coloreado -- L6, info con DOS tramos "y de": "Servicio
+    // provisional de El Rosario a Norte 45 y de Villa de Aragón a Instituto Politécnico Nacional".
+    // Debe bloquear EXACTAMENTE las 4 estaciones que quedan en la brecha entre ambos tramos
+    // (Montevideo, Lindavista-Vallejo, Instituto del Petróleo, San Bartolo) -- ni toda la línea, ni
+    // solo los 2 extremos nombrados en la columna "estaciones" ("Montevideo - San Bartolo").
+    // ============================================================================================
+    @Test
+    public void fixtureL6_dosTramosProvisionales_bloqueaExactamenteLaBrechaIntermedia() {
+        String seg = ManifestacionesService.segmentoParcial(Planificador.norm(
+                "Servicio provisional de El Rosario a Norte 45 y de Villa de Aragón a "
+                        + "Instituto Politécnico Nacional"));
+        List<Integer> fuera = ManifestacionesService.indicesFueraDeRangoPorLinea(
+                seg, Collections.singletonList(L6_CANDIDATO)).get(6);
+
+        // Montevideo(8), Lindavista-Vallejo(9), Instituto del Petróleo(10), San Bartolo(11).
+        assertEquals(Arrays.asList(8, 9, 10, 11), fuera);
+        // Ningún extremo de los tramos EN SERVICIO queda bloqueado.
+        assertFalse(fuera.contains(0));    // El Rosario
+        assertFalse(fuera.contains(7));    // Norte 45
+        assertFalse(fuera.contains(12));   // Instituto Politécnico Nacional
+        assertFalse(fuera.contains(36));   // Villa de Aragón
+        // No se bloquea indiscriminadamente toda la línea (37 estaciones en total).
+        assertEquals(4, fuera.size());
     }
 }
