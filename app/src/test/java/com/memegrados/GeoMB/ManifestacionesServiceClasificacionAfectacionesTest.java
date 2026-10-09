@@ -227,4 +227,97 @@ public class ManifestacionesServiceClasificacionAfectacionesTest {
                         + "-> Hamburgo",
                 algunaResolvioHospitalAHamburgo);
     }
+
+    // =====================================================================================
+    // Defecto confirmado y corregido: variante real del caso L7 anterior, pero con las dos
+    // oraciones separadas por COMA en vez de punto ("...a Hamburgo, Sin servicio la ruta Alameda
+    // Tacubaya a Glorieta Cuitláhuac"). oracionesDe() solo dividía por punto, así que esta variante
+    // reproducía el mismo defecto de fusión -- ver conLimitesDeOracion().
+    // =====================================================================================
+    @Test
+    public void conLimitesDeOracion_convierteComaAntesDeFraseDeCierreEnPunto() {
+        String info = "Por bloqueo, servicio de Indios Verdes y Hospital Infantil la Villa a "
+                + "Hamburgo, Sin servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac.";
+
+        String conLimites = ManifestacionesService.conLimitesDeOracion(info);
+        List<String> oraciones = ManifestacionesService.oracionesDe(conLimites);
+
+        assertEquals("ambas comas preceden a una frase de inicio reconocida ('servicio de' / "
+                        + "'sin servicio'): deben tratarse como límite, igual que un punto",
+                3, oraciones.size());
+        assertTrue(oraciones.get(1).trim().endsWith("Hamburgo."));
+        assertTrue(oraciones.get(2).trim().startsWith("Sin servicio la ruta"));
+    }
+
+    @Test
+    public void conLimitesDeOracion_comaSinFraseDeCierreDespues_noSePartee() {
+        // "México-Tenochtitlán, Línea 3 y Ayuntamiento" -- "Línea 3" no es una frase de cierre
+        // reconocida: la coma no debe convertirse en punto.
+        String info = "Servicio de la Ruta Sur por México-Tenochtitlán, Línea 3 y Ayuntamiento.";
+        assertEquals(info, ManifestacionesService.conLimitesDeOracion(info));
+    }
+
+    @Test
+    public void fixtureL7_variantesConComa_laOracionLimpiaNoMencionaGlorieta() {
+        String info = "Por bloqueo, servicio de Indios Verdes y Hospital Infantil la Villa a "
+                + "Hamburgo, Sin servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac.";
+
+        List<String> oraciones = ManifestacionesService.oracionesDe(
+                ManifestacionesService.conLimitesDeOracion(info));
+        // La oración que describe "Hospital Infantil La Villa a Hamburgo" debe quedar aislada --
+        // igual que en la variante con punto, el segmento extraído no debe mencionar "glorieta".
+        String oracionDelTramo = oraciones.get(1);
+        String seg = ManifestacionesService.segmentoParcial(Planificador.norm(oracionDelTramo));
+        assertNotNull(seg);
+        assertFalse(seg.contains("glorieta"));
+    }
+
+    // =====================================================================================
+    // Defecto real reportado en dispositivo (L7, confirmado por el usuario: "Indios verdes esta
+    // considerado como operativa la neta"): "servicio de Indios Verdes y Hospital Infantil La
+    // Villa a Hamburgo" tiene DOS orígenes para UN destino compartido. Antes de esta corrección,
+    // bloquearTramosServicios() partía por " y " y descartaba cualquier chunk sin su propio " a Y"
+    // (chunk.indexOf(" a ") < 3) -- "Indios Verdes" se perdía así sin aportar nada, dejando esa
+    // estación marcada fuera de servicio pese a que el aviso dice explícitamente que sigue
+    // operando. bloquearTramosServicios() es un método de instancia (no instanciable en JVM puro,
+    // Service no se construye sin Robolectric), así que esta prueba verifica contra las piezas
+    // REALES y estáticas que sostienen la corrección: que "Indios Verdes" es un nombre real
+    // resoluble por idxEnSecuencia() dentro de alguna secuencia real de L7, y que efectivamente NO
+    // tiene su propio " a " (confirmando que antes de la corrección este chunk se descartaba por
+    // completo en vez de emparejarse con el destino del siguiente chunk, "Hamburgo").
+    // =====================================================================================
+    @Test
+    public void fixtureL7_indiosVerdes_esOrigenColganteSinSuPropioDestino_yResuelveComoEstacionRealDeL7() {
+        String info = "Por bloqueo, servicio de Indios Verdes y Hospital Infantil La Villa a Hamburgo";
+        String primeraOracion = ManifestacionesService.oracionesDe(info).get(0);
+        String seg = ManifestacionesService.segmentoParcial(Planificador.norm(primeraOracion));
+        assertNotNull(seg);
+
+        String[] chunks = seg.split("\\s+y\\s+");
+        assertEquals("el aviso real tiene 2 chunks separados por ' y '", 2, chunks.length);
+        String primerChunk = chunks[0].trim();
+        assertEquals("indios verdes", primerChunk);
+        assertTrue("el primer chunk ('Indios Verdes') NO tiene su propio ' a Y' -- es el origen "
+                        + "'colgante' que antes de esta corrección se descartaba sin más",
+                primerChunk.indexOf(" a ") < 3);
+
+        java.util.List<RutasMixtas.SeqMixta> secuenciasL7 = new java.util.ArrayList<>();
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+            for (int ln : sm.lineas) if (ln == 7) { secuenciasL7.add(sm); break; }
+        }
+        assertFalse(secuenciasL7.isEmpty());
+
+        boolean indiosVerdesResuelveConHamburgo = false;
+        for (RutasMixtas.SeqMixta sm : secuenciasL7) {
+            int ix = ManifestacionesService.idxEnSecuencia(sm, 7, Planificador.norm("Indios Verdes"));
+            int iy = ManifestacionesService.idxEnSecuencia(sm, 7, Planificador.norm("Hamburgo"));
+            if (ix >= 0 && iy >= 0) indiosVerdesResuelveConHamburgo = true;
+        }
+        assertTrue("'Indios Verdes' debe resolver como estación real de L7 junto con 'Hamburgo' "
+                        + "dentro de alguna secuencia real -- confirma que, emparejado con el "
+                        + "destino del siguiente chunk (la corrección aplicada), el tramo 'Indios "
+                        + "Verdes a Hamburgo' es resoluble y por tanto queda EN SERVICIO en vez de "
+                        + "bloqueado",
+                indiosVerdesResuelveConHamburgo);
+    }
 }

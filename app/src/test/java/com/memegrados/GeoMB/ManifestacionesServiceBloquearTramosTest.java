@@ -300,4 +300,47 @@ public class ManifestacionesServiceBloquearTramosTest {
         assertTrue(fuera.contains(9));    // Poniente 128: fuera del único tramo en servicio
         assertTrue(fuera.contains(38));   // Pueblo Sta. Cruz Atoyac: fuera del único tramo en servicio
     }
+
+    // ============================================================================================
+    // Defecto confirmado y corregido: la columna "Estaciones afectadas" puede nombrar un RANGO
+    // "A - B" (caso real: "Poniente 128 - Cuitláhuac") que itemsEstaciones() nunca reconocía (solo
+    // separa por coma/"y"/"e"). rangoEstacionesCerradas() lo resuelve aparte, usando los nombres
+    // EXACTOS del catálogo de esta columna -- a diferencia de "información adicional", que para el
+    // mismo aviso real decía "Pueblo de Santa Cruz" (no calza con "Pueblo Sta. Cruz Atoyac").
+    // ============================================================================================
+    @Test
+    public void fixtureL3_rangoEnColumnaEstaciones_resuelveContraElCatalogoReal() {
+        int[] rango = ManifestacionesService.rangoEstacionesCerradas("Poniente 128 - Cuitláhuac", L3);
+
+        assertNotNull("ambos extremos existen en el catálogo real de L3, debe resolver un rango", rango);
+        assertEquals(9, rango[0]);    // Poniente 128
+        assertEquals(12, rango[1]);   // Cuitláhuac
+    }
+
+    @Test
+    public void rangoEstacionesCerradas_sinGuion_devuelveNull() {
+        assertNull(ManifestacionesService.rangoEstacionesCerradas("Poniente 128", L3));
+    }
+
+    @Test
+    public void rangoEstacionesCerradas_guionPegadoALetras_noCuentaComoRango() {
+        // "Ex-Hacienda" (ejemplo de nombre real con guion SIN espacios alrededor) no debe
+        // interpretarse como "Ex" a "Hacienda".
+        assertNull(ManifestacionesService.rangoEstacionesCerradas("Ex-Hacienda", L3));
+    }
+
+    @Test
+    public void rangoEstacionesCerradas_unExtremoNoExisteEnElCatalogo_devuelveNull() {
+        // "Alameda Tacubaya" no es un nombre real de L3 -- no se inventa un rango con un solo
+        // extremo confirmado.
+        assertNull(ManifestacionesService.rangoEstacionesCerradas("Poniente 128 - Alameda Tacubaya", L3));
+    }
+
+    @Test
+    public void rangoEstacionesCerradas_ordenInvertidoEnElTexto_normalizaMenorAMayor() {
+        int[] rango = ManifestacionesService.rangoEstacionesCerradas("Cuitláhuac - Poniente 128", L3);
+        assertNotNull(rango);
+        assertEquals(9, rango[0]);
+        assertEquals(12, rango[1]);
+    }
 }

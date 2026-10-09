@@ -458,6 +458,43 @@ public class ManifestacionesService extends Service {
         return out;
     }
 
+    // Guion RODEADO DE ESPACIOS/NBSP como separador de RANGO en la columna "estaciones" -- misma
+    // convención ya usada para "A - B" en "info" (ver más abajo en este archivo): uno pegado a
+    // letras ("Ex-Hacienda") no cuenta.
+    private static final java.util.regex.Pattern P_RANGO_ESTACIONES =
+            java.util.regex.Pattern.compile("[\\s\\u00A0]+-[\\s\\u00A0]+");
+
+    /**
+     * Defecto confirmado (caso real en dispositivo: L3, estado "Manifestación", columna
+     * "Estaciones afectadas" = "Poniente 128 - Cuitláhuac"): el guion ahí NO es un nombre compuesto
+     * ni una lista -- es un RANGO entre dos estaciones reales de la línea (la primera y la última
+     * del tramo afectado). {@link #itemsEstaciones} no lo reconocía (solo separa por coma/"y"/"e"),
+     * así que ese texto nunca calzaba con ningún nombre exacto del catálogo y la fila no bloqueaba
+     * nada por esta vía -- dejando sin marcar el tramo real que el propio aviso oficial nombra.
+     *
+     * <p>Se resuelve aparte de {@code info} (que para el mismo aviso real decía "Pueblo de Santa
+     * Cruz", un nombre que NUNCA calza con el real del catálogo, "Pueblo Sta. Cruz Atoyac") porque
+     * la columna "Estaciones afectadas" usa, en los casos reales observados, el nombre EXACTO del
+     * catálogo en cada extremo -- más confiable que parafrasear "información adicional" en prosa
+     * libre, que es donde vive esa discrepancia de abreviatura.
+     *
+     * <p>Si no hay guion rodeado de espacios, o si alguno de los dos extremos no resuelve contra el
+     * catálogo de ESTA línea, devuelve {@code null} -- no se inventa un rango sin ambos nombres
+     * confirmados; el llamador cae de vuelta a {@link #itemsEstaciones} (comportamiento de siempre).
+     */
+    static int[] rangoEstacionesCerradas(String estacionesRaw, List<Estacion> catalogoLinea) {
+        if (estacionesRaw == null) return null;
+        java.util.regex.Matcher m = P_RANGO_ESTACIONES.matcher(estacionesRaw);
+        if (!m.find()) return null;
+        String a = estacionesRaw.substring(0, m.start()).trim();
+        String b = estacionesRaw.substring(m.end()).trim();
+        if (a.length() < 3 || b.length() < 3) return null;
+        int ia = idxEstacion(catalogoLinea, Planificador.norm(a));
+        int ib = idxEstacion(catalogoLinea, Planificador.norm(b));
+        if (ia < 0 || ib < 0) return null;
+        return new int[]{Math.min(ia, ib), Math.max(ia, ib)};
+    }
+
     /** Bloquea una estación DE ESA LÍNEA: por sentido (hacia esa terminal) si se detectó una, o
      *  ambos si no. La clave lleva la línea para no cruzarse con otra línea del mismo nombre. */
     private void bloquearNn(int linea, String nn, String terminalSentido) {
@@ -674,20 +711,35 @@ public class ManifestacionesService extends Service {
                             // "La Raza" también bloqueaba la "La Raza" de L3 (mismo nombre, otra línea).
                             Linea l = nlinea > 0 ? GtfsRepository.porNumero(this, nlinea) : null;
                             if (l != null) {
-                                // Elementos de la lista, YA separados (ver itemsEstaciones()): la
-                                // comparación es por IGUALDAD EXACTA de nombre normalizado contra el
-                                // catálogo, nunca por subcadena -- evita que "Insurgentes" calce contra
-                                // una fila que en realidad dice "Teatro de los Insurgentes" (estación
-                                // real y distinta de L1, a ~6 km).
-                                java.util.Set<String> items = new HashSet<>(itemsEstaciones(estaciones));
-                                for (Estacion e : l.estaciones) {
-                                    String nn = Planificador.norm(e.nombre);
-                                    if (!nn.isEmpty() && items.contains(nn)) {
+                                // Caso real confirmado en dispositivo: la columna "Estaciones afectadas"
+                                // puede nombrar un RANGO "A - B" (p. ej. "Poniente 128 - Cuitláhuac"), no
+                                // una lista ni un nombre compuesto -- ver rangoEstacionesCerradas(). Si
+                                // ambos extremos resuelven contra el catálogo de esta línea, se bloquea el
+                                // tramo completo (inclusive); si no, se cae al camino de siempre.
+                                int[] rango = rangoEstacionesCerradas(estaciones, l.estaciones);
+                                if (rango != null) {
+                                    for (int k = rango[0]; k <= rango[1]; k++) {
+                                        String nn = Planificador.norm(l.estaciones.get(k).nombre);
                                         bloquearNn(nlinea, nn, terminalSentido);
-                                        // Parte la línea SOLO si es un bloqueo físico real (ver bloqueoFisico
-                                        // arriba); una estación "sin servicio"/cerrada normal se puede
-                                        // seguir de largo sin bajar/subir, así que no se desconecta el resto.
                                         if (ambos && bloqueoFisico) cortarAlrededor(nlinea, nn);
+                                    }
+                                } else {
+                                    // Elementos de la lista, YA separados (ver itemsEstaciones()): la
+                                    // comparación es por IGUALDAD EXACTA de nombre normalizado contra el
+                                    // catálogo, nunca por subcadena -- evita que "Insurgentes" calce contra
+                                    // una fila que en realidad dice "Teatro de los Insurgentes" (estación
+                                    // real y distinta de L1, a ~6 km).
+                                    java.util.Set<String> items = new HashSet<>(itemsEstaciones(estaciones));
+                                    for (Estacion e : l.estaciones) {
+                                        String nn = Planificador.norm(e.nombre);
+                                        if (!nn.isEmpty() && items.contains(nn)) {
+                                            bloquearNn(nlinea, nn, terminalSentido);
+                                            // Parte la línea SOLO si es un bloqueo físico real (ver
+                                            // bloqueoFisico arriba); una estación "sin servicio"/cerrada
+                                            // normal se puede seguir de largo sin bajar/subir, así que no
+                                            // se desconecta el resto.
+                                            if (ambos && bloqueoFisico) cortarAlrededor(nlinea, nn);
+                                        }
                                     }
                                 }
                             }
@@ -718,7 +770,12 @@ public class ManifestacionesService extends Service {
                         // "Sta."/"Gustavo A. Madero"); una oración sin marcador de tramo reconocido
                         // (segmentoParcial devuelve null) simplemente no aporta nada, en vez de arriesgar
                         // un rango mal armado por fusión accidental con la oración siguiente.
-                        for (String oracion : oracionesDe(info)) {
+                        //
+                        // Defecto confirmado adicional: el texto oficial a veces usa COMA en vez de punto
+                        // para separar dos afirmaciones ajenas (caso real: "...a Hamburgo, Sin servicio la
+                        // ruta..."). oracionesDe() solo divide por punto, así que sin esto el mismo defecto
+                        // de fusión reaparecía -- ver P_COMA_NUEVA_AFIRMACION.
+                        for (String oracion : oracionesDe(conLimitesDeOracion(info))) {
                             String infoParaTramos = oracion.replaceAll("[\\s\\u00A0]+-[\\s\\u00A0]+", " a ");
                             bloquearTramos(Planificador.norm(infoParaTramos), afect, ambos ? nlinea : 0);
                             // L4 y L7 se rutean por SERVICIOS (couplet/ramas), no por un tramo lineal:
@@ -822,6 +879,34 @@ public class ManifestacionesService extends Service {
         }
         if (inicio < texto.length()) out.add(texto.substring(inicio));
         return out;
+    }
+
+    /**
+     * Defecto confirmado (caso real de L7: "...servicio de Indios Verdes y Hospital Infantil la
+     * Villa a Hamburgo, Sin servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac."): el texto
+     * oficial a veces separa dos afirmaciones AJENAS entre sí con COMA en vez de punto --
+     * {@link #oracionesDe} solo reconoce el punto como límite de oración, así que sin esto las dos
+     * quedaban pegadas y se reproducía el mismo defecto de fusión de oraciones ya corregido para el
+     * caso con punto (coincidencia de subcadena entre fragmentos de afirmaciones distintas).
+     *
+     * <p>Se trata una coma como límite SOLO cuando va seguida de una de las frases que
+     * {@link #segmentoParcial} ya reconoce como inicio de una afirmación de tramo/cierre propia
+     * ("sin servicio", "servicio de", "servicio provisional", "servicio parcial", "solo hay
+     * servicio", "opera de") -- nunca una coma cualquiera (p. ej. "Por bloqueo, servicio de..." SÍ
+     * separa porque "servicio de" es una de esas frases; "México-Tenochtitlán, Línea 3 y..." NO,
+     * porque "Línea 3" no lo es). Evita partir listas o aposiciones comunes del texto oficial que no
+     * tienen nada que ver con un límite de oración.
+     */
+    private static final java.util.regex.Pattern P_COMA_NUEVA_AFIRMACION = java.util.regex.Pattern.compile(
+            "(?i),\\s+(?=(sin servicio|servicio de|servicio provisional|servicio parcial"
+                    + "|solo hay servicio|opera de)\\b)");
+
+    /** Convierte, dentro de "texto", una coma seguida de una frase de inicio de afirmación
+     *  reconocida (ver {@link #P_COMA_NUEVA_AFIRMACION}) en un punto -- paso previo a
+     *  {@link #oracionesDe}, extraído aparte para poder probarlo directamente. */
+    static String conLimitesDeOracion(String texto) {
+        if (texto == null) return null;
+        return P_COMA_NUEVA_AFIRMACION.matcher(texto).replaceAll(". ");
     }
 
     /**
@@ -1212,37 +1297,61 @@ public class ManifestacionesService extends Service {
             for (int k = 0; k < sm.estaciones.length; k++)
                 if (sm.lineas[k] == nlinea) universo.add(Planificador.norm(sm.estaciones[k]));
 
+        // Defecto confirmado (caso real de L7, reportado en dispositivo: "servicio de Indios Verdes
+        // y Hospital Infantil la Villa a Hamburgo" -- dos ORÍGENES, un solo destino compartido). Antes:
+        // (1) un origen SIN su propio "a Y" ("Indios Verdes") se descartaba sin más (ap<3), dejando
+        // Indios Verdes marcado fuera de servicio pese a que el aviso dice explícitamente que sigue
+        // operando; (2) cada tramo "X a Y" se procesaba de forma INDEPENDIENTE, bloqueando de
+        // inmediato "universo menos SU PROPIO rango" -- así que un segundo tramo resuelto (p. ej. el
+        // de "Hospital Infantil La Villa") podía volver a bloquear una estación que el primer tramo
+        // ("Indios Verdes") ya había marcado en servicio, simplemente porque esa estación no estaba
+        // DENTRO del rango del segundo tramo. Ahora: un origen sin "a Y" propio se empareja con el
+        // destino del SIGUIENTE tramo que sí lo tenga (mismo destino, otro origen -- construcción real
+        // "X y Y a Z"), y "en servicio" se ACUMULA (OR) across TODOS los tramos antes de decidir qué
+        // bloquear UNA sola vez al final -- igual que ya hace indicesFueraDeRangoPorLinea() para las
+        // líneas troncales.
+        java.util.Map<String, Boolean> enServicio = new java.util.HashMap<>();
+        boolean algunTramoResuelto = false;
+        List<String> origenesPendientes = new ArrayList<>();
         for (String chunk : seg.split("\\s+y\\s+")) {
             int ap = chunk.indexOf(" a ");
-            if (ap < 3) continue;
-            String x = chunk.substring(0, ap).trim();
+            if (ap < 3) {
+                String origen = chunk.trim();
+                if (origen.length() >= 3) origenesPendientes.add(origen);
+                continue;
+            }
+            String xDirecto = chunk.substring(0, ap).trim();
             String y = chunk.substring(ap + 3).trim();
-            if (x.length() < 3 || y.length() < 3) continue;
+            if (y.length() < 3) { origenesPendientes.clear(); continue; }
 
-            java.util.Map<String, Boolean> enServicio = new java.util.HashMap<>();
-            boolean algunaResuelta = false;
-            for (RutasMixtas.SeqMixta sm : secs) {
-                int ix = idxEnSecuencia(sm, nlinea, x), iy = idxEnSecuencia(sm, nlinea, y);
-                if (ix < 0 || iy < 0) continue;
-                algunaResuelta = true;
-                int lo = Math.min(ix, iy), hi = Math.max(ix, iy);
-                for (int k = 0; k < sm.estaciones.length; k++) {
-                    if (sm.lineas[k] != nlinea) continue;
-                    String nn = Planificador.norm(sm.estaciones[k]);
-                    boolean dentro = k >= lo && k <= hi;
-                    enServicio.merge(nn, dentro, (a, b) -> a || b);
+            List<String> origenes = new ArrayList<>(origenesPendientes);
+            origenesPendientes.clear();
+            if (xDirecto.length() >= 3) origenes.add(xDirecto);
+
+            for (String x : origenes) {
+                for (RutasMixtas.SeqMixta sm : secs) {
+                    int ix = idxEnSecuencia(sm, nlinea, x), iy = idxEnSecuencia(sm, nlinea, y);
+                    if (ix < 0 || iy < 0) continue;
+                    algunTramoResuelto = true;
+                    int lo = Math.min(ix, iy), hi = Math.max(ix, iy);
+                    for (int k = 0; k < sm.estaciones.length; k++) {
+                        if (sm.lineas[k] != nlinea) continue;
+                        String nn = Planificador.norm(sm.estaciones[k]);
+                        boolean dentro = k >= lo && k <= hi;
+                        enServicio.merge(nn, dentro, (a, b) -> a || b);
+                    }
                 }
             }
-            // Ningún tramo real mapeado (X/Y no calzan con ninguna secuencia de esta línea): blindaje,
-            // no arriesgar bloqueando de más por un texto no reconocido.
-            if (!algunaResuelta) continue;
+        }
+        // Ningún tramo real mapeado (ningún X/Y calzó con ninguna secuencia de esta línea): blindaje,
+        // no arriesgar bloqueando de más por un texto no reconocido.
+        if (!algunTramoResuelto) return;
 
-            for (String nn : universo) {
-                Boolean v = enServicio.get(nn);
-                if (v == null || !v) {
-                    afect.add(Planificador.claveTerminal(nlinea) + "|" + nn);
-                    cortarAlrededor(nlinea, nn);
-                }
+        for (String nn : universo) {
+            Boolean v = enServicio.get(nn);
+            if (v == null || !v) {
+                afect.add(Planificador.claveTerminal(nlinea) + "|" + nn);
+                cortarAlrededor(nlinea, nn);
             }
         }
     }
