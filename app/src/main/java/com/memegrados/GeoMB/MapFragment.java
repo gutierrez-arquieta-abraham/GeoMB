@@ -838,12 +838,31 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // "Reforma"/"Hamburgo" por L7, aunque L1 las tenga fuera por un circuito de emergencia) -- ahí
         // no está realmente fuera de servicio, solo la troncal pura. Si esa otra línea TAMBIÉN está
         // bloqueada en esta estación, no se exime (ambos caminos están cortados).
-        return !sirveRutaMixtaAlterna(em.linea, em.e.nombre, bloqueadas);
+        return !sirveRutaMixtaAlterna(em.linea, em.e.nombre, em.pos, bloqueadas);
     }
 
+    /** Distancia máxima (m) para considerar que una estación de OTRA línea, con el MISMO nombre
+     *  normalizado, es la MISMA parada física (y no una coincidencia de nombre entre corredores
+     *  distintos). Las 3 colisiones reales confirmadas en este catálogo caen entre ~150 y ~355 m
+     *  ("Reforma" L1 vs L7 ≈152 m, "Hamburgo" L1 vs L7 ≈231-253 m, "Plaza de la República" L1 vs
+     *  L4 ≈353 m -- misma zona de la ciudad, calles distintas, NO la misma parada): se usa 100 m,
+     *  por debajo de la menor de ellas, para excluir las 3 sin inventar una excepción por nombre.
+     *  No hay en este audit ningún caso real DEMOSTRADO que necesite un radio mayor -- si aparece
+     *  uno, debe documentarse con sus coordenadas antes de ampliar este valor, no a ciegas. */
+    static final double RADIO_MISMA_PARADA_M = 100.0;   // paquete-visible: reutilizada por las pruebas JUnit
+
     /** ¿Hay un recorrido mixto (RutasMixtas.SECUENCIAS) que sirva esta MISMA estación por OTRA línea
-     *  que sigue en servicio ahí? Ver {@link #fueraDeServicio}. */
-    private boolean sirveRutaMixtaAlterna(int lineaBloqueada, String nombreEstacion, java.util.Set<String> bloqueadas) {
+     *  que sigue en servicio ahí? Ver {@link #fueraDeServicio}.
+     *
+     *  <p>"Misma estación" se exige por NOMBRE (normalizado) Y por UBICACIÓN (ver
+     *  {@link #mismaParadaFisica}): dos estaciones de corredores distintos pueden compartir nombre
+     *  exacto sin ser el mismo lugar (p. ej. "Reforma"/"Hamburgo"/"Plaza de la República" existen
+     *  como estación real de Avenida Insurgentes en L1 Y, por separado, como estación de Paseo de
+     *  la Reforma/Eje Central en L7/L4, a varios cientos de metros) -- antes solo se comparaba el
+     *  nombre, así que un circuito de emergencia en L1 eximía de "fuera de servicio" estaciones de
+     *  L1 que en realidad no tienen ningún recorrido mixto real pasando por ahí. */
+    private boolean sirveRutaMixtaAlterna(int lineaBloqueada, String nombreEstacion, LatLng posEstacion,
+                                           java.util.Set<String> bloqueadas) {
         String nn = Planificador.norm(nombreEstacion);
         int lineaBloqueadaN = Planificador.claveTerminal(lineaBloqueada);
         for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
@@ -851,11 +870,32 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 int ln = sm.lineas[i];
                 if (Planificador.claveTerminal(ln) == lineaBloqueadaN) continue;   // mismo trazado cerrado: no cuenta
                 if (!Planificador.norm(sm.estaciones[i]).equals(nn)) continue;
-                if (!bloqueadas.contains(Planificador.claveTerminal(ln) + "|" + nn)) return true;
+                if (bloqueadas.contains(Planificador.claveTerminal(ln) + "|" + nn)) continue;
+                if (posEstacion != null && !mismaParadaFisica(ln, nn, posEstacion)) continue;
+                return true;
             }
         }
         return false;
     }
+
+    /** ¿La estación "nn" (ya normalizada) del catálogo de la línea "ln" está a ≤ RADIO_MISMA_PARADA_M
+     *  de "posEstacion"? Resuelve la posición real de esa estación en SU línea (no asume que
+     *  comparte coordenadas solo por compartir nombre) antes de comparar la distancia -- ver
+     *  {@link #sirveRutaMixtaAlterna}. */
+    private boolean mismaParadaFisica(int ln, String nn, LatLng posEstacion) {
+        Linea l = GtfsRepository.porNumero(requireContext(), ln);
+        if (l == null) return false;
+        for (Estacion e : l.estaciones) {
+            if (Planificador.norm(e.nombre).equals(nn)) {
+                return distanciaMismaParada(posEstacion, e.posicion) <= RADIO_MISMA_PARADA_M;
+            }
+        }
+        return false;
+    }
+
+    /** Núcleo puro (sin Context/GoogleMap) de la comparación de distancia -- separado para poder
+     *  probarlo en JUnit sobre el JVM del host sin necesitar Android ni el catálogo real. */
+    static double distanciaMismaParada(LatLng a, LatLng b) { return Linea.distancia(a, b); }
 
     /** Aplica la visibilidad de Mexibús/Mexicable, cada uno según su propio ajuste ("Mostrar
      *  Mexibús"/"Mostrar Mexicable", Acerca de): una línea o estación de un sistema apagado se
