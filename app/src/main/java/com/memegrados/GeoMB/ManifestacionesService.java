@@ -93,7 +93,6 @@ public class ManifestacionesService extends Service {
     private static final String GRUPO_OTROS = "afectaciones_otros";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private WebView web;
     private boolean cargando = false;
     private List<Manifestaciones.Afectacion> ultimaLista = new ArrayList<>();
 
@@ -118,24 +117,140 @@ public class ManifestacionesService extends Service {
     // Estado ya notificado por línea (clave de la situación) para no repetir el aviso.
     private final java.util.Set<String> notifClaves = new java.util.HashSet<>();   // claves de afectación ya avisadas
     private boolean notifEstadoCargado = false;   // ¿ya se restauró el dedup persistido de esta sesión?
-    // Si el iframe de estado no responde, igual notifica lo de las tablas (estado se omite por estadoFilas==0).
-    private final Runnable seguridad = () -> { notificar(); cargando = false; };
-    // "seguridad" (arriba) solo cubre la FASE 1 (se agenda desde onTablas, una vez que la fase 0 ya
-    // completó). Si la fase 0 falla en cargar del todo -- error de red, redirección a una página de
-    // error, timeout del WebView -- onPageFinished puede no disparar nunca con la URL esperada
-    // (ver el "if" de fase en onCreate): ni onTablas ni "seguridad" llegan a ejecutarse, "cargando"
-    // se queda en true para siempre y revisar() deja de intentar CUALQUIER ciclo futuro -- en
-    // silencio, sin vaciar ningún estado, pero también sin volver a actualizarlo jamás. Este candado
-    // cubre el ciclo COMPLETO (ambas fases); se agenda al iniciar cada ciclo (ver revisar()) con un
-    // margen por debajo de INTERVALO_MS para no pisar el siguiente tick normal.
+    // Identifica el ciclo de consulta VIGENTE. Solo avanza en revisar() (ciclo nuevo), en
+    // candadoVencido()/seguridadVencida() (invalidan el ciclo atorado) y en onDestroy() (invalida
+    // cualquiera en curso). Cada callback asíncrono (el evaluateJavascript agendado en
+    // onPageFinished, onTablas, onEstado) captura su propio "gen" en el momento en que se agenda y
+    // lo compara contra este campo ANTES de tocar "fase"/los acumuladores o publicar en
+    // Manifestaciones -- si no coincide, el ciclo al que pertenecía ya fue reemplazado o invalidado
+    // y el callback no hace nada.
+    //
+    // ESTO SOLO (como quedó la ronda anterior) NO BASTA: "gen"/"fase" son solo números que se
+    // reescriben con cada ciclo nuevo, así que un onPageFinished TARDÍO de una navegación vieja,
+    // si llega después de que un ciclo nuevo YA reescribió "fase" (0 ó 1, los únicos valores que
+    // ese "if" acepta) y "generacion" a un valor que coincide por pura casualidad con el ciclo
+    // nuevo, puede leer esos valores YA actualizados, calzar como si fuera de ese ciclo, y agendar
+    // un evaluateJavascript DUPLICADO para un ciclo que ya tenía el suyo en curso -- ver "web" abajo,
+    // que es la protección que realmente cierra esto.
+    private int generacion = 0;
+    private Runnable candadoPendiente;      // referencia del candado agendado para el ciclo vigente
+    private Runnable seguridadPendiente;    // referencia de "seguridad" agendado para el ciclo vigente
+    // Última generación para la que onTablas()/onEstado() YA corrieron procesarFilas()/guardarStore().
+    // Guarda de PROCESO (por identidad de ciclo+fase), no de CONTENIDO: si por lo que sea
+    // onTablas/onEstado se invocan dos veces con el MISMO "gen" (un evaluateJavascript duplicado
+    // que de todos modos pasara el chequeo de "web"/"gen" de abajo, o cualquier otra causa), la
+    // segunda vez no vuelve a correr procesarFilas() ni a publicar -- nunca inspecciona ni filtra
+    // filas por su contenido, así que no oculta ni descarta datos legítimos repetidos en la fuente.
+    private int ultimoOnTablasGen = -1;
+    private int ultimoOnEstadoGen = -1;
+
+    /**
+     * WebView ACTUAL: la única fuente de verdad sobre qué navegación es la vigente. A diferencia
+     * de "generacion" (un contador que se reescribe y puede coincidir por casualidad con un ciclo
+     * distinto), comparar {@code v == web} es una garantía del lenguaje (identidad de objeto): un
+     * callback de un WebView que YA NO es el de este campo (porque {@link #candadoVencido}/
+     * {@link #seguridadVencida} lo reemplazaron, ver {@link #recrearWebView}) jamás puede volver a
+     * calzar, sin importar qué valores tengan "fase"/"generacion" en ese momento -- no depende de
+     * ninguna suposición sobre si stopLoading()/destroy() alcanzan a cancelar la navegación o el
+     * evaluateJavascript ya entregado al motor de JS; el objeto viejo simplemente deja de ser "web".
+     */
+    private WebView web;
+
+    /** Construye y configura un WebView nuevo (el mismo armado que antes vivía en onCreate()). */
+    private WebView crearWebView() {
+        WebView w = new WebView(getApplicationContext());
+        WebSettings s = w.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        w.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return false; }
+            @Override
+            public void onPageFinished(WebView v, String url) {
+                // Guarda PRINCIPAL (ver el javadoc de "web"): si este callback no es del WebView
+                // vigente, ninguna navegación suya puede ya avanzar ningún ciclo, sin importar fase.
+                if (v != web) return;
+                final String u = url != null ? url : "";
+                final int gen = generacion;
+                // Fase 0: tablas de ServicioMB (elevadores + mantenimiento). Fase 1: iframe Estado del Servicio.
+                if (fase == 0 && u.contains("metrobus.cdmx.gob.mx/ServicioMB")) {
+                    handler.postDelayed(() -> {
+                        if (v != web || gen != generacion) return;
+                        v.evaluateJavascript(JS_TABLAS, valor -> onTablas(gen, valor));
+                    }, 2500);
+                } else if (fase == 1 && u.contains("bandejaEstadoServicio")) {
+                    handler.postDelayed(() -> {
+                        if (v != web || gen != generacion) return;
+                        v.evaluateJavascript(JS_ESTADO, valor -> onEstado(gen, valor));
+                    }, 2500);
+                }
+            }
+        });
+        return w;
+    }
+
+    /**
+     * Reemplaza el WebView actual por uno NUEVO -- se llama SOLO al invalidar un ciclo cuya
+     * navegación podía seguir en curso ({@link #candadoVencido}/{@link #seguridadVencida}), nunca
+     * en el camino normal (onEstado() terminando bien no deja ninguna navegación ambigua detrás,
+     * así que reutiliza el mismo WebView sin necesidad de recrearlo).
+     *
+     * <p>{@code destroy()} es la operación de WebView con comportamiento documentado de verdad
+     * ("no deben esperarse más callbacks después de llamarlo"), a diferencia de {@code
+     * stopLoading()} (que NO lo garantiza) -- pero aun si algo del WebView viejo (destruido o no)
+     * siguiera disparando un callback, esta función NO depende de eso para ser segura: una vez que
+     * "web" apunta al objeto nuevo, {@code v == web} en {@code onPageFinished} es FALSO para
+     * cualquier callback del objeto viejo, sin excepción posible -- identidad de objeto, no un
+     * valor (fase/generación) que una coincidencia de timing pudiera igualar.
+     */
+    private void recrearWebView() {
+        WebView viejo = web;
+        web = crearWebView();
+        if (viejo != null) viejo.destroy();
+    }
+
+    // Si la fase 0 falla en cargar del todo -- error de red, redirección a una página de error,
+    // timeout del WebView -- onPageFinished puede no disparar nunca con la URL esperada (ver el
+    // "if" de fase en onPageFinished): ni onTablas ni "seguridadVencida" llegarían a ejecutarse,
+    // "cargando" se quedaría en true para siempre y revisar() dejaría de intentar CUALQUIER ciclo
+    // futuro -- en silencio, sin vaciar ningún estado, pero también sin volver a actualizarlo
+    // jamás. Este candado cubre el ciclo COMPLETO (ambas fases); se agenda al iniciar cada ciclo
+    // (ver revisar()) con un margen por debajo de INTERVALO_MS para no pisar el siguiente tick normal.
     private static final long CANDADO_MS = 50_000L;
-    private final Runnable candado = () -> {
-        if (cargando) {
-            Telemetria.registrarError(this, Telemetria.ERR_RED, "ManifestacionesService.candado",
-                    "ciclo sin completar tras " + CANDADO_MS + " ms (fase=" + fase + ")");
-            cargando = false;
-        }
-    };
+
+    /**
+     * El candado venció para el ciclo "gen". NO asume que la consulta terminó: si ese ciclo sigue
+     * siendo el vigente ({@code gen == generacion}) y sigue "cargando" (si ya terminó por su
+     * cuenta, o ya fue reemplazado, no hay nada que hacer), invalida el ciclo en vez de darlo por
+     * completado -- {@code fase = -1} y {@code generacion++} como defensa adicional, pero la
+     * protección real contra que la navegación vieja interfiera con el ciclo nuevo es {@link
+     * #recrearWebView}: aísla el WebView viejo por IDENTIDAD, no por un valor que pudiera coincidir.
+     */
+    private void candadoVencido(int gen) {
+        if (gen != generacion || !cargando) return;
+        Telemetria.registrarError(this, Telemetria.ERR_RED, "ManifestacionesService.candado",
+                "ciclo sin completar tras " + CANDADO_MS + " ms (fase=" + fase + ")");
+        fase = -1;
+        generacion++;
+        cargando = false;
+        recrearWebView();
+    }
+
+    // Igual que CANDADO_MS, pero solo para cuando la FASE 1 (iframe de Estado del Servicio) no
+    // responde (se agenda desde onTablas, una vez que la fase 0 ya completó y ya se publicó).
+    private static final long SEGURIDAD_MS = 15_000L;
+
+    /** Como {@link #candadoVencido}, pero para cuando solo la fase 1 no responde: lo de la fase 0
+     *  ya se publicó (onTablas ya llamó guardarStore()), así que basta avisar con lo que haya y
+     *  dejar que el siguiente ciclo reintente la fase 1. Misma invalidación por el mismo motivo. */
+    private void seguridadVencida(int gen) {
+        if (gen != generacion || !cargando) return;
+        notificar();
+        fase = -1;
+        generacion++;
+        cargando = false;
+        recrearWebView();
+    }
 
     private final Runnable tick = this::revisar;
 
@@ -152,26 +267,7 @@ public class ManifestacionesService extends Service {
     public void onCreate() {
         super.onCreate();
         crearCanal(this);
-        web = new WebView(getApplicationContext());
-        WebSettings s = web.getSettings();
-        s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
-        web.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return false; }
-            @Override
-            public void onPageFinished(WebView v, String url) {
-                final String u = url != null ? url : "";
-                // Fase 0: tablas de ServicioMB (elevadores + mantenimiento). Fase 1: iframe Estado del Servicio.
-                if (fase == 0 && u.contains("metrobus.cdmx.gob.mx/ServicioMB")) {
-                    handler.postDelayed(() -> v.evaluateJavascript(JS_TABLAS,
-                            ManifestacionesService.this::onTablas), 2500);
-                } else if (fase == 1 && u.contains("bandejaEstadoServicio")) {
-                    handler.postDelayed(() -> v.evaluateJavascript(JS_ESTADO,
-                            ManifestacionesService.this::onEstado), 2500);
-                }
-            }
-        });
+        web = crearWebView();
     }
 
     @Override
@@ -186,6 +282,8 @@ public class ManifestacionesService extends Service {
         refrescarEc2();   // actualiza en segundo plano la liveness del EC2 (para el gate de notificar())
         if (!cargando && web != null) {
             cargando = true;
+            generacion++;                 // ciclo nuevo: invalida cualquier callback tardío del anterior
+            final int gen = generacion;
             fase = 0;
             estadoFilas = 0;
             afectAcc = new HashSet<>();
@@ -196,8 +294,14 @@ public class ManifestacionesService extends Service {
             resumenAcc = new ArrayList<>();
             cortesAcc = new HashSet<>();
             extraPorEstacionAcc = new java.util.HashMap<>();
-            handler.removeCallbacks(candado);
-            handler.postDelayed(candado, CANDADO_MS);   // ver comentario en la declaración de "candado"
+            if (candadoPendiente != null) handler.removeCallbacks(candadoPendiente);
+            if (seguridadPendiente != null) handler.removeCallbacks(seguridadPendiente);
+            candadoPendiente = () -> candadoVencido(gen);
+            handler.postDelayed(candadoPendiente, CANDADO_MS);   // ver comentario en candadoVencido()
+            // "web" aquí SIEMPRE está en un estado idle conocido: si el ciclo anterior terminó bien
+            // (onEstado) nunca dejó una navegación pendiente; si se invalidó (candadoVencido/
+            // seguridadVencida), recrearWebView() ya lo reemplazó por uno nuevo, nunca navegado.
+            // No hace falta (ni se presupone) un stopLoading() defensivo aquí.
             web.loadUrl(URL_SERVICIOMB);   // primero las tablas (funciona seguro); luego el iframe de estado
         }
         handler.postDelayed(tick, INTERVALO_MS);
@@ -206,8 +310,19 @@ public class ManifestacionesService extends Service {
     /** Fase 0 listo: elevadores + mantenimiento. Actualiza el estado (para la app) y va por el Estado del Servicio.
      *  Corre en el callback ASÍNCRONO de evaluateJavascript (fuera de cualquier try/catch de arriba), y
      *  procesarFilas() depende del HTML real de una página externa que puede cambiar sin aviso -- si
-     *  truena, no debe dejar el servicio bloqueado (cargando=true para siempre). */
-    private void onTablas(String jsonValue) {
+     *  truena, no debe dejar el servicio bloqueado (cargando=true para siempre). "gen" es la
+     *  generación capturada en onPageFinished cuando se agendó este callback: si para cuando el
+     *  motor de JS por fin entrega el resultado el ciclo ya fue invalidado o reemplazado, no se
+     *  toca "fase" ni los acumuladores ni se publica nada -- ver el comentario de "generacion".
+     *  "ultimoOnTablasGen" es una guarda de PROCESO, no de contenido: si este "gen" YA se procesó
+     *  (p. ej. un evaluateJavascript agendado dos veces que de todos modos pasara el chequeo de
+     *  "web"/"gen" en onPageFinished), la segunda vez no vuelve a correr procesarFilas()/
+     *  guardarStore() ni a avanzar de fase -- nunca inspecciona el CONTENIDO de jsonValue, así que
+     *  no oculta ni descarta filas legítimas repetidas en la fuente, solo evita reprocesar la MISMA
+     *  fase del MISMO ciclo dos veces. */
+    private void onTablas(int gen, String jsonValue) {
+        if (gen != generacion || gen == ultimoOnTablasGen) return;
+        ultimoOnTablasGen = gen;
         try {
             procesarFilas(jsonValue);
             guardarStore();                              // panel en la app se actualiza siempre
@@ -216,15 +331,20 @@ public class ManifestacionesService extends Service {
         }
         fase = 1;
         if (web != null) web.loadUrl(URL_ESTADO);
-        handler.removeCallbacks(seguridad);
-        handler.postDelayed(seguridad, 15000);       // si el iframe no responde, no bloquear el ciclo
+        if (seguridadPendiente != null) handler.removeCallbacks(seguridadPendiente);
+        seguridadPendiente = () -> seguridadVencida(gen);
+        handler.postDelayed(seguridadPendiente, SEGURIDAD_MS);   // si el iframe no responde, no bloquear el ciclo
     }
 
     /** Fase 1 listo: Estado del Servicio. Actualiza el estado y decide qué notificar. Mismo motivo que
      *  onTablas: procesarFilas()/notificar() no deben tumbar el servicio, y cargando debe liberarse
-     *  siempre (si no, el ciclo de refresco queda bloqueado para siempre). */
-    private void onEstado(String jsonValue) {
-        handler.removeCallbacks(seguridad);
+     *  siempre (si no, el ciclo de refresco queda bloqueado para siempre). Mismo chequeo de "gen"
+     *  que onTablas, por el mismo motivo. Misma guarda de PROCESO que onTablas (ver su comentario)
+     *  con "ultimoOnEstadoGen" -- tampoco mira el contenido de jsonValue. */
+    private void onEstado(int gen, String jsonValue) {
+        if (gen != generacion || gen == ultimoOnEstadoGen) return;
+        ultimoOnEstadoGen = gen;
+        if (seguridadPendiente != null) handler.removeCallbacks(seguridadPendiente);
         try {
             procesarFilas(jsonValue);
             guardarStore();
@@ -488,12 +608,12 @@ public class ManifestacionesService extends Service {
                     // lista oficial de cierres reales (ver comentario de arriba: Manifestación/Sin
                     // servicio/Cerrado/Suspendido/bloqueo/plantón) y es demasiado ambigua para bloquear
                     // sola: puede ser desde una intervención médica hasta un objeto olvidado.
-                    boolean sinServicio = !retraso && (
-                               sev.contains("sin servicio") || sev.contains("cerrad")
-                            || sev.contains("suspend") || sev.contains("no hay servicio")
-                            || ne.contains("manifestacion")        // Manifestación como ESTADO = corta
-                            || sev.contains("bloqueo") || sev.contains("bloquead")
-                            || sev.contains("planton"));
+                    // Única fuente de verdad (ver filaDescribeCierre más abajo): bloquearRutaL4() la
+                    // reutiliza exactamente igual, para que su propio chequeo de cierre nunca pueda
+                    // divergir del de aquí (defecto confirmado y corregido: antes bloquearRutaL4() tenía
+                    // su propia lista de palabras, más corta y con una palabra ajena -- "cancela" -- que
+                    // esta condición nunca comprueba).
+                    boolean sinServicio = filaDescribeCierre(sev, estado);
                     // Obstrucción de carril: afecta UN solo sentido (un carril), NO toda la estación ni
                     // parte la línea. Sin dirección clara en el texto, no se bloquea nada.
                     boolean obstruccionCarril = !retraso && sev.contains("obstru") && sev.contains("carril");
@@ -705,12 +825,69 @@ public class ManifestacionesService extends Service {
         if (seg == null) return;
 
         List<Linea> lineas = GtfsRepository.getLineas(this);
+        List<CandidatoLinea> candidatos = new ArrayList<>();
+        for (Linea l : lineas) if (!porServicios(l.numero)) candidatos.add(new CandidatoLinea(l.numero, l.estaciones));
+        java.util.Map<Integer, List<Integer>> fueraPorLinea = indicesFueraDeRangoPorLinea(seg, candidatos);
 
-        // Rangos "en servicio" por número de línea. L4/L7 quedan FUERA: no son troncales lineales
-        // (se rutean por sus SERVICIOS reales -- San Lázaro, Aeropuerto, Alameda, Buenavista...), así
-        // que un rango de ÍNDICES sobre su lista plana de estaciones no representa su topología real.
-        // Caso real: "Servicio de la Ruta Norte de Teatro Blanquita a San Lázaro" arma un rango sin
-        // sentido en L4 y bloqueaba de más ("Ferrocarril de Cintura", ajena al cierre real).
+        // Bloquea las estaciones fuera de los rangos en servicio y CORTA los tramos que quedan
+        // sin servicio (servicio parcial = la línea está físicamente partida entre los rangos).
+        for (Linea l : lineas) {
+            List<Integer> fuera = fueraPorLinea.get(l.numero);
+            if (fuera == null) continue;
+            for (int k : fuera) {
+                String nn = Planificador.norm(l.estaciones.get(k).nombre);
+                // OJO: la clave lleva la línea (igual que bloquearNn/Manifestaciones.clave()) -- sin
+                // el prefijo, esta estación nunca calzaba con "linea|estacion" y el bloqueo real
+                // (Manifestaciones.bloqueadas(), usado por el mapa y el planificador) no la veía,
+                // aunque el corte físico (cortesAcc, abajo) sí la aislara del ruteo.
+                afect.add(Planificador.claveTerminal(l.numero) + "|" + nn);
+                // Aísla el tramo muerto cortando sus tramos adyacentes en esta línea.
+                if (k > 0) {
+                    String key = Manifestaciones.claveCorte(l.numero, nn,
+                            Planificador.norm(l.estaciones.get(k - 1).nombre));
+                    if (key != null) cortesAcc.add(key);
+                }
+                if (k + 1 < l.estaciones.size()) {
+                    String key = Manifestaciones.claveCorte(l.numero, nn,
+                            Planificador.norm(l.estaciones.get(k + 1).nombre));
+                    if (key != null) cortesAcc.add(key);
+                }
+            }
+        }
+    }
+
+    /** Candidato de línea para resolver un tramo: su número y su lista de estaciones (en orden),
+     *  sin necesitar una {@link Linea} real -- esta última no se puede construir en una prueba JVM
+     *  pura (su constructor llama a {@code android.graphics.Color.parseColor()}, que revienta sin
+     *  Robolectric). {@link #indicesFueraDeRangoPorLinea} se prueba con una lista de
+     *  {@code CandidatoLinea} armada a mano; {@link #bloquearTramos} la alimenta con
+     *  {@code GtfsRepository.getLineas(this)} -- mismo algoritmo, sin duplicarlo. */
+    static final class CandidatoLinea {
+        final int numero;
+        final List<Estacion> estaciones;
+        CandidatoLinea(int numero, List<Estacion> estaciones) { this.numero = numero; this.estaciones = estaciones; }
+    }
+
+    /**
+     * Núcleo PURO de {@link #bloquearTramos} (sin Context/GtfsRepository/efectos sobre
+     * afect/cortesAcc): dado el segmento de tramos ya extraído por {@link #segmentoParcial} y las
+     * líneas candidatas YA FILTRADAS por {@link #porServicios} (en el mismo orden en que
+     * bloquearTramos() las recorre), resuelve cada tramo "X a Y" contra la PRIMERA línea candidata
+     * cuyo catálogo contenga ambos extremos (ver {@link #idxEstacion}) -- igual que antes, una
+     * línea que ya resolvió un tramo no vuelve a probarse para los tramos siguientes de esa MISMA
+     * línea (si hay varios tramos "y"-separados, cada uno busca su propia línea desde el principio
+     * de la lista) -- y devuelve, por cada línea que resolvió AL MENOS un tramo, los índices que
+     * quedan fuera de los rangos "en servicio" resultantes.
+     *
+     * <p>Una línea que no resolvió NINGÚN tramo (ni el suyo ni ninguno) no aparece en el resultado
+     * -- {@code bloquearTramos()} la salta por completo, no bloquea nada por esta vía (distinto de
+     * aparecer con una lista vacía, que significaría "sí se reconoció un rango, y cubre toda la
+     * línea").
+     *
+     * <p>Esta función es la MISMA que usa producción (ver {@link #bloquearTramos}, que la llama
+     * directamente) -- no hay una copia aparte en las pruebas.
+     */
+    static java.util.Map<Integer, List<Integer>> indicesFueraDeRangoPorLinea(String seg, List<CandidatoLinea> lineas) {
         java.util.Map<Integer, List<int[]>> corridos = new java.util.HashMap<>();
         for (String chunk : seg.split("\\s+y\\s+")) {
             int ap = chunk.indexOf(" a ");
@@ -718,46 +895,28 @@ public class ManifestacionesService extends Service {
             String x = chunk.substring(0, ap).trim();
             String y = chunk.substring(ap + 3).trim();
             if (x.length() < 3 || y.length() < 3) continue;
-            for (Linea l : lineas) {
-                if (porServicios(l.numero)) continue;
-                int ix = idxEstacion(l, x), iy = idxEstacion(l, y);
+            for (CandidatoLinea l : lineas) {
+                int ix = idxEstacion(l.estaciones, x), iy = idxEstacion(l.estaciones, y);
                 if (ix >= 0 && iy >= 0) {
-                    int a = Math.min(ix, iy), b = Math.max(ix, iy);
-                    corridos.computeIfAbsent(l.numero, z -> new ArrayList<>()).add(new int[]{a, b});
-                    break;   // primer línea que contiene ambos extremos
+                    corridos.computeIfAbsent(l.numero, z -> new ArrayList<>())
+                            .add(new int[]{Math.min(ix, iy), Math.max(ix, iy)});
+                    break;   // primera línea que contiene ambos extremos
                 }
             }
         }
-
-        // Bloquea las estaciones fuera de los rangos en servicio y CORTA los tramos que quedan
-        // sin servicio (servicio parcial = la línea está físicamente partida entre los rangos).
-        for (Linea l : lineas) {
+        java.util.Map<Integer, List<Integer>> fueraPorLinea = new java.util.HashMap<>();
+        for (CandidatoLinea l : lineas) {
             List<int[]> rangos = corridos.get(l.numero);
             if (rangos == null) continue;
+            List<Integer> fuera = new ArrayList<>();
             for (int k = 0; k < l.estaciones.size(); k++) {
                 boolean corre = false;
                 for (int[] r : rangos) if (k >= r[0] && k <= r[1]) { corre = true; break; }
-                if (!corre) {
-                    String nn = Planificador.norm(l.estaciones.get(k).nombre);
-                    // OJO: la clave lleva la línea (igual que bloquearNn/Manifestaciones.clave()) -- sin
-                    // el prefijo, esta estación nunca calzaba con "linea|estacion" y el bloqueo real
-                    // (Manifestaciones.bloqueadas(), usado por el mapa y el planificador) no la veía,
-                    // aunque el corte físico (cortesAcc, abajo) sí la aislara del ruteo.
-                    afect.add(Planificador.claveTerminal(l.numero) + "|" + nn);
-                    // Aísla el tramo muerto cortando sus tramos adyacentes en esta línea.
-                    if (k > 0) {
-                        String key = Manifestaciones.claveCorte(l.numero, nn,
-                                Planificador.norm(l.estaciones.get(k - 1).nombre));
-                        if (key != null) cortesAcc.add(key);
-                    }
-                    if (k + 1 < l.estaciones.size()) {
-                        String key = Manifestaciones.claveCorte(l.numero, nn,
-                                Planificador.norm(l.estaciones.get(k + 1).nombre));
-                        if (key != null) cortesAcc.add(key);
-                    }
-                }
+                if (!corre) fuera.add(k);
             }
+            fueraPorLinea.put(l.numero, fuera);
         }
+        return fueraPorLinea;
     }
 
     /**
@@ -802,26 +961,9 @@ public class ManifestacionesService extends Service {
     private void bloquearRutaL4(int nlinea, String sev, String infoRaw, String lineaLabel, String estado,
                                 Set<String> afect, java.util.Map<String, Manifestaciones.Afectacion> extra) {
         if (nlinea != 4) return;
-        boolean cierre = sev.contains("cancela") || sev.contains("bloqueo") || sev.contains("bloquead")
-                || sev.contains("sin servicio") || sev.contains("suspend");
-        if (!cierre) return;
-        // OJO: el texto real suele mencionar LAS DOS rutas en el mismo aviso -- una CORRIENDO
-        // ("Servicio de la ruta sur de San Pablo a San Lázaro") y otra CANCELADA ("Se cancela ruta
-        // norte..."). Buscar "ruta sur"/"ruta norte" en TODO el texto junto (sev) hacía que ambas
-        // salieran "true" y se bloquearan LAS DOS -- el bug real reportado: servicio provisional
-        // vigente en una ruta, pero la app lo mandaba como "sin servicio" también ahí. Por eso aquí
-        // se revisa cada ORACIÓN de infoRaw por separado (separadas por '.'/'·', ANTES de perder la
-        // puntuación con norm()) y solo se marca cancelada la ruta cuyo nombre aparece en la MISMA
-        // oración que la palabra de cierre.
-        boolean sur = false, norte = false;
-        for (String frase : infoRaw.split("[.·]")) {
-            String nf = Planificador.norm(frase);
-            boolean cierreFrase = nf.contains("cancela") || nf.contains("bloqueo") || nf.contains("bloquead")
-                    || nf.contains("sin servicio") || nf.contains("suspend");
-            if (!cierreFrase) continue;
-            if (nf.contains("ruta sur")) sur = true;
-            if (nf.contains("ruta norte")) norte = true;
-        }
+        if (!filaDescribeCierre(sev, estado)) return;
+        boolean[] rutas = rutasL4Cerradas(infoRaw);
+        boolean sur = rutas[0], norte = rutas[1];
         if (!sur && !norte) return;
         Linea l = GtfsRepository.porNumero(this, nlinea);
         if (l == null) return;
@@ -835,6 +977,96 @@ public class ManifestacionesService extends Service {
             cortarAlrededor(nlinea, nn);
             extra.put(key, new Manifestaciones.Afectacion(lineaLabel, nlinea, e.nombre, estado, "", info, false));
         }
+    }
+
+    /**
+     * ÚNICA FUENTE DE VERDAD de "¿esta fila describe un cierre real del servicio?" -- exactamente
+     * la misma lógica que antes vivía solo inline en {@code procesarFilas()} como la variable local
+     * "sinServicio" (ver esa línea más arriba, ahora delegada aquí): ambos llamadores
+     * ({@code procesarFilas()} para el ruteo general y {@link #bloquearRutaL4} para L4) comparten
+     * esta función, así que no pueden divergir por construcción.
+     *
+     * <p>Defecto corregido en esta ronda: una versión anterior de este método ({@code
+     * filaL4DescribeCierre(String sev)}, de un solo parámetro) reimplementaba su propia lista de
+     * palabras -- más corta que "sinServicio" (le faltaban "cerrad", "no hay servicio", "planton" y
+     * la detección de "Manifestación" como ESTADO) y con una palabra ajena ("cancela") que
+     * "sinServicio" nunca comprueba -- y además no aplicaba la exclusión de "retraso". Un aviso real
+     * de cierre que usara solo esas palabras faltantes (p. ej. "Ruta Sur cerrada por obras") hacía
+     * que el gate general de procesarFilas() SÍ llamara a {@link #bloquearRutaL4} (sinServicio=true),
+     * pero dentro de ella este método devolvía false y la función retornaba sin bloquear nada --
+     * una regresión silenciosa introducida por mantener dos listas de palabras independientes.
+     *
+     * @param sev    "estado"+" "+"info"+" "+"estaciones" de la fila, YA normalizado
+     *               ({@link Planificador#norm}) -- igual que el "sev" de procesarFilas().
+     * @param estado columna "estado" de la fila, SIN normalizar (se normaliza aquí mismo): el
+     *               exclusión de "retraso" por "regular" y la detección de "Manifestación" como
+     *               ESTADO miran solo esta columna, no el texto combinado -- igual que "ne" en
+     *               procesarFilas().
+     */
+    static boolean filaDescribeCierre(String sev, String estado) {
+        String s = sev == null ? "" : sev;
+        String ne = Planificador.norm(estado == null ? "" : estado);
+        boolean retraso = s.contains("retraso") || s.contains("demora")
+                || s.contains("lento") || ne.contains("regular");
+        return !retraso && (
+                   s.contains("sin servicio") || s.contains("cerrad")
+                || s.contains("suspend") || s.contains("no hay servicio")
+                || ne.contains("manifestacion")        // Manifestación como ESTADO = corta
+                || s.contains("bloqueo") || s.contains("bloquead")
+                || s.contains("planton"));
+    }
+
+    /**
+     * ¿Qué ruta(s) de L4 (Sur/Norte) describe un aviso de "estado" cuyo CIERRE ya está confirmado
+     * a nivel de fila (ver el chequeo "cierre" en {@link #bloquearRutaL4}, calculado sobre la fila
+     * completa -- estado + info + estaciones, columnas CONFIRMADAS por el extractor real: ver
+     * {@code JS_ESTADO}, {@code linea/estado/estaciones/info}, 4 columnas por fila -- antes de
+     * llamar aquí). Dado eso, la única pregunta real es A CUÁL ruta se refiere, no si hay cierre.
+     *
+     * <p>Defecto corregido: antes se exigía que la mención de ruta ("ruta sur"/"ruta norte") y la
+     * palabra de cierre aparecieran en la MISMA oración de {@code infoRaw} (separadas por '.'/'·').
+     * Un aviso real puede describir la razón, la ruta y la confirmación del cierre en oraciones
+     * CONSECUTIVAS distintas dentro de la misma columna "info" -- caso real confirmado: "Por
+     * congestionamiento vial. Servicio de la Ruta Sur por México-Tenochtitlán, Línea 3 y
+     * Ayuntamiento. Sin servicio por mantenimiento a carril confinado." -- "sin servicio" y "ruta
+     * sur" quedan en oraciones distintas, así que la versión anterior nunca bloqueaba la Ruta Sur
+     * pese a que el cierre de fila (sev) ya lo había confirmado.
+     *
+     * <p>Si "info" menciona SOLO una de las dos rutas, el cierre YA CONFIRMADO se le atribuye
+     * directamente a esa ruta -- no hace falta que la palabra de cierre esté en la misma oración,
+     * porque no hay ninguna OTRA ruta con la que pudiera confundirse. Si menciona AMBAS rutas (caso
+     * real que motivó el chequeo por oración original: "Servicio de la ruta sur de San Pablo a San
+     * Lázaro. Se cancela ruta norte." -- una corriendo, la otra cancelada, en el MISMO aviso), se
+     * mantiene el chequeo por oración para no cerrar la que sigue en servicio.
+     *
+     * <p>HIPÓTESIS no verificada contra una fila real en vivo: que "info" mencionando una sola ruta,
+     * combinado con el cierre YA confirmado a nivel de fila, significa confiablemente que ESA ruta
+     * es la cerrada (y no, p. ej., una ruta que sigue en servicio mientras el cierre real de la fila
+     * es sobre algo no relacionado con ninguna ruta con nombre). No hay una respuesta oficial
+     * reproducible disponible en este entorno para confirmarlo con un caso en vivo -- ver las
+     * pruebas de {@code ManifestacionesServiceRutaL4Test}, que usan fixtures explícitos basados en
+     * el texto real observado, no una respuesta oficial capturada en el momento.
+     */
+    static boolean[] rutasL4Cerradas(String infoRaw) {
+        if (infoRaw == null) return new boolean[]{false, false};
+        String normFull = Planificador.norm(infoRaw);
+        boolean mencionaSur = normFull.contains("ruta sur");
+        boolean mencionaNorte = normFull.contains("ruta norte");
+        if (mencionaSur && !mencionaNorte) return new boolean[]{true, false};
+        if (mencionaNorte && !mencionaSur) return new boolean[]{false, true};
+        if (!mencionaSur && !mencionaNorte) return new boolean[]{false, false};
+        // Ambas rutas mencionadas en el mismo aviso: distingue cuál está realmente cerrada,
+        // oración por oración, para no mezclar el cierre de una con la mención de la otra.
+        boolean sur = false, norte = false;
+        for (String frase : infoRaw.split("[.·]")) {
+            String nf = Planificador.norm(frase);
+            boolean cierreFrase = nf.contains("cancela") || nf.contains("bloqueo") || nf.contains("bloquead")
+                    || nf.contains("sin servicio") || nf.contains("suspend");
+            if (!cierreFrase) continue;
+            if (nf.contains("ruta sur")) sur = true;
+            if (nf.contains("ruta norte")) norte = true;
+        }
+        return new boolean[]{sur, norte};
     }
 
     private void cortarAlrededor(int nlinea, String nn) {
@@ -957,9 +1189,17 @@ public class ManifestacionesService extends Service {
     }
 
     /** Índice de la estación de la línea que coincide con el nombre normalizado {@code q}. */
-    private static int idxEstacion(Linea l, String q) {
-        for (int k = 0; k < l.estaciones.size(); k++) {
-            String nn = Planificador.norm(l.estaciones.get(k).nombre);
+    private static int idxEstacion(Linea l, String q) { return idxEstacion(l.estaciones, q); }
+
+    // Extracción MÍNIMA (delega, no duplica): la lógica de idxEstacion() en sí no depende de
+    // Android, pero Linea.java SÍ (su constructor llama a android.graphics.Color.parseColor(), que
+    // revienta en una prueba JVM pura sin Robolectric -- no hay forma de construir una Linea real
+    // ahí). Tomar List<Estacion> en vez de Linea permite probar esta función con una lista armada a
+    // mano (Estacion no toca Android), sin cambiar en nada lo que bloquearTramos()/cortarAlrededor()
+    // ya hacían a través del overload de arriba.
+    static int idxEstacion(List<Estacion> estaciones, String q) {
+        for (int k = 0; k < estaciones.size(); k++) {
+            String nn = Planificador.norm(estaciones.get(k).nombre);
             if (nn.equals(q) || nn.contains(q) || q.contains(nn)) return k;
         }
         return -1;
@@ -1285,9 +1525,14 @@ public class ManifestacionesService extends Service {
     @Override
     public void onDestroy() {
         handler.removeCallbacks(tick);
-        handler.removeCallbacks(candado);
-        handler.removeCallbacks(seguridad);
-        if (web != null) { web.destroy(); web = null; }
+        if (candadoPendiente != null) handler.removeCallbacks(candadoPendiente);
+        if (seguridadPendiente != null) handler.removeCallbacks(seguridadPendiente);
+        generacion++;   // defensa adicional, igual que en candadoVencido/seguridadVencida
+        // "web = null" es la protección que realmente importa aquí: deja a "v != web" en
+        // onPageFinished siempre verdadero para CUALQUIER callback de este WebView que aún
+        // llegara (identidad de objeto -- ver el javadoc de "web" -- nunca un valor que remover
+        // callbacks o generacion++ pudieran no alcanzar a tiempo).
+        if (web != null) { WebView viejo = web; web = null; viejo.destroy(); }
         ec2Exec.shutdownNow();
         super.onDestroy();
     }

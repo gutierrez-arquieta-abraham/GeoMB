@@ -232,31 +232,40 @@ public final class Manifestaciones {
     }
 
     /** Identificadores de FUENTE para {@link #origenesBloqueo}: a diferencia de {@link #bloqueadas}
-     *  (que las une en un solo Set sin decir cuál aportó cada clave), estos permiten distinguirlas. */
+     *  (que las une en un solo Set sin decir cuál aportó cada clave), estos permiten distinguirlas.
+     *  Solo existen para las fuentes que bloqueadas() REALMENTE puede incluir -- no hay un origen
+     *  para elevadores/movilidad reducida (porSentidoMR): bloqueadas() nunca lo consulta, bajo
+     *  ninguna condición (ni con movilidadReducida), así que nunca es la causa real de un marcador
+     *  gris -- solo afecta la información de accesibilidad (tarjeta de la estación). */
     public static final String ORIGEN_AFECTADA = "afectada";            // Estado del Servicio en vivo
     public static final String ORIGEN_MEXIBUS = "mexibus";              // línea Mexibús "sin servicio"
-    public static final String ORIGEN_POR_SENTIDO = "porSentido";       // mantenimiento/cierre por sentido
-    public static final String ORIGEN_POR_SENTIDO_MR = "porSentidoMR";  // elevador (solo si movilidadReducida)
-    public static final String ORIGEN_SIMULADO = "simulado";            // panel de pruebas (Configuración)
+    public static final String ORIGEN_POR_SENTIDO = "porSentido";       // mantenimiento/cierre, AMBOS sentidos
+    public static final String ORIGEN_SIMULADO = "simulado";            // panel de pruebas, AMBOS sentidos
 
     /**
-     * ¿Qué fuente(s) EXACTAS explican el bloqueo de esta estación (de ESA línea) ahora mismo?
-     * Puede haber más de una a la vez (p. ej. una simulación sobre una estación que también tiene
-     * una afectación real). Vacío = ninguna fuente la bloquea actualmente.
+     * ¿Qué fuente(s) explican EXACTAMENTE que esta estación (de ESA línea) esté en
+     * {@link #bloqueadas()} ahora mismo? Replica, fuente por fuente, la MISMA condición que usa
+     * bloqueadas() -- incluida su regla de que {@code porSentido}/{@code simulado} solo cuentan si
+     * su conjunto de valores contiene {@link #AMBOS} (un bloqueo de un solo sentido existe, pero
+     * bloqueadas() no lo considera un cierre total de la estación, así que tampoco se reporta aquí
+     * como causa del marcador gris). Puede haber más de una fuente a la vez (p. ej. una simulación
+     * AMBOS sobre una estación que también tiene una afectación real: se devuelven ambas). Vacío =
+     * bloqueadas() no incluye esta estación ahora mismo.
      *
      * <p>De solo lectura: no lo usa ningún camino de bloqueo/ruteo/mapa existente (bloqueadas(),
-     * bloqueadoHacia(), sentidosBloqueados() siguen igual). Pensado para diagnosticar "¿por qué
-     * está gris esta estación?" distinguiendo afectación real / simulación / elevador sin tener
-     * que inspeccionar cada colección por separado.
+     * bloqueadoHacia(), sentidosBloqueados() siguen igual, y SÍ consultan porSentido/simulado sin
+     * esta restricción porque para el RUTEO un bloqueo de un solo sentido sigue siendo relevante
+     * -- esta función es específicamente sobre bloqueadas(), no sobre el ruteo).
      */
-    public static Set<String> origenesBloqueo(int linea, String estacionNn, boolean movilidadReducida) {
+    public static Set<String> origenesBloqueo(int linea, String estacionNn) {
         String k = clave(linea, estacionNn);
         Set<String> out = new HashSet<>();
         if (afectadas.contains(k)) out.add(ORIGEN_AFECTADA);
         if (mexibusBloq.contains(k)) out.add(ORIGEN_MEXIBUS);
-        if (porSentido.containsKey(k)) out.add(ORIGEN_POR_SENTIDO);
-        if (movilidadReducida && porSentidoMR.containsKey(k)) out.add(ORIGEN_POR_SENTIDO_MR);
-        if (simulado.containsKey(k)) out.add(ORIGEN_SIMULADO);
+        Set<String> ps = porSentido.get(k);
+        if (ps != null && ps.contains(AMBOS)) out.add(ORIGEN_POR_SENTIDO);
+        Set<String> sim = simulado.get(k);
+        if (sim != null && sim.contains(AMBOS)) out.add(ORIGEN_SIMULADO);
         return out;
     }
 
