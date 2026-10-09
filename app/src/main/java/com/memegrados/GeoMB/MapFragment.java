@@ -636,7 +636,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     .position(em.e.posicion)
                     .title(em.e.nombre)
                     .snippet("Línea " + em.linea)
-                    .icon(iconoEstacion(em.e, em.color, fueraDeServicio(em)))
+                    .icon(iconoEstacionOTransbordo(em, fueraDeServicio(em)))
                     .anchor(0.5f, 0.5f)
                     .visible(visibles));
             if (m != null) { em.marker = m; marcadoresEstacion.add(m); }
@@ -783,7 +783,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         java.util.Set<String> bloqueadas = Manifestaciones.bloqueadas();
         for (EstMapa em : estaciones) {
             if (em.marker == null) continue;
-            em.marker.setIcon(iconoEstacion(em.e, em.color, fueraDeServicio(em, bloqueadas)));
+            em.marker.setIcon(iconoEstacionOTransbordo(em, fueraDeServicio(em, bloqueadas)));
         }
         for (EstMapa em : mexibusEst) {
             if (em.marker == null) continue;
@@ -927,7 +927,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // Solo se refrescan los marcadores VISIBLES (los ocultos por zoom se actualizan al reaparecer):
         // así el cambio es liviano y no se reconstruyen cientos de bitmaps de golpe (evita OOM/ANR).
         try {
-            for (EstMapa em : estaciones) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoEstacion(em.e, em.color, fueraDeServicio(em)));
+            for (EstMapa em : estaciones) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoEstacionOTransbordo(em, fueraDeServicio(em)));
             for (EstMapa em : mexibusEst) if (em.marker != null && em.marker.isVisible()) em.marker.setIcon(iconoMexibus(em));
         } catch (Throwable t) {
             android.util.Log.e("MapFragment", "Error al alternar iconos", t);
@@ -1564,6 +1564,28 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return p;
     }
 
+    /** "Tacubaya" y "De la Salle" (línea 2) son el extremo REAL de H72 (ver RutasMixtas.LISTA:
+     *  Mixta("París", 7, "Alameda Tacubaya", 2) y Mixta("Glorieta Cuitláhuac", 7, "Alameda
+     *  Tacubaya", 2) -- "Alameda Tacubaya" es el nombre de terminal que usa el feed para este mismo
+     *  punto) -- cuentan como transbordo hacia L7, aunque L2 no las traiga así en su catálogo plano.
+     *  Nombres normalizados: acepta "De La Salle"/"De la Salle" indistintamente. */
+    private static final java.util.Set<String> ESTACIONES_TRANSBORDO_H72 = new java.util.HashSet<>(
+            java.util.Arrays.asList(Planificador.norm("Tacubaya"), Planificador.norm("De La Salle")));
+
+    /** Icono de estación: el normal de {@link #iconoEstacion}, salvo que {@code em} sea el extremo
+     *  L2 de H72 (Tacubaya/De la Salle) -- ahí usa {@link #iconoEstacionTransbordo} (diagonal entre
+     *  el tono de línea 2 y el de línea 7, ambos sacados de {@link #colorDeLinea}, que ya trae el
+     *  mismo tono que los drawables linea_2.png/linea_7.png). */
+    private BitmapDescriptor iconoEstacionOTransbordo(EstMapa em, boolean fueraDeServicio) {
+        if (em.linea == 2 && ESTACIONES_TRANSBORDO_H72.contains(Planificador.norm(em.e.nombre))) {
+            // Arriba-izq el tono de línea 7 (H72), abajo-der el de línea 2 -- confirmado por el
+            // usuario contra la simulación generada en esta ronda (la primera versión, morado
+            // arriba/verde abajo, estaba al revés).
+            return iconoEstacionTransbordo(em.e, colorDeLinea(7), colorDeLinea(2), fueraDeServicio);
+        }
+        return iconoEstacion(em.e, em.color, fueraDeServicio);
+    }
+
     /** Icono de estación. {@code fueraDeServicio} lo pinta en gris (pictograma desaturado, o punto
      *  gris si no hay pictograma) y le agrega el badge de afectación, para que se note en el mapa
      *  general cuál estación no opera sin tener que tocarla. */
@@ -1611,6 +1633,75 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         p.setTextSize(r * 1.5f);
         Paint.FontMetrics fm = p.getFontMetrics();
         c.drawText("!", cx, cy - (fm.ascent + fm.descent) / 2f, p);
+    }
+
+    /** Icono de estación TRANSBORDO (ver {@link #iconoEstacionOTransbordo}): mismo pictograma que
+     *  {@link #iconoEstacion}, pero con su FONDO (no el símbolo blanco) partido en diagonal a 45°
+     *  entre los 2 tonos de línea -- mismo truco visual que {@link #iconoUnidadMixta} usa para el
+     *  bus, adaptado a un pictograma ya renderizado (PNG con el color horneado, no un vector con
+     *  tint) vía {@link #recoloreaFondoDiagonal}. Sin pictograma, el disco de respaldo de
+     *  {@link #iconoEstacion} se parte igual en 2 mitades diagonales. */
+    private BitmapDescriptor iconoEstacionTransbordo(Estacion e, int colorA, int colorB, boolean fueraDeServicio) {
+        boolean nuevos = Modos.iconosNuevos(requireContext());
+        String key = "ET|" + (e.icono == null ? "" : e.icono) + "|" + colorA + "," + colorB + "|" + (nuevos ? 1 : 0)
+                + "|" + (fueraDeServicio ? 1 : 0);
+        BitmapDescriptor cached = cacheIco.get(key);
+        if (cached != null) return cached;
+
+        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        Bitmap bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+
+        Bitmap escalado = Iconos.pictograma(requireContext(), e.icono, px);
+        if (escalado != null) {
+            c.drawBitmap(fueraDeServicio ? escalado : recoloreaFondoDiagonal(escalado, colorA, colorB),
+                    0, 0, fueraDeServicio ? paintGris() : null);
+        } else {
+            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+            p.setColor(Color.WHITE);
+            c.drawCircle(px / 2f, px / 2f, px * 0.34f, p);
+            float cx = px / 2f, cy = px / 2f, r = px * 0.26f;
+            Path arriba = new Path();   // triángulo superior-izquierdo
+            arriba.moveTo(cx - r, cy - r); arriba.lineTo(cx + r, cy - r); arriba.lineTo(cx - r, cy + r); arriba.close();
+            Path abajo = new Path();    // triángulo inferior-derecho
+            abajo.moveTo(cx + r, cy - r); abajo.lineTo(cx + r, cy + r); abajo.lineTo(cx - r, cy + r); abajo.close();
+            p.setColor(fueraDeServicio ? GRIS_FUERA_SERVICIO : colorA);
+            c.save(); c.clipPath(arriba); c.drawCircle(cx, cy, r, p); c.restore();
+            p.setColor(fueraDeServicio ? GRIS_FUERA_SERVICIO : colorB);
+            c.save(); c.clipPath(abajo); c.drawCircle(cx, cy, r, p); c.restore();
+        }
+        if (fueraDeServicio) dibujarBadgeAfectacion(c, px);
+        BitmapDescriptor bd = BitmapDescriptorFactory.fromBitmap(bmp);
+        cacheIco.put(key, bd);
+        return bd;
+    }
+
+    /** Recolorea el FONDO (píxeles opacos y NO blancos -- el símbolo del pictograma se deja intacto)
+     *  de un bitmap de pictograma ya escalado, en diagonal a 45° entre 2 tonos (arriba-izquierda
+     *  {@code colorA}, abajo-derecha {@code colorB}). Los pictogramas de este set son un disco de un
+     *  solo color con el símbolo en blanco (confirmado contra ic_est_2_2/ic_est_2_4: fondo sólido,
+     *  sin degradados ni tonos intermedios además del antialiasing del borde), así que un umbral de
+     *  "casi blanco" alcanza para separar símbolo de fondo sin tocar el canal alfa (que es igual de
+     *  opaco en ambas zonas, a diferencia del bus -- un vector-- que sí se puede retintar entero). */
+    private static Bitmap recoloreaFondoDiagonal(Bitmap src, int colorA, int colorB) {
+        int w = src.getWidth(), h = src.getHeight();
+        int[] px = new int[w * h];
+        src.getPixels(px, 0, w, 0, 0, w, h);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int i = y * w + x;
+                int p = px[i];
+                int a = (p >>> 24) & 0xFF;
+                if (a < 16) continue;   // transparente (fuera del disco): no tocar
+                int r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
+                if (r > 200 && g > 200 && b > 200) continue;   // símbolo blanco: no tocar
+                int nuevo = (x + y < w) ? colorA : colorB;     // diagonal 45°: arriba-izq / abajo-der
+                px[i] = (a << 24) | (nuevo & 0x00FFFFFF);
+            }
+        }
+        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        out.setPixels(px, 0, w, 0, 0, w, h);
+        return out;
     }
 
 

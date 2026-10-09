@@ -320,4 +320,82 @@ public class ManifestacionesServiceClasificacionAfectacionesTest {
                         + "bloqueado",
                 indiosVerdesResuelveConHamburgo);
     }
+
+    // =====================================================================================
+    // Defecto real reportado por el usuario (L7, ramal H72): "Sin servicio la ruta Alameda
+    // Tacubaya a Glorieta Cuitláhuac" nunca bloqueaba nada. Dos causas confirmadas: (1)
+    // segmentoParcial() solo reconoce "servicio de X a Y" (el tramo que SÍ opera) -- "sin servicio
+    // la ruta X a Y" no contiene "servicio de", así que siempre devolvía null; (2) "Alameda
+    // Tacubaya" es el nombre de TERMINAL (línea 2) que el feed real usa para los dos ramales de
+    // H72 -- ver RutasMixtas.LISTA, Mixta("París", 7, "Alameda Tacubaya", 2) y
+    // Mixta("Glorieta Cuitláhuac", 7, "Alameda Tacubaya", 2) -- pero idxEnSecuencia(sm, 7, ...)
+    // solo busca entre las entradas etiquetadas línea 7 de H72, y "Alameda Tacubaya"/"Tacubaya"
+    // están etiquetadas línea 2 ahí, así que nunca se encontraba buscando con nlinea=7.
+    // =====================================================================================
+    @Test
+    public void fixtureH72_alamedaTacubayaEsElTerminalRealDeLosDosRamales_segunRutasMixtasLista() {
+        boolean ramalCorto = false, ramalLargo = false;
+        for (RutasMixtas.Mixta m : RutasMixtas.LISTA) {
+            if (m.lineaB == 2 && Planificador.norm(m.terminalB).equals(Planificador.norm("Alameda Tacubaya"))) {
+                if (m.lineaA == 7 && Planificador.norm(m.terminalA).equals(Planificador.norm("París"))) ramalCorto = true;
+                if (m.lineaA == 7 && Planificador.norm(m.terminalA).equals(Planificador.norm("Glorieta Cuitláhuac"))) ramalLargo = true;
+            }
+        }
+        assertTrue("RutasMixtas.LISTA debe traer el ramal corto (Alameda Tacubaya <-> París)", ramalCorto);
+        assertTrue("RutasMixtas.LISTA debe traer el ramal largo (Alameda Tacubaya <-> Glorieta Cuitláhuac)", ramalLargo);
+    }
+
+    @Test
+    public void rutaSinServicio_reconoceElPatronRealDeH72_dondeSegmentoParcialSiempreFallaba() {
+        String normFull = Planificador.norm("Sin servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac");
+
+        assertNull("segmentoParcial() no reconoce 'sin servicio la ruta X a Y' -- no contiene "
+                        + "'servicio de' -- este es justo el defecto confirmado",
+                ManifestacionesService.segmentoParcial(normFull));
+
+        String seg = ManifestacionesService.rutaSinServicio(normFull);
+        assertNotNull("rutaSinServicio() sí debe reconocer este patrón", seg);
+        assertTrue(seg.contains("alameda tacubaya"));
+        assertTrue(seg.contains(" a "));
+        assertTrue(seg.trim().endsWith("glorieta cuitlahuac"));
+    }
+
+    @Test
+    public void rutaSinServicio_sinElMarcador_devuelveNull() {
+        assertNull(ManifestacionesService.rutaSinServicio(
+                Planificador.norm("Servicio de Indios Verdes a Hamburgo")));
+    }
+
+    @Test
+    public void idxEnSecuencia_alamedaTacubaya_resuelveComoElExtremoDeLinea7DeH72() {
+        RutasMixtas.SeqMixta h72 = null;
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+            if ("H72".equals(sm.nombre)) { h72 = sm; break; }
+        }
+        assertNotNull("RutasMixtas.SECUENCIAS debe traer H72", h72);
+
+        int ixAlameda = ManifestacionesService.idxEnSecuencia(h72, 7, Planificador.norm("Alameda Tacubaya"));
+        int ixChapultepec = ManifestacionesService.idxEnSecuencia(h72, 7, Planificador.norm("Chapultepec"));
+        assertTrue("'Alameda Tacubaya' debe resolver (antes de esta corrección devolvía -1 "
+                        + "siempre, por buscar nlinea=7 contra entradas etiquetadas línea 2)",
+                ixAlameda >= 0);
+        assertEquals("'Alameda Tacubaya' es el extremo de la secuencia, ANTES de su primer tramo "
+                        + "de línea 7 -- debe resolver exactamente al mismo índice que la primera "
+                        + "estación real de línea 7 en H72 ('Chapultepec')",
+                ixChapultepec, ixAlameda);
+
+        int ixGlorieta = ManifestacionesService.idxEnSecuencia(h72, 7, Planificador.norm("Glorieta Cuitláhuac"));
+        assertTrue(ixGlorieta >= 0);
+        assertTrue("el tramo completo (Alameda Tacubaya -> Glorieta Cuitláhuac) debe cubrir TODA "
+                        + "la porción de línea 7 de H72", ixGlorieta > ixAlameda);
+
+        // Control: "Alameda Tacubaya" NO debe resolver dentro de una secuencia que no tenga
+        // "Tacubaya" en línea 2 -- el alias está acotado a H72, no es una coincidencia genérica.
+        RutasMixtas.SeqMixta l7ic = null;
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+            if ("L7-IC".equals(sm.nombre)) { l7ic = sm; break; }
+        }
+        assertNotNull(l7ic);
+        assertEquals(-1, ManifestacionesService.idxEnSecuencia(l7ic, 7, Planificador.norm("Alameda Tacubaya")));
+    }
 }

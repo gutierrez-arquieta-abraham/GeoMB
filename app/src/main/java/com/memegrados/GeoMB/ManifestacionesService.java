@@ -958,6 +958,32 @@ public class ManifestacionesService extends Service {
                 .replaceAll("\\bopera de\\b", " y ");
     }
 
+    private static final String[] MARCADORES_RUTA_SIN_SERVICIO =
+            {"sin servicio la ruta", "sin servicio en la ruta"};
+
+    /**
+     * Reconoce "sin servicio la ruta X a Y" (y de Z a W...) como un CIERRE DIRECTO del tramo X-Y --
+     * semántica OPUESTA a {@link #segmentoParcial}: ahí "servicio de X a Y" describe el tramo que SÍ
+     * opera (el resto se bloquea); aquí el texto declara explícitamente el tramo que NO opera. Caso
+     * real confirmado: "Sin servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac" (H72, L7) -- no
+     * contiene "servicio de" (es "sin servicio la ruta"), así que {@link #segmentoParcial} siempre
+     * devuelve {@code null} para este texto y, hasta esta corrección, la oración no bloqueaba nada.
+     * {@code null} si el texto no describe este patrón. Paquete-visible: reutilizada por las pruebas.
+     */
+    static String rutaSinServicio(String normFull) {
+        int idx = -1;
+        String marcador = null;
+        for (String m : MARCADORES_RUTA_SIN_SERVICIO) {
+            int p = normFull.indexOf(m);
+            if (p >= 0 && (idx < 0 || p < idx)) { idx = p; marcador = m; }
+        }
+        if (idx < 0) return null;
+        String seg = normFull.substring(idx + marcador.length()).trim();
+        if (seg.length() > 300) seg = seg.substring(0, 300);
+        if (!seg.contains(" a ")) return null;
+        return seg;
+    }
+
     /**
      * Detecta "solo hay servicio de A a B (y de C a D)" y bloquea el complemento
      * (las estaciones del tramo sin servicio) en la línea correspondiente.
@@ -1283,7 +1309,8 @@ public class ManifestacionesService extends Service {
     // texto no verificado para ese caso. Requiere una revisión específica con avisos reales de L4/L7.
     private void bloquearTramosServicios(int nlinea, String normFull, Set<String> afect) {
         String seg = segmentoParcial(normFull);
-        if (seg == null) return;
+        String segCierre = rutaSinServicio(normFull);
+        if (seg == null && segCierre == null) return;
         List<RutasMixtas.SeqMixta> secs = new ArrayList<>();
         for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
             boolean toca = false;
@@ -1291,6 +1318,33 @@ public class ManifestacionesService extends Service {
             if (toca) secs.add(sm);
         }
         if (secs.isEmpty()) return;
+
+        // Cierre DIRECTO ("sin servicio la ruta X a Y", ver rutaSinServicio()) -- semántica OPUESTA
+        // a la de "en servicio" de abajo: el tramo resuelto es justo el que SÍ se bloquea, no
+        // "universo menos el tramo". Caso real confirmado: "Sin servicio la ruta Alameda Tacubaya a
+        // Glorieta Cuitláhuac" (H72, L7) -- antes de esta corrección, ni siquiera se reconocía como
+        // un patrón de cierre (no aportaba nada en absoluto).
+        if (segCierre != null) {
+            for (String chunk : segCierre.split("\\s+y\\s+")) {
+                int ap = chunk.indexOf(" a ");
+                if (ap < 3) continue;
+                String x = chunk.substring(0, ap).trim();
+                String y = chunk.substring(ap + 3).trim();
+                if (x.length() < 3 || y.length() < 3) continue;
+                for (RutasMixtas.SeqMixta sm : secs) {
+                    int ix = idxEnSecuencia(sm, nlinea, x), iy = idxEnSecuencia(sm, nlinea, y);
+                    if (ix < 0 || iy < 0) continue;
+                    int lo = Math.min(ix, iy), hi = Math.max(ix, iy);
+                    for (int k = lo; k <= hi; k++) {
+                        if (sm.lineas[k] != nlinea) continue;
+                        String nn = Planificador.norm(sm.estaciones[k]);
+                        afect.add(Planificador.claveTerminal(nlinea) + "|" + nn);
+                        cortarAlrededor(nlinea, nn);
+                    }
+                }
+            }
+        }
+        if (seg == null) return;
 
         java.util.LinkedHashSet<String> universo = new java.util.LinkedHashSet<>();
         for (RutasMixtas.SeqMixta sm : secs)
@@ -1366,6 +1420,29 @@ public class ManifestacionesService extends Service {
             if (sm.lineas[k] != nlinea) continue;
             String nn = Planificador.norm(sm.estaciones[k]);
             if (nn.equals(qn) || nn.contains(qn) || qn.contains(nn)) return k;
+        }
+        // Alias explícito, acotado y verificado (NO una relajación general del filtro por línea de
+        // arriba): "Alameda Tacubaya" es el nombre de TERMINAL (línea 2) que el feed en vivo y los
+        // avisos oficiales usan para AMBOS ramales reales de H72 -- ver RutasMixtas.LISTA:
+        // Mixta("París", 7, "Alameda Tacubaya", 2) y Mixta("Glorieta Cuitláhuac", 7, "Alameda
+        // Tacubaya", 2) -- y corresponde al mismo punto físico que la secuencia H72 ya trae como
+        // "Tacubaya" (línea 2, el extremo donde arranca). Cuando se busca ese nombre contra la línea
+        // 7 (nlinea del aviso real) dentro de una secuencia que efectivamente trae "Tacubaya" en
+        // línea 2, se interpreta como "el extremo de la secuencia, antes de su primer tramo de
+        // línea 7" -- se resuelve al primer índice de línea 7 de esa secuencia.
+        if ("alameda tacubaya".equals(qn)) {
+            boolean esExtremoDeH72 = false;
+            for (int k = 0; k < sm.estaciones.length; k++) {
+                if (sm.lineas[k] == 2 && "tacubaya".equals(Planificador.norm(sm.estaciones[k]))) {
+                    esExtremoDeH72 = true;
+                    break;
+                }
+            }
+            if (esExtremoDeH72) {
+                for (int k = 0; k < sm.estaciones.length; k++) {
+                    if (sm.lineas[k] == nlinea) return k;
+                }
+            }
         }
         return -1;
     }
