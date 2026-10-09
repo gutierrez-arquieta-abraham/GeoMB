@@ -1307,6 +1307,28 @@ public class ManifestacionesService extends Service {
     // que tenía L1 -- pero aplicar la sustitución aquí sin auditar los textos reales de L4/L7 (que se
     // rutean por RutasMixtas.SECUENCIAS, no por lista lineal) podía bloquear de más por un patrón de
     // texto no verificado para ese caso. Requiere una revisión específica con avisos reales de L4/L7.
+    /**
+     * Puente acotado hacia los 3 puntos reales del extremo L2 de H72 que {@code MapFragment}
+     * dibuja por separado (ver {@code MapFragment.agregarEstacionesH72()}: "Alameda Tacubaya" y
+     * "De la Salle" en ambos andenes, con coordenadas tomadas del GTFS oficial de la CDMX).
+     * "Tacubaya"/"De la Salle" en {@code RutasMixtas.SECUENCIAS} solo sirven para resolver el
+     * ÍNDICE del tramo (están etiquetadas línea 2, así que el bucle de arriba -- que filtra por
+     * {@code nlinea}=7 -- nunca las escribe en {@code afect}); pero si el TEXTO del cierre nombra
+     * ese extremo explícitamente, el marcador real correspondiente sí debe aparecer fuera de
+     * servicio. "De la Salle" no distingue dirección en el texto real observado, así que ante la
+     * duda se marcan AMBOS andenes -- no hay evidencia para elegir solo uno.
+     */
+    static void agregarClaveH72SiAplica(String xOY, Set<String> afect) {   // paquete-visible: pruebas JUnit
+        String n = Planificador.norm(xOY);
+        if (n.contains("tacubaya")) {
+            afect.add(Planificador.claveTerminal(2) + "|" + Planificador.norm("Alameda Tacubaya"));
+        }
+        if (n.contains("salle")) {
+            afect.add(Planificador.claveTerminal(2) + "|" + Planificador.norm("De la Salle · dirección Alameda Tacubaya"));
+            afect.add(Planificador.claveTerminal(2) + "|" + Planificador.norm("De la Salle · dirección Glorieta Cuitláhuac"));
+        }
+    }
+
     private void bloquearTramosServicios(int nlinea, String normFull, Set<String> afect) {
         String seg = segmentoParcial(normFull);
         String segCierre = rutaSinServicio(normFull);
@@ -1331,6 +1353,7 @@ public class ManifestacionesService extends Service {
                 String x = chunk.substring(0, ap).trim();
                 String y = chunk.substring(ap + 3).trim();
                 if (x.length() < 3 || y.length() < 3) continue;
+                if (nlinea == 7) { agregarClaveH72SiAplica(x, afect); agregarClaveH72SiAplica(y, afect); }
                 for (RutasMixtas.SeqMixta sm : secs) {
                     int ix = idxEnSecuencia(sm, nlinea, x), iy = idxEnSecuencia(sm, nlinea, y);
                     if (ix < 0 || iy < 0) continue;

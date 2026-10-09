@@ -130,6 +130,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private static final class EstMapa {
         final Estacion e; final int linea; final int color; Marker marker;
         LatLng pos; String titulo;   // posición/título propios (p. ej. andenes sur/norte de Indios Verdes)
+        boolean transbordo;   // true = punto real de una ruta mixta (ver dibujarMixtas()): ícono diagonal
         EstMapa(Estacion e, int linea, int color) {
             this.e = e; this.linea = linea; this.color = color;
             this.pos = e.posicion; this.titulo = e.nombre;
@@ -711,6 +712,28 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private void dibujarMixtas() {
         dibujarMixtaShape("MX-A31", 1, 3);   // Indios Verdes ↔ Pueblo (incluye Eje 2 Norte)
         dibujarMixtaShape("MX-H72", 7, 2);   // Tacubaya ↔ Glorieta Cuitláhuac (couplet)
+        agregarEstacionesH72();
+    }
+
+    /** Las 3 paradas REALES del servicio de apoyo H72/SL01 ("París - Alameda Tacubaya", GTFS oficial
+     *  CDMX, agencia MB, route_id B_CMX03SL01) -- NO son las mismas paradas físicas que "Tacubaya"/
+     *  "De la Salle" del catálogo troncal de L2 (confirmado contra el GTFS: 103-150 m de diferencia,
+     *  por encima de RADIO_MISMA_PARADA_M). Coordenadas tomadas directamente de stops.txt:
+     *  B_03SL01-ATACUBAYA (Alameda Tacubaya), B_03SL01-SALLEOP (De La Salle, andén dirección Alameda
+     *  Tacubaya) y B_03SL01-SALLE (De La Salle, andén dirección Glorieta Cuitláhuac). Se agregan como
+     *  estaciones aparte (mismo patrón que los andenes sur/norte de Indios Verdes L4 en
+     *  dibujarMexibus()), con el pictograma ya existente de Tacubaya/De la Salle reutilizado, y
+     *  {@code transbordo=true} para que iconoEstacionOTransbordo() les dé el ícono diagonal L7/L2. */
+    private void agregarEstacionesH72() {
+        agregarEstacionTransbordo("Alameda Tacubaya", 19.401473, -99.185882, "ic_est_2_2");
+        agregarEstacionTransbordo("De la Salle · dirección Alameda Tacubaya", 19.4083683433015, -99.18420775806, "ic_est_2_4");
+        agregarEstacionTransbordo("De la Salle · dirección Glorieta Cuitláhuac", 19.4090200863265, -99.1834667351685, "ic_est_2_4");
+    }
+
+    private void agregarEstacionTransbordo(String nombre, double lat, double lon, String icono) {
+        EstMapa em = new EstMapa(new Estacion(nombre, lat, lon, icono), 2, colorDeLinea(2));
+        em.transbordo = true;
+        estaciones.add(em);
     }
 
     /**
@@ -1564,20 +1587,15 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return p;
     }
 
-    /** "Tacubaya" y "De la Salle" (línea 2) son el extremo REAL de H72 (ver RutasMixtas.LISTA:
-     *  Mixta("París", 7, "Alameda Tacubaya", 2) y Mixta("Glorieta Cuitláhuac", 7, "Alameda
-     *  Tacubaya", 2) -- "Alameda Tacubaya" es el nombre de terminal que usa el feed para este mismo
-     *  punto) -- cuentan como transbordo hacia L7, aunque L2 no las traiga así en su catálogo plano.
-     *  Nombres normalizados: acepta "De La Salle"/"De la Salle" indistintamente. */
-    private static final java.util.Set<String> ESTACIONES_TRANSBORDO_H72 = new java.util.HashSet<>(
-            java.util.Arrays.asList(Planificador.norm("Tacubaya"), Planificador.norm("De La Salle")));
-
-    /** Icono de estación: el normal de {@link #iconoEstacion}, salvo que {@code em} sea el extremo
-     *  L2 de H72 (Tacubaya/De la Salle) -- ahí usa {@link #iconoEstacionTransbordo} (diagonal entre
-     *  el tono de línea 2 y el de línea 7, ambos sacados de {@link #colorDeLinea}, que ya trae el
-     *  mismo tono que los drawables linea_2.png/linea_7.png). */
+    /** Icono de estación: el normal de {@link #iconoEstacion}, salvo que {@code em} sea uno de los
+     *  3 puntos reales de H72 agregados en {@link #dibujarMixtas} ({@code em.transbordo}) -- ahí usa
+     *  {@link #iconoEstacionTransbordo} (diagonal entre el tono de línea 7 y el de línea 2, ambos
+     *  sacados de {@link #colorDeLinea}, que ya trae el mismo tono que los drawables
+     *  linea_2.png/linea_7.png). Las estaciones normales de L2 ("Tacubaya"/"De la Salle") NO llevan
+     *  este flag y conservan su ícono de siempre -- son paradas físicas distintas (ver
+     *  dibujarMixtas()), confirmado contra el GTFS oficial (103-150 m de diferencia). */
     private BitmapDescriptor iconoEstacionOTransbordo(EstMapa em, boolean fueraDeServicio) {
-        if (em.linea == 2 && ESTACIONES_TRANSBORDO_H72.contains(Planificador.norm(em.e.nombre))) {
+        if (em.transbordo) {
             // Arriba-izq el tono de línea 7 (H72), abajo-der el de línea 2 -- confirmado por el
             // usuario contra la simulación generada en esta ronda (la primera versión, morado
             // arriba/verde abajo, estaba al revés).

@@ -398,4 +398,68 @@ public class ManifestacionesServiceClasificacionAfectacionesTest {
         assertNotNull(l7ic);
         assertEquals(-1, ManifestacionesService.idxEnSecuencia(l7ic, 7, Planificador.norm("Alameda Tacubaya")));
     }
+
+    // =====================================================================================
+    // Defecto encontrado al verificar las coordenadas reales de H72 contra el GTFS oficial de la
+    // CDMX: "Alameda Tacubaya"/"De la Salle" en RutasMixtas.SECUENCIAS solo existen para resolver el
+    // ÍNDICE del tramo (línea 2, fuera del filtro nlinea=7 de bloquearTramosServicios()) -- nunca se
+    // escribían en "afect", así que los 3 puntos reales de H72 que MapFragment agrega por separado
+    // (MapFragment.agregarEstacionesH72(), con coordenadas del GTFS, 103-150 m de las estaciones
+    // troncales de L2) nunca se marcaban fuera de servicio aunque el cierre los nombrara
+    // explícitamente ("Sin servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac"). Las claves
+    // esperadas deben coincidir EXACTO con las que MapFragment.fueraDeServicio() calcula para esos
+    // 3 EstMapa (mismos nombres literales que MapFragment.agregarEstacionesH72() usa).
+    // =====================================================================================
+    @Test
+    public void agregarClaveH72SiAplica_alamedaTacubaya_agregaLaClaveDelPuntoRealDeH72() {
+        java.util.Set<String> afect = new java.util.HashSet<>();
+        ManifestacionesService.agregarClaveH72SiAplica("Alameda Tacubaya", afect);
+
+        String claveEsperada = Planificador.claveTerminal(2) + "|" + Planificador.norm("Alameda Tacubaya");
+        assertTrue("debe agregar la clave exacta que MapFragment.fueraDeServicio() calcula para el "
+                        + "EstMapa 'Alameda Tacubaya' (linea=2, nombre literal 'Alameda Tacubaya')",
+                afect.contains(claveEsperada));
+        assertEquals(1, afect.size());
+    }
+
+    @Test
+    public void agregarClaveH72SiAplica_deLaSalle_agregaAmbosAndenesPorFaltaDeEvidenciaDeDireccion() {
+        java.util.Set<String> afect = new java.util.HashSet<>();
+        ManifestacionesService.agregarClaveH72SiAplica("De la Salle", afect);
+
+        String claveDirATacubaya = Planificador.claveTerminal(2) + "|"
+                + Planificador.norm("De la Salle · dirección Alameda Tacubaya");
+        String claveDirGCuitlahuac = Planificador.claveTerminal(2) + "|"
+                + Planificador.norm("De la Salle · dirección Glorieta Cuitláhuac");
+        assertTrue(afect.contains(claveDirATacubaya));
+        assertTrue(afect.contains(claveDirGCuitlahuac));
+        assertEquals(2, afect.size());
+    }
+
+    @Test
+    public void agregarClaveH72SiAplica_textoSinMencionDeH72_noAgregaNada() {
+        java.util.Set<String> afect = new java.util.HashSet<>();
+        ManifestacionesService.agregarClaveH72SiAplica("Hamburgo", afect);
+        assertTrue(afect.isEmpty());
+    }
+
+    @Test
+    public void fixtureH72_cierreDirectoAlamedaTacubaya_marcaElPuntoRealDeH72Afectado() {
+        String normFull = Planificador.norm("Sin servicio la ruta Alameda Tacubaya a Glorieta Cuitláhuac");
+        String seg = ManifestacionesService.rutaSinServicio(normFull);
+        assertNotNull(seg);
+
+        // Mismo split que bloquearTramosServicios() aplica sobre el segmento de cierre.
+        int ap = seg.indexOf(" a ");
+        assertTrue(ap >= 3);
+        String x = seg.substring(0, ap).trim();
+
+        java.util.Set<String> afect = new java.util.HashSet<>();
+        ManifestacionesService.agregarClaveH72SiAplica(x, afect);
+
+        String claveAlamedaTacubaya = Planificador.claveTerminal(2) + "|" + Planificador.norm("Alameda Tacubaya");
+        assertTrue("el extremo nombrado en el cierre real ('Alameda Tacubaya') debe traducirse en la "
+                        + "clave del punto real de H72 que dibuja MapFragment",
+                afect.contains(claveAlamedaTacubaya));
+    }
 }
