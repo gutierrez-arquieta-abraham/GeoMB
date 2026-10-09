@@ -946,17 +946,21 @@ public class ManifestacionesService extends Service {
      */
     static java.util.Map<Integer, List<Integer>> indicesFueraDeRangoPorLinea(String seg, List<CandidatoLinea> lineas) {
         java.util.Map<Integer, List<int[]>> corridos = new java.util.HashMap<>();
+        java.util.Map<Integer, Integer> resueltosPorLinea = new java.util.HashMap<>();
+        int totalTramos = 0;
         for (String chunk : seg.split("\\s+y\\s+")) {
             int ap = chunk.indexOf(" a ");
             if (ap < 3) continue;
             String x = chunk.substring(0, ap).trim();
             String y = chunk.substring(ap + 3).trim();
             if (x.length() < 3 || y.length() < 3) continue;
+            totalTramos++;
             for (CandidatoLinea l : lineas) {
                 int ix = idxEstacion(l.estaciones, x), iy = idxEstacion(l.estaciones, y);
                 if (ix >= 0 && iy >= 0) {
                     corridos.computeIfAbsent(l.numero, z -> new ArrayList<>())
                             .add(new int[]{Math.min(ix, iy), Math.max(ix, iy)});
+                    resueltosPorLinea.merge(l.numero, 1, Integer::sum);
                     break;   // primera línea que contiene ambos extremos
                 }
             }
@@ -965,6 +969,16 @@ public class ManifestacionesService extends Service {
         for (CandidatoLinea l : lineas) {
             List<int[]> rangos = corridos.get(l.numero);
             if (rangos == null) continue;
+            // Defecto confirmado (caso real: L3, "Servicio de Tenayuca a Poniente 134 y de Pueblo de
+            // Santa Cruz a Héroe Nacozari" -- el nombre oficial "Pueblo de Santa Cruz" no calza con el
+            // nombre real del catálogo, "Pueblo Sta. Cruz Atoyac"): si el aviso describe VARIOS tramos
+            // "en servicio" unidos por "y" pero esta línea solo resolvió ALGUNOS de ellos, el tramo no
+            // resuelto NO significa "fuera de servicio" -- tratar el resto de la línea como bloqueado
+            // por esta vía bloqueaba de más toda la mitad de la línea (en el caso real, desde Poniente
+            // 128 hasta el propio Pueblo Sta. Cruz Atoyac, la terminal). Se prefiere no bloquear nada
+            // por esta vía a bloquear de más por una resolución parcial: solo se calcula "fuera" para
+            // una línea que resolvió TODOS los tramos descritos en el aviso.
+            if (!resueltosPorLinea.getOrDefault(l.numero, 0).equals(totalTramos)) continue;
             List<Integer> fuera = new ArrayList<>();
             for (int k = 0; k < l.estaciones.size(); k++) {
                 boolean corre = false;

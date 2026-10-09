@@ -233,4 +233,71 @@ public class ManifestacionesServiceBloquearTramosTest {
         // No se bloquea indiscriminadamente toda la línea (37 estaciones en total).
         assertEquals(4, fuera.size());
     }
+
+    // Orden REAL de L3 (copiado de estaciones.json, índices 0-38), usado por el caso de regresión
+    // reportado por el usuario en dispositivo: aviso real "Manifestación" / estaciones="Poniente
+    // 128 - Cuitláhuac" / info="Servicio de Tenayuca a Poniente 134 y de Pueblo de Santa Cruz a
+    // Héroe Nacozari." -- el texto oficial dice "Pueblo de Santa Cruz", que NO calza con el nombre
+    // real del catálogo, "Pueblo Sta. Cruz Atoyac" (índice 38).
+    private static final List<Estacion> L3 = new ArrayList<>(Arrays.asList(
+            new Estacion("Tenayuca", 0, 0), new Estacion("San José de la Escalera", 0, 0),
+            new Estacion("Progreso Nacional", 0, 0), new Estacion("Tres Anegas", 0, 0),
+            new Estacion("Júpiter", 0, 0), new Estacion("La Patera", 0, 0),
+            new Estacion("Poniente 146", 0, 0), new Estacion("Montevideo", 0, 0),
+            new Estacion("Poniente 134", 0, 0), new Estacion("Poniente 128", 0, 0),
+            new Estacion("Magdalena La Salinas", 0, 0), new Estacion("Coltongo", 0, 0),
+            new Estacion("Cuitláhuac", 0, 0), new Estacion("Héroe de Nacozari", 0, 0),
+            new Estacion("Hospital La Raza", 0, 0), new Estacion("La Raza", 0, 0),
+            new Estacion("Circuito", 0, 0), new Estacion("Tolnáhuac", 0, 0),
+            new Estacion("Tlatelolco", 0, 0), new Estacion("Ricardo Flores Magón", 0, 0),
+            new Estacion("Buenavista II", 0, 0), new Estacion("Buenavista III", 0, 0),
+            new Estacion("Guerrero", 0, 0), new Estacion("Mina", 0, 0),
+            new Estacion("Hidalgo", 0, 0), new Estacion("Juárez", 0, 0),
+            new Estacion("Balderas", 0, 0), new Estacion("Cuauhtémoc", 0, 0),
+            new Estacion("Jardín Pushkin", 0, 0), new Estacion("Hospital General", 0, 0),
+            new Estacion("Dr. Márquez", 0, 0), new Estacion("Centro Médico", 0, 0),
+            new Estacion("Obrero Mundial", 0, 0), new Estacion("Etiopía-Plaza de la Transparencia", 0, 0),
+            new Estacion("Luz Saviñón", 0, 0), new Estacion("Eugenia", 0, 0),
+            new Estacion("División del Norte", 0, 0), new Estacion("Miguel Laurent", 0, 0),
+            new Estacion("Pueblo Sta. Cruz Atoyac", 0, 0)));
+
+    private static final ManifestacionesService.CandidatoLinea L3_CANDIDATO =
+            new ManifestacionesService.CandidatoLinea(3, L3);
+
+    // ============================================================================================
+    // Defecto confirmado y corregido: cuando el aviso describe VARIOS tramos "en servicio" unidos
+    // por "y" y uno de ellos no resuelve contra el catálogo (por una abreviatura distinta en el
+    // texto oficial), indicesFueraDeRangoPorLinea() ya NO bloquea "todo lo que sobra" -- antes
+    // bloqueaba desde Poniente 128 hasta la propia terminal Pueblo Sta. Cruz Atoyac (toda la mitad
+    // sur de la línea) solo porque "Pueblo de Santa Cruz" no calzó con "Pueblo Sta. Cruz Atoyac".
+    // ============================================================================================
+    @Test
+    public void fixtureL3_tramoConExtremoQueNoCalzaPorAbreviatura_noBloqueaElRestoDeLaLinea() {
+        String seg = ManifestacionesService.segmentoParcial(Planificador.norm(
+                "Servicio de Tenayuca a Poniente 134 y de Pueblo de Santa Cruz a Héroe Nacozari."));
+        java.util.Map<Integer, List<Integer>> resultado = ManifestacionesService.indicesFueraDeRangoPorLinea(
+                seg, Collections.singletonList(L3_CANDIDATO));
+
+        // Un tramo no resolvió ("Pueblo de Santa Cruz" no calza con "Pueblo Sta. Cruz Atoyac"): L3
+        // no debe aparecer en el resultado en absoluto -- no se bloquea nada por esta vía, en vez de
+        // bloquear de más por una resolución parcial.
+        assertNull("con un tramo sin resolver, la línea no debe recibir NINGÚN bloqueo por esta vía",
+                resultado.get(3));
+    }
+
+    // Control: el MISMO primer tramo, aislado (sin el segundo tramo que falla), sigue resolviendo
+    // con normalidad -- confirma que el fix no rompe el caso de un solo tramo bien formado.
+    @Test
+    public void fixtureL3_unSoloTramoBienFormado_siResuelve() {
+        String seg = ManifestacionesService.segmentoParcial(Planificador.norm(
+                "Servicio de Tenayuca a Poniente 134."));
+        List<Integer> fuera = ManifestacionesService.indicesFueraDeRangoPorLinea(
+                seg, Collections.singletonList(L3_CANDIDATO)).get(3);
+
+        assertNotNull(fuera);
+        assertFalse(fuera.contains(0));   // Tenayuca
+        assertFalse(fuera.contains(8));   // Poniente 134
+        assertTrue(fuera.contains(9));    // Poniente 128: fuera del único tramo en servicio
+        assertTrue(fuera.contains(38));   // Pueblo Sta. Cruz Atoyac: fuera del único tramo en servicio
+    }
 }
