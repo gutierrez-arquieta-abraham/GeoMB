@@ -231,6 +231,35 @@ public final class Manifestaciones {
         return out;
     }
 
+    /** Identificadores de FUENTE para {@link #origenesBloqueo}: a diferencia de {@link #bloqueadas}
+     *  (que las une en un solo Set sin decir cuál aportó cada clave), estos permiten distinguirlas. */
+    public static final String ORIGEN_AFECTADA = "afectada";            // Estado del Servicio en vivo
+    public static final String ORIGEN_MEXIBUS = "mexibus";              // línea Mexibús "sin servicio"
+    public static final String ORIGEN_POR_SENTIDO = "porSentido";       // mantenimiento/cierre por sentido
+    public static final String ORIGEN_POR_SENTIDO_MR = "porSentidoMR";  // elevador (solo si movilidadReducida)
+    public static final String ORIGEN_SIMULADO = "simulado";            // panel de pruebas (Configuración)
+
+    /**
+     * ¿Qué fuente(s) EXACTAS explican el bloqueo de esta estación (de ESA línea) ahora mismo?
+     * Puede haber más de una a la vez (p. ej. una simulación sobre una estación que también tiene
+     * una afectación real). Vacío = ninguna fuente la bloquea actualmente.
+     *
+     * <p>De solo lectura: no lo usa ningún camino de bloqueo/ruteo/mapa existente (bloqueadas(),
+     * bloqueadoHacia(), sentidosBloqueados() siguen igual). Pensado para diagnosticar "¿por qué
+     * está gris esta estación?" distinguiendo afectación real / simulación / elevador sin tener
+     * que inspeccionar cada colección por separado.
+     */
+    public static Set<String> origenesBloqueo(int linea, String estacionNn, boolean movilidadReducida) {
+        String k = clave(linea, estacionNn);
+        Set<String> out = new HashSet<>();
+        if (afectadas.contains(k)) out.add(ORIGEN_AFECTADA);
+        if (mexibusBloq.contains(k)) out.add(ORIGEN_MEXIBUS);
+        if (porSentido.containsKey(k)) out.add(ORIGEN_POR_SENTIDO);
+        if (movilidadReducida && porSentidoMR.containsKey(k)) out.add(ORIGEN_POR_SENTIDO_MR);
+        if (simulado.containsKey(k)) out.add(ORIGEN_SIMULADO);
+        return out;
+    }
+
     /** Motivo por el que una estación está afectada: C_MANTENIMIENTO, C_ELEVADOR o C_ESTADO
      *  (bloqueo/manifestación). Devuelve -1 si no aparece en la lista. Compara por nombre normalizado. */
     public static int razonCierre(String estacionNn) {
