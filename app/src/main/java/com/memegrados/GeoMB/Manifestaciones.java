@@ -132,6 +132,13 @@ public final class Manifestaciones {
         for (Map.Entry<String, Set<String>> e : porSentido.entrySet()) {
             if (e.getValue().contains(AMBOS)) s.add(e.getKey());
         }
+        // Simulación de prueba (panel oculto de Configuración, ver simular()): bloqueadoHacia() y
+        // sentidosBloqueados() ya la consultan para el ruteo, pero esta función (consumida por el mapa,
+        // MapFragment.fueraDeServicio) nunca la incluía -- una estación "simulada" bloqueaba
+        // correctamente el Planificador pero el marcador seguía viéndose normal en el mapa.
+        for (Map.Entry<String, Set<String>> e : simulado.entrySet()) {
+            if (e.getValue().contains(AMBOS)) s.add(e.getKey());
+        }
         return s;
     }
 
