@@ -249,6 +249,14 @@ public class RecorridoService extends Service {
     private int ultLlegando = -99;         // estación cuya llegada ya se anunció ("Llegando a…")
     private int ultProxima = -99;          // próxima estación ya anunciada al salir de la anterior
     private int estSeguida = -99;          // estación cuyo acercamiento se está midiendo
+    // Candidato de CRUCE DIRECTO de una correspondencia corta (ver procesarInterno, bloque de cambio de
+    // línea): cuando la separación real entre las dos plataformas ya excede el radioCerca() de la
+    // anterior, "llegar" a la anterior es geométricamente imposible desde el lado de la nueva (p. ej.
+    // Puente de Fierro L2↔L4, 284 m, radioCerca=100 m). Para ese caso puntual se acepta la llegada a la
+    // plataforma NUEVA como evidencia suficiente, pero nunca de un solo fix: se exige ver el MISMO índice
+    // candidato en dos ciclos consecutivos (mismo criterio que MARGEN_MEJORA_M en reanclarOtraLinea).
+    // -1 = sin candidato pendiente.
+    private int corresPendienteIdx = -1;
     private float distMin = Float.MAX_VALUE;   // distancia mínima alcanzada a estSeguida (para medir "ya la pasé")
     private boolean afectacionAvisada = false;
     private boolean finalizado = false;    // ya se llegó al destino: se detiene el servicio
@@ -389,6 +397,7 @@ public class RecorridoService extends Service {
         activo = true;
         ultVoz = -99; ultLlegando = -99; ultProxima = -99; afectacionAvisada = false;
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
+        corresPendienteIdx = -1;   // nuevo recorrido (o reinicio tras revivir): sin candidato pendiente
         Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -629,6 +638,18 @@ public class RecorridoService extends Service {
                 boolean alcanzasteAnterior = ultLlegando >= i - 1;
                 boolean coloc = coUbicada(pi, seq.get(best));
                 float umbral = coloc ? radioCerca(pi) : CAMBIO_LINEA_M;
+                // CORRESPONDENCIA CORTA (excepción controlada, solo para un par ya validado por coUbicada):
+                // si la separación FÍSICA real entre ambas plataformas ya excede el radioCerca() de la
+                // anterior, 'alcanzasteAnterior' nunca puede volverse cierto por el camino normal -- no es
+                // un problema de GPS, es geométricamente imposible. Ahí se acepta la llegada a la plataforma
+                // NUEVA en su lugar, confirmada en dos ciclos consecutivos (nunca un solo fix). Esto NO es
+                // un reanclaje general: solo aplica al nodo inmediato siguiente de la propia secuencia de la
+                // ruta, y solo si coUbicada() ya certificó que es una correspondencia real.
+                boolean imposibleLlegarAnterior = coloc
+                        && Linea.distancia(pi.pos, seq.get(best).pos) > radioCerca(seq.get(best));
+                boolean enNuevaAhora = imposibleLlegarAnterior && d <= umbral;
+                boolean alcanzasteNueva = enNuevaAhora && corresPendienteIdx == i;
+                corresPendienteIdx = enNuevaAhora ? i : -1;
                 // En plataformas con ZONA (p. ej. Indios Verdes): dos andenes co-ubicados por núcleo de
                 // nombre pueden ser paralelos y estar a muy poca distancia entre sí (el de ascenso de
                 // Metrobús L1 y el de Mexibús L4 quedan a ~30-40 m uno del otro) — bastante MENOS que el
@@ -646,7 +667,10 @@ public class RecorridoService extends Service {
                 // sin que su aviso de llegada/transbordo llegara a dispararse nunca: el próximo ciclo ya
                 // hablaba de la estación siguiente. Al cortar aquí, este ciclo se queda EN el nodo de
                 // correspondencia y el de llegada podrá anunciarlo; recién el siguiente ciclo avanza más.
-                if (alcanzasteAnterior && d <= umbral && cruzaZona) { bd = d; best = i; }
+                if ((alcanzasteAnterior || alcanzasteNueva) && d <= umbral && cruzaZona) {
+                    bd = d; best = i;
+                    corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
+                }
                 break;
             } else if (d < bd) {
                 bd = d; best = i;
@@ -729,6 +753,7 @@ public class RecorridoService extends Service {
                 finalizado = true;
                 ultVoz = best;
                 ultLlegando = best;
+                corresPendienteIdx = -1;   // recorrido terminado: sin candidato pendiente
                 limpiarPersistencia();   // llegaste: no debe resumir tras muerte de proceso
                 handler.removeCallbacks(tick);
                 detenerUbicacion();      // ya llegaste: corta el GPS para ahorrar batería
@@ -758,6 +783,7 @@ public class RecorridoService extends Service {
                 // recorrido"; al terminar ese audio se finaliza el servicio automáticamente.
                 finalizado = true;
                 ultVoz = best;
+                corresPendienteIdx = -1;   // recorrido terminado: sin candidato pendiente
                 limpiarPersistencia();
                 handler.removeCallbacks(tick);
                 detenerUbicacion();
@@ -1720,6 +1746,7 @@ public class RecorridoService extends Service {
 
     @Override public void onDestroy() {
         activo = false; actualIdx = -1; ultimaPos = null;
+        corresPendienteIdx = -1;
         detenerUbicacion();
         handler.removeCallbacksAndMessages(null);   // cancela tick y el stopSelf diferido
         destruido = true;                            // invalida cualquier voz pendiente/en cola
