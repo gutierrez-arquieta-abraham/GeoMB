@@ -279,6 +279,46 @@ public class ManifestacionesService extends Service {
         mapa.computeIfAbsent(linea + "|" + est, z -> new java.util.HashSet<>()).add(clave);
     }
 
+    /** Separadores de una LISTA de nombres de estación en la columna "estaciones" del feed: coma,
+     *  punto y coma, salto de línea, o la conjunción " y "/" e " entre nombres. Exige mayúscula
+     *  tras la conjunción porque el texto scrapeado conserva las mayúsculas de los nombres propios
+     *  (ver {@link #limpiar}, que solo recorta espacios) -- evita partir en dos un nombre que
+     *  tuviera esa conjunción en minúscula dentro de sí mismo (ninguna estación de Metrobús la
+     *  tiene hoy, comprobado contra el catálogo, pero así no se asume para L4/L7 ni para futuras). */
+    private static final java.util.regex.Pattern P_SEP_LISTA_ESTACIONES =
+            java.util.regex.Pattern.compile("[,;\\n]+|\\s+(?:y|e)\\s+(?=[A-ZÁÉÍÓÚÑ])");
+
+    /**
+     * Separa el texto de la columna "estaciones" en nombres de estación INDEPENDIENTES, cada uno
+     * ya normalizado ({@link Planificador#norm}) -- para compararlos por IGUALDAD EXACTA contra el
+     * nombre normalizado de una estación del catálogo.
+     *
+     * <p>Antes, la comparación era "¿el texto de la fila CONTIENE este nombre?" ({@code
+     * nEst.contains(nn)}, sobre el texto YA normalizado completo). Eso cruza nombres que comparten
+     * SOLO una palabra completa: "Insurgentes" es subcadena literal (como palabra completa) de
+     * "Teatro de los Insurgentes" -- dos estaciones reales y distintas de Línea 1, a ~6 km de
+     * distancia -- así que una fila que solo mencionara "Teatro de los Insurgentes" bloqueaba
+     * TAMBIÉN "Insurgentes" sin relación alguna. Separar primero en elementos de lista y exigir
+     * igualdad exacta por elemento evita ese cruce sin perder la función de reconocer una LISTA
+     * ("El Chopo, Hamburgo y La Raza") ni nombres compuestos ("Teatro de los Insurgentes" sigue
+     * siendo un solo elemento, comparado completo contra el catálogo).
+     *
+     * <p>LIMITACIÓN DOCUMENTADA (no se inventa una interpretación): si el feed usa un separador
+     * distinto de coma/punto y coma/salto de línea/" y "/" e " (p. ej. una lista en prosa libre sin
+     * puntuación "Durango Chilpancingo Nápoles"), esta función no reconstruye esos nombres por
+     * separado y el elemento combinado no calzará con ningún nombre exacto del catálogo -- esa fila
+     * no bloqueará esas estaciones por esta vía. Se prefiere no bloquear a inventar una partición.
+     */
+    static List<String> itemsEstaciones(String estacionesRaw) {
+        if (estacionesRaw == null || estacionesRaw.isEmpty()) return java.util.Collections.emptyList();
+        List<String> out = new ArrayList<>();
+        for (String p : P_SEP_LISTA_ESTACIONES.split(estacionesRaw)) {
+            String nn = Planificador.norm(p);
+            if (!nn.isEmpty()) out.add(nn);
+        }
+        return out;
+    }
+
     /** Bloquea una estación DE ESA LÍNEA: por sentido (hacia esa terminal) si se detectó una, o
      *  ambos si no. La clave lleva la línea para no cruzarse con otra línea del mismo nombre. */
     private void bloquearNn(int linea, String nn, String terminalSentido) {
@@ -493,9 +533,15 @@ public class ManifestacionesService extends Service {
                             // "La Raza" también bloqueaba la "La Raza" de L3 (mismo nombre, otra línea).
                             Linea l = nlinea > 0 ? GtfsRepository.porNumero(this, nlinea) : null;
                             if (l != null) {
+                                // Elementos de la lista, YA separados (ver itemsEstaciones()): la
+                                // comparación es por IGUALDAD EXACTA de nombre normalizado contra el
+                                // catálogo, nunca por subcadena -- evita que "Insurgentes" calce contra
+                                // una fila que en realidad dice "Teatro de los Insurgentes" (estación
+                                // real y distinta de L1, a ~6 km).
+                                java.util.Set<String> items = new HashSet<>(itemsEstaciones(estaciones));
                                 for (Estacion e : l.estaciones) {
                                     String nn = Planificador.norm(e.nombre);
-                                    if (nn.length() >= 4 && nEst.contains(nn)) {
+                                    if (!nn.isEmpty() && items.contains(nn)) {
                                         bloquearNn(nlinea, nn, terminalSentido);
                                         // Parte la línea SOLO si es un bloqueo físico real (ver bloqueoFisico
                                         // arriba); una estación "sin servicio"/cerrada normal se puede
