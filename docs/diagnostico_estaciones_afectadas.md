@@ -6,9 +6,16 @@ una guía para que una persona (o una sesión futura con acceso al dispositivo/b
 decida con evidencia, no con suposición.
 
 Contexto: esto documenta el comportamiento real del código en la rama `pruebas` después de los
-commits de este round (ver `ManifestacionesService.itemsEstaciones()` y
-`MapFragment.sirveRutaMixtaAlterna()`/`mismaParadaFisica()`). No reemplaza leer el código; resume
-qué revisar y en qué orden.
+commits de este round (ver `ManifestacionesService.itemsEstaciones()`,
+`MapFragment.sirveRutaMixtaAlterna()`/`mismaParadaFisica()`, el candado de red de
+`ManifestacionesService` y `Manifestaciones.origenesBloqueo()`). No reemplaza leer el código;
+resume qué revisar y en qué orden.
+
+**Actualización:** desde la auditoría integral, `Manifestaciones.origenesBloqueo(linea,
+estacionNn, movilidadReducida)` responde directamente al Paso 2-3 de abajo sin inspeccionar cada
+colección a mano -- devuelve `ORIGEN_AFECTADA`/`ORIGEN_MEXIBUS`/`ORIGEN_POR_SENTIDO`/
+`ORIGEN_POR_SENTIDO_MR`/`ORIGEN_SIMULADO` según cuáles fuentes bloquean esa clave AHORA MISMO. Es
+de solo lectura: no cambia el color del marcador ni el ruteo, solo expone la causa.
 
 ## Las 4 causas y cómo se ven
 
