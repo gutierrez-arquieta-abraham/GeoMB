@@ -120,6 +120,22 @@ public class ManifestacionesService extends Service {
     private boolean notifEstadoCargado = false;   // ¿ya se restauró el dedup persistido de esta sesión?
     // Si el iframe de estado no responde, igual notifica lo de las tablas (estado se omite por estadoFilas==0).
     private final Runnable seguridad = () -> { notificar(); cargando = false; };
+    // "seguridad" (arriba) solo cubre la FASE 1 (se agenda desde onTablas, una vez que la fase 0 ya
+    // completó). Si la fase 0 falla en cargar del todo -- error de red, redirección a una página de
+    // error, timeout del WebView -- onPageFinished puede no disparar nunca con la URL esperada
+    // (ver el "if" de fase en onCreate): ni onTablas ni "seguridad" llegan a ejecutarse, "cargando"
+    // se queda en true para siempre y revisar() deja de intentar CUALQUIER ciclo futuro -- en
+    // silencio, sin vaciar ningún estado, pero también sin volver a actualizarlo jamás. Este candado
+    // cubre el ciclo COMPLETO (ambas fases); se agenda al iniciar cada ciclo (ver revisar()) con un
+    // margen por debajo de INTERVALO_MS para no pisar el siguiente tick normal.
+    private static final long CANDADO_MS = 50_000L;
+    private final Runnable candado = () -> {
+        if (cargando) {
+            Telemetria.registrarError(this, Telemetria.ERR_RED, "ManifestacionesService.candado",
+                    "ciclo sin completar tras " + CANDADO_MS + " ms (fase=" + fase + ")");
+            cargando = false;
+        }
+    };
 
     private final Runnable tick = this::revisar;
 
@@ -180,6 +196,8 @@ public class ManifestacionesService extends Service {
             resumenAcc = new ArrayList<>();
             cortesAcc = new HashSet<>();
             extraPorEstacionAcc = new java.util.HashMap<>();
+            handler.removeCallbacks(candado);
+            handler.postDelayed(candado, CANDADO_MS);   // ver comentario en la declaración de "candado"
             web.loadUrl(URL_SERVICIOMB);   // primero las tablas (funciona seguro); luego el iframe de estado
         }
         handler.postDelayed(tick, INTERVALO_MS);
@@ -1267,6 +1285,8 @@ public class ManifestacionesService extends Service {
     @Override
     public void onDestroy() {
         handler.removeCallbacks(tick);
+        handler.removeCallbacks(candado);
+        handler.removeCallbacks(seguridad);
         if (web != null) { web.destroy(); web = null; }
         ec2Exec.shutdownNow();
         super.onDestroy();
