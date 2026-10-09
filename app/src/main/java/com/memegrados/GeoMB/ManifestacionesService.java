@@ -653,7 +653,7 @@ public class ManifestacionesService extends Service {
      * (líneas troncales lineales) y {@link #bloquearTramosServicios} (L4/L7, ruteadas por servicios).
      * {@code null} si el texto no describe un servicio parcial.
      */
-    private static String segmentoParcial(String normFull) {
+    static String segmentoParcial(String normFull) {   // paquete-visible: reutilizada por las pruebas JUnit
         // "Servicio de A a B" a secas (sin "solo hay"/"provisional" delante) TAMBIÉN cuenta como
         // tramo reducido -- caso real confirmado: circuitos de emergencia reales ("Servicio de
         // Tenayuca a Buenavista Y de Pueblo de Santa Cruz a Cuauhtémoc") no siempre incluyen una
