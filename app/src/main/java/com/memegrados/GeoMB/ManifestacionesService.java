@@ -509,7 +509,17 @@ public class ManifestacionesService extends Service {
                         // de A a B" en la info, p. ej. "servicio de El Caminero a Buenavista, por
                         // operativo en Insurgentes Norte"): ahí SÍ conviene enrutar solo por ese tramo
                         // y dejar bloqueado (inhabilitado) el resto, igual que con un corte total.
-                        bloquearTramos(Planificador.norm(info), afect, ambos ? nlinea : 0);
+                        // "A - B" (guion como separador de extremos, p. ej. "Indios Verdes - Dr Gálvez")
+                        // se convierte a "A a B" ANTES de normalizar: Planificador.norm() reemplaza '-'
+                        // por espacio (destruye el separador) y bloquearTramos() reconoce el tramo por la
+                        // palabra " a " entre los dos nombres -- sin esto el chunk quedaba sin "a" y se
+                        // descartaba entero (ap<3), aunque el marcador "servicio de"/"provisional de" sí
+                        // se reconociera. Solo el guion RODEADO DE ESPACIOS cuenta como separador de rango
+                        // (uno pegado a letras, como "Ex-Hacienda", no se toca). Local a este llamado: NO
+                        // afecta a bloquearTramosServicios (L4/L7, línea ~517), que sigue su propio
+                        // Planificador.norm(info) sin esta sustitución -- ver nota ahí sobre el mismo gap.
+                        String infoParaTramos = info.replaceAll("[\\s\\u00A0]+-[\\s\\u00A0]+", " a ");
+                        bloquearTramos(Planificador.norm(infoParaTramos), afect, ambos ? nlinea : 0);
                         // L4 y L7 se rutean por SERVICIOS (couplet/ramas), no por un tramo lineal:
                         // bloquearTramos las salta. Un aviso que nombre ESTACIONES reales ("Servicio de
                         // Campo Marte a Glorieta Cuitláhuac") se resuelve aquí usando las secuencias de
@@ -593,19 +603,33 @@ public class ManifestacionesService extends Service {
                 || (normFull.contains("servicio de") && normFull.contains(" a "));
         if (!parcial) return null;
 
-        int idx = normFull.indexOf("servicio de");
-        if (idx < 0) idx = normFull.indexOf("opera de");
+        // El marcador se busca en orden de especificidad: "servicio provisional/parcial de" puede
+        // aparecer en el mismo lugar que un "servicio de" más genérico (p. ej. "servicio provisional
+        // de Indios Verdes - Dr Gálvez"), y buscar solo "servicio de" nunca encontraba esa frase real
+        // porque la palabra intermedia ("provisional"/"parcial") rompe la subcadena contigua -- el
+        // texto SÍ se detectaba como parcial (ver 'parcial' arriba) pero la extracción fallaba y
+        // devolvía null sin bloquear nada.
+        String[] marcadores = {"servicio provisional de", "servicio parcial de", "servicio de", "opera de"};
+        int idx = -1;
+        String marcador = null;
+        for (String m : marcadores) {
+            int p = normFull.indexOf(m);
+            if (p >= 0 && (idx < 0 || p < idx)) { idx = p; marcador = m; }
+        }
         if (idx < 0) return null;
         String seg = normFull.substring(idx);
         if (seg.length() > 300) seg = seg.substring(0, 300);
-        seg = seg.replaceFirst("^(servicio de|opera de)\\s*", "");
+        seg = seg.replaceFirst("^" + java.util.regex.Pattern.quote(marcador) + "\\s*", "");
         // Caso real confirmado: un aviso puede traer VARIAS oraciones "Servicio de X a Y" seguidas
         // (p. ej. "...y de El Caminero a Sonora. Servicio de Cuauhtémoc a Pueblo de Santa Cruz.") en
         // vez de una sola unida con "y" -- norm() ya quitó los puntos, así que la segunda oración
         // quedaba pegada como cola del tramo anterior (un texto larguísimo que no calzaba con NINGUNA
         // estación), perdiendo esos tramos reales y bloqueando de más casi toda la troncal. Cualquier
-        // "servicio de"/"opera de" POSTERIOR también separa tramos, igual que "y".
-        return seg.replaceAll("\\bservicio de\\b", " y ").replaceAll("\\bopera de\\b", " y ");
+        // marcador POSTERIOR también separa tramos, igual que "y".
+        return seg.replaceAll("\\bservicio provisional de\\b", " y ")
+                .replaceAll("\\bservicio parcial de\\b", " y ")
+                .replaceAll("\\bservicio de\\b", " y ")
+                .replaceAll("\\bopera de\\b", " y ");
     }
 
     /**
@@ -798,6 +822,13 @@ public class ManifestacionesService extends Service {
      * existía ningún equivalente a {@link #bloquearRutaL4} para L7 (ese solo activa con el nombre
      * "Ruta Norte"/"Ruta Sur", que L7 no usa -- sus avisos nombran estaciones reales).
      */
+    // NOTA (pendiente, fuera de alcance de este cambio): esta función recibe un 'normFull' que viene
+    // de SU PROPIO Planificador.norm(info) (ver llamada más arriba), sin la sustitución "A - B" -> "A a
+    // B" que sí se aplicó para bloquearTramos() (líneas troncales lineales). Un aviso real de L4/L7 con
+    // guion como separador de extremos ("Campo Marte - Glorieta Cuitláhuac") tendría el mismo problema
+    // que tenía L1 -- pero aplicar la sustitución aquí sin auditar los textos reales de L4/L7 (que se
+    // rutean por RutasMixtas.SECUENCIAS, no por lista lineal) podía bloquear de más por un patrón de
+    // texto no verificado para ese caso. Requiere una revisión específica con avisos reales de L4/L7.
     private void bloquearTramosServicios(int nlinea, String normFull, Set<String> afect) {
         String seg = segmentoParcial(normFull);
         if (seg == null) return;
