@@ -775,11 +775,14 @@ public class PlanificadorFragment extends Fragment {
         return out;
     }
 
-    /** Fija la opción elegida: Metrobús no requiere pin (0); Mexibús/Mexicable fijan su línea. */
+    /** Fija la opción elegida: Metrobús no requiere pin (0); Mexibús/Mexicable fijan su línea.
+     *  Si es un alias de H72 (ver Planificador.Match.nombreRuta), rutea contra el nombre REAL de su
+     *  troncal -- su propio nombre ("Alameda Tacubaya") no existe en ningún catálogo ruteable. */
     private void fijar(EditText campo, Planificador.Match m, ResueltoCb cb) {
+        String nombreReal = m.nombreRuta != null ? m.nombreRuta : m.nombre;
         int pin = m.linea < 100 ? 0 : m.linea;
-        campo.setText(Planificador.nombreMostrar(requireContext(), m.nombre, m.linea));
-        cb.run(m.nombre, pin);
+        campo.setText(Planificador.nombreMostrar(requireContext(), nombreReal, m.linea));
+        cb.run(nombreReal, pin);
     }
 
     /** Palabra para el cambio de servicio: Metrobús↔Metrobús=Transbordo, Mexibús/Mexicable entre sí=Correspondencia, mixto=Conexión. */

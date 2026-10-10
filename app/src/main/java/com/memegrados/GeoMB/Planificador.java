@@ -189,6 +189,35 @@ public final class Planificador {
             {"mxb 1 de mayo", "mxb 1 de mayo"},
     };
 
+    /**
+     * Paradas REALES del servicio de apoyo H72/SL01 (GTFS oficial CDMX, agencia MB, route_id
+     * B_CMX03SL01 "París - Alameda Tacubaya") que NO existen en ningún catálogo de Línea -- son los
+     * mismos 3 puntos sintéticos que dibuja MapFragment.agregarEstacionesH72() (mismas coordenadas,
+     * tomadas de stops.txt), quedan a 103-150 m de su estación troncal real de L2 más cercana
+     * (Tacubaya/De La Salle). Si el usuario escribe su nombre tal cual lo ve en el mapa (p. ej.
+     * "Alameda Tacubaya") esperando trazar una ruta, estacionParecida() antes no las encontraba (no
+     * están en getRuteables()) y fallaba con "estación no encontrada" -- el mismo defecto que ya se
+     * había corregido para el botón "Cómo llegar aquí" del mapa (MapFragment.EstMapa.nombreRuta),
+     * pero nunca para el buscador de texto. Se ofrecen SIEMPRE junto con su estación troncal real en
+     * la carta de desambiguación (nunca se fusionan en candidatos(), ver Match.nombreRuta y
+     * agruparPorEstacionFisica) a pedido explícito del usuario de activar el desambiguador en vez de
+     * resolverlas en silencio -- rutean contra el nombre REAL (índice 3) una vez elegidas.
+     * {nombre a mostrar, ícono, posición real GTFS, nombre REAL para Planificador.calcular}.
+     */
+    private static final Object[][] ALIAS_H72 = {
+            {"Alameda Tacubaya", "ic_est_2_2", new LatLng(19.401473, -99.185882), "Tacubaya"},
+            {"De la Salle · dirección Alameda Tacubaya", "ic_est_2_4",
+                    new LatLng(19.4083683433015, -99.18420775806), "De La Salle"},
+            {"De la Salle · dirección Glorieta Cuitláhuac", "ic_est_2_4",
+                    new LatLng(19.4090200863265, -99.1834667351685), "De La Salle"},
+    };
+
+    /** Entrada de {@link #ALIAS_H72} cuyo nombre a mostrar es EXACTAMENTE {@code canon}, o null. */
+    private static Object[] aliasH72Por(String canon) {
+        for (Object[] a : ALIAS_H72) if (((String) a[0]).equals(canon)) return a;
+        return null;
+    }
+
     private static int sistemaLinea(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }
 
     private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(
@@ -364,13 +393,26 @@ public final class Planificador {
                 if (p > mejorPunt) { mejorPunt = p; mejor = e.nombre; }
             }
         }
+        // Puntos alias de H72 (ver ALIAS_H72): si lo tecleado se parece más a su nombre propio
+        // ("Alameda Tacubaya") que a cualquier estación real, gana el alias -- un simple "Tacubaya"
+        // sigue resolviendo a la troncal real (score 1000 por igualdad exacta, siempre mayor).
+        for (Object[] al : ALIAS_H72) {
+            int p = puntaje(norm((String) al[0]), q);
+            if (p > mejorPunt) { mejorPunt = p; mejor = (String) al[0]; }
+        }
         return mejorPunt >= 100 ? mejor : null;
     }
 
     /** Un andén candidato: nombre canónico + su línea + posición, para desambiguar estaciones homónimas. */
     public static final class Match {
         public final String nombre; public final int linea; public final LatLng pos; public final String icono;
-        Match(String n, int l, LatLng p, String ic) { nombre = n; linea = l; pos = p; icono = ic; }
+        /** No-null SOLO para los alias de H72 (ver {@link #ALIAS_H72}): nombre REAL (ruteable) de la
+         *  estación troncal asociada -- {@code nombre} aquí es el de MOSTRAR ("Alameda Tacubaya"),
+         *  que no existe en ningún catálogo real y haría fallar Planificador.calcular(). Mismo patrón
+         *  que MapFragment.EstMapa.nombreRuta. */
+        public final String nombreRuta;
+        Match(String n, int l, LatLng p, String ic) { this(n, l, p, ic, null); }
+        Match(String n, int l, LatLng p, String ic, String nr) { nombre = n; linea = l; pos = p; icono = ic; nombreRuta = nr; }
     }
 
     /**
@@ -382,6 +424,14 @@ public final class Planificador {
         java.util.List<Match> res = new java.util.ArrayList<>();
         String canon = estacionParecida(ctx, texto);
         if (canon == null) return res;
+        // Alias de H72 (ver ALIAS_H72): se ofrece como Match propio (icono/posición reales del punto
+        // H72) y además se sigue el flujo normal con el nombre REAL de su troncal, para que ambos
+        // aparezcan como opciones separadas en la carta de desambiguación.
+        Object[] aliasH72 = aliasH72Por(canon);
+        if (aliasH72 != null) {
+            res.add(new Match((String) aliasH72[0], 2, (LatLng) aliasH72[2], (String) aliasH72[1], (String) aliasH72[3]));
+            canon = (String) aliasH72[3];
+        }
         String cn = norm(sinMxb(canon));   // nombre LIMPIO: agrupa homónimas entre sistemas aunque el nombre completo difiera (p. ej. "Indios Verdes" Metrobús ↔ Mexibús)
         java.util.Set<Integer> vistas = new java.util.HashSet<>();
         boolean mr = Perfil.movilidadReducida(ctx);
@@ -426,7 +476,12 @@ public final class Planificador {
             java.util.List<Match> g = null;
             for (java.util.List<Match> gr : grupos) {
                 Match r = gr.get(0);
-                if (Servicios.base(r.linea) == Servicios.base(m.linea)
+                // Un alias de H72 (nombreRuta != null, ver ALIAS_H72) NUNCA se fusiona con otro
+                // candidato, ni siquiera con su propia troncal real a <400 m: el usuario pidió
+                // explícitamente que se muestren como opciones separadas en la carta, en vez de
+                // fusionarse en silencio como el resto de los co-ubicados.
+                if (r.nombreRuta == null && m.nombreRuta == null
+                        && Servicios.base(r.linea) == Servicios.base(m.linea)
                         && sistemaLinea(r.linea) == sistemaLinea(m.linea)
                         && Linea.distancia(r.pos, m.pos) <= RADIO_AGRUPAR_ESTACION_FISICA) { g = gr; break; }
             }
