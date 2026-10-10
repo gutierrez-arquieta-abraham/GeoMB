@@ -1719,7 +1719,19 @@ public final class Planificador {
     // Estaciones de Mexibús L4 con andén largo (~100 m). Solo se tiene el punto CENTRAL, así que su zona de
     // cobertura es CIRCULAR (radio mayor) en vez de corredor. La coincidencia es por cercanía al centro.
     private static final LatLng[] ANDENES_LARGOS = {
-            new LatLng(19.603558838994957, -99.033337377486620),  // Puente de Fierro
+            new LatLng(19.603558838994957, -99.033337377486620),  // Puente de Fierro L4
+            // Puente de Fierro L2 -- NO es el mismo punto que el de arriba: quedan a 284 m reales uno
+            // del otro (confirmado: misma imprecisión de "un solo punto por plataforma" que motivó
+            // esta lista, pero nunca se había registrado para el lado L2). Caso real confirmado en
+            // dispositivo: al cruzar de L4 a L2 ahí, RecorridoService nunca lograba acercarse a ≤50 m
+            // (radioCerca por defecto) del punto de L2, así que el aviso de llegada/transbordo se
+            // quedaba mudo -- y como "best" seguía clavado en L4, el camión terminaba recorriendo ~900 m
+            // hasta que reanclarOtraLinea() (el respaldo de reubicación) saltaba directo a UPE, saltándose
+            // tanto Puente de Fierro como Casa de Morelos (ambas por debajo de su propio umbral de 800 m
+            // de recorrido, así que ni siquiera calificaban como candidatas de ese respaldo). Con el radio
+            // de 90 m que ya trae el lado L4, el cruce normal debe resolverse antes de que el respaldo
+            // llegue a activarse.
+            new LatLng(19.601038, -99.033787),                     // Puente de Fierro L2
             new LatLng(19.591949711573108, -99.039179995606560),  // La Viga
             new LatLng(19.582648985866513, -99.041683421323100),  // Laureles
             new LatLng(19.576648789409800, -99.042500566278850),  // Nuevo Laredo
