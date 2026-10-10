@@ -103,4 +103,32 @@ public final class Iconos {
         if (bmp != null) CACHE.put(key, bmp);
         return bmp;
     }
+
+    /** Recolorea el FONDO (píxeles opacos y NO blancos -- el símbolo del pictograma se deja intacto)
+     *  de un bitmap de pictograma ya escalado, en diagonal a 45° entre 2 tonos (arriba-izquierda
+     *  {@code colorA}, abajo-derecha {@code colorB}). Compartida entre el mapa (MapFragment, puntos
+     *  de transbordo de H72) y el panel de Líneas (EstacionesAdapter, mismas estaciones ahí para que
+     *  se vean igual). Los pictogramas de este set son un disco de un solo color con el símbolo en
+     *  blanco (sin degradados ni tonos intermedios además del antialiasing del borde), así que un
+     *  umbral de "casi blanco" alcanza para separar símbolo de fondo sin tocar el canal alfa. */
+    public static Bitmap recoloreaFondoDiagonal(Bitmap src, int colorA, int colorB) {
+        int w = src.getWidth(), h = src.getHeight();
+        int[] px = new int[w * h];
+        src.getPixels(px, 0, w, 0, 0, w, h);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int i = y * w + x;
+                int p = px[i];
+                int a = (p >>> 24) & 0xFF;
+                if (a < 16) continue;   // transparente (fuera del disco): no tocar
+                int r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
+                if (r > 200 && g > 200 && b > 200) continue;   // símbolo blanco: no tocar
+                int nuevo = (x + y < w) ? colorA : colorB;     // diagonal 45°: arriba-izq / abajo-der
+                px[i] = (a << 24) | (nuevo & 0x00FFFFFF);
+            }
+        }
+        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        out.setPixels(px, 0, w, 0, 0, w, h);
+        return out;
+    }
 }

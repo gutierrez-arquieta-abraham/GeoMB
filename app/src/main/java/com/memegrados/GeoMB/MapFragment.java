@@ -131,6 +131,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         final Estacion e; final int linea; final int color; Marker marker;
         LatLng pos; String titulo;   // posición/título propios (p. ej. andenes sur/norte de Indios Verdes)
         boolean transbordo;   // true = punto real de una ruta mixta (ver dibujarMixtas()): ícono diagonal
+        // Nombre a mandar al planificador en "Cómo llegar aquí" cuando DIFIERE del nombre mostrado
+        // (p. ej. los 3 puntos de H72 en agregarEstacionesH72(): "Alameda Tacubaya"/"De la Salle ·
+        // dirección..." no existen así en ningún catálogo real, así que el planificador nunca
+        // encontraba ruta -- null = usar e.nombre tal cual (el caso normal).
+        String nombreRuta;
         EstMapa(Estacion e, int linea, int color) {
             this.e = e; this.linea = linea; this.color = color;
             this.pos = e.posicion; this.titulo = e.nombre;
@@ -733,14 +738,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  dibujarMexibus()), con el pictograma ya existente de Tacubaya/De la Salle reutilizado, y
      *  {@code transbordo=true} para que iconoEstacionOTransbordo() les dé el ícono diagonal L7/L2. */
     private void agregarEstacionesH72() {
-        agregarEstacionTransbordo("Alameda Tacubaya", 19.401473, -99.185882, "ic_est_2_2");
-        agregarEstacionTransbordo("De la Salle · dirección Alameda Tacubaya", 19.4083683433015, -99.18420775806, "ic_est_2_4");
-        agregarEstacionTransbordo("De la Salle · dirección Glorieta Cuitláhuac", 19.4090200863265, -99.1834667351685, "ic_est_2_4");
+        // nombreRuta: estos 3 nombres no existen así en ningún catálogo real (son el nombre del GTFS
+        // de apoyo/con sufijo de andén), así que "Cómo llegar aquí" debe enrutar contra el nombre
+        // REAL de la estación troncal de L2 más cercana -- si no, el planificador no encuentra ruta
+        // (defecto confirmado en dispositivo).
+        agregarEstacionTransbordo("Alameda Tacubaya", 19.401473, -99.185882, "ic_est_2_2", "Tacubaya");
+        agregarEstacionTransbordo("De la Salle · dirección Alameda Tacubaya", 19.4083683433015, -99.18420775806, "ic_est_2_4", "De La Salle");
+        agregarEstacionTransbordo("De la Salle · dirección Glorieta Cuitláhuac", 19.4090200863265, -99.1834667351685, "ic_est_2_4", "De La Salle");
     }
 
-    private void agregarEstacionTransbordo(String nombre, double lat, double lon, String icono) {
+    private void agregarEstacionTransbordo(String nombre, double lat, double lon, String icono, String nombreRuta) {
         EstMapa em = new EstMapa(new Estacion(nombre, lat, lon, icono), 2, colorDeLinea(2));
         em.transbordo = true;
+        em.nombreRuta = nombreRuta;
         estaciones.add(em);
     }
 
@@ -1475,8 +1485,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // Manda al planificador con esta estación de destino YA fijada (línea conocida: se tocó
         // este marcador en concreto, así que no hace falta preguntar "¿a qué estación te refieres?"
         // aunque el nombre también exista en otra línea, p. ej. "1° de Mayo" en Mexibús L1 y L2).
+        // em.nombreRuta (si no es null) sustituye al nombre mostrado -- los 3 puntos de H72 muestran
+        // un nombre que no existe en ningún catálogo real (ver agregarEstacionesH72()), así que
+        // enrutan contra la estación troncal real en su lugar.
+        String nombreParaRuta = em.nombreRuta != null ? em.nombreRuta : em.e.nombre;
         v.findViewById(R.id.btn_como_llegar_estacion).setOnClickListener(b ->
-                ((MainActivity) requireActivity()).mostrarPlanificador(em.e.nombre, em.linea));
+                ((MainActivity) requireActivity()).mostrarPlanificador(nombreParaRuta, em.linea));
         cartaContainer.setVisibility(View.VISIBLE);
         ajustarPanelZoom();
         if (em.pos != null) destelloEstacion(em.pos, em.color);   // resalta el marcador seleccionado
@@ -1674,7 +1688,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  {@link #iconoEstacion}, pero con su FONDO (no el símbolo blanco) partido en diagonal a 45°
      *  entre los 2 tonos de línea -- mismo truco visual que {@link #iconoUnidadMixta} usa para el
      *  bus, adaptado a un pictograma ya renderizado (PNG con el color horneado, no un vector con
-     *  tint) vía {@link #recoloreaFondoDiagonal}. Sin pictograma, el disco de respaldo de
+     *  tint) vía {@link Iconos#recoloreaFondoDiagonal}. Sin pictograma, el disco de respaldo de
      *  {@link #iconoEstacion} se parte igual en 2 mitades diagonales. */
     private BitmapDescriptor iconoEstacionTransbordo(Estacion e, int colorA, int colorB, boolean fueraDeServicio) {
         boolean nuevos = Modos.iconosNuevos(requireContext());
@@ -1689,7 +1703,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
         Bitmap escalado = Iconos.pictograma(requireContext(), e.icono, px);
         if (escalado != null) {
-            c.drawBitmap(fueraDeServicio ? escalado : recoloreaFondoDiagonal(escalado, colorA, colorB),
+            c.drawBitmap(fueraDeServicio ? escalado : Iconos.recoloreaFondoDiagonal(escalado, colorA, colorB),
                     0, 0, fueraDeServicio ? paintGris() : null);
         } else {
             Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1710,35 +1724,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cacheIco.put(key, bd);
         return bd;
     }
-
-    /** Recolorea el FONDO (píxeles opacos y NO blancos -- el símbolo del pictograma se deja intacto)
-     *  de un bitmap de pictograma ya escalado, en diagonal a 45° entre 2 tonos (arriba-izquierda
-     *  {@code colorA}, abajo-derecha {@code colorB}). Los pictogramas de este set son un disco de un
-     *  solo color con el símbolo en blanco (confirmado contra ic_est_2_2/ic_est_2_4: fondo sólido,
-     *  sin degradados ni tonos intermedios además del antialiasing del borde), así que un umbral de
-     *  "casi blanco" alcanza para separar símbolo de fondo sin tocar el canal alfa (que es igual de
-     *  opaco en ambas zonas, a diferencia del bus -- un vector-- que sí se puede retintar entero). */
-    private static Bitmap recoloreaFondoDiagonal(Bitmap src, int colorA, int colorB) {
-        int w = src.getWidth(), h = src.getHeight();
-        int[] px = new int[w * h];
-        src.getPixels(px, 0, w, 0, 0, w, h);
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int i = y * w + x;
-                int p = px[i];
-                int a = (p >>> 24) & 0xFF;
-                if (a < 16) continue;   // transparente (fuera del disco): no tocar
-                int r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
-                if (r > 200 && g > 200 && b > 200) continue;   // símbolo blanco: no tocar
-                int nuevo = (x + y < w) ? colorA : colorB;     // diagonal 45°: arriba-izq / abajo-der
-                px[i] = (a << 24) | (nuevo & 0x00FFFFFF);
-            }
-        }
-        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        out.setPixels(px, 0, w, 0, 0, w, h);
-        return out;
-    }
-
 
     /** Icono de la unidad: degradado diagonal si va en ruta mixta, normal si no. Agrega un anillo
      *  (ver dibujarHalo) cuando la unidad está en SeguimientoService -- distinto del destello de

@@ -41,24 +41,35 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         final String titulo;     // header o nombre de estación
         final String subtitulo;  // "Dirección X" o "" (solo estación)
         final String icono;      // solo estación
-        final int color;
+        final int color;         // estación normal: tono único; estación transbordo: tono "arriba-izq"
+        final int colorB;        // 0 = ícono normal (un solo tono); !=0 = diagonal, tono "abajo-der"
         final int linea;         // solo estación: línea real de ESE punto (varía en rutas mixtas)
         final LatLng posicion;   // solo estación: para ubicarla en el mapa al tocarla
 
         private Item(boolean header, String titulo, String subtitulo, String icono, int color,
-                     int linea, LatLng posicion) {
+                     int colorB, int linea, LatLng posicion) {
             this.header = header; this.titulo = titulo; this.subtitulo = subtitulo;
-            this.icono = icono; this.color = color; this.linea = linea; this.posicion = posicion;
+            this.icono = icono; this.color = color; this.colorB = colorB;
+            this.linea = linea; this.posicion = posicion;
         }
         public static Item header(String titulo, int color) {
-            return new Item(true, titulo, "", "", color, 0, null);
+            return new Item(true, titulo, "", "", color, 0, 0, null);
         }
         public static Item estacion(String nombre, String subtitulo, String icono, int color) {
-            return new Item(false, nombre, subtitulo, icono, color, 0, null);
+            return new Item(false, nombre, subtitulo, icono, color, 0, 0, null);
         }
         public static Item estacion(String nombre, String subtitulo, String icono, int color,
                                      int linea, LatLng posicion) {
-            return new Item(false, nombre, subtitulo, icono, color, linea, posicion);
+            return new Item(false, nombre, subtitulo, icono, color, 0, linea, posicion);
+        }
+        /** Estación TRANSBORDO: mismo pictograma, pero con el fondo partido en diagonal entre
+         *  {@code colorArriba} (arriba-izq) y {@code colorAbajo} (abajo-der) -- ver
+         *  {@link Iconos#recoloreaFondoDiagonal}. Mismo trato visual que MapFragment le da a estas
+         *  estaciones en el mapa (ver MapFragment.iconoEstacionOTransbordo()), para que se vean
+         *  igual en el panel de Líneas. */
+        public static Item estacionTransbordo(String nombre, String subtitulo, String icono,
+                                               int colorArriba, int colorAbajo, int linea, LatLng posicion) {
+            return new Item(false, nombre, subtitulo, icono, colorArriba, colorAbajo, linea, posicion);
         }
     }
 
@@ -118,6 +129,7 @@ public class EstacionesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             int px = Math.round(34 * v.itemView.getResources().getDisplayMetrics().density);
             android.graphics.Bitmap bmp = Iconos.pictograma(v.itemView.getContext(), it.icono, px);
             if (bmp != null) {
+                if (it.colorB != 0) bmp = Iconos.recoloreaFondoDiagonal(bmp, it.color, it.colorB);
                 v.ic.setImageBitmap(bmp);
             } else {
                 GradientDrawable dot = new GradientDrawable();
