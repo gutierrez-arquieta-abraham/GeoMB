@@ -1480,7 +1480,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         View v = getLayoutInflater().inflate(R.layout.view_carta_estacion, cartaContainer, false);
         cartaContainer.addView(v);
         CartaEstacion.Vistas vistas = new CartaEstacion.Vistas(v);
-        CartaEstacion.bind(requireContext(), vistas, em.e, em.linea, em.color);
+        CartaEstacion.bind(requireContext(), vistas, em.e, em.linea, em.color, em.transbordo);
         v.findViewById(R.id.btn_cerrar_carta_estacion).setOnClickListener(b -> ocultarCarta());
         // Manda al planificador con esta estación de destino YA fijada (línea conocida: se tocó
         // este marcador en concreto, así que no hace falta preguntar "¿a qué estación te refieres?"

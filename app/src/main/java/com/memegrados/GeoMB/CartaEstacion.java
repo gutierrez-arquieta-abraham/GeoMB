@@ -40,6 +40,15 @@ public final class CartaEstacion {
 
     /** Rellena la tarjeta para la estación {@code e}, de la línea {@code linea} (color {@code color}). */
     public static void bind(Context ctx, Vistas v, Estacion e, int linea, int color) {
+        bind(ctx, v, e, linea, color, false);
+    }
+
+    /** Igual que {@link #bind(Context, Vistas, Estacion, int, int)}, pero con {@code transbordo}:
+     *  true = punto real de una ruta mixta (MapFragment.EstMapa.transbordo) -- el pictograma se pinta
+     *  en diagonal entre L2/L7, mismo criterio que MapFragment.iconoEstacionOTransbordo(), para que la
+     *  tarjeta no muestre un ícono sólido distinto al que ya se ve en el marcador del mapa (antes esta
+     *  tarjeta tenía su propia ruta de dibujo, nunca enterada de la diagonal). */
+    public static void bind(Context ctx, Vistas v, Estacion e, int linea, int color, boolean transbordo) {
         v.txtNombre.setText(Planificador.sinMxb(e.nombre));
         Linea l = GtfsRepository.porNumero(ctx, linea);
         String nombreLinea = l != null ? l.nombre : "";
@@ -61,6 +70,15 @@ public final class CartaEstacion {
         Bitmap pic = (e.icono != null && !e.icono.isEmpty())
                 ? Iconos.pictograma(ctx, e.icono, Math.round(44 * ctx.getResources().getDisplayMetrics().density))
                 : null;
+        if (pic != null && transbordo) {
+            // Troncal L2 (Tacubaya/De la Salle): L7 arriba-izq / L2 abajo-der; los 3 puntos propios de
+            // H72 (su nombre NO está en ese set, p. ej. "Alameda Tacubaya"): orden invertido -- igual
+            // que en el mapa general (MapFragment.iconoEstacionOTransbordo()).
+            boolean esTroncalL2 = Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(e.nombre));
+            int arriba = colorLinea(ctx, esTroncalL2 ? 7 : 2);
+            int abajo = colorLinea(ctx, esTroncalL2 ? 2 : 7);
+            pic = Iconos.recoloreaFondoDiagonal(pic, arriba, abajo);
+        }
         if (pic != null) {
             // Con pictograma: sin círculo de fondo, el icono se ve grande y a tamaño completo.
             v.imgEstacion.setBackground(null);
@@ -93,5 +111,11 @@ public final class CartaEstacion {
         }
 
         v.card.setVisibility(View.VISIBLE);
+    }
+
+    /** Color de una línea por su número (gris si no se encuentra). */
+    private static int colorLinea(Context ctx, int linea) {
+        Linea l = GtfsRepository.porNumero(ctx, linea);
+        return l != null ? l.color : 0xFF757575;
     }
 }

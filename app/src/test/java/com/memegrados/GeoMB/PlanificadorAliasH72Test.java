@@ -69,4 +69,20 @@ public class PlanificadorAliasH72Test {
 
         assertEquals(1, grupos.size());
     }
+
+    @Test
+    public void setTransbordoH72L2_soloContieneLaTroncalReal() {
+        // Invariante de la que depende la ORIENTACIÓN del ícono diagonal en los 4 lugares que la
+        // consultan (MapFragment, EstacionesLineaFragment, PlanificadorFragment y CartaEstacion): solo
+        // "Tacubaya"/"De La Salle" (la troncal real de L2) deben estar en este set. Si alguna vez se
+        // agrega aquí "Alameda Tacubaya" (p. ej. pensando en "igual hay que incluir el alias nuevo"),
+        // los 3 puntos propios de H72 pasarían a dibujarse con la orientación de la troncal -- al
+        // revés de lo que el usuario pidió explícitamente al distinguirlos visualmente.
+        assertTrue(Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm("Tacubaya")));
+        assertTrue(Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm("De La Salle")));
+        assertFalse(Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm("Alameda Tacubaya")));
+        assertFalse(Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(
+                Planificador.norm("De la Salle · dirección Alameda Tacubaya")));
+        assertEquals(2, Iconos.ESTACIONES_TRANSBORDO_H72_L2.size());
+    }
 }
