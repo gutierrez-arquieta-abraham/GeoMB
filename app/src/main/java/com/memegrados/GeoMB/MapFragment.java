@@ -617,7 +617,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 // pedido explícito del usuario tras ver la comparación: unifica visualmente toda la
                 // zona de transbordo en vez de distinguir "punto exacto de H72" vs. "estación
                 // troncal cercana".
-                if (linea.numero == 2 && ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(e.nombre)))
+                if (linea.numero == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(e.nombre)))
                     em.transbordo = true;
                 estaciones.add(em);
             }
@@ -1609,25 +1609,17 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return p;
     }
 
-    /** "Tacubaya" y "De la Salle" troncales de L2 también llevan el ícono diagonal de transbordo
-     *  (a pedido explícito, tras comparar visualmente con los 3 puntos propios de H72): toda la zona
-     *  de intercambio L2↔H72 se ve unificada en el mapa, en vez de distinguir "la estación troncal"
-     *  de "el punto exacto de H72" (que siguen siendo físicamente distintos -- ver
-     *  {@link #agregarEstacionesH72} -- solo cambia el ícono, no la posición ni la lógica). */
-    private static final java.util.Set<String> ESTACIONES_TRANSBORDO_H72_L2 = new java.util.HashSet<>(
-            java.util.Arrays.asList(Planificador.norm("Tacubaya"), Planificador.norm("De La Salle")));
-
     /** Icono de estación: el normal de {@link #iconoEstacion}, salvo que {@code em.transbordo} esté
      *  activo -- ahí usa {@link #iconoEstacionTransbordo} (diagonal entre el tono de línea 7 y el de
      *  línea 2, ambos sacados de {@link #colorDeLinea}, que ya trae el mismo tono que los drawables
      *  linea_2.png/linea_7.png). Lo llevan los 3 puntos reales de H72 ({@link #agregarEstacionesH72})
      *  Y las estaciones troncales "Tacubaya"/"De la Salle" de L2 (ver
-     *  {@link #ESTACIONES_TRANSBORDO_H72_L2}) -- pero con la diagonal INVERTIDA entre uno y otro
-     *  grupo (a pedido explícito), para poder distinguirlos aunque ambos sean diagonales: troncal L2
-     *  = línea 7 arriba-izq / línea 2 abajo-der; puntos propios de H72 = al revés. */
+     *  {@link Iconos#ESTACIONES_TRANSBORDO_H72_L2}) -- pero con la diagonal INVERTIDA entre uno y
+     *  otro grupo (a pedido explícito), para poder distinguirlos aunque ambos sean diagonales:
+     *  troncal L2 = línea 7 arriba-izq / línea 2 abajo-der; puntos propios de H72 = al revés. */
     private BitmapDescriptor iconoEstacionOTransbordo(EstMapa em, boolean fueraDeServicio) {
         if (em.transbordo) {
-            boolean esTroncalL2 = ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(em.e.nombre));
+            boolean esTroncalL2 = Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(em.e.nombre));
             int arriba = esTroncalL2 ? colorDeLinea(7) : colorDeLinea(2);
             int abajo = esTroncalL2 ? colorDeLinea(2) : colorDeLinea(7);
             return iconoEstacionTransbordo(em.e, arriba, abajo, fueraDeServicio);

@@ -870,7 +870,15 @@ public class PlanificadorFragment extends Fragment {
         // logos (pictogramas) de las estaciones de la ruta: actúan como marcadores (sin punteros)
         for (int i = 0; i < r.secuencia.size(); i++) {
             Planificador.Parada p = r.secuencia.get(i);
-            BitmapDescriptor ic = bitmapEstacion(p.icono, p.color);
+            // "Tacubaya"/"De la Salle" de L2 son el extremo real de H72 -- mismo ícono diagonal que
+            // ya llevan en el mapa general y el panel de Líneas (ver Iconos.ESTACIONES_TRANSBORDO_H72_L2).
+            // Esta ruta trazada tenía su PROPIO dibujado de estaciones (bitmapEstacion), separado del
+            // de MapFragment, y nunca se había actualizado -- por eso una ruta que pasara por estas 2
+            // estaciones seguía mostrando el ícono sólido de siempre.
+            boolean esTroncalH72L2 = p.linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(p.nombre));
+            BitmapDescriptor ic = esTroncalH72L2
+                    ? bitmapEstacionTransbordo(p.icono, colorDe(7), colorDe(2))
+                    : bitmapEstacion(p.icono, p.color);
             if (ic == null) continue;
             // p.pos ya trae la plataforma direccional de Indios Verdes (la fija el planificador).
             LatLng pos = p.pos;
@@ -1198,6 +1206,23 @@ public class PlanificadorFragment extends Fragment {
         p.setColor(0xFFFFFFFF); c.drawCircle(px / 2f, px / 2f, px * 0.30f, p);
         p.setColor(color);      c.drawCircle(px / 2f, px / 2f, px * 0.22f, p);
         return BitmapDescriptorFactory.fromBitmap(dot);
+    }
+
+    /** Mismo pictograma que {@link #bitmapEstacion}, pero con el fondo partido en diagonal entre
+     *  {@code colorArriba} (arriba-izq) y {@code colorAbajo} (abajo-der) -- ver
+     *  {@link Iconos#recoloreaFondoDiagonal}. Usado solo para "Tacubaya"/"De la Salle" de L2 (ver
+     *  {@link Iconos#ESTACIONES_TRANSBORDO_H72_L2}), mismo trato visual que el mapa general. */
+    private BitmapDescriptor bitmapEstacionTransbordo(String icono, int colorArriba, int colorAbajo) {
+        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        Bitmap bmp = Iconos.pictograma(requireContext(), icono, px);
+        if (bmp != null)
+            return BitmapDescriptorFactory.fromBitmap(Iconos.recoloreaFondoDiagonal(bmp, colorArriba, colorAbajo));
+        return bitmapEstacion(icono, colorArriba);   // respaldo (sin pictograma): punto de un solo tono
+    }
+
+    private int colorDe(int lineaNum) {
+        Linea l = GtfsRepository.porNumero(requireContext(), lineaNum);
+        return l != null ? l.color : 0xFFFF9A03;
     }
 
     /** Dibuja/actualiza SOLO las unidades dentro del área visible del mapa (como el mapa general). */

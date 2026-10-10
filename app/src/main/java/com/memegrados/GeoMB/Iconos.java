@@ -32,6 +32,16 @@ public final class Iconos {
 
     private Iconos() {}
 
+    /** "Tacubaya" y "De la Salle" troncales de L2 son el extremo real de H72 hacia L7 (ver
+     *  RutasMixtas.LISTA, Mixta("...", 7, "Alameda Tacubaya"/"De la Salle", 2)) -- llevan el ícono
+     *  diagonal de transbordo en TODO lugar donde se dibujan como marcador de mapa: el mapa general
+     *  (MapFragment), el panel de Líneas (EstacionesLineaFragment) y la ruta trazada del planificador
+     *  (PlanificadorFragment). Centralizado aquí para que los 3 usen el MISMO criterio -- antes cada
+     *  uno tenía su propia copia y PlanificadorFragment nunca llegó a tener ninguna, así que una ruta
+     *  trazada que pasara por estas 2 estaciones seguía mostrando el ícono sólido de siempre. */
+    public static final java.util.Set<String> ESTACIONES_TRANSBORDO_H72_L2 = new java.util.HashSet<>(
+            java.util.Arrays.asList(Planificador.norm("Tacubaya"), Planificador.norm("De La Salle")));
+
     // Cachés para evitar rehacer trabajo caro en el hilo principal (getIdentifier + decodeResource):
     // el mismo pictograma se pide para el marcador del mapa Y para la lista de la descripción de ruta,
     // y en cada redibujo. Sin caché, una ruta larga (~40 estaciones) bloqueaba el hilo → ANR.

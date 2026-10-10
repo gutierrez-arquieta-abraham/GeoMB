@@ -84,19 +84,19 @@ public class EstacionesLineaFragment extends Fragment {
         ((MainActivity) requireActivity()).navegarA(R.id.nav_mapa);
     }
 
-    // "Tacubaya"/"De la Salle" de L2 son el extremo real de H72 hacia L7 -- llevan el mismo ícono
-    // diagonal que el mapa (MapFragment.ESTACIONES_TRANSBORDO_H72_L2), aquí en el panel de Líneas,
-    // para que se vean igual en los dos lugares. Mismo tono que la troncal en MapFragment: L7
-    // arriba-izq / L2 abajo-der (la orientación INVERSA es solo para los 3 puntos propios de H72,
-    // que no aparecen en este panel -- no son estaciones de ninguna línea real).
-    private static final java.util.Set<String> ESTACIONES_TRANSBORDO_H72_L2 = new java.util.HashSet<>(
-            java.util.Arrays.asList(Planificador.norm("Tacubaya"), Planificador.norm("De La Salle")));
-
     /** Arma el item de una fila de estación, con el ícono diagonal de transbordo si corresponde
-     *  (ver {@link #ESTACIONES_TRANSBORDO_H72_L2}); si no, el ícono normal de siempre. */
-    private EstacionesAdapter.Item itemEstacion(String nombre, String icono, int color, int linea, LatLng pos) {
-        if (linea == 2 && ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(nombre)))
-            return EstacionesAdapter.Item.estacionTransbordo(nombre, "", icono, colorDe(7), colorDe(2), linea, pos);
+     *  (ver {@link Iconos#ESTACIONES_TRANSBORDO_H72_L2}); si no, el ícono normal de siempre.
+     *  {@code contextoH72}: true cuando la fila se arma DENTRO de la sección propia de H72 (la
+     *  pestaña L7, ver {@link #construirPorRutas}) -- ahí la diagonal va INVERTIDA (línea 2
+     *  arriba-izq / línea 7 abajo-der, igual que los 3 puntos propios de H72 en el mapa) respecto
+     *  de cómo se ve en la pestaña L2 directa (línea 7 arriba-izq / línea 2 abajo-der, la troncal). */
+    private EstacionesAdapter.Item itemEstacion(String nombre, String icono, int color, int linea, LatLng pos,
+                                                 boolean contextoH72) {
+        if (linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(nombre))) {
+            int arriba = contextoH72 ? colorDe(2) : colorDe(7);
+            int abajo = contextoH72 ? colorDe(7) : colorDe(2);
+            return EstacionesAdapter.Item.estacionTransbordo(nombre, "", icono, arriba, abajo, linea, pos);
+        }
         return EstacionesAdapter.Item.estacion(nombre, "", icono, color, linea, pos);
     }
 
@@ -111,7 +111,7 @@ public class EstacionesLineaFragment extends Fragment {
             // usuario, ver CLAUDE.md) y agrega el número de línea si el nombre es ambiguo. Para
             // Metrobús es un no-op (sin prefijo que quitar).
             String nombre = Planificador.nombreMostrar(requireContext(), e.nombre, l.numero);
-            items.add(itemEstacion(nombre, e.icono, l.color, l.numero, e.posicion));
+            items.add(itemEstacion(nombre, e.icono, l.color, l.numero, e.posicion, false));
         }
     }
 
@@ -131,12 +131,12 @@ public class EstacionesLineaFragment extends Fragment {
         items.add(EstacionesAdapter.Item.header(getString(R.string.direccion_fmt, termFin), l.color));
         for (int k = 0; k < est.size(); k++)
             if (!exFin.contains(Planificador.norm(est.get(k).nombre)))
-                items.add(itemEstacion(est.get(k).nombre, est.get(k).icono, l.color, l.numero, est.get(k).posicion));
+                items.add(itemEstacion(est.get(k).nombre, est.get(k).icono, l.color, l.numero, est.get(k).posicion, false));
 
         items.add(EstacionesAdapter.Item.header(getString(R.string.direccion_fmt, termIni), l.color));
         for (int k = est.size() - 1; k >= 0; k--)
             if (!exIni.contains(Planificador.norm(est.get(k).nombre)))
-                items.add(itemEstacion(est.get(k).nombre, est.get(k).icono, l.color, l.numero, est.get(k).posicion));
+                items.add(itemEstacion(est.get(k).nombre, est.get(k).icono, l.color, l.numero, est.get(k).posicion, false));
     }
 
     /**
@@ -159,7 +159,7 @@ public class EstacionesLineaFragment extends Fragment {
                 Estacion e = buscar(sm.lineas[k], sm.estaciones[k]);
                 String icono = e != null ? e.icono : "";
                 items.add(itemEstacion(sm.estaciones[k], icono, colorDe(sm.lineas[k]),
-                        sm.lineas[k], e != null ? e.posicion : null));
+                        sm.lineas[k], e != null ? e.posicion : null, lineaTocada == 7));
             }
         }
     }
