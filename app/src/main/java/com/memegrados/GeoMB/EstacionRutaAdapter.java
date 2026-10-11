@@ -140,6 +140,16 @@ public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         // si no hay pictograma, cae a un punto del color de la línea).
         int px = Math.round(24 * e.itemView.getResources().getDisplayMetrics().density);
         android.graphics.Bitmap bmp = Iconos.pictograma(e.itemView.getContext(), p.icono, px);
+        // Troncal L2 (Tacubaya/De la Salle): mismo ícono diagonal L7/L2 que ya llevan el marcador del
+        // mapa trazado (PlanificadorFragment.dibujar()) y el resto de la app -- este deslizador tenía
+        // su PROPIA ruta de dibujo, nunca enterada de la diagonal, así que mostraba el pictograma
+        // sólido de siempre aunque el mapa de abajo sí mostrara la diagonal.
+        boolean esTroncalH72L2 = p.linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(p.nombre));
+        if (bmp != null && esTroncalH72L2) {
+            int arriba = colorDe(e.itemView.getContext(), 7);
+            int abajo = colorDe(e.itemView.getContext(), 2);
+            bmp = Iconos.recoloreaFondoDiagonal(bmp, arriba, abajo);
+        }
         if (bmp != null) {
             e.dot.setImageBitmap(bmp);
         } else {
@@ -159,6 +169,12 @@ public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     /** Mezcla un color con transparencia sobre el canal alfa dado (0x00..0xFF). */
     private static int matiz(int color, int alpha) {
         return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    /** Color de una línea por su número (anaranjado de respaldo si no se encuentra). */
+    private static int colorDe(android.content.Context ctx, int lineaNum) {
+        Linea l = GtfsRepository.porNumero(ctx, lineaNum);
+        return l != null ? l.color : 0xFFFF9A03;
     }
 
     @Override
