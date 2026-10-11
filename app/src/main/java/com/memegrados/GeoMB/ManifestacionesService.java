@@ -1448,15 +1448,16 @@ public class ManifestacionesService extends Service {
         // arriba): "Alameda Tacubaya" es el nombre de TERMINAL (línea 2) que el feed en vivo y los
         // avisos oficiales usan para AMBOS ramales reales de H72 -- ver RutasMixtas.LISTA:
         // Mixta("París", 7, "Alameda Tacubaya", 2) y Mixta("Glorieta Cuitláhuac", 7, "Alameda
-        // Tacubaya", 2) -- y corresponde al mismo punto físico que la secuencia H72 ya trae como
-        // "Tacubaya" (línea 2, el extremo donde arranca). Cuando se busca ese nombre contra la línea
-        // 7 (nlinea del aviso real) dentro de una secuencia que efectivamente trae "Tacubaya" en
-        // línea 2, se interpreta como "el extremo de la secuencia, antes de su primer tramo de
-        // línea 7" -- se resuelve al primer índice de línea 7 de esa secuencia.
+        // Tacubaya", 2) -- y corresponde al mismo punto físico que la secuencia H72 ya trae con su
+        // propio nombre y posición real (línea 2, el extremo donde arranca -- ver RutasMixtas.Seq#punto
+        // y Planificador.ALIAS_H72). Cuando se busca ese nombre contra la línea 7 (nlinea del aviso
+        // real) dentro de una secuencia que efectivamente trae "Alameda Tacubaya" en línea 2, se
+        // interpreta como "el extremo de la secuencia, antes de su primer tramo de línea 7" -- se
+        // resuelve al primer índice de línea 7 de esa secuencia.
         if ("alameda tacubaya".equals(qn)) {
             boolean esExtremoDeH72 = false;
             for (int k = 0; k < sm.estaciones.length; k++) {
-                if (sm.lineas[k] == 2 && "tacubaya".equals(Planificador.norm(sm.estaciones[k]))) {
+                if (sm.lineas[k] == 2 && "alameda tacubaya".equals(Planificador.norm(sm.estaciones[k]))) {
                     esExtremoDeH72 = true;
                     break;
                 }

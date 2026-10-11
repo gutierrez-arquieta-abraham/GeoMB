@@ -93,9 +93,17 @@ public final class RutasMixtas {
         public final boolean unaVia;         // true = sentido único (se recorre solo hacia adelante)
         public final int[] lineas;
         public final String[] estaciones;
-        SeqMixta(String nombre, String nombreVisible, boolean unaVia, int[] lineas, String[] estaciones) {
+        /** Posición PROPIA de la parada (índice a índice con {@link #estaciones}), o null para resolver
+         *  contra el catálogo real de su línea (el caso normal, ver {@link Seq#linea}). No-null solo
+         *  para una parada real (GTFS) que es el extremo físico del recorrido mixto pero distinto del
+         *  andén troncal más cercano -- ver {@link Seq#punto}. */
+        public final com.google.android.gms.maps.model.LatLng[] posiciones;
+        public final String[] iconos;   // ícono de la parada con posición propia (índice a índice), o null
+        SeqMixta(String nombre, String nombreVisible, boolean unaVia, int[] lineas, String[] estaciones,
+                 com.google.android.gms.maps.model.LatLng[] posiciones, String[] iconos) {
             this.nombre = nombre; this.nombreVisible = nombreVisible; this.unaVia = unaVia;
             this.lineas = lineas; this.estaciones = estaciones;
+            this.posiciones = posiciones; this.iconos = iconos;
         }
     }
 
@@ -105,17 +113,29 @@ public final class RutasMixtas {
         boolean uni = false;
         final List<String> est = new ArrayList<>();
         final List<Integer> ln = new ArrayList<>();
+        final List<com.google.android.gms.maps.model.LatLng> pos = new ArrayList<>();
+        final List<String> ic = new ArrayList<>();
         Seq(String nombre) { this.nombre = nombre; }
         Seq visible(String v) { vis = v; return this; }
         Seq unaVia() { uni = true; return this; }
         Seq linea(int l, String... nombres) {
-            for (String s : nombres) { est.add(s); ln.add(l); }
+            for (String s : nombres) { est.add(s); ln.add(l); pos.add(null); ic.add(null); }
+            return this;
+        }
+        /** Parada con posición e ÍCONO PROPIOS (no se busca en el catálogo real de {@code l}): para un
+         *  punto real (GTFS) que es el extremo físico del recorrido mixto pero queda a una distancia
+         *  real del andén troncal más cercano (p. ej. H72: "Alameda Tacubaya", ~110 m de la Tacubaya
+         *  troncal de L2 -- resolverla contra el catálogo de L2 terminaría ahí, no en su propio punto). */
+        Seq punto(int l, String nombre, double lat, double lon, String icono) {
+            est.add(nombre); ln.add(l);
+            pos.add(new com.google.android.gms.maps.model.LatLng(lat, lon)); ic.add(icono);
             return this;
         }
         SeqMixta build() {
             int[] li = new int[ln.size()];
             for (int i = 0; i < li.length; i++) li[i] = ln.get(i);
-            return new SeqMixta(nombre, vis, uni, li, est.toArray(new String[0]));
+            return new SeqMixta(nombre, vis, uni, li, est.toArray(new String[0]),
+                    pos.toArray(new com.google.android.gms.maps.model.LatLng[0]), ic.toArray(new String[0]));
         }
     }
 
@@ -152,7 +172,15 @@ public final class RutasMixtas {
                         "UPIICSA", "El Rodeo", "Río Tecolutla", "Río Mayo", "Rojo Gómez")
                 .build());
         SECUENCIAS.add(new Seq("H72")
-                .linea(2, "Tacubaya", "De la Salle")
+                // "Alameda Tacubaya": terminal REAL del servicio de apoyo H72/SL01 (GTFS oficial CDMX,
+                // agencia MB, route_id B_CMX03SL01 "París - Alameda Tacubaya") -- queda a ~110 m de la
+                // Tacubaya troncal de L2 (confirmado contra el GTFS), así que NO se resuelve contra su
+                // catálogo (ahí terminaría en la troncal, no en el punto real donde en verdad termina
+                // el servicio). Coordenada de stops.txt B_03SL01-ATACUBAYA. "De la Salle" sigue
+                // resolviendo contra la troncal (simplificación: sus 2 andenes reales, uno por sentido,
+                // quedan a <150 m de ahí -- ver MapFragment.agregarEstacionesH72() para el detalle real).
+                .punto(2, "Alameda Tacubaya", 19.401473, -99.185882, "ic_est_2_2")
+                .linea(2, "De la Salle")
                 .linea(7, "Chapultepec", "La Diana", "El Ángel", "El Ahuehuete", "Hamburgo", "Reforma", "París", "Amajac",
                         "El Caballito", "Hidalgo", "Glorieta Violeta", "Garibaldi", "Glorieta Cuitláhuac")
                 .build());

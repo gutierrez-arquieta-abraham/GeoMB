@@ -156,10 +156,18 @@ public class EstacionesLineaFragment extends Fragment {
             int color = colorDe(sm.lineas.length > 0 ? sm.lineas[0] : 4);
             items.add(EstacionesAdapter.Item.header(cabecera, color));
             for (int k = 0; k < sm.estaciones.length; k++) {
-                Estacion e = buscar(sm.lineas[k], sm.estaciones[k]);
-                String icono = e != null ? e.icono : "";
+                // Parada con posición/ícono PROPIOS (ver RutasMixtas.Seq#punto, p. ej. "Alameda
+                // Tacubaya" de H72): no está en ningún catálogo real, así que buscar() nunca la
+                // encontraría -- usa directo lo que ya trae sm en vez de dejarla sin ícono/posición.
+                String icono; LatLng pos;
+                if (sm.posiciones[k] != null) {
+                    icono = sm.iconos[k]; pos = sm.posiciones[k];
+                } else {
+                    Estacion e = buscar(sm.lineas[k], sm.estaciones[k]);
+                    icono = e != null ? e.icono : ""; pos = e != null ? e.posicion : null;
+                }
                 items.add(itemEstacion(sm.estaciones[k], icono, colorDe(sm.lineas[k]),
-                        sm.lineas[k], e != null ? e.posicion : null, lineaTocada == 7));
+                        sm.lineas[k], pos, lineaTocada == 7));
             }
         }
     }

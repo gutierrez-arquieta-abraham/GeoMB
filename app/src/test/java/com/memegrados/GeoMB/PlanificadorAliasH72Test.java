@@ -90,7 +90,9 @@ public class PlanificadorAliasH72Test {
     public void nombreRutaDeAlias_deAlias_devuelveElNombreRealDeLaTroncal() {
         // Usado por desambiguar() (PlanificadorFragment) para reconocer un campo sin editar que quedó
         // mostrando el nombre del alias (p. ej. tras elegirlo en la carta) sin volver a preguntar.
-        assertEquals("Tacubaya", Planificador.nombreRutaDeAlias("Alameda Tacubaya"));
+        // "Alameda Tacubaya" rutea contra SÍ MISMA: desde que RutasMixtas.H72 la trae como su propia
+        // parada real (ver Seq#punto), ya es un nodo genuino del grafo -- ya no se traduce a "Tacubaya".
+        assertEquals("Alameda Tacubaya", Planificador.nombreRutaDeAlias("Alameda Tacubaya"));
         assertEquals("De La Salle", Planificador.nombreRutaDeAlias("De la Salle · dirección Alameda Tacubaya"));
         assertEquals("De La Salle", Planificador.nombreRutaDeAlias("De la Salle · dirección Glorieta Cuitláhuac"));
     }
@@ -100,5 +102,38 @@ public class PlanificadorAliasH72Test {
         assertEquals("Tacubaya", Planificador.nombreRutaDeAlias("Tacubaya"));
         assertEquals("Indios Verdes", Planificador.nombreRutaDeAlias("Indios Verdes"));
         assertNull(Planificador.nombreRutaDeAlias(null));
+    }
+
+    @Test
+    public void h72_traeSuPropioPuntoRealParaAlamedaTacubaya() {
+        // RutasMixtas.SECUENCIAS no necesita Context (son literales estáticos): confirma que H72
+        // usa su PROPIO punto real (RutasMixtas.Seq#punto) para "Alameda Tacubaya" en vez de resolverla
+        // contra el catálogo de L2 (que terminaría en la troncal, no en el punto real donde en verdad
+        // termina el servicio) -- la causa raíz de que elegir "Alameda Tacubaya" en el desambiguador
+        // trazara una ruta igual a la de "Tacubaya" a secas, sin pasar necesariamente por H72.
+        RutasMixtas.SeqMixta h72 = null;
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) if ("H72".equals(sm.nombre)) { h72 = sm; break; }
+        assertNotNull("RutasMixtas.SECUENCIAS debe traer H72", h72);
+
+        int idx = -1;
+        for (int k = 0; k < h72.estaciones.length; k++) {
+            if ("Alameda Tacubaya".equals(h72.estaciones[k])) { idx = k; break; }
+        }
+        assertTrue("H72 debe traer 'Alameda Tacubaya' como su propia parada", idx >= 0);
+        assertEquals(2, h72.lineas[idx]);
+        assertNotNull("debe tener posición PROPIA (no se resuelve contra el catálogo de L2)",
+                h72.posiciones[idx]);
+        assertEquals(19.401473, h72.posiciones[idx].latitude, 1e-6);
+        assertEquals(-99.185882, h72.posiciones[idx].longitude, 1e-6);
+        assertEquals("ic_est_2_2", h72.iconos[idx]);
+    }
+
+    @Test
+    public void corrManual_alamedaTacubayaH72_conTacubayaTroncal_siCorresponde() {
+        // Transbordo real (~110 m) entre el punto propio de H72 y la troncal de L2: sin esta fila, un
+        // camino que de verdad necesite seguir más allá de Tacubaya en L2 (viniendo de H72) se quedaría
+        // sin cruce, porque los nombres normalizados no coinciden entre sí.
+        assertTrue(Planificador.corrManual(2, Planificador.norm("Alameda Tacubaya"), 2, Planificador.norm("Tacubaya")));
+        assertTrue(Planificador.corrManual(2, Planificador.norm("Tacubaya"), 2, Planificador.norm("Alameda Tacubaya")));
     }
 }

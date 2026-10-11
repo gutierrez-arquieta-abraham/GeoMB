@@ -185,6 +185,12 @@ public final class Planificador {
             {"121", "mxb 1ro de mayo",     "102", "mxb las americas"},
             {"121", "mxb 1ro de mayo",     "112", "mxb las americas"},
             {"5", "rio de los remedios",   "112", "mxb rio de los remedios"},   // transbordo real Metrobús L5 – Mexibús L2A (Río de los Remedios)
+            // Transbordo real H72 (su propio punto GTFS "Alameda Tacubaya", ver RutasMixtas.H72 y
+            // ALIAS_H72) -- Tacubaya troncal de L2, ~110 m. Sin esta fila, un camino que de verdad
+            // necesite pasar por ahí (p. ej. venir de L7 por H72 y seguir más allá de Tacubaya en L2)
+            // se quedaría sin cruce: mismo nombre normalizado NO coincide ("alameda tacubaya" vs
+            // "tacubaya"), así que corrMismaEstacion/nucleoCoincide por sí solos no lo detectan.
+            {"2", "alameda tacubaya",      "2", "tacubaya"},
     };
 
     /** Pares que NUNCA forman correspondencia/transbordo aunque queden cerca (nombres normalizados con
@@ -203,7 +209,7 @@ public final class Planificador {
     /**
      * Paradas REALES del servicio de apoyo H72/SL01 (GTFS oficial CDMX, agencia MB, route_id
      * B_CMX03SL01 "París - Alameda Tacubaya") que NO existen en ningún catálogo de Línea -- son los
-     * mismos 3 puntos sintéticos que dibuja MapFragment.agregarEstacionesH72() (mismas coordenadas,
+     * mismos puntos sintéticos que dibuja MapFragment.agregarEstacionesH72() (mismas coordenadas,
      * tomadas de stops.txt), quedan a 103-150 m de su estación troncal real de L2 más cercana
      * (Tacubaya/De La Salle). Si el usuario escribe su nombre tal cual lo ve en el mapa (p. ej.
      * "Alameda Tacubaya") esperando trazar una ruta, estacionParecida() antes no las encontraba (no
@@ -214,9 +220,16 @@ public final class Planificador {
      * agruparPorEstacionFisica) a pedido explícito del usuario de activar el desambiguador en vez de
      * resolverlas en silencio -- rutean contra el nombre REAL (índice 3) una vez elegidas.
      * {nombre a mostrar, ícono, posición real GTFS, nombre REAL para Planificador.calcular}.
+     *
+     * "Alameda Tacubaya" rutea contra SÍ MISMA (no contra "Tacubaya"): desde que RutasMixtas.H72 usa
+     * ese punto real como su propia parada (ver Seq#punto), "Alameda Tacubaya" SÍ existe como nodo del
+     * grafo -- elegirla en la carta traza la ruta real vía H72/L7 en vez de resolver en silencio a la
+     * troncal de L2 (que puede llegar por cualquier camino, no necesariamente por H72). "De la Salle"
+     * sigue sin punto propio en el grafo (H72 resuelve ese tramo contra la troncal, ver su comentario
+     * en RutasMixtas.java), así que sus 2 variantes siguen ruteando contra "De La Salle".
      */
     private static final Object[][] ALIAS_H72 = {
-            {"Alameda Tacubaya", "ic_est_2_2", new LatLng(19.401473, -99.185882), "Tacubaya"},
+            {"Alameda Tacubaya", "ic_est_2_2", new LatLng(19.401473, -99.185882), "Alameda Tacubaya"},
             {"De la Salle · dirección Alameda Tacubaya", "ic_est_2_4",
                     new LatLng(19.4083683433015, -99.18420775806), "De La Salle"},
             {"De la Salle · dirección Glorieta Cuitláhuac", "ic_est_2_4",
@@ -959,13 +972,21 @@ public final class Planificador {
         LatLng prev = null;   // parada previa: para elegir el andén del sentido en curso (couplet L4/L7)
         for (int t = 0; t < n; t++) {
             int k = invertir ? n - 1 - t : t;
-            Estacion e = enLinea(ctx, sm.lineas[k], sm.estaciones[k], prev);
-            if (e == null) continue;
+            String nombre, icono; LatLng pos;
+            if (sm.posiciones[k] != null) {
+                // Parada con posición PROPIA (ver RutasMixtas.Seq#punto): un punto real que no está en
+                // ningún catálogo de Línea, así que no se resuelve contra uno.
+                nombre = sm.estaciones[k]; icono = sm.iconos[k]; pos = sm.posiciones[k];
+            } else {
+                Estacion e = enLinea(ctx, sm.lineas[k], sm.estaciones[k], prev);
+                if (e == null) continue;
+                nombre = e.nombre; icono = e.icono; pos = e.posicion;
+            }
             Linea lin = GtfsRepository.porNumero(ctx, sm.lineas[k]);
             int col = lin != null ? lin.color : 0;
             if (r == null) r = new Route(sm.nombre + (invertir ? "<" : ""), sm.nombreVisible, true, true, null, col);
-            r.stops.add(new Stop(e.nombre, norm(e.nombre), e.icono, e.posicion, sm.lineas[k], col));
-            prev = e.posicion;
+            r.stops.add(new Stop(nombre, norm(nombre), icono, pos, sm.lineas[k], col));
+            prev = pos;
         }
         return (r != null && r.stops.size() >= 2) ? r : null;
     }
