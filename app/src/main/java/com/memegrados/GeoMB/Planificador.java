@@ -174,6 +174,16 @@ public final class Planificador {
             {"1", "revolucion",            "4", "mexico tenochtitlan"},
             {"101", "mxb 1ro de mayo",     "102", "mxb las americas"},   // transbordo real Mexibús L1 (1ro de Mayo) – L2 (Las Américas), 288 m
             {"101", "mxb 1ro de mayo",     "112", "mxb las americas"},   // transbordo real Mexibús L1 (1ro de Mayo) – L2A (Las Américas)
+            // Mismo cruce que las 2 filas de arriba, mirado desde el EXPRÉS (121): corrManual() compara
+            // por línea EXACTA, no por línea base -- sin esto, quien llega a "1ro de Mayo" viajando en
+            // TR3/TR4 (línea 121, no 101) no encuentra NINGÚN cruce hacia L2 ahí, así que el A* lo
+            // obligaba a bajarse a ordinario desde Vocacional 3 (la última parada común con el exprés)
+            // para llegar "como línea 101" y recién ahí poder cruzar -- un desvío real de varios minutos
+            // aunque el exprés sí llega hasta 1ro de Mayo. Confirmado con una réplica fiel del A* (mismas
+            // fórmulas de costo) sobre los datos reales: con esta fila, el óptimo se queda en exprés todo
+            // el tramo y además sale más rápido.
+            {"121", "mxb 1ro de mayo",     "102", "mxb las americas"},
+            {"121", "mxb 1ro de mayo",     "112", "mxb las americas"},
             {"5", "rio de los remedios",   "112", "mxb rio de los remedios"},   // transbordo real Metrobús L5 – Mexibús L2A (Río de los Remedios)
     };
 

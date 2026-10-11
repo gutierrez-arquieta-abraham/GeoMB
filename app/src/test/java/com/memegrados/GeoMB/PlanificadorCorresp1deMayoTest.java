@@ -28,6 +28,22 @@ public class PlanificadorCorresp1deMayoTest {
     }
 
     @Test
+    public void corrManual_1roDeMayoL1Expres_conLasAmericasL2_siCorresponde() {
+        // El mismo cruce, visto desde el EXPRÉS (121, no 101): sin esta fila, quien llega a "1ro de
+        // Mayo" en TR3/TR4 no encontraba ningún cruce hacia L2 ahí -- el A* lo obligaba a bajarse a
+        // ordinario varias paradas antes (desde Vocacional 3) para poder cruzar. Confirmado con un caso
+        // real: Ciudad Azteca -> Eje 8 elegía exprés hasta Vocacional 3 y de ahí ordinario, aunque el
+        // exprés sí llega hasta 1ro de Mayo.
+        assertTrue(Planificador.corrManual(121, nn("1ro de Mayo"), 102, nn("Las Américas")));
+        assertTrue(Planificador.corrManual(102, nn("Las Américas"), 121, nn("1ro de Mayo")));   // en cualquier orden
+    }
+
+    @Test
+    public void corrManual_1roDeMayoL1Expres_conLasAmericasL2A_siCorresponde() {
+        assertTrue(Planificador.corrManual(121, nn("1ro de Mayo"), 112, nn("Las Américas")));
+    }
+
+    @Test
     public void corrManual_nombreViejo_yaNoCorresponde() {
         // El nombre ANTERIOR ("1 de Mayo", sin el "ro") ya no debe disparar la correspondencia:
         // si alguna vez se revierte el renombre sin actualizar CORRESP_MANUAL, esta prueba lo marca.
