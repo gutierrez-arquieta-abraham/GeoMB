@@ -478,6 +478,7 @@
     <string name="info_catalogo">Datos del catálogo</string>
     <string name="ruta_codigo_formato">Ruta %1$d</string>
     <string name="destino_formato">Destino: %1$s</string>
+    <string name="viaje_formato">Recorrido: %1$s → %2$s</string>
     <string name="placa_formato">Placa: %1$s</string>
 
     <!-- Rutas por código -->

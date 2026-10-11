@@ -197,6 +197,19 @@
             android:textColor="@color/mb_gray"
             android:textSize="13sp" />
 
+        <!-- Origen -> destino del viaje ACTUAL de la unidad (UnidadReal.origen/destino): solo cuando
+             txt_ruta cayó al respaldo "Destino: X" (RutasRepository.porRouteId() no resolvió la ruta
+             a un código conocido), ver CartaUnidad.bind(). GONE por defecto. -->
+        <TextView
+            android:id="@+id/txt_viaje"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Recorrido"
+            android:textColor="@color/mb_gray"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/txt_actualizacion"
             android:layout_width="wrap_content"

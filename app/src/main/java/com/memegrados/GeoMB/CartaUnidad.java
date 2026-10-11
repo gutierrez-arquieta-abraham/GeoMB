@@ -40,7 +40,7 @@ public final class CartaUnidad {
     /** Referencias a las vistas de view_carta_unidad.xml, resueltas una sola vez al inflar. */
     public static final class Vistas {
         public final MaterialCardView card;
-        public final TextView txtUnidad, txtLinea, txtFicha, txtRuta, txtActualizacion, badgeEstado, txtCredito, txtTagline;
+        public final TextView txtUnidad, txtLinea, txtFicha, txtRuta, txtViaje, txtActualizacion, badgeEstado, txtCredito, txtTagline;
         public final ImageView imgUnidad;
         public final MaterialButton btnVerMapa, btnSeguir;
         public final ImageView btnSeguirOpciones;
@@ -56,6 +56,7 @@ public final class CartaUnidad {
             txtLinea = raiz.findViewById(R.id.txt_linea);
             txtFicha = raiz.findViewById(R.id.txt_ficha);
             txtRuta = raiz.findViewById(R.id.txt_ruta);
+            txtViaje = raiz.findViewById(R.id.txt_viaje);
             txtActualizacion = raiz.findViewById(R.id.txt_actualizacion);
             badgeEstado = raiz.findViewById(R.id.badge_estado);
             txtCredito = raiz.findViewById(R.id.txt_credito);
@@ -106,6 +107,16 @@ public final class CartaUnidad {
             }
             v.txtRuta.setText(ruta);
             v.txtRuta.setVisibility(View.VISIBLE);
+            // Origen -> destino del viaje ACTUAL: solo cuando txt_ruta cayó al respaldo "Destino: X"
+            // (no se resolvió un código de ruta conocido) y además hay origen -- si no, sería
+            // redundante con lo que ya dice txt_ruta (el código+recorrido, o el mismo destino solo).
+            if (r == null && u.origen != null && !u.origen.isEmpty()
+                    && u.destino != null && !u.destino.isEmpty()) {
+                v.txtViaje.setText(ctx.getString(R.string.viaje_formato, u.origen, u.destino));
+                v.txtViaje.setVisibility(View.VISIBLE);
+            } else {
+                v.txtViaje.setVisibility(View.GONE);
+            }
             v.txtActualizacion.setText(u.placa != null && !u.placa.isEmpty()
                     ? ctx.getString(R.string.placa_formato, u.placa) : ctx.getString(R.string.estado_en_ruta));
             v.btnVerMapa.setVisibility(View.VISIBLE);
@@ -119,6 +130,7 @@ public final class CartaUnidad {
             v.badgeEstado.setText(R.string.estado_fuera_servicio);
             v.txtLinea.setText(R.string.sin_ubicacion_vivo);
             v.txtRuta.setVisibility(View.GONE);
+            v.txtViaje.setVisibility(View.GONE);
             v.txtActualizacion.setText(R.string.info_catalogo);
             v.btnVerMapa.setVisibility(View.GONE);
             v.btnSeguir.setVisibility(View.GONE);

@@ -444,6 +444,7 @@
     <string name="info_catalogo">Catalog data</string>
     <string name="ruta_codigo_formato">Route %1$d</string>
     <string name="destino_formato">Destination: %1$s</string>
+    <string name="viaje_formato">Trip: %1$s → %2$s</string>
     <string name="placa_formato">Plate: %1$s</string>
 
     <!-- Routes by code -->
