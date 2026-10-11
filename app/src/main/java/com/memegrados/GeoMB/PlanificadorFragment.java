@@ -550,26 +550,31 @@ public class PlanificadorFragment extends Fragment {
         return Planificador.estacionParecida(requireContext(), txt);
     }
 
-    /** Callback de desambiguación: nombre canónico (o null) + línea fijada (0 = cualquiera). */
-    private interface ResueltoCb { void run(String nombre, int linea); }
+    /** Callback de desambiguación: nombre a MOSTRAR (p. ej. "Alameda Tacubaya") + nombre REAL para
+     *  rutear (p. ej. "Tacubaya"; igual al de mostrar salvo para un alias H72, ver
+     *  Planificador.Match.nombreRuta) + línea fijada (0 = cualquiera). Ambos null = no encontrada. */
+    private interface ResueltoCb { void run(String mostrado, String ruta, int linea); }
 
     private void trazar() {
         if (mapa == null) return;
         // Desambigua origen y luego destino (puede mostrar carta/toast) antes de calcular la ruta.
-        desambiguar(inOrigen, origenCanon, origenLinea, (o, lo) ->
-                desambiguar(inDestino, destinoCanon, destinoLinea, (d, ld) ->
-                        trazarResuelto(o, lo, d, ld)));
+        desambiguar(inOrigen, origenCanon, origenLinea, (om, or, lo) ->
+                desambiguar(inDestino, destinoCanon, destinoLinea, (dm, dr, ld) ->
+                        trazarResuelto(om, or, lo, dm, dr, ld)));
     }
 
-    private void trazarResuelto(String origen, int lineaO, String destino, int lineaD) {
+    private void trazarResuelto(String origenMostrado, String origen, int lineaO,
+                                 String destinoMostrado, String destino, int lineaD) {
         if (destino == null) {
             Toast.makeText(requireContext(), getString(R.string.estacion_no_encontrada), Toast.LENGTH_SHORT).show();
             return;
         }
-        if (origen == null) { origen = destino; lineaO = lineaD; }   // sin origen válido: se marcará "ya estás cerca"
+        // sin origen válido: se marcará "ya estás cerca"
+        if (origen == null) { origen = destino; origenMostrado = destinoMostrado; lineaO = lineaD; }
 
         ultimaManifest = Manifestaciones.actualizado();
         final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
+        final String fom = origenMostrado; final String fdm = destinoMostrado;
         // Preferencia SUAVE sembrada desde el servicio con el que origen/destino ya quedaron fijados
         // (ver sembrarPrefServicio): sin esto, el primer cálculo queda PINNEADO a exactamente esa línea
         // (102 u 122, p. ej.) sin que Planificador.okLineaPref() pueda caer al otro servicio de la MISMA
@@ -585,11 +590,14 @@ public class PlanificadorFragment extends Fragment {
                 Toast.makeText(requireContext(), mensajeFallo(fd), Toast.LENGTH_LONG).show();
                 return;
             }
-            // nombres canónicos ya resueltos (el campo se muestra con nº de línea si estaba fijada)
-            origenCanon = fo; origenLinea = flo;
-            inOrigen.setText(flo == 0 ? Planificador.sinMxb(fo) : Planificador.nombreMostrar(requireContext(), fo, flo));
-            destinoCanon = fd; destinoLinea = fld;
-            inDestino.setText(fld == 0 ? Planificador.sinMxb(fd) : Planificador.nombreMostrar(requireContext(), fd, fld));
+            // nombres canónicos ya resueltos (el campo se muestra con nº de línea si estaba fijada). Se
+            // muestra y recuerda el nombre a MOSTRAR (fom/fdm) -- para un alias H72 es el del alias
+            // ("Alameda Tacubaya"), no el real con el que de verdad se ruteó (fo/fd) -- así la elección
+            // del usuario queda visible en el campo en vez de verse reemplazada en silencio.
+            origenCanon = fom; origenLinea = flo;
+            inOrigen.setText(flo == 0 ? Planificador.sinMxb(fom) : Planificador.nombreMostrar(requireContext(), fom, flo));
+            destinoCanon = fdm; destinoLinea = fld;
+            inDestino.setText(fld == 0 ? Planificador.sinMxb(fdm) : Planificador.nombreMostrar(requireContext(), fdm, fld));
             ultOrigen = fo; ultDestino = fd; ultLineaO = flo; ultLineaD = fld; ultPref = new java.util.HashMap<>();
             // Preferencia de servicio por CADA línea troncal Mexibús (10X) con exprés que use la ruta.
             java.util.List<Integer> bases = basesTroncalesConExpress(r);
@@ -690,8 +698,13 @@ public class PlanificadorFragment extends Fragment {
 
     private void desambiguar(EditText campo, String canonRec, int lineaRec, ResueltoCb cb) {
         String canon = resolver(campo, canonRec);
-        if (canon == null) { cb.run(null, 0); return; }
-        if (lineaRec != 0 && canon.equals(canonRec)) { cb.run(canon, lineaRec); return; }   // ya fijada y sin cambios
+        if (canon == null) { cb.run(null, null, 0); return; }
+        // Ya fijada y sin cambios (el campo sigue mostrando exactamente lo último resuelto): no hace
+        // falta recorrer candidatos() de nuevo ni volver a preguntar. Antes exigía lineaRec != 0 (un pin
+        // de Mexibús/Mexicable), pero Metrobús NUNCA pinea (fijar() usa pin=0 siempre para líneas <100,
+        // alias H72 incluido) -- así que una estación Metrobús ambigua (o un alias ya elegido) volvía a
+        // mostrar la carta en cada "Trazar ruta" aunque nada hubiera cambiado.
+        if (canon.equals(canonRec)) { cb.run(canon, Planificador.nombreRutaDeAlias(canon), lineaRec); return; }
 
         java.util.List<Planificador.Match> cs = Planificador.candidatos(requireContext(), canon);
         boolean mxb = Modos.mostrarMexibus(requireContext());
@@ -706,7 +719,7 @@ public class PlanificadorFragment extends Fragment {
             }
             cs = f;
         }
-        if (cs.isEmpty()) { cb.run(canon, 0); return; }
+        if (cs.isEmpty()) { cb.run(canon, canon, 0); return; }
         // Agrupa por estación física (misma base + co-ubicadas). Si queda una sola, la fija; si hay varias
         // (Las Américas de Metrobús L2, Mexibús L1, Mexibús L2 y L2A…) pregunta "¿A qué estación te refieres?".
         java.util.List<java.util.List<Planificador.Match>> grupos = agruparCandidatos(cs);
@@ -776,13 +789,15 @@ public class PlanificadorFragment extends Fragment {
     }
 
     /** Fija la opción elegida: Metrobús no requiere pin (0); Mexibús/Mexicable fijan su línea.
-     *  Si es un alias de H72 (ver Planificador.Match.nombreRuta), rutea contra el nombre REAL de su
-     *  troncal -- su propio nombre ("Alameda Tacubaya") no existe en ningún catálogo ruteable. */
+     *  Si es un alias de H72 (ver Planificador.Match.nombreRuta), el campo muestra el nombre del
+     *  ALIAS ("Alameda Tacubaya" -- la elección del usuario queda visible, no se ve reemplazada en
+     *  silencio), pero rutea contra el nombre REAL de su troncal -- su propio nombre no existe en
+     *  ningún catálogo ruteable. */
     private void fijar(EditText campo, Planificador.Match m, ResueltoCb cb) {
         String nombreReal = m.nombreRuta != null ? m.nombreRuta : m.nombre;
         int pin = m.linea < 100 ? 0 : m.linea;
-        campo.setText(Planificador.nombreMostrar(requireContext(), nombreReal, m.linea));
-        cb.run(nombreReal, pin);
+        campo.setText(Planificador.nombreMostrar(requireContext(), m.nombre, m.linea));
+        cb.run(m.nombre, nombreReal, pin);
     }
 
     /** Palabra para el cambio de servicio: Metrobús↔Metrobús=Transbordo, Mexibús/Mexicable entre sí=Correspondencia, mixto=Conexión. */

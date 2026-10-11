@@ -229,6 +229,16 @@ public final class Planificador {
         return null;
     }
 
+    /** Nombre REAL para rutear si {@code canon} es exactamente el nombre a MOSTRAR de un alias H72 (ver
+     *  {@link #ALIAS_H72}, p. ej. "Alameda Tacubaya" -&gt; "Tacubaya"); si no es un alias, devuelve
+     *  {@code canon} sin cambios. Usado para reconocer un campo sin editar que quedó mostrando el
+     *  nombre del alias (en vez del real) tras elegirlo en la carta de desambiguación, sin tener que
+     *  volver a preguntar en cada retrazado. */
+    public static String nombreRutaDeAlias(String canon) {
+        Object[] a = aliasH72Por(canon);
+        return a != null ? (String) a[3] : canon;
+    }
+
     private static int sistemaLinea(int n) { return n < 100 ? 0 : (n < 200 ? 1 : 2); }
 
     private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(
@@ -437,11 +447,20 @@ public final class Planificador {
         if (canon == null) return res;
         // Alias de H72 (ver ALIAS_H72): se ofrece como Match propio (icono/posición reales del punto
         // H72) y además se sigue el flujo normal con el nombre REAL de su troncal, para que ambos
-        // aparezcan como opciones separadas en la carta de desambiguación.
+        // aparezcan como opciones separadas en la carta de desambiguación -- tanto si se teclea el
+        // nombre del alias ("Alameda Tacubaya") como si se teclea directo el de su troncal real
+        // ("Tacubaya"): a pedido explícito del usuario, buscar/trazar la troncal a secas también debe
+        // activar el desambiguador en vez de resolver en silencio, porque no es la misma estación.
         Object[] aliasH72 = aliasH72Por(canon);
         if (aliasH72 != null) {
             res.add(new Match((String) aliasH72[0], 2, (LatLng) aliasH72[2], (String) aliasH72[1], (String) aliasH72[3]));
             canon = (String) aliasH72[3];
+        } else {
+            for (Object[] al : ALIAS_H72) {
+                if (((String) al[3]).equals(canon)) {
+                    res.add(new Match((String) al[0], 2, (LatLng) al[2], (String) al[1], (String) al[3]));
+                }
+            }
         }
         String cn = norm(sinMxb(canon));   // nombre LIMPIO: agrupa homónimas entre sistemas aunque el nombre completo difiera (p. ej. "Indios Verdes" Metrobús ↔ Mexibús)
         java.util.Set<Integer> vistas = new java.util.HashSet<>();

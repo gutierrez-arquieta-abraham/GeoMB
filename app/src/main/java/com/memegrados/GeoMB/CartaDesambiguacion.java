@@ -62,7 +62,20 @@ public final class CartaDesambiguacion {
         for (List<Planificador.Match> g : ordenados) {
             Planificador.Match sel = repGrupo(g);
             Bitmap est = Iconos.pictograma(ctx, sel.icono, px);
-            if (est == null) est = badgeLinea(ctx, colorLinea(ctx, sel.linea), Planificador.etiquetaLineaCortaPub(sel.linea));
+            if (est == null) {
+                est = badgeLinea(ctx, colorLinea(ctx, sel.linea), Planificador.etiquetaLineaCortaPub(sel.linea));
+            } else {
+                // Troncal L2 (Tacubaya/De la Salle) o alias H72 (Match.nombreRuta != null, p. ej.
+                // "Alameda Tacubaya"): mismo ícono diagonal L7/L2 que ya llevan en el resto de la app,
+                // para que esta carta NO se vea como si sólo comparara nombres -- antes ambas opciones
+                // mostraban el mismo pictograma sólido, dando la impresión de ser indistinguibles.
+                boolean esTroncalL2 = Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(sel.nombre));
+                if (sel.linea == 2 && (esTroncalL2 || sel.nombreRuta != null)) {
+                    int arriba = colorLinea(ctx, esTroncalL2 ? 7 : 2);
+                    int abajo = colorLinea(ctx, esTroncalL2 ? 2 : 7);
+                    est = Iconos.recoloreaFondoDiagonal(est, arriba, abajo);
+                }
+            }
             Bitmap linea = bmpLinea(ctx, sel.linea);
             ops.add(new Opcion(0, est, linea, etiquetaEstacion(ctx, g), () -> cb.run(g)).col(colorLinea(ctx, sel.linea)));
         }

@@ -85,4 +85,20 @@ public class PlanificadorAliasH72Test {
                 Planificador.norm("De la Salle · dirección Alameda Tacubaya")));
         assertEquals(2, Iconos.ESTACIONES_TRANSBORDO_H72_L2.size());
     }
+
+    @Test
+    public void nombreRutaDeAlias_deAlias_devuelveElNombreRealDeLaTroncal() {
+        // Usado por desambiguar() (PlanificadorFragment) para reconocer un campo sin editar que quedó
+        // mostrando el nombre del alias (p. ej. tras elegirlo en la carta) sin volver a preguntar.
+        assertEquals("Tacubaya", Planificador.nombreRutaDeAlias("Alameda Tacubaya"));
+        assertEquals("De La Salle", Planificador.nombreRutaDeAlias("De la Salle · dirección Alameda Tacubaya"));
+        assertEquals("De La Salle", Planificador.nombreRutaDeAlias("De la Salle · dirección Glorieta Cuitláhuac"));
+    }
+
+    @Test
+    public void nombreRutaDeAlias_deNombreQueNoEsAlias_loDevuelveSinCambios() {
+        assertEquals("Tacubaya", Planificador.nombreRutaDeAlias("Tacubaya"));
+        assertEquals("Indios Verdes", Planificador.nombreRutaDeAlias("Indios Verdes"));
+        assertNull(Planificador.nombreRutaDeAlias(null));
+    }
 }
