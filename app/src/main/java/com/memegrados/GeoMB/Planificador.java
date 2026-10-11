@@ -154,7 +154,8 @@ public final class Planificador {
 
     /**
      * Nombre para mostrar (sin "MXB "); si ese nombre existe en varias líneas, añade su número
-     * para distinguirlo (p. ej. "1o de Mayo 2" = el 1 de Mayo del Mexibús Línea 2).
+     * para distinguirlo (p. ej. "Las Américas 2" = la Las Américas del Mexibús Línea 2, distinta de
+     * la de Línea 1).
      */
     public static String nombreMostrar(Context ctx, String nombre, int linea) {
         String clean = sinMxb(nombre);
@@ -171,8 +172,8 @@ public final class Planificador {
             {"7", "paris",                 "1", "reforma"},
             {"4", "delegacion cuauhtemoc", "1", "el chopo"},
             {"1", "revolucion",            "4", "mexico tenochtitlan"},
-            {"101", "mxb 1 de mayo",       "102", "mxb las americas"},   // transbordo real Mexibús L1 (1° de Mayo) – L2 (Las Américas), 288 m
-            {"101", "mxb 1 de mayo",       "112", "mxb las americas"},   // transbordo real Mexibús L1 (1° de Mayo) – L2A (Las Américas)
+            {"101", "mxb 1ro de mayo",     "102", "mxb las americas"},   // transbordo real Mexibús L1 (1ro de Mayo) – L2 (Las Américas), 288 m
+            {"101", "mxb 1ro de mayo",     "112", "mxb las americas"},   // transbordo real Mexibús L1 (1ro de Mayo) – L2A (Las Américas)
             {"5", "rio de los remedios",   "112", "mxb rio de los remedios"},   // transbordo real Metrobús L5 – Mexibús L2A (Río de los Remedios)
     };
 
@@ -181,12 +182,12 @@ public final class Planificador {
      *  son transbordo real. */
     private static final String[][] EXCL_CORRESP = {
             {"mxb casa de morelos", "mxb puente de fierro"},
-            // "1° de Mayo" existe en Mexibús L1/L1 Exprés (101/121) Y en L2 (102): son DOS estaciones
-            // físicas distintas (no correspondencia real), pero quedan a ~828 m una de otra -- apenas
-            // arriba del radio de correspondencia por cercanía (RADIO_CORRESP=800). Como comparten
-            // nombre exacto (mismo par, así que "self-pair" en la tabla), sin esta exclusión un futuro
-            // ajuste de coordenadas que las acerque un poco más las uniría como transbordo falso.
-            {"mxb 1 de mayo", "mxb 1 de mayo"},
+            // NOTA: antes había aquí un self-pair {"mxb 1 de mayo","mxb 1 de mayo"} -- "1° de Mayo"
+            // de Mexibús L1/L1 Exprés (101/121) y "1° de Mayo" de L2 (102) compartían nombre exacto a
+            // ~828 m (justo arriba de RADIO_CORRESP=800, pero expuesto a un futuro ajuste de
+            // coordenadas que las acercara). Quedó de sobra al renombrar la de L1 a "1ro de Mayo"
+            // (ver CORRESP_MANUAL): ya no comparten nombre normalizado, así que ninguna lógica de
+            // nombre+cercanía las puede confundir. La de L2 sigue llamándose "1° de Mayo" tal cual.
     };
 
     /**
@@ -252,14 +253,14 @@ public final class Planificador {
     }
 
     /** ¿El par de nombres está excluido explícitamente de correspondencia (en cualquier orden)? */
-    private static boolean excluidoCorresp(String na, String nb) {
+    static boolean excluidoCorresp(String na, String nb) {
         for (String[] p : EXCL_CORRESP)
             if ((na.equals(p[0]) && nb.equals(p[1])) || (na.equals(p[1]) && nb.equals(p[0]))) return true;
         return false;
     }
 
     /** ¿El par (línea, nombre) forma una correspondencia manual declarada (en cualquier orden)? */
-    private static boolean corrManual(int la, String na, int lb, String nb) {
+    static boolean corrManual(int la, String na, int lb, String nb) {
         for (String[] p : CORRESP_MANUAL) {
             int l1 = Integer.parseInt(p[0]), l2 = Integer.parseInt(p[2]);
             if ((la == l1 && lb == l2 && na.equals(p[1]) && nb.equals(p[3]))
@@ -464,8 +465,8 @@ public final class Planificador {
 
     /** Agrupa candidatos de {@link #candidatos} por ESTACIÓN FÍSICA real: misma línea base (ordinario/
      *  ramal/exprés cuentan como una) + mismo sistema + co-ubicados (≤ RADIO_AGRUPAR_ESTACION_FISICA).
-     *  Dos estaciones con el MISMO nombre pero de líneas base DISTINTAS (p. ej. "1° de Mayo" en
-     *  Mexibús L1 y L2, a 828 m) quedan en grupos separados aunque el nombre coincida exacto -- evita
+     *  Dos estaciones con el MISMO nombre pero de líneas base DISTINTAS (p. ej. "Las Américas" en
+     *  Mexibús L1 y L2, a ~1067 m) quedan en grupos separados aunque el nombre coincida exacto -- evita
      *  tratarlas como una sola correspondencia. Un grupo con más de un elemento SÍ es una
      *  correspondencia real (misma estación, varios andenes/servicios). Compartido por el
      *  Planificador (desambiguación al trazar) y el mapa general (buscarEstacionEnMapa), para no

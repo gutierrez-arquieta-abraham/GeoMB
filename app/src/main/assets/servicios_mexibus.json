@@ -3,11 +3,11 @@
   "servicios": [
     { "linea": 101, "codigo": "TR1", "tipo": "ordinario", "rosa": false, "origen": "Ojo de Agua", "destino": "Ciudad Azteca" },
     { "linea": 101, "codigo": "TR3", "tipo": "express",   "rosa": false, "origen": "Ojo de Agua", "destino": "Ciudad Azteca",
-      "estaciones": ["Ojo de Agua", "Cuahutémoc Norte", "Central de Abastos", "Jardines de Morelos", "Hospital", "1° de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
+      "estaciones": ["Ojo de Agua", "Cuahutémoc Norte", "Central de Abastos", "Jardines de Morelos", "Hospital", "1ro de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
     { "linea": 101, "codigo": "TR3", "tipo": "express",   "rosa": true,  "origen": "Ojo de Agua", "destino": "Ciudad Azteca",
-      "estaciones": ["Ojo de Agua", "Cuahutémoc Norte", "Central de Abastos", "Jardines de Morelos", "Hospital", "1° de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
+      "estaciones": ["Ojo de Agua", "Cuahutémoc Norte", "Central de Abastos", "Jardines de Morelos", "Hospital", "1ro de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
     { "linea": 101, "codigo": "TR4", "tipo": "express",   "rosa": false, "origen": "Central de Abastos", "destino": "Ciudad Azteca",
-      "estaciones": ["Central de Abastos", "Jardines de Morelos", "Hospital", "1° de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
+      "estaciones": ["Central de Abastos", "Jardines de Morelos", "Hospital", "1ro de Mayo", "Vocacional 3", "Unitec", "Ciudad Azteca"] },
 
     { "linea": 102, "tipo": "ordinario", "rosa": false, "_prefijos": "Rosa, Mixto" },
     { "linea": 102, "tipo": "express",   "rosa": false, "_prefijos": "Rosa, Mixto" },

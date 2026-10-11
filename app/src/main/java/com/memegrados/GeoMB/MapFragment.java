@@ -1484,7 +1484,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         v.findViewById(R.id.btn_cerrar_carta_estacion).setOnClickListener(b -> ocultarCarta());
         // Manda al planificador con esta estación de destino YA fijada (línea conocida: se tocó
         // este marcador en concreto, así que no hace falta preguntar "¿a qué estación te refieres?"
-        // aunque el nombre también exista en otra línea, p. ej. "1° de Mayo" en Mexibús L1 y L2).
+        // aunque el nombre también exista en otra línea, p. ej. "Las Américas" en Mexibús L1 y L2).
         // em.nombreRuta (si no es null) sustituye al nombre mostrado -- los 3 puntos de H72 muestran
         // un nombre que no existe en ningún catálogo real (ver agregarEstacionesH72()), así que
         // enrutan contra la estación troncal real en su lugar.
@@ -2021,8 +2021,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /**
      * Búsqueda de estación (texto): resuelve el nombre de forma difusa y centra el mapa. Si son
      * varios andenes de la MISMA estación física (correspondencia real), centra en la zona
-     * intermedia; si el nombre coincide pero son estaciones FÍSICAS distintas (p. ej. "1° de Mayo"
-     * en Mexibús L1 y L2, a 828 m -- ver Planificador.agruparPorEstacionFisica), antes se promediaban
+     * intermedia; si el nombre coincide pero son estaciones FÍSICAS distintas (p. ej. "Las Américas"
+     * en Mexibús L1 y L2, a ~1067 m -- ver Planificador.agruparPorEstacionFisica), antes se promediaban
      * sus coordenadas igual y el mapa caía en un punto intermedio que no correspondía a NINGUNA de
      * las dos: ahora se pregunta a cuál se refiere, igual que ya hace el Planificador al trazar.
      */
