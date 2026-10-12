@@ -73,14 +73,12 @@ public class RecorridoService extends Service {
     private static final String CANAL = "recorrido";
     private static final int ID = 4401;
     // MISMA fórmula para Metrobús y Mexibús (Haversine): a ≤50 m del punto avisa la LLEGADA; y al
-    // alejarse ~100 m del punto más cercano (cruzando hacia la siguiente) avisa la PRÓXIMA estación.
+    // alejarse ~70 m del punto más cercano (cruzando hacia la siguiente) avisa la PRÓXIMA estación.
     private static final float CERCA_M = 50f;   // "llegando a estación" cuando estás a ≤50 m del punto
-    private static final float PASO_M = 100f;   // metros a ALEJARSE del punto más cercano para "próxima estación"
     private static final float CERCA_MXB_M = 50f;
-    private static final float PASO_MXB_M = 100f;
-    // Anillo de cobertura extra: dentro de (llegada 50 m + 50 m) NO se anuncia la próxima estación,
-    // solo la llegada. La "próxima" se dispara al SALIR de esos ~100 m del punto más cercano.
-    private static final float COBERTURA_EXTRA_M = 50f;
+    // Anillo de cobertura extra: dentro de (llegada 50 m + 20 m) NO se anuncia la próxima estación,
+    // solo la llegada. La "próxima" se dispara al SALIR de esos ~70 m del punto más cercano.
+    private static final float COBERTURA_EXTRA_M = 20f;
     // En una correspondencia, el aviso cambia de línea SOLO cuando estás en el andén de la otra línea.
     // ~15 m (el usuario pidió <10 m; se deja un poco más por el error típico del GPS para no quedar clavado).
     private static final float CAMBIO_LINEA_M = 15f;
@@ -149,7 +147,12 @@ public class RecorridoService extends Service {
             return salidaEsAltavoz() ? v * ALTAVOZ_ATENUACION : v;
         } catch (Exception ignore) { return 1f; }
     }
-    private static final long VOZ_TIMEOUT_MS = 4000L; // margen para descargar la voz Mia antes de caer al TTS
+    // Subido de 4000 -> 7000: con el radio de "próxima estación" más angosto (COBERTURA_EXTRA_M=20,
+    // ver radioCerca()), paradas cercanas entre sí (p. ej. 1a de Villa / Eje 8) encolan avisos más
+    // seguido -- 4 s no alcanzaba a bajar la voz Mia antes de caer al TTS de respaldo con esa cadencia,
+    // así que el TTS sonaba más seguido de lo deseado. La cola (sonarYHablar/colaVoz) sigue esperando a
+    // que cada aviso termine antes del siguiente, así que un margen mayor no hace que se amontonen.
+    private static final long VOZ_TIMEOUT_MS = 7000L; // margen para descargar la voz Mia antes de caer al TTS
 
     // Andenes con ZONA de cobertura (Indios Verdes) miden ~100 m de largo. Como la distancia se mide al
     // corredor, el andén ya queda cubierto; además se amplía el radio de llegada para el aproche y, con
@@ -169,10 +172,6 @@ public class RecorridoService extends Service {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
         return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
-    }
-    /** Metros de alejamiento para disparar "próxima estación", según el sistema. */
-    private static float radioPaso(Planificador.Parada p) {
-        return (p != null && p.linea >= 100) ? PASO_MXB_M : PASO_M;
     }
 
     /** Distancia en metros por la Fórmula de Haversine. */
@@ -521,7 +520,7 @@ public class RecorridoService extends Service {
     // Fierro, a <10 m de su parada real, saltando a UPE de Mexibús L2 -- ambas líneas corren a
     // ~900 m una de otra en ese corredor -- con solo ~18 m de ruido de GPS). 25 m es consistente con
     // el margen de error de GPS que ya usa el resto de este archivo para lo mismo (ver
-    // CAMBIO_LINEA_M=15, "se deja un poco más por el error típico del GPS"; COBERTURA_EXTRA_M=50).
+    // CAMBIO_LINEA_M=15, "se deja un poco más por el error típico del GPS"; COBERTURA_EXTRA_M=20).
     // NO hace que el candidato dependa del punto de enlace/correspondencia (eso era RADIO_ENLACE_M,
     // quitado a propósito en el fix de A→B→C): sigue midiendo contra la propia parada candidata.
     private static final float MARGEN_MEJORA_M = 25f;
@@ -597,8 +596,9 @@ public class RecorridoService extends Service {
         //      estar físicamente en su andén y haber anunciado la parada previa
         //      (ver los comentarios detallados abajo; casos Indios Verdes / zonas).
         //   3) Anuncia UNA vez la dirección + total de estaciones al iniciar.
-        //   4) Detecta "ya pasaste" la estación (te alejaste PASO_M de tu punto más
-        //      cercano) y calcula la PRÓXIMA estación distinta (salta co-ubicadas).
+        //   4) Detecta "ya pasaste" la estación (te alejaste más de radioCerca()+
+        //      COBERTURA_EXTRA_M de tu punto más cercano) y calcula la PRÓXIMA
+        //      estación distinta (salta co-ubicadas).
         //   5) Con eso arma y encola los avisos de voz (próxima, llegada, transbordo).
         // Los comentarios largos de cada bloque explican los casos borde REALES
         // (Puente de Fierro, Indios Verdes) que motivaron cada resguardo.
@@ -698,8 +698,9 @@ public class RecorridoService extends Service {
             sonarYHablar(avisoAbordaje(seq, best), seq.get(best).linea);
         }
 
-        // Mide el acercamiento a la estación más cercana: cuando ya te alejaste PASO_M de tu punto
-        // más cercano, se considera que "ya la pasaste" y se anuncia la próxima.
+        // Mide el acercamiento a la estación más cercana: cuando ya te alejaste más de
+        // radioCerca()+COBERTURA_EXTRA_M de tu punto más cercano, se considera que "ya la pasaste"
+        // y se anuncia la próxima.
         if (best != estSeguida) { estSeguida = best; distMin = (float) bd; }
         else if (bd < distMin) distMin = (float) bd;
 
@@ -745,7 +746,8 @@ public class RecorridoService extends Service {
 
         // VOZ (precedida del "tururu"): al ARRIBAR a la estación dice "Llegando a estación: X"; si es
         // transbordo añade "Transbordo con Línea #"; si es terminal, "nadie debe permanecer a bordo"; y
-        // de forma aleatoria un consejo. Al pasar la estación (ya te alejaste PASO_M), anuncia la próxima.
+        // de forma aleatoria un consejo. Al pasar la estación (ya te alejaste radioCerca()+
+        // COBERTURA_EXTRA_M), anuncia la próxima.
         if (fin) {
             // Ruta terminada: aviso "última estación de tu recorrido" y, al TERMINAR ese audio, se
             // finaliza el servicio automáticamente (con un tope de respaldo por si la voz fallara).
