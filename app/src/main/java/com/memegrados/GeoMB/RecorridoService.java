@@ -256,6 +256,12 @@ public class RecorridoService extends Service {
     // candidato en dos ciclos consecutivos (mismo criterio que MARGEN_MEJORA_M en reanclarOtraLinea).
     // -1 = sin candidato pendiente.
     private int corresPendienteIdx = -1;
+    // Candidato de reanclarOtraLinea() visto en el ciclo ANTERIOR, aún sin confirmar: un salto de línea
+    // nunca se acepta de un solo fix de GPS (una lectura suelta -rebote/multipath, p. ej. bajo un
+    // puente- podía ganar la comparación de distancia una sola vez y ya quedaba fijo, pues avanceMin
+    // nunca retrocede). Se exige ver el MISMO índice candidato en dos ciclos consecutivos antes de
+    // saltar -mismo criterio que corresPendienteIdx, arriba-. -1 = sin candidato pendiente.
+    private int reanclajeCandidatoPendiente = -1;
     private float distMin = Float.MAX_VALUE;   // distancia mínima alcanzada a estSeguida (para medir "ya la pasé")
     private boolean afectacionAvisada = false;
     private boolean finalizado = false;    // ya se llegó al destino: se detiene el servicio
@@ -397,6 +403,7 @@ public class RecorridoService extends Service {
         ultVoz = -99; ultLlegando = -99; ultProxima = -99; afectacionAvisada = false;
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
         corresPendienteIdx = -1;   // nuevo recorrido (o reinicio tras revivir): sin candidato pendiente
+        reanclajeCandidatoPendiente = -1;
         Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -536,10 +543,12 @@ public class RecorridoService extends Service {
      * posterior, no solo la siguiente) -- no la más adelantada: si dos líneas distintas de la ruta
      * califican a la vez (p. ej. vas por B pero una parada de C, más adelante en la ruta, también
      * cae dentro del radio), la distancia real es la que distingue en cuál de las dos estás de
-     * verdad. Si ninguna califica, devuelve {@code best}. EXCEPCIÓN: si la candidata es la misma
-     * correspondencia/conexión física que {@code best} (p. ej. Indios Verdes Mexibús↔Metrobús), no
-     * califica hasta que la llegada a {@code best} ya se haya anunciado -- primero llega esa, luego
-     * la otra línea.
+     * verdad. Si ninguna califica, devuelve {@code best}. EXCEPCIÓN: si el GPS está geográficamente
+     * CERCA (≤{@link #RADIO_REUBICACION_M}) del primer punto de transbordo real (ver
+     * {@code Parada#transbordo}) todavía sin anunciar, el reanclaje NO considera ninguna candidata en
+     * o más allá de él -- primero debe sonar la llegada a ESE punto (p. ej. Puente de Fierro, Indios
+     * Verdes). Lejos de ese punto no aplica (es el caso legítimo de "te subiste directo" más adelante
+     * en esta misma ruta, sin pasar nunca por esa correspondencia).
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
@@ -548,21 +557,29 @@ public class RecorridoService extends Service {
         // Qué tan bien ajustado está 'best' AHORA MISMO, con la misma función que se usa para
         // evaluar a los candidatos (consistente con el manejo de "zona" de Indios Verdes).
         double distBestActual = distParada(l, seq.get(best));
-        for (int j = best + 1; j < seq.size(); j++) {
+        // Defecto real confirmado en dispositivo: una lectura de GPS puntual mala podía ganar la
+        // comparación de distancia contra un punto de transbordo REAL (transbordo=true -- el nodo
+        // donde la ruta ABORDA la otra línea, p. ej. Puente de Fierro, Indios Verdes) todavía sin
+        // anunciar, saltando de largo esa parada -y cualquier otra de su propio trazo antes del
+        // salto, p. ej. "Casa de Morelos"- directo a una parada mucho más adelante (p. ej. "UPE").
+        // Se ubica el PRIMER transbordo así (si lo hay): si el GPS está cerca de él (≤
+        // RADIO_REUBICACION_M -- genuinamente podrías estar ahí mismo, es la zona donde el ruido de
+        // GPS causa el salto falso), se descartan todas las candidatas en o más allá. Lejos de él, NO
+        // se restringe: ese es el caso legítimo en que te subiste directo más adelante en la ruta sin
+        // pasar nunca por esa correspondencia (reanclaje general, la razón de ser de esta función).
+        int limite = seq.size();
+        for (int k = best + 1; k < seq.size(); k++) {
+            if (seq.get(k).transbordo && ultLlegando < k) {
+                if (distParada(l, seq.get(k)) <= RADIO_REUBICACION_M) limite = k;
+                break;
+            }
+        }
+        for (int j = best + 1; j < limite; j++) {
             Planificador.Parada pj = seq.get(j);
             if (pj.linea == trazoBest) continue;                       // mismo trazo/servicio que el actual: no aplica
             double d = distParada(l, pj);
             if (d > RADIO_REUBICACION_M) continue;                     // no estás cerca de esa parada
             if (d >= distBestActual - MARGEN_MEJORA_M) continue;        // no es una mejora real sobre 'best'
-            // Si la candidata es la MISMA correspondencia/conexión física que 'best' (coUbicada, p. ej.
-            // Indios Verdes: el andén de Mexibús L4 y el de Metrobús L1 son paradas distintas pero están
-            // a muy poca distancia), no se salta hasta que la llegada a 'best' YA se haya anunciado. Sin
-            // este resguardo, el reanclaje genérico (que no pasa por las reglas finas de "cambio de línea"
-            // del bucle principal, ver más arriba) podía ganar la comparación de distancia y saltar
-            // directo al aviso de la otra línea (Metrobús) sin haber anunciado nunca la llegada a la
-            // estación donde en realidad estás (Indios Verdes vía Mexibús): primero llega y se anuncia esa,
-            // y solo DESPUÉS puede continuar hacia la otra línea.
-            if (ultLlegando != best && coUbicada(pj, seq.get(best))) continue;
             // 'inicio' = primer índice de la racha de ESE trazo que termina en j (el nodo donde la ruta
             // ABORDA ese trazo: el propio punto de correspondencia/conexión/transbordo que construyó el
             // planificador). Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS
@@ -695,9 +712,20 @@ public class RecorridoService extends Service {
         // pasar por ella, o la línea previa cerró, el recorrido no queda clavado en una línea anterior.
         int salto = reanclarOtraLinea(l, seq, best);
         if (salto > best) {
-            Telemetria.registrarError(this, Telemetria.ERR_REANCLAJE, "RecorridoService.reanclarOtraLinea",
-                    "de " + seq.get(best).nombre + " a " + seq.get(salto).nombre);
-            best = salto;
+            // Nunca se salta con un solo fix: se exige ver la MISMA candidata en dos ciclos
+            // consecutivos (ver reanclajeCandidatoPendiente) -- filtra una lectura de GPS puntual
+            // mala (defecto real confirmado: rebote/multipath cerca de una correspondencia, p. ej.
+            // Puente de Fierro, podía ganar la comparación de distancia una sola vez).
+            if (reanclajeCandidatoPendiente == salto) {
+                Telemetria.registrarError(this, Telemetria.ERR_REANCLAJE, "RecorridoService.reanclarOtraLinea",
+                        "de " + seq.get(best).nombre + " a " + seq.get(salto).nombre);
+                best = salto;
+                reanclajeCandidatoPendiente = -1;
+            } else {
+                reanclajeCandidatoPendiente = salto;
+            }
+        } else {
+            reanclajeCandidatoPendiente = -1;
         }
 
         avanceMin = best;   // nunca retrocede
