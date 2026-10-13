@@ -129,6 +129,24 @@ public class PlanificadorAliasH72Test {
     }
 
     @Test
+    public void andenDeLaSalleH72_segunSentido_devuelveElAndenRealCorrecto() {
+        // Defecto real confirmado: "De la Salle" en H72 resolvía siempre contra la troncal, con el
+        // MISMO punto de ida y de regreso -- nunca el andén real de salida hacia L7 (a ~112 m de la
+        // troncal). Ahora construirMixta() elige el andén real según el sentido (ver su uso de
+        // andenDeLaSalleH72()): "dirección Alameda Tacubaya" de REGRESO (invertir=true, el real queda
+        // prácticamente sobre la troncal) y "dirección Glorieta Cuitláhuac" de IDA (invertir=false).
+        Object[] regreso = Planificador.andenDeLaSalleH72(true);
+        assertEquals("De la Salle · dirección Alameda Tacubaya", regreso[0]);
+        assertEquals(19.4083683433015, ((LatLng) regreso[2]).latitude, 1e-9);
+        assertEquals(-99.18420775806, ((LatLng) regreso[2]).longitude, 1e-9);
+
+        Object[] ida = Planificador.andenDeLaSalleH72(false);
+        assertEquals("De la Salle · dirección Glorieta Cuitláhuac", ida[0]);
+        assertEquals(19.4090200863265, ((LatLng) ida[2]).latitude, 1e-9);
+        assertEquals(-99.1834667351685, ((LatLng) ida[2]).longitude, 1e-9);
+    }
+
+    @Test
     public void corrManual_alamedaTacubayaH72_conTacubayaTroncal_siCorresponde() {
         // Transbordo real (~110 m) entre el punto propio de H72 y la troncal de L2: sin esta fila, un
         // camino que de verdad necesite seguir más allá de Tacubaya en L2 (viniendo de H72) se quedaría

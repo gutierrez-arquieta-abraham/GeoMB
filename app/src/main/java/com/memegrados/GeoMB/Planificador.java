@@ -219,27 +219,46 @@ public final class Planificador {
      * la carta de desambiguación (nunca se fusionan en candidatos(), ver Match.nombreRuta y
      * agruparPorEstacionFisica) a pedido explícito del usuario de activar el desambiguador en vez de
      * resolverlas en silencio -- rutean contra el nombre REAL (índice 3) una vez elegidas.
-     * {nombre a mostrar, ícono, posición real GTFS, nombre REAL para Planificador.calcular}.
+     * {nombre a mostrar, ícono, posición real GTFS, nombre REAL para Planificador.calcular, nombre
+     * EXACTO de la troncal (tal como lo guarda el catálogo real) que debe ofrecer este alias cuando se
+     * teclea la troncal directo -- ver su uso en candidatos()}.
      *
      * "Alameda Tacubaya" rutea contra SÍ MISMA (no contra "Tacubaya"): desde que RutasMixtas.H72 usa
      * ese punto real como su propia parada (ver Seq#punto), "Alameda Tacubaya" SÍ existe como nodo del
      * grafo -- elegirla en la carta traza la ruta real vía H72/L7 en vez de resolver en silencio a la
-     * troncal de L2 (que puede llegar por cualquier camino, no necesariamente por H72). "De la Salle"
-     * sigue sin punto propio en el grafo (H72 resuelve ese tramo contra la troncal, ver su comentario
-     * en RutasMixtas.java), así que sus 2 variantes siguen ruteando contra "De La Salle".
+     * troncal de L2 (que puede llegar por cualquier camino, no necesariamente por H72). Por eso su
+     * índice 4 (troncal para el disparador) difiere de su índice 3 (nombre real para rutear): "Tacubaya"
+     * vs. "Alameda Tacubaya". "De la Salle" también tiene ahora su propio andén real por SENTIDO en el
+     * grafo (ver {@code construirMixta}, que escoge entre estas 2 entradas según {@code invertir}) --
+     * antes resolvía siempre contra la troncal en ambos sentidos (mismo punto de ida y de regreso, nunca
+     * el andén real de salida hacia L7; defecto real confirmado). Su índice 3 mantiene la capitalización
+     * histórica ya fijada por {@link #nombreRutaDeAlias}/su prueba (no afecta el ruteo real, que
+     * normaliza el nombre), mientras que el 4 usa el nombre EXACTO del catálogo real (lineas.json: "De la
+     * Salle", NO "De La Salle") a propósito: es una comparación .equals() literal contra e.nombre tal
+     * cual lo guarda el catálogo, y con la capitalización equivocada, teclear la troncal directo nunca
+     * activaba el desambiguador porque el .equals() nunca coincidía (defecto real confirmado, distinto
+     * del de construirMixta de arriba).
      */
     private static final Object[][] ALIAS_H72 = {
-            {"Alameda Tacubaya", "ic_est_2_2", new LatLng(19.401473, -99.185882), "Alameda Tacubaya"},
+            {"Alameda Tacubaya", "ic_est_2_2", new LatLng(19.401473, -99.185882), "Alameda Tacubaya", "Tacubaya"},
             {"De la Salle · dirección Alameda Tacubaya", "ic_est_2_4",
-                    new LatLng(19.4083683433015, -99.18420775806), "De La Salle"},
+                    new LatLng(19.4083683433015, -99.18420775806), "De La Salle", "De la Salle"},
             {"De la Salle · dirección Glorieta Cuitláhuac", "ic_est_2_4",
-                    new LatLng(19.4090200863265, -99.1834667351685), "De La Salle"},
+                    new LatLng(19.4090200863265, -99.1834667351685), "De La Salle", "De la Salle"},
     };
 
     /** Entrada de {@link #ALIAS_H72} cuyo nombre a mostrar es EXACTAMENTE {@code canon}, o null. */
     private static Object[] aliasH72Por(String canon) {
         for (Object[] a : ALIAS_H72) if (((String) a[0]).equals(canon)) return a;
         return null;
+    }
+
+    /** Entrada de {@link #ALIAS_H72} del andén real de "De la Salle" (H72) para el sentido dado -- ver
+     *  su uso en {@code construirMixta}. No depende de Context (ALIAS_H72 es un literal estático), así
+     *  que se prueba directo en PlanificadorAliasH72Test. Paquete-visible solo por eso. */
+    static Object[] andenDeLaSalleH72(boolean invertir) {
+        return aliasH72Por(invertir ? "De la Salle · dirección Alameda Tacubaya"
+                : "De la Salle · dirección Glorieta Cuitláhuac");
     }
 
     /** Nombre REAL para rutear si {@code canon} es exactamente el nombre a MOSTRAR de un alias H72 (ver
@@ -469,8 +488,12 @@ public final class Planificador {
             res.add(new Match((String) aliasH72[0], 2, (LatLng) aliasH72[2], (String) aliasH72[1], (String) aliasH72[3]));
             canon = (String) aliasH72[3];
         } else {
+            // Comparar contra el índice 4 (troncal para el disparador), NO el 3 (nombre real para
+            // rutear): para "Alameda Tacubaya" difieren a propósito (ver comentario de ALIAS_H72) -- el
+            // 3 es ella misma, el 4 es "Tacubaya". Si se comparara contra el 3 aquí, teclear "Tacubaya"
+            // directo nunca encontraría ese alias (defecto real ya confirmado).
             for (Object[] al : ALIAS_H72) {
-                if (((String) al[3]).equals(canon)) {
+                if (((String) al[4]).equals(canon)) {
                     res.add(new Match((String) al[0], 2, (LatLng) al[2], (String) al[1], (String) al[3]));
                 }
             }
@@ -973,7 +996,20 @@ public final class Planificador {
         for (int t = 0; t < n; t++) {
             int k = invertir ? n - 1 - t : t;
             String nombre, icono; LatLng pos;
-            if (sm.posiciones[k] != null) {
+            // "De la Salle" de H72 (RutasMixtas.H72): el GTFS real trae un andén DISTINTO según el
+            // sentido (ver ALIAS_H72) -- "dirección Alameda Tacubaya" prácticamente sobre la troncal
+            // (~8 m, se usa de REGRESO: invertir=true, vas hacia Alameda Tacubaya) y "dirección Glorieta
+            // Cuitláhuac" a ~112 m de ella (se usa de IDA: invertir=false, vas hacia L7). Antes esta
+            // parada resolvía siempre contra el catálogo de la troncal (mismo punto en ambos sentidos,
+            // nunca el andén real de salida hacia L7) -- defecto real confirmado: faltaba el punto/ícono
+            // propio de H72 en ese tramo. Mismo nombre EXACTO que la troncal ("De la Salle"): el
+            // transbordo se auto-detecta por cercanía (bucle de transbordos, sa.nn.equals(sb.nn) && dpar
+            // <= RADIO_CORRESP), sin necesitar una fila en CORR_MANUAL -- a diferencia de "Alameda
+            // Tacubaya", que sí la necesita porque su nombre no coincide con el de su troncal.
+            if ("H72".equals(sm.nombre) && sm.lineas[k] == 2 && "De la Salle".equals(sm.estaciones[k])) {
+                Object[] al = andenDeLaSalleH72(invertir);
+                nombre = sm.estaciones[k]; icono = (String) al[1]; pos = (LatLng) al[2];
+            } else if (sm.posiciones[k] != null) {
                 // Parada con posición PROPIA (ver RutasMixtas.Seq#punto): un punto real que no está en
                 // ningún catálogo de Línea, así que no se resuelve contra uno.
                 nombre = sm.estaciones[k]; icono = sm.iconos[k]; pos = sm.posiciones[k];
