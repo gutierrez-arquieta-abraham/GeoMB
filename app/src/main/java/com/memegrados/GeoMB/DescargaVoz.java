@@ -239,9 +239,10 @@ public final class DescargaVoz {
     private static String respellVoz(String nombre) {
         if (nombre == null) return null;
         return nombre
-                .replace("ISSEMYM", "Isemim")
+                .replace("ISSEMYM", "I-semim")        // "Isemim" (sin guión) sonaba "esemim": se perdía la I inicial
                 .replace("CCH", "Cecehache")
                 .replace("SCOP", "Escop")
-                .replace("New's Divine", "Niuz Diváin");
+                .replace("New's Divine", "Niuz Diváin")
+                .replace(" - ", ", ");   // "Bandera - Tultitlán", "Héroes - Canosas", "Lindavista - Vallejo"
     }
 }

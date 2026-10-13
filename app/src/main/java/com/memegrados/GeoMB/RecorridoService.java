@@ -536,7 +536,10 @@ public class RecorridoService extends Service {
      * posterior, no solo la siguiente) -- no la más adelantada: si dos líneas distintas de la ruta
      * califican a la vez (p. ej. vas por B pero una parada de C, más adelante en la ruta, también
      * cae dentro del radio), la distancia real es la que distingue en cuál de las dos estás de
-     * verdad. Si ninguna califica, devuelve {@code best}.
+     * verdad. Si ninguna califica, devuelve {@code best}. EXCEPCIÓN: si la candidata es la misma
+     * correspondencia/conexión física que {@code best} (p. ej. Indios Verdes Mexibús↔Metrobús), no
+     * califica hasta que la llegada a {@code best} ya se haya anunciado -- primero llega esa, luego
+     * la otra línea.
      */
     private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best) {
         int mejor = best;
@@ -551,6 +554,15 @@ public class RecorridoService extends Service {
             double d = distParada(l, pj);
             if (d > RADIO_REUBICACION_M) continue;                     // no estás cerca de esa parada
             if (d >= distBestActual - MARGEN_MEJORA_M) continue;        // no es una mejora real sobre 'best'
+            // Si la candidata es la MISMA correspondencia/conexión física que 'best' (coUbicada, p. ej.
+            // Indios Verdes: el andén de Mexibús L4 y el de Metrobús L1 son paradas distintas pero están
+            // a muy poca distancia), no se salta hasta que la llegada a 'best' YA se haya anunciado. Sin
+            // este resguardo, el reanclaje genérico (que no pasa por las reglas finas de "cambio de línea"
+            // del bucle principal, ver más arriba) podía ganar la comparación de distancia y saltar
+            // directo al aviso de la otra línea (Metrobús) sin haber anunciado nunca la llegada a la
+            // estación donde en realidad estás (Indios Verdes vía Mexibús): primero llega y se anuncia esa,
+            // y solo DESPUÉS puede continuar hacia la otra línea.
+            if (ultLlegando != best && coUbicada(pj, seq.get(best))) continue;
             // 'inicio' = primer índice de la racha de ESE trazo que termina en j (el nodo donde la ruta
             // ABORDA ese trazo: el propio punto de correspondencia/conexión/transbordo que construyó el
             // planificador). Se compara el nº de servicio (no baseLinea) para que ORDINARIO↔EXPRÉS
@@ -1048,10 +1060,14 @@ public class RecorridoService extends Service {
     private static String respellVoz(String nombre) {
         if (nombre == null) return null;
         return nombre
-                .replace("ISSEMYM", "Isemim")        // "esemim" en vez de "isemim"
+                .replace("ISSEMYM", "I-semim")        // "Isemim" (sin guión) sonaba "esemim": se perdía la I inicial
                 .replace("CCH", "Cecehache")          // sin vocales que leer: intentaba deletrearlo mal
                 .replace("SCOP", "Escop")             // el español no empieza palabra con "sc-"
-                .replace("New's Divine", "Niuz Diváin");   // nombre en inglés leído letra por letra
+                .replace("New's Divine", "Niuz Diváin")   // nombre en inglés leído letra por letra
+                // Nombres de 2 localidades unidas por guión (p. ej. "Bandera - Tultitlán", "Héroes -
+                // Canosas", "Lindavista - Vallejo"): el TTS leía el guión como una pausa/separación
+                // rara ("guion largo"). Coma: pausa natural de enumeración, sin el símbolo.
+                .replace(" - ", ", ");
     }
 
     /** Nombre para MOSTRAR (notificación): sin MXB y con nº de línea si el nombre se repite. */
