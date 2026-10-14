@@ -280,6 +280,40 @@ public class ManifestacionesServiceRutaL4Test {
     }
 
     // =====================================================================================
+    // SECCIÓN D — estacionesEnServicioExplicito(): tramo "en servicio" que cruza 2 ramales de L4
+    // =====================================================================================
+
+    // Caso real reportado por el usuario en dispositivo: "Se cancela ruta norte, servicio de San
+    // Lázaro a Pantitlán y Alameda Oriente". RutasMixtas.rutaL4() agrupa L4-RN (Buenavista..San
+    // Lázaro, vía Hidalgo) Y L4-HAO (Hidalgo..Pantitlán..Alameda Oriente) bajo UNA sola "norte" --
+    // "cancela ruta norte" bloqueaba también el tramo San Lázaro-Pantitlán-Alameda Oriente que el
+    // mismo aviso confirma que sigue circulando. "San Lázaro" y "Pantitlán" NO comparten ninguna
+    // secuencia de RutasMixtas (son ramales distintos que solo se tocan en "Archivo General de la
+    // Nación"), así que deben resolver cada uno por sí solo; "Pantitlán" y "Alameda Oriente" SÍ
+    // comparten L4-HAO, así que su intermedia ("Calle 6") también debe quedar incluida.
+    @Test
+    public void estacionesEnServicioExplicito_sanLazaroAPantitlanYAlamedaOriente_cubreTodoElTramoReal() {
+        java.util.Set<String> enServicio = ManifestacionesService.estacionesEnServicioExplicito(
+                Planificador.norm("Se cancela ruta norte, servicio de San Lázaro a Pantitlán y Alameda Oriente"));
+
+        assertTrue("San Lázaro (extremo nombrado, aunque sin secuencia compartida con Pantitlán)",
+                enServicio.contains(Planificador.norm("San Lázaro")));
+        assertTrue("Pantitlán (extremo nombrado)", enServicio.contains(Planificador.norm("Pantitlán")));
+        assertTrue("Alameda Oriente (extremo nombrado)", enServicio.contains(Planificador.norm("Alameda Oriente")));
+        assertTrue("Calle 6: intermedia entre Pantitlán y Alameda Oriente en L4-HAO, no nombrada "
+                        + "directamente pero sí parte del tramo real",
+                enServicio.contains(Planificador.norm("Calle 6")));
+    }
+
+    // Control: sin el patrón "servicio de A a B", el conjunto debe quedar vacío (no se inventa nada).
+    @Test
+    public void estacionesEnServicioExplicito_sinPatronDeTramo_devuelveVacio() {
+        java.util.Set<String> enServicio = ManifestacionesService.estacionesEnServicioExplicito(
+                Planificador.norm("Se cancela ruta norte por manifestación."));
+        assertTrue(enServicio.isEmpty());
+    }
+
+    // =====================================================================================
     // SECCIÓN C — regresión: el gate de L4 y el gate general NUNCA pueden divergir
     // =====================================================================================
 

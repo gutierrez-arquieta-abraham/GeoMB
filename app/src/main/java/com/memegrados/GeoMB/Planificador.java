@@ -281,6 +281,25 @@ public final class Planificador {
         return null;
     }
 
+    /** ¿Debe ofrecerse este alias de H72 (nombre a mostrar {@code aliasNombre}, troncal-disparador
+     *  {@code troncalDisparador} -- índices 0 y 4 de su fila en {@link #ALIAS_H72}) como candidato en
+     *  {@link #candidatos}, dado el {@code canon} ya resuelto por estacionParecida() y el
+     *  {@code texto} tal cual lo tecleó el usuario? Dos disparadores independientes (basta con que
+     *  uno se cumpla):
+     *  <p>1) TRONCAL: {@code troncalDisparador} coincide EXACTO con {@code canon} -- cubre teclear la
+     *  troncal real a secas ("Tacubaya", "De la Salle").
+     *  <p>2) PARCIAL: el texto tecleado (4+ letras, para no disparar con un prefijo genérico como
+     *  "la"/"de") es, literalmente, el inicio del nombre del alias. Defecto real confirmado: un texto
+     *  PARCIAL ("Alameda", sin más) podía calzar mejor por puntaje() con una estación real DISTINTA y
+     *  más corta ("Alameda Oriente" de L4, gana por ser 2 letras más corta que "Alameda Tacubaya") --
+     *  el alias nunca llegaba a ofrecerse como opción porque estacionParecida() solo devuelve UN
+     *  ganador. Paquete-visible: sin Context, se prueba directo en PlanificadorAliasH72Test. */
+    static boolean aliasH72OfreceComoCandidato(String aliasNombre, String troncalDisparador, String canon, String texto) {
+        if (troncalDisparador.equals(canon)) return true;
+        String q = norm(texto);
+        return q.length() >= 4 && norm(aliasNombre).startsWith(q);
+    }
+
     /** Entrada de {@link #ALIAS_H72} del andén real de "De la Salle" (H72) para el sentido dado -- ver
      *  su uso en {@code construirMixta}. No depende de Context (ALIAS_H72 es un literal estático), así
      *  que se prueba directo en PlanificadorAliasH72Test. Paquete-visible solo por eso. */
@@ -516,12 +535,8 @@ public final class Planificador {
             res.add(new Match((String) aliasH72[0], 2, (LatLng) aliasH72[2], (String) aliasH72[1], (String) aliasH72[3]));
             canon = (String) aliasH72[3];
         } else {
-            // Comparar contra el índice 4 (troncal para el disparador), NO el 3 (nombre real para
-            // rutear): para "Alameda Tacubaya" difieren a propósito (ver comentario de ALIAS_H72) -- el
-            // 3 es ella misma, el 4 es "Tacubaya". Si se comparara contra el 3 aquí, teclear "Tacubaya"
-            // directo nunca encontraría ese alias (defecto real ya confirmado).
             for (Object[] al : ALIAS_H72) {
-                if (((String) al[4]).equals(canon)) {
+                if (aliasH72OfreceComoCandidato((String) al[0], (String) al[4], canon, texto)) {
                     res.add(new Match((String) al[0], 2, (LatLng) al[2], (String) al[1], (String) al[3]));
                 }
             }

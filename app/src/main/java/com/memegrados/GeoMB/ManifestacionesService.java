@@ -1149,15 +1149,80 @@ public class ManifestacionesService extends Service {
         if (!sur && !norte) return;
         Linea l = GtfsRepository.porNumero(this, nlinea);
         if (l == null) return;
+        // Defecto real confirmado: "Se cancela ruta norte, servicio de San Lázaro a Pantitlán y
+        // Alameda Oriente" -- rutaL4() agrupa L4-RN (Buenavista..San Lázaro vía Hidalgo) Y L4-HAO
+        // (Hidalgo..Pantitlán..Alameda Oriente) como UNA sola "norte" (ver su javadoc), así que
+        // "cancela ruta norte" bloqueaba TODO ese grupo -- incluido el tramo San Lázaro-Pantitlán-
+        // Alameda Oriente que el MISMO aviso confirma que sigue circulando. Se excluye ese tramo
+        // explícito ANTES de aplicar el bloqueo general de la ruta.
+        java.util.Set<String> enServicioExplicito = estacionesEnServicioExplicito(Planificador.norm(infoRaw));
         String info = sur ? "Servicio de la Ruta Sur cancelado" : "Servicio de la Ruta Norte cancelado";
         for (Estacion e : l.estaciones) {
             String nn = Planificador.norm(e.nombre);
+            if (enServicioExplicito.contains(nn)) continue;
             int r = RutasMixtas.rutaL4(nn);
             if (!((sur && r == 2) || (norte && r == 1))) continue;
             String key = Planificador.claveTerminal(nlinea) + "|" + nn;
             afect.add(key);
             cortarAlrededor(nlinea, nn);
             extra.put(key, new Manifestaciones.Afectacion(lineaLabel, nlinea, e.nombre, estado, "", info, false));
+        }
+    }
+
+    /** Estaciones de L4 que el MISMO texto de "info" marca EXPLÍCITAMENTE "en servicio" vía
+     *  "servicio de A a B (y C)" (ver {@link #segmentoParcial}). Primero cada nombre mencionado por
+     *  sí solo, si resuelve contra alguna secuencia real de {@link RutasMixtas}; luego, para cada PAR
+     *  de nombres que comparta una secuencia, también las intermedias entre ellos (sin repetir el
+     *  cálculo por par, cubre tanto "A a B" como "B y C" mencionados en fragmentos distintos). Un par
+     *  que NO comparta ninguna secuencia (p. ej. "San Lázaro" y "Pantitlán": ramales DISTINTOS de L4
+     *  -RN/-HAO que solo se tocan en "Archivo General de la Nación", no hay un solo tramo que los
+     *  contenga a ambos) simplemente no aporta intermedias por esa vía -- cada nombre ya quedó
+     *  agregado por sí solo en el primer paso. Vacío si el texto no trae el patrón o ningún nombre
+     *  resuelve. Usado por {@link #bloquearRutaL4} para no bloquear un tramo que la MISMA fila
+     *  confirma que sigue circulando pese a la cancelación general de la ruta (caso real: "Se cancela
+     *  ruta norte, servicio de San Lázaro a Pantitlán y Alameda Oriente" -- rutaL4() agrupa L4-RN y
+     *  L4-HAO bajo una sola "norte", así que "cancela ruta norte" bloqueaba también el tramo San
+     *  Lázaro-Pantitlán-Alameda Oriente que el mismo aviso confirma que sigue circulando). Acotado a
+     *  línea 4 a propósito: es el único llamador (bloquearRutaL4 ya filtra nlinea==4), no se usa para
+     *  L7. Paquete-visible: reutilizada por las pruebas JUnit. */
+    static java.util.Set<String> estacionesEnServicioExplicito(String normFull) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        String seg = segmentoParcial(normFull);
+        if (seg == null) return out;
+        List<String> nombres = new ArrayList<>();
+        for (String chunk : seg.split("\\s+y\\s+")) {
+            chunk = chunk.trim();
+            if (chunk.isEmpty()) continue;
+            int ap = chunk.indexOf(" a ");
+            if (ap >= 3) {
+                nombres.add(chunk.substring(0, ap).trim());
+                nombres.add(chunk.substring(ap + 3).trim());
+            } else {
+                nombres.add(chunk);
+            }
+        }
+        for (String nombre : nombres) agregarSiResuelveL4(nombre, out);
+        for (int i = 0; i < nombres.size(); i++) {
+            for (int j = i + 1; j < nombres.size(); j++) {
+                for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+                    int ix = idxEnSecuencia(sm, 4, nombres.get(i)), iy = idxEnSecuencia(sm, 4, nombres.get(j));
+                    if (ix < 0 || iy < 0) continue;
+                    int lo = Math.min(ix, iy), hi = Math.max(ix, iy);
+                    for (int k = lo; k <= hi; k++) {
+                        if (sm.lineas[k] != 4) continue;
+                        out.add(Planificador.norm(sm.estaciones[k]));
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    private static void agregarSiResuelveL4(String nombre, java.util.Set<String> out) {
+        if (nombre == null || nombre.length() < 3) return;
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+            int idx = idxEnSecuencia(sm, 4, nombre);
+            if (idx >= 0) { out.add(Planificador.norm(sm.estaciones[idx])); return; }
         }
     }
 
@@ -1480,7 +1545,28 @@ public class ManifestacionesService extends Service {
     // ahí). Tomar List<Estacion> en vez de Linea permite probar esta función con una lista armada a
     // mano (Estacion no toca Android), sin cambiar en nada lo que bloquearTramos()/cortarAlrededor()
     // ya hacían a través del overload de arriba.
+    //
+    // Defecto real confirmado (L1, estado="Manifestación", columna "Estaciones afectadas"=
+    // "Teatro Insurgentes - La Bombilla"): el aviso oficial abrevia "Teatro de los Insurgentes" como
+    // "Teatro Insurgentes" (sin "de los"). Antes, el match "contiene" (en cualquier dirección) se
+    // quedaba con la PRIMERA estación que calzara -- y "Insurgentes" a secas (mucho más al norte,
+    // cerca de Reforma) calza por sustring contra "teatro insurgentes" ANTES de llegar a "Teatro de
+    // los Insurgentes" en la lista, armando un rango gigante desde el lugar equivocado. Se resuelve
+    // en 2 pasadas: primero EXACTO ignorando relleno ("de/del/los/las/la", que el aviso oficial suele
+    // omitir al abreviar un nombre compuesto) -- "teatro insurgentes" sí iguala a "teatro insurgentes"
+    // una vez quitado el "de los" de en medio, y nunca iguala a solo "insurgentes". Solo si ESA pasada
+    // no encuentra nada se cae al "contiene" de siempre (último recurso, igual que antes).
+    private static final java.util.regex.Pattern P_RELLENO_NOMBRE =
+            java.util.regex.Pattern.compile("\\b(de|del|los|las|la)\\b");
+    private static String sinRelleno(String normalizado) {
+        return P_RELLENO_NOMBRE.matcher(normalizado).replaceAll(" ").replaceAll("\\s+", " ").trim();
+    }
+
     static int idxEstacion(List<Estacion> estaciones, String q) {
+        String qr = sinRelleno(q);
+        for (int k = 0; k < estaciones.size(); k++) {
+            if (sinRelleno(Planificador.norm(estaciones.get(k).nombre)).equals(qr)) return k;
+        }
         for (int k = 0; k < estaciones.size(); k++) {
             String nn = Planificador.norm(estaciones.get(k).nombre);
             if (nn.equals(q) || nn.contains(q) || q.contains(nn)) return k;

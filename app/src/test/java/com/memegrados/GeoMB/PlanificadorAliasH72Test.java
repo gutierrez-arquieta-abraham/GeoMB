@@ -197,4 +197,34 @@ public class PlanificadorAliasH72Test {
         assertEquals("De la Salle",
                 Planificador.nombreMostrar(null, "De la Salle · dirección Glorieta Cuitláhuac", 2));
     }
+
+    @Test
+    public void aliasH72OfreceComoCandidato_textoParcialQueCalzaConOtraEstacionReal_siOfreceElAlias() {
+        // Defecto real confirmado: teclear "Alameda" (sin más) resolvía en silencio a "Alameda
+        // Oriente" (estación real de L4, 2 letras más corta que "Alameda Tacubaya" -- gana por
+        // puntaje()), así que "Alameda Tacubaya" nunca se ofrecía como opción en la carta.
+        assertTrue(Planificador.aliasH72OfreceComoCandidato(
+                "Alameda Tacubaya", "Tacubaya", "Alameda Oriente", "Alameda"));
+    }
+
+    @Test
+    public void aliasH72OfreceComoCandidato_troncalExacta_siOfreceElAlias() {
+        // Caso ya cubierto antes (disparador TRONCAL): sigue funcionando igual.
+        assertTrue(Planificador.aliasH72OfreceComoCandidato(
+                "Alameda Tacubaya", "Tacubaya", "Tacubaya", "Tacubaya"));
+    }
+
+    @Test
+    public void aliasH72OfreceComoCandidato_textoNoRelacionado_noOfreceElAlias() {
+        assertFalse(Planificador.aliasH72OfreceComoCandidato(
+                "Alameda Tacubaya", "Tacubaya", "Indios Verdes", "Indios Verdes"));
+    }
+
+    @Test
+    public void aliasH72OfreceComoCandidato_prefijoGenericoMuyCorto_noOfreceElAlias() {
+        // "La"/"De" (2-3 letras) calzarían con CUALQUIER nombre que empiece así -- no debe disparar
+        // el alias solo por eso (umbral de 4+ letras).
+        assertFalse(Planificador.aliasH72OfreceComoCandidato(
+                "De la Salle · dirección Alameda Tacubaya", "De La Salle", "De la Catedral", "De"));
+    }
 }

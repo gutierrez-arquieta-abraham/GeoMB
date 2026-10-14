@@ -343,4 +343,29 @@ public class ManifestacionesServiceBloquearTramosTest {
         assertEquals(9, rango[0]);
         assertEquals(12, rango[1]);
     }
+
+    // ============================================================================================
+    // Defecto real confirmado por el usuario en dispositivo: aviso real L1, estado="Manifestación",
+    // columna "Estaciones afectadas"="Teatro Insurgentes - La Bombilla" (el aviso oficial abrevia
+    // "Teatro de los Insurgentes" quitando "de los"). Antes, idxEstacion() calzaba por sustring con
+    // "Insurgentes" a secas (índice 14, mucho más al norte, cerca de Reforma) en vez de "Teatro de
+    // los Insurgentes" (índice 29) porque esa estación aparece ANTES en la lista -- el mapa mostraba
+    // sin servicio un tramo gigante desde Insurgentes hasta La Bombilla en vez del tramo real, mucho
+    // más corto.
+    // ============================================================================================
+    @Test
+    public void fixtureL1_teatroInsurgentesAbreviado_resuelveLaEstacionCorrectaNoInsurgentesASecas() {
+        int[] rango = ManifestacionesService.rangoEstacionesCerradas("Teatro Insurgentes - La Bombilla", L1);
+
+        assertNotNull(rango);
+        assertEquals(29, rango[0]);   // Teatro de los Insurgentes (NO 14, "Insurgentes" a secas)
+        assertEquals(34, rango[1]);   // La Bombilla
+    }
+
+    @Test
+    public void idxEstacion_nombreAbreviadoSinRelleno_prefiereElMatchExactoSobreUnoMasCorto() {
+        assertEquals(29, ManifestacionesService.idxEstacion(L1, Planificador.norm("Teatro Insurgentes")));
+        // Control: el nombre corto real sigue resolviendo a sí mismo, no al compuesto.
+        assertEquals(14, ManifestacionesService.idxEstacion(L1, Planificador.norm("Insurgentes")));
+    }
 }
