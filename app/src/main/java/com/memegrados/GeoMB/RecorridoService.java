@@ -657,14 +657,20 @@ public class RecorridoService extends Service {
                 // mismaEstacion()) para que el núcleo del nombre también cuente: si solo se exigiera
                 // igualdad exacta, Indios Verdes nunca cumplía este radio amplio y el salto dependía del
                 // mecanismo más tosco (reanclarOtraLinea, sin la verificación de "ya llegaste antes").
-                // No brincar a la otra línea antes de ANUNCIAR la llegada a la parada previa: si el andén de
-                // la otra línea queda en el camino antes de tu terminal (Indios Verdes sur: el andén de
-                // Metrobús L1 está al norte, antes del terminal L4 al sur), el aviso saltaba antes de tiempo.
-                // Se exige que la llegada a la parada anterior YA se haya anunciado (ultLlegando ≥ i-1); así
+                // No brincar a la otra línea antes de ANUNCIAR la llegada a la parada ACTUAL ('best'): si el
+                // andén de la otra línea queda en el camino antes de tu terminal (Indios Verdes sur: el
+                // andén de Metrobús L1 está al norte, antes del terminal L4 al sur), el aviso saltaba antes
+                // de tiempo. Se exige que la llegada a 'best' YA se haya anunciado (ultLlegando ≥ best); así
                 // no basta con que 'best' la roce por cercanía: hay que haber llegado físicamente a ella.
                 // Esta verificación por POSICIÓN/ESTADO (no por tiempo) es a propósito: un temporizador fijo
                 // no distingue caminar despacio de estar simplemente detenido en otro punto de la ruta.
-                boolean alcanzasteAnterior = ultLlegando >= i - 1;
+                // Defecto real confirmado (Indios Verdes): antes se comparaba contra 'i - 1' (la parada
+                // ANTERIOR en la secuencia combinada, no 'best' mismo) -- en el caso típico ambas coinciden,
+                // pero el aviso de Metrobús seguía sonando sin haber anunciado nunca la llegada a Indios
+                // Verdes por Mexibús. El usuario pidió expresamente esperar la llegada de la estación
+                // indicada (Mexibús) antes de continuar con la otra línea (Metrobús); 'best' es siempre esa
+                // estación indicada, así que comparar contra 'best' es la condición correcta y más estricta.
+                boolean alcanzasteAnterior = ultLlegando >= best;
                 boolean coloc = coUbicada(pi, seq.get(best));
                 float umbral = coloc ? radioCerca(pi) : CAMBIO_LINEA_M;
                 // CORRESPONDENCIA CORTA (excepción controlada, solo para un par ya validado por coUbicada):

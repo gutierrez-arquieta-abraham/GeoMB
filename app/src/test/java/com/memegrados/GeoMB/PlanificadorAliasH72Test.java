@@ -87,14 +87,19 @@ public class PlanificadorAliasH72Test {
     }
 
     @Test
-    public void nombreRutaDeAlias_deAlias_devuelveElNombreRealDeLaTroncal() {
+    public void nombreRutaDeAlias_deAlias_devuelveSuPropioNombre() {
         // Usado por desambiguar() (PlanificadorFragment) para reconocer un campo sin editar que quedó
         // mostrando el nombre del alias (p. ej. tras elegirlo en la carta) sin volver a preguntar.
-        // "Alameda Tacubaya" rutea contra SÍ MISMA: desde que RutasMixtas.H72 la trae como su propia
-        // parada real (ver Seq#punto), ya es un nodo genuino del grafo -- ya no se traduce a "Tacubaya".
+        // Los 3 alias de H72 rutean contra SÍ MISMOS: desde que RutasMixtas.H72 los trae como sus
+        // propias paradas reales (ver Seq#punto/construirMixta), los 3 son nodos genuinos del grafo --
+        // nunca se traducen al nombre de su troncal real. Defecto real confirmado para "De la Salle":
+        // antes SÍ devolvía el nombre de la troncal ("De La Salle"), por lo que el planificador casi
+        // siempre prefería el atajo por la troncal y el andén/ícono real de H72 nunca se usaba.
         assertEquals("Alameda Tacubaya", Planificador.nombreRutaDeAlias("Alameda Tacubaya"));
-        assertEquals("De La Salle", Planificador.nombreRutaDeAlias("De la Salle · dirección Alameda Tacubaya"));
-        assertEquals("De La Salle", Planificador.nombreRutaDeAlias("De la Salle · dirección Glorieta Cuitláhuac"));
+        assertEquals("De la Salle · dirección Alameda Tacubaya",
+                Planificador.nombreRutaDeAlias("De la Salle · dirección Alameda Tacubaya"));
+        assertEquals("De la Salle · dirección Glorieta Cuitláhuac",
+                Planificador.nombreRutaDeAlias("De la Salle · dirección Glorieta Cuitláhuac"));
     }
 
     @Test
@@ -153,5 +158,20 @@ public class PlanificadorAliasH72Test {
         // sin cruce, porque los nombres normalizados no coinciden entre sí.
         assertTrue(Planificador.corrManual(2, Planificador.norm("Alameda Tacubaya"), 2, Planificador.norm("Tacubaya")));
         assertTrue(Planificador.corrManual(2, Planificador.norm("Tacubaya"), 2, Planificador.norm("Alameda Tacubaya")));
+    }
+
+    @Test
+    public void corrManual_andenesDeLaSalleH72_conTroncal_siCorresponde() {
+        // Mismo caso que el de arriba, pero para los 2 andenes reales de "De la Salle": desde que cada
+        // uno es su propio nodo (nombre único, ver construirMixta), necesitan su propia fila para no
+        // quedar sin cruce a la troncal real.
+        assertTrue(Planificador.corrManual(2,
+                Planificador.norm("De la Salle · dirección Alameda Tacubaya"), 2, Planificador.norm("De la Salle")));
+        assertTrue(Planificador.corrManual(2, Planificador.norm("De la Salle"), 2,
+                Planificador.norm("De la Salle · dirección Alameda Tacubaya")));
+        assertTrue(Planificador.corrManual(2,
+                Planificador.norm("De la Salle · dirección Glorieta Cuitláhuac"), 2, Planificador.norm("De la Salle")));
+        assertTrue(Planificador.corrManual(2, Planificador.norm("De la Salle"), 2,
+                Planificador.norm("De la Salle · dirección Glorieta Cuitláhuac")));
     }
 }
