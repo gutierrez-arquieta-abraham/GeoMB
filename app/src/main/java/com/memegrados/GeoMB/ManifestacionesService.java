@@ -693,6 +693,21 @@ public class ManifestacionesService extends Service {
                         boolean ambos = !obstruccionCarril && terminalSentido == null;   // cierre total = parte la línea
                         boolean sinSentido = obstruccionCarril && terminalSentido == null; // no atribuible: no bloquea
                         String nEst = Planificador.norm(estaciones);
+                        // Si la columna "Estaciones afectadas" YA dio un rango concreto y acotado (ver
+                        // rangoEstacionesCerradas() más abajo), ESE es el cierre real y completo de esta
+                        // fila -- bloquearTramos() (más abajo) NO debe correr para ella: interpreta la
+                        // frase "Servicio de A a B" de "info" como "la línea se redujo a ESTE corredor,
+                        // bloquea todo lo demás", lo cual solo es cierto cuando esa frase es la ÚNICA
+                        // fuente de qué sigue en servicio (caso "línea completa"/sin lista puntual, ver
+                        // la otra rama). Caso real confirmado: L1 con 2 manifestaciones simultáneas
+                        // (Reforma-Hamburgo Y Teatro Insurgentes-La Bombilla, cada una ya con su propio
+                        // rango acotado); la "info" de la primera fila ("Servicio de Indios Verdes a
+                        // Plaza de la República y de Insurgentes a Río Churubusco") solo describe los 2
+                        // tramos flanqueando SU PROPIO cierre, no un inventario completo de toda la
+                        // línea -- bloquearTramos() marcaba fuera de servicio TODO lo que esa frase no
+                        // mencionaba, incluido el tramo real Dr. Gálvez-El Caminero (que sí sigue
+                        // corriendo, aislado por el OTRO cierre, descrito en la 2ª fila).
+                        boolean rangoYaLocalizado = false;
                         if (sinSentido) {
                             // Obstrucción de carril sin dirección: solo se muestra, no bloquea ruteo.
                         } else if (nEst.contains("linea completa") || nEst.contains("toda la linea")
@@ -737,6 +752,7 @@ public class ManifestacionesService extends Service {
                                 // tramo completo (inclusive); si no, se cae al camino de siempre.
                                 int[] rango = rangoEstacionesCerradas(estaciones, l.estaciones);
                                 if (rango != null) {
+                                    rangoYaLocalizado = true;
                                     for (int k = rango[0]; k <= rango[1]; k++) {
                                         String nn = Planificador.norm(l.estaciones.get(k).nombre);
                                         bloquearNn(nlinea, nn, terminalSentido);
@@ -752,6 +768,7 @@ public class ManifestacionesService extends Service {
                                     for (Estacion e : l.estaciones) {
                                         String nn = Planificador.norm(e.nombre);
                                         if (!nn.isEmpty() && items.contains(nn)) {
+                                            rangoYaLocalizado = true;
                                             bloquearNn(nlinea, nn, terminalSentido);
                                             // Parte la línea SOLO si es un bloqueo físico real (ver
                                             // bloqueoFisico arriba); una estación "sin servicio"/cerrada
@@ -796,7 +813,12 @@ public class ManifestacionesService extends Service {
                         // de fusión reaparecía -- ver P_COMA_NUEVA_AFIRMACION.
                         for (String oracion : oracionesDe(conLimitesDeOracion(info))) {
                             String infoParaTramos = oracion.replaceAll("[\\s\\u00A0]+-[\\s\\u00A0]+", " a ");
-                            bloquearTramos(Planificador.norm(infoParaTramos), afect, ambos ? nlinea : 0);
+                            // rangoYaLocalizado: ver el comentario donde se declara, arriba -- esta fila
+                            // ya tiene un cierre puntual y acotado por su propia columna "Estaciones
+                            // afectadas"; bloquearTramos() solo debe correr cuando ESA columna no dio
+                            // nada concreto (p. ej. "línea completa"/vacía) y la única pista de qué
+                            // sigue corriendo es esta frase de "info".
+                            if (!rangoYaLocalizado) bloquearTramos(Planificador.norm(infoParaTramos), afect, ambos ? nlinea : 0);
                             // L4 y L7 se rutean por SERVICIOS (couplet/ramas), no por un tramo lineal:
                             // bloquearTramos las salta. Un aviso que nombre ESTACIONES reales ("Servicio de
                             // Campo Marte a Glorieta Cuitláhuac") se resuelve aquí usando las secuencias de
