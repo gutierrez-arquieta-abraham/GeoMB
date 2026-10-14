@@ -143,11 +143,13 @@ public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         // Troncal L2 (Tacubaya/De la Salle): mismo ícono diagonal L7/L2 que ya llevan el marcador del
         // mapa trazado (PlanificadorFragment.dibujar()) y el resto de la app -- este deslizador tenía
         // su PROPIA ruta de dibujo, nunca enterada de la diagonal, así que mostraba el pictograma
-        // sólido de siempre aunque el mapa de abajo sí mostrara la diagonal.
+        // sólido de siempre aunque el mapa de abajo sí mostrara la diagonal. Los 2 andenes PROPIOS de
+        // H72 (Iconos.ESTACIONES_PROPIAS_H72) llevan la MISMA diagonal pero INVERTIDA, para distinguirlos.
         boolean esTroncalH72L2 = p.linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(p.nombre));
-        if (bmp != null && esTroncalH72L2) {
-            int arriba = colorDe(e.itemView.getContext(), 7);
-            int abajo = colorDe(e.itemView.getContext(), 2);
+        boolean esPropioH72 = p.linea == 2 && Iconos.ESTACIONES_PROPIAS_H72.contains(Planificador.norm(p.nombre));
+        if (bmp != null && (esTroncalH72L2 || esPropioH72)) {
+            int arriba = colorDe(e.itemView.getContext(), esTroncalH72L2 ? 7 : 2);
+            int abajo = colorDe(e.itemView.getContext(), esTroncalH72L2 ? 2 : 7);
             bmp = Iconos.recoloreaFondoDiagonal(bmp, arriba, abajo);
         }
         if (bmp != null) {

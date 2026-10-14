@@ -42,6 +42,20 @@ public final class Iconos {
     public static final java.util.Set<String> ESTACIONES_TRANSBORDO_H72_L2 = new java.util.HashSet<>(
             java.util.Arrays.asList(Planificador.norm("Tacubaya"), Planificador.norm("De La Salle")));
 
+    /** Los 2 andenes reales de "De la Salle" PROPIOS de H72 (ver Planificador.ALIAS_H72/andenDeLaSalleH72):
+     *  llevan el mismo ícono diagonal que la troncal (de arriba), pero con la orientación INVERTIDA (ver
+     *  MapFragment.iconoEstacionOTransbordo) -- se agregaron aquí porque desde que tienen nombre PROPIO en
+     *  el grafo (defecto real corregido: antes compartían nombre con la troncal y la diagonal les salía
+     *  "gratis" al coincidir con el set de arriba), dejaron de calzar en ESTACIONES_TRANSBORDO_H72_L2 en
+     *  los 2 lugares que dibujan la ruta YA CALCULADA (EstacionRutaAdapter, PlanificadorFragment.dibujar) --
+     *  los otros 2 (CartaEstacion, CartaDesambiguacion) no lo necesitan: ya deciden por su propio
+     *  mecanismo (el flag transbordo del llamador, o Match.nombreRuta != null), no por nombre. NO incluye
+     *  "Alameda Tacubaya": ese punto usa su propio pictograma dedicado (ic_est_2_2), nunca diagonal. */
+    public static final java.util.Set<String> ESTACIONES_PROPIAS_H72 = new java.util.HashSet<>(
+            java.util.Arrays.asList(
+                    Planificador.norm("De la Salle · dirección Alameda Tacubaya"),
+                    Planificador.norm("De la Salle · dirección Glorieta Cuitláhuac")));
+
     // Cachés para evitar rehacer trabajo caro en el hilo principal (getIdentifier + decodeResource):
     // el mismo pictograma se pide para el marcador del mapa Y para la lista de la descripción de ruta,
     // y en cada redibujo. Sin caché, una ruta larga (~40 estaciones) bloqueaba el hilo → ANR.

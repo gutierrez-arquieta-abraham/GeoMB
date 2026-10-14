@@ -174,4 +174,27 @@ public class PlanificadorAliasH72Test {
         assertTrue(Planificador.corrManual(2, Planificador.norm("De la Salle"), 2,
                 Planificador.norm("De la Salle · dirección Glorieta Cuitláhuac")));
     }
+
+    @Test
+    public void nombreCorto_deAndenDeLaSalleH72_cortaElSufijoDeDireccion() {
+        // Defecto real confirmado: el deslizador/los pines del mapa mostraban el nombre completo y
+        // verboso del andén ("De la Salle · dirección Alameda Tacubaya") en vez del nombre corto que
+        // el usuario espera ver, igual que el resto de la app.
+        assertEquals("De la Salle",
+                Planificador.nombreCorto("De la Salle · dirección Alameda Tacubaya"));
+        assertEquals("De la Salle",
+                Planificador.nombreCorto("De la Salle · dirección Glorieta Cuitláhuac"));
+        // Un nombre normal (sin "·") no cambia.
+        assertEquals("Alameda Tacubaya", Planificador.nombreCorto("Alameda Tacubaya"));
+        assertEquals("Indios Verdes", Planificador.nombreCorto("Indios Verdes"));
+    }
+
+    @Test
+    public void nombreMostrar_deAndenDeLaSalleH72_usaElNombreCorto() {
+        // nombreMostrar() no toca Context para Metrobús (línea < 100): seguro pasar null aquí.
+        assertEquals("De la Salle",
+                Planificador.nombreMostrar(null, "De la Salle · dirección Alameda Tacubaya", 2));
+        assertEquals("De la Salle",
+                Planificador.nombreMostrar(null, "De la Salle · dirección Glorieta Cuitláhuac", 2));
+    }
 }

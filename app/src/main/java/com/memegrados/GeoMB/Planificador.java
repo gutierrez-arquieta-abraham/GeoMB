@@ -152,13 +152,26 @@ public final class Planificador {
         return n >= 100 ? String.valueOf(n - 100) : String.valueOf(n);
     }
 
+    /** Nombre corto para MOSTRAR: corta el "· dirección X" de los andenes H72 de "De la Salle" (ver
+     *  ALIAS_H72) -- su nombre REAL en el grafo es verboso a propósito, para poder rutear contra el
+     *  andén exacto, pero no hace falta mostrarlo así (defecto real confirmado: el deslizador y los
+     *  pines del mapa mostraban el nombre completo). Separado de {@link #nombreMostrar} para poder
+     *  usarlo TAMBIÉN al comparar el texto del campo contra el canon ya resuelto (ver resolver() en
+     *  PlanificadorFragment) -- si solo se acortara en la pantalla, esa comparación dejaría de
+     *  coincidir y el campo volvería a preguntar el desambiguador en cada "Trazar ruta". Ningún
+     *  nombre REAL de estación usa "·", así que cortar ahí es seguro. */
+    public static String nombreCorto(String nombre) {
+        int punto = nombre.indexOf(" · ");
+        return punto >= 0 ? nombre.substring(0, punto) : nombre;
+    }
+
     /**
      * Nombre para mostrar (sin "MXB "); si ese nombre existe en varias líneas, añade su número
      * para distinguirlo (p. ej. "Las Américas 2" = la Las Américas del Mexibús Línea 2, distinta de
      * la de Línea 1).
      */
     public static String nombreMostrar(Context ctx, String nombre, int linea) {
-        String clean = sinMxb(nombre);
+        String clean = sinMxb(nombreCorto(nombre));
         // El Metrobús no tiene estaciones homónimas reales dentro de su sistema: su nombre va siempre
         // limpio (p. ej. "Indios Verdes", no "Indios Verdes 1"). El sufijo solo distingue Mexibús/Mexicable.
         if (linea > 0 && linea < 100) return clean;
@@ -242,19 +255,24 @@ public final class Planificador {
      * aparece el cruce real (ver CORRESP_MANUAL, filas nuevas "de la salle direccion ...").
      * El índice 4 (troncal para el disparador del desambiguador al teclear la troncal directo, ver su
      * uso en candidatos()) es DISTINTO del 3 a propósito para los 3: siempre debe ser el nombre EXACTO
-     * del catálogo real (lineas.json: "Tacubaya"/"De la Salle", NO "De La Salle") -- es una comparación
-     * .equals() literal contra e.nombre tal cual lo guarda el catálogo, y con la capitalización
-     * equivocada, teclear la troncal directo nunca activaba el desambiguador porque el .equals() nunca
-     * coincidía (otro defecto real confirmado, distinto del de arriba).
+     * que devuelve estacionParecida() en runtime -- NO necesariamente el de lineas.json. Para línea 2,
+     * GtfsRepository.cargarLineas() REEMPLAZA POR COMPLETO su lista de estaciones con la de
+     * estaciones.json si trae esa línea (ver "ofic" ahí, "estaciones oficiales"): ese archivo, no
+     * lineas.json, es la fuente real para L2, y ahí el nombre es "De La Salle" (L mayúscula) -- distinto
+     * de "De la Salle" en lineas.json, que para L2 nunca se usa. Es una comparación .equals() literal
+     * contra e.nombre tal cual lo devuelve el catálogo EN RUNTIME, y con la capitalización equivocada,
+     * teclear la troncal directo nunca activaba el desambiguador porque el .equals() nunca coincidía
+     * (defecto real confirmado: funcionaba para "Tacubaya" -- misma capitalización en ambos archivos --
+     * pero no para "De la Salle").
      */
     private static final Object[][] ALIAS_H72 = {
             {"Alameda Tacubaya", "ic_est_2_2", new LatLng(19.401473, -99.185882), "Alameda Tacubaya", "Tacubaya"},
             {"De la Salle · dirección Alameda Tacubaya", "ic_est_2_4",
                     new LatLng(19.4083683433015, -99.18420775806),
-                    "De la Salle · dirección Alameda Tacubaya", "De la Salle"},
+                    "De la Salle · dirección Alameda Tacubaya", "De La Salle"},
             {"De la Salle · dirección Glorieta Cuitláhuac", "ic_est_2_4",
                     new LatLng(19.4090200863265, -99.1834667351685),
-                    "De la Salle · dirección Glorieta Cuitláhuac", "De la Salle"},
+                    "De la Salle · dirección Glorieta Cuitláhuac", "De La Salle"},
     };
 
     /** Entrada de {@link #ALIAS_H72} cuyo nombre a mostrar es EXACTAMENTE {@code canon}, o null. */

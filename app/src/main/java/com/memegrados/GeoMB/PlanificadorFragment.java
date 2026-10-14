@@ -542,10 +542,14 @@ public class PlanificadorFragment extends Fragment {
     private void setOrigen(String canon) { origenCanon = canon; origenLinea = 0; inOrigen.setText(Planificador.sinMxb(canon)); }
     private void setDestino(String canon) { destinoCanon = canon; destinoLinea = 0; inDestino.setText(Planificador.sinMxb(canon)); }
 
-    /** Resuelve el texto del campo a un nombre canónico: si no se editó, usa el canónico recordado. */
+    /** Resuelve el texto del campo a un nombre canónico: si no se editó, usa el canónico recordado.
+     *  Compara contra el nombre CORTO (ver Planificador.nombreCorto): el campo muestra el corto (p.
+     *  ej. "De la Salle", no "De la Salle · dirección Alameda Tacubaya"), así que comparar contra el
+     *  canon completo sin acortar nunca coincidiría para esos 2 alias de H72. */
     private String resolver(android.widget.EditText campo, String canon) {
         String txt = campo.getText().toString().trim();
-        if (canon != null && Planificador.norm(txt).equals(Planificador.norm(Planificador.sinMxb(canon))))
+        if (canon != null
+                && Planificador.norm(txt).equals(Planificador.norm(Planificador.sinMxb(Planificador.nombreCorto(canon)))))
             return canon;
         return Planificador.estacionParecida(requireContext(), txt);
     }
@@ -892,10 +896,12 @@ public class PlanificadorFragment extends Fragment {
             // ya llevan en el mapa general y el panel de Líneas (ver Iconos.ESTACIONES_TRANSBORDO_H72_L2).
             // Esta ruta trazada tenía su PROPIO dibujado de estaciones (bitmapEstacion), separado del
             // de MapFragment, y nunca se había actualizado -- por eso una ruta que pasara por estas 2
-            // estaciones seguía mostrando el ícono sólido de siempre.
+            // estaciones seguía mostrando el ícono sólido de siempre. Los 2 andenes PROPIOS de H72
+            // (Iconos.ESTACIONES_PROPIAS_H72) llevan la MISMA diagonal pero INVERTIDA, para distinguirlos.
             boolean esTroncalH72L2 = p.linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(p.nombre));
-            BitmapDescriptor ic = esTroncalH72L2
-                    ? bitmapEstacionTransbordo(p.icono, colorDe(7), colorDe(2))
+            boolean esPropioH72 = p.linea == 2 && Iconos.ESTACIONES_PROPIAS_H72.contains(Planificador.norm(p.nombre));
+            BitmapDescriptor ic = (esTroncalH72L2 || esPropioH72)
+                    ? bitmapEstacionTransbordo(p.icono, colorDe(esTroncalH72L2 ? 7 : 2), colorDe(esTroncalH72L2 ? 2 : 7))
                     : bitmapEstacion(p.icono, p.color);
             if (ic == null) continue;
             // p.pos ya trae la plataforma direccional de Indios Verdes (la fija el planificador).
