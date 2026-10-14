@@ -462,4 +462,42 @@ public class ManifestacionesServiceClasificacionAfectacionesTest {
                         + "clave del punto real de H72 que dibuja MapFragment",
                 afect.contains(claveAlamedaTacubaya));
     }
+
+    // =====================================================================================
+    // Fixture L4 -- "Archivo General de la Nación": caso real confirmado. "Sin servicio hacia
+    // Pantitlán por obras en carril confinado" se trataba como cierre TOTAL (ambos sentidos) porque
+    // "Pantitlán" no era una de las 2 terminales oficiales de L4 (Terminal 1 AICM/Buenavista) --
+    // cortaba también el único acceso real a Alameda Oriente desde esa estación (RutasMixtas:
+    // L4-HAO). terminalEnTexto() ahora también reconoce los extremos reales de rama de L4.
+    // =====================================================================================
+    @Test
+    public void fixtureL4_archivoGeneralDeLaNacion_sinServicioHaciaPantitlan_identificaSoloEseSentido() {
+        String estado = "Intervención en la estación";
+        String info = "Sin servicio hacia Pantitlán por obras en carril confinado";
+        String sev = sevDe(estado, info, "Archivo General de la Nación");
+
+        assertTrue(ManifestacionesService.filaDescribeCierre(sev, estado));
+        String terminal = ManifestacionesService.terminalEnTexto(4, sev);
+        assertEquals("debe identificar 'Pantitlán' como el sentido afectado, no tratarlo como cierre "
+                        + "total",
+                Planificador.norm("Pantitlán"), terminal);
+    }
+
+    // Control: el mismo mecanismo debe reconocer el otro extremo real de esa misma rama (L4-HAO).
+    @Test
+    public void fixtureL4_archivoGeneralDeLaNacion_sinServicioDireccionAlamedaOriente_identificaSoloEseSentido() {
+        String sev = Planificador.norm("Intervención en la estación Sin servicio dirección a Alameda "
+                + "Oriente por obras Archivo General de la Nación");
+        assertEquals(Planificador.norm("Alameda Oriente"),
+                ManifestacionesService.terminalEnTexto(4, sev));
+    }
+
+    // Control: los extremos de rama extra de L4 (Pantitlán/Alameda Oriente) NO deben colarse para
+    // otras líneas -- solo son válidos como sentido para línea 4.
+    @Test
+    public void terminalesExtraDeL4_noAplicanAOtraLinea() {
+        String sev = Planificador.norm("Intervención en la estación Sin servicio hacia Pantitlán Mina");
+        assertNull("'Pantitlán' no es terminal de L3 ni extremo de rama reconocido para otra línea",
+                ManifestacionesService.terminalEnTexto(3, sev));
+    }
 }

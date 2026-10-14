@@ -512,6 +512,18 @@ public class ManifestacionesService extends Service {
 
 
     /**
+     * L4 no es una troncal lineal: además de sus 2 "terminales" oficiales ({@link Planificador#terminales})
+     * tiene ramas reales con su propio nombre de extremo (RutasMixtas: L4-HAO va de Archivo General de
+     * la Nación a Alameda Oriente vía Pantitlán). Caso real confirmado: "Sin servicio hacia Pantitlán
+     * por obras en carril confinado" en la estación "Archivo General de la Nación" -- sin esto,
+     * terminalEnTexto() no reconocía "Pantitlán" como sentido válido y el aviso se trataba como cierre
+     * TOTAL (ambos sentidos), cortando también la conexión a Alameda Oriente (único acceso real por
+     * esa estación): "No se encontró una ruta a Alameda Oriente" pese a que el aviso solo bloqueaba UN
+     * sentido.
+     */
+    private static final String[] TERMINALES_EXTRA_L4 = {"Pantitlán", "Alameda Oriente"};
+
+    /**
      * Terminal (norm) del SENTIDO afectado, o null = ambos sentidos. Solo se considera "un sentido"
      * si el texto lo dice explícitamente (dirección / sentido / hacia). Esto evita confundir una
      * descripción por RANGOS ("Servicio de Indios Verdes a Plaza de la República y de El Caminero a
@@ -528,11 +540,15 @@ public class ManifestacionesService extends Service {
         // nombres canónicos curados a mano, inmunes a ese reordenamiento.
         String[] term = Planificador.terminales(linea);
         if (term == null) return null;
+        String[] candidatos = term;
+        if (linea == 4) {
+            candidatos = new String[term.length + TERMINALES_EXTRA_L4.length];
+            System.arraycopy(term, 0, candidatos, 0, term.length);
+            System.arraycopy(TERMINALES_EXTRA_L4, 0, candidatos, term.length, TERMINALES_EXTRA_L4.length);
+        }
         boolean direccional = textoNorm.contains("direccion") || textoNorm.contains("sentido")
                 || textoNorm.contains("hacia");
         if (!direccional) return null;   // sin marca de sentido = ambos (cierre total, se parte la línea)
-        String t1 = Planificador.norm(term[0]);
-        String t2 = Planificador.norm(term[1]);
         int dpos = Integer.MAX_VALUE;
         for (String w : new String[]{"direccion", "sentido", "hacia"}) {
             int p = textoNorm.indexOf(w);
@@ -540,14 +556,17 @@ public class ManifestacionesService extends Service {
         }
         // La terminal del sentido es la que se nombra JUSTO tras la marca de dirección.
         String pick = null; int best = Integer.MAX_VALUE;
-        for (String t : new String[]{t1, t2}) {
+        for (String tRaw : candidatos) {
+            String t = Planificador.norm(tRaw);
             if (t.length() < 4) continue;
             int p = textoNorm.indexOf(t);
             if (p >= dpos && p < best) { best = p; pick = t; }
         }
         if (pick != null) return pick;
-        if (t1.length() >= 4 && textoNorm.contains(t1)) return t1;
-        if (t2.length() >= 4 && textoNorm.contains(t2)) return t2;
+        for (String tRaw : candidatos) {
+            String t = Planificador.norm(tRaw);
+            if (t.length() >= 4 && textoNorm.contains(t)) return t;
+        }
         return null;
     }
 
