@@ -88,6 +88,11 @@ public final class Planificador {
         return 0.0;                        // Metrobús: sin penalización
     }
     private static final double RADIO_CORRESP = 800.0;   // transbordo por CERCANÍA: hasta 800 m se camina
+    // Tolerancia para el ancla de origen (ver buscarYConstruir, posOrigenRef): margen sobre la distancia
+    // mínima real al andén elegido en el desambiguador para seguir sembrando nodos del MISMO andén físico
+    // (varios patrones de ruta por la misma plataforma), sin llegar a confundir otro andén genuinamente
+    // distinto de la misma correspondencia (Buenavista, La Raza...), que siempre queda a mucho más.
+    private static final double ANCLA_ORIGEN_M = 25.0;
 
     /**
      * Penalización extra (s) al ABORDAR cierta línea en cierta estación cuando el acceso real es más
@@ -1194,6 +1199,21 @@ public final class Planificador {
      */
     public static Ruta calcular(Context ctx, String origen, String destino, int lineaO, int lineaD,
                                 java.util.Map<Integer, Boolean> svcPref) {
+        return calcular(ctx, origen, destino, lineaO, lineaD, svcPref, null);
+    }
+
+    /**
+     * Como el anterior, pero ANCLANDO el origen a un andén físico concreto cuando {@code origen}+
+     * {@code lineaO} tiene más de un nodo real en el grafo -- caso real confirmado: en correspondencias
+     * con plataformas duplicadas (Buenavista, La Raza...) {@code calcular()} siembra TODOS los nodos que
+     * coincidan en nombre y línea con el mismo costo inicial, así que el A* termina saliendo del que dé
+     * la ruta más barata, no necesariamente el andén que el usuario tocó en el desambiguador (que sí
+     * identifica el andén exacto, pero esa identidad se perdía al pasar solo el nombre). Con
+     * {@code posOrigenRef} no nulo, solo se siembra el/los nodo(s) físicamente más cercano(s) a esa
+     * posición (ver {@link #buscarYConstruir}). {@code null} = comportamiento de siempre, sin anclar.
+     */
+    public static Ruta calcular(Context ctx, String origen, String destino, int lineaO, int lineaD,
+                                java.util.Map<Integer, Boolean> svcPref, LatLng posOrigenRef) {
         // El servicio AICM (Aeropuerto–Amajac, ~$30) solo se usa si el viaje toca T1/T2;
         // si no, la troncal (~$6). Como T1/T2 solo existen en ese servicio, basta con
         // incluirlo únicamente cuando origen o destino sea una Terminal.
@@ -1374,11 +1394,11 @@ public final class Planificador {
         // llamadas, incluida la propia ruta "base" que PlanificadorFragment calcula antes de preguntar
         // el servicio), esto es exactamente una sola búsqueda sin confinar -- igual que siempre.
         if (svcPref == null || svcPref.isEmpty()) {
-            return buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, null);
+            return buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, null, posOrigenRef);
         }
         java.util.Set<Integer> basesPreferidas = svcPref.keySet();
-        Ruta corredor = buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, basesPreferidas);
-        Ruta externa = buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, null);
+        Ruta corredor = buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, basesPreferidas, posOrigenRef);
+        Ruta externa = buscarYConstruir(ctx, rutas, node, rango, adj, n, origen, destino, lineaO, lineaD, svcPref, null, posOrigenRef);
         if (corredor == null) return externa;   // la base preferida no conecta en absoluto: no hay otra opción
         if (externa == null) {
             // No debería ocurrir (la búsqueda sin confinar nunca tiene MENOS opciones que la confinada),
@@ -1403,7 +1423,7 @@ public final class Planificador {
      */
     private static Ruta buscarYConstruir(Context ctx, List<Route> rutas, List<int[]> node, int[][] rango,
             List<List<double[]>> adj, int n, String origen, String destino, int lineaO, int lineaD,
-            java.util.Map<Integer, Boolean> svcPref, java.util.Set<Integer> confinarBases) {
+            java.util.Map<Integer, Boolean> svcPref, java.util.Set<Integer> confinarBases, LatLng posOrigenRef) {
         String on = norm(origen), dn = norm(destino);
         // Momento de salida (ahora): sirve para proyectar, al abordar cada línea de horario limitado
         // (exprés/ramal Mexibús), si seguirá circulando cuando el viaje realmente llegue a ese punto.
@@ -1429,6 +1449,21 @@ public final class Planificador {
             motivoFallo = MOTIVO_ESTACION_CERRADA;
             estacionCerrada = !haySrc ? origen : destino;
             return null;
+        }
+
+        // Ancla de origen (ver calcular(..., posOrigenRef)): si el nombre+línea de origen tiene más de
+        // un nodo real (plataformas duplicadas de una correspondencia), sin esto se siembran TODOS con
+        // el mismo costo y el A* sale del que dé la ruta más barata, no del andén que el usuario tocó en
+        // el desambiguador. Se calcula la distancia MÍNIMA real entre posOrigenRef y cualquier candidato
+        // válido; solo se sembrarán los que queden dentro de ese mínimo + un margen de tolerancia (GPS/
+        // coordenada del catálogo, no para distinguir dos andenes genuinamente distintos).
+        double minDistOrigen = Double.MAX_VALUE;
+        if (posOrigenRef != null) {
+            for (int i = 0; i < n; i++) {
+                Stop s = stopDe(rutas, node.get(i));
+                if (s.nn.equals(on) && okLineaPref(lineaO, s.linea, svcPref) && !nodoBloqueado(ctx, rutas, node.get(i)))
+                    minDistOrigen = Math.min(minDistOrigen, Linea.distancia(s.pos, posOrigenRef));
+            }
         }
 
         // Heurístico de A*: distancia en línea recta (misma fórmula que costoTramo, Linea.distancia)
@@ -1480,6 +1515,12 @@ public final class Planificador {
                     // D+E, FASE 1 (confinada): no sembrar un abordaje que ya nazca fuera de la base preferida.
                     if (confinarBases != null && !confinarBases.isEmpty()
                             && !confinarBases.contains(baseLinea(s.linea))) continue;
+                    // Ancla de origen (ver arriba, minDistOrigen): descarta los andenes duplicados que NO
+                    // sean el más cercano al punto elegido en el desambiguador (tolerancia ANCLA_ORIGEN_M
+                    // para agrupar patrones distintos del MISMO andén físico, no para confundir dos
+                    // plataformas genuinamente separadas).
+                    if (posOrigenRef != null
+                            && Linea.distancia(s.pos, posOrigenRef) > minDistOrigen + ANCLA_ORIGEN_M) continue;
                     double e0 = esperaExtra(s.linea) + penalServicio(s.linea, svcPref);   // sesgo por servicio al abordar
                     // No sembrar el abordaje si esta línea (exprés/ramal de horario propio, o un patrón
                     // Metrobús que no cubre esta estación) ya habrá cerrado para cuando de verdad
