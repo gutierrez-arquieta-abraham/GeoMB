@@ -703,6 +703,19 @@ public class RecorridoService extends Service {
                 // hablaba de la estación siguiente. Al cortar aquí, este ciclo se queda EN el nodo de
                 // correspondencia y el de llegada podrá anunciarlo; recién el siguiente ciclo avanza más.
                 if ((alcanzasteAnterior || alcanzasteNueva) && d <= umbral && cruzaZona) {
+                    // Caso real confirmado (Indios Verdes, Mexibús→Metrobús): cuando es el camino de
+                    // "correspondencia corta" (alcanzasteNueva, NO alcanzasteAnterior) el que habilita el
+                    // salto, la llegada al andén VIEJO (Mexibús) nunca pasó por la rama normal de abajo
+                    // (líneas ~825 en adelante) -- ultLlegando seguía apuntando a una parada anterior, así
+                    // que su propio aviso de "llegando a X" + instrucción de bajada (que ya incluye la
+                    // correspondencia/conexión con la línea nueva, ver vozLlegada()) nunca sonaba: el
+                    // usuario solo escuchaba el aviso del andén NUEVO (Metrobús), nunca el de Mexibús. Se
+                    // anuncia aquí explícitamente, antes de saltar, tratando el andén viejo como alcanzado.
+                    if (alcanzasteNueva && !alcanzasteAnterior && ultLlegando < best) {
+                        ultLlegando = best;
+                        Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
+                        sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea);
+                    }
                     bd = d; best = i;
                     corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
                 }
