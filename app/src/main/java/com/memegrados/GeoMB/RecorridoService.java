@@ -174,6 +174,18 @@ public class RecorridoService extends Service {
         return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
     }
 
+    /** Como {@link #radioCerca}, pero ampliando TAMBIÉN para Puente de Fierro L2 (ver
+     *  {@code Planificador.andenLargoOCruceL2}) -- SOLO para el umbral de un CRUCE de línea ahí (L4→L2),
+     *  nunca para el aviso normal de "llegando"/"próxima" viajando dentro de L2 (ese usa radioCerca(),
+     *  que ya no incluye ese punto: su propio andén es normal, ~50 m -- caso real confirmado: con el
+     *  radio amplio aplicado también ahí, el aviso sonaba mucho antes de tiempo en el tramo corto, ~247 m,
+     *  Casa de Morelos→Puente de Fierro). */
+    private static float radioCruce(Planificador.Parada p) {
+        if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
+        if (Planificador.andenLargoOCruceL2(p)) return ANDEN_LARGO_M;
+        return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
+    }
+
     /** Distancia en metros por la Fórmula de Haversine. */
     private static double haversine(double lat1, double lon1, double lat2, double lon2) {
         double R = 6371000.0;
@@ -672,7 +684,10 @@ public class RecorridoService extends Service {
                 // estación indicada, así que comparar contra 'best' es la condición correcta y más estricta.
                 boolean alcanzasteAnterior = ultLlegando >= best;
                 boolean coloc = coUbicada(pi, seq.get(best));
-                float umbral = coloc ? radioCerca(pi) : CAMBIO_LINEA_M;
+                // radioCruce() (no radioCerca()): el umbral del CRUCE a 'pi' sí debe cubrir Puente de
+                // Fierro L2 con el radio amplio (ver su comentario) -- el aviso normal de "llegando" ahí
+                // (más abajo, fuera de este bloque de cambio de línea) usa radioCerca() normal.
+                float umbral = coloc ? radioCruce(pi) : CAMBIO_LINEA_M;
                 // CORRESPONDENCIA CORTA (excepción controlada, solo para un par ya validado por coUbicada):
                 // si la separación FÍSICA real entre ambas plataformas ya excede el radioCerca() de la
                 // anterior, 'alcanzasteAnterior' nunca puede volverse cierto por el camino normal -- no es
