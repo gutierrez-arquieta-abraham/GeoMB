@@ -1300,6 +1300,12 @@ public class ManifestacionesService extends Service {
                    s.contains("sin servicio") || s.contains("cerrad")
                 || s.contains("suspend") || s.contains("no hay servicio")
                 || ne.contains("manifestacion")        // Manifestación como ESTADO = corta
+                // "Eventos Temporales" como ESTADO (p. ej. peregrinación en la Basílica, caso real
+                // confirmado en L6/L7): su "info" sí trae el patrón "servicio de A a B" que
+                // bloquearTramos()/segmentoParcial() ya interpretan, pero sin esto la fila nunca
+                // entraba al bloque de cierre -- autolimitado igual que el resto: si la fila no trae
+                // ni lista de estaciones ni un patrón de tramo parseable, no bloquea nada.
+                || ne.contains("eventos temporales")
                 || s.contains("bloqueo") || s.contains("bloquead")
                 || s.contains("planton"));
     }

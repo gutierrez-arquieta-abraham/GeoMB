@@ -500,4 +500,45 @@ public class ManifestacionesServiceClasificacionAfectacionesTest {
         assertNull("'Pantitlán' no es terminal de L3 ni extremo de rama reconocido para otra línea",
                 ManifestacionesService.terminalEnTexto(3, sev));
     }
+
+    // =====================================================================================
+    // Fixture L7 -- "Eventos Temporales" (caso real confirmado: peregrinación en la Basílica).
+    // El ESTADO real de la fila es literalmente "Eventos Temporales" (no "Manifestación" ni "Sin
+    // servicio..."), así que filaDescribeCierre() lo ignoraba por completo -- la fila nunca entraba
+    // al bloque que corta tramos, aunque su "info" sí trae el patrón "servicio de A a B" que
+    // bloquearTramos()/segmentoParcial() ya saben interpretar.
+    // =====================================================================================
+    @Test
+    public void fixtureL7_eventosTemporales_peregrinacionBasilica_esCierre() {
+        String estado = "Eventos Temporales";
+        String info = "Por peregrinación en la basílica servicio de Av. Talismán a Campo Marte";
+        String sev = sevDe(estado, info, "");
+
+        assertTrue("'Eventos Temporales' como ESTADO debe reconocerse como cierre real",
+                ManifestacionesService.filaDescribeCierre(sev, estado));
+    }
+
+    // Confirma que, una vez reconocida como cierre, el patrón de tramo de su "info" SÍ se resuelve
+    // (el mecanismo que de verdad corta el tramo) -- no solo que la compuerta se abra.
+    @Test
+    public void fixtureL7_eventosTemporales_peregrinacionBasilica_segmentoParcialResuelveElTramo() {
+        String normFull = Planificador.norm(
+                "Por peregrinación en la basílica servicio de Av. Talismán a Campo Marte");
+        String seg = ManifestacionesService.segmentoParcial(normFull);
+        assertNotNull("debe reconocer el patrón 'servicio de A a B' dentro del texto de 'info'", seg);
+        assertTrue(seg.contains(" a "));
+    }
+
+    // Control: un retraso (no un cierre real) con estado "Eventos Temporales" sigue sin contar como
+    // cierre -- la exclusión de "retraso" aplica igual que para cualquier otro estado.
+    @Test
+    public void fixtureL7_eventosTemporales_conRetraso_noEsCierre() {
+        String estado = "Eventos Temporales";
+        String info = "Retraso en el servicio por el evento";
+        String sev = sevDe(estado, info, "");
+
+        assertFalse("un retraso no debe interpretarse como cierre aunque el estado sea 'Eventos "
+                        + "Temporales'",
+                ManifestacionesService.filaDescribeCierre(sev, estado));
+    }
 }
