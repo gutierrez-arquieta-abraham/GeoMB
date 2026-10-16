@@ -1965,36 +1965,37 @@ public final class Planificador {
     };
 
     // Puente de Fierro L2 -- NO es el mismo punto que su copia L4 (ANDENES_LARGOS): quedan a 284 m
-    // reales uno del otro. Su propio andén NO es largo (es una parada L2 normal, ~50 m, confirmado);
-    // el radio amplio se le dio solo para resolver el CRUCE real L4→L2 en ese punto -- caso real
-    // confirmado en dispositivo: sin él, RecorridoService nunca lograba acercarse a ≤50 m (radioCerca
-    // por defecto) del punto de L2 al cruzar, así que el aviso de llegada/transbordo se quedaba mudo, y
-    // como "best" seguía clavado en L4, el camión terminaba recorriendo ~900 m hasta que
-    // reanclarOtraLinea() (el respaldo de reubicación) saltaba directo a UPE, saltándose tanto Puente de
-    // Fierro como Casa de Morelos (ambas por debajo de su propio umbral de 800 m de recorrido).
+    // reales uno del otro. Su propio andén NO es largo (es una parada L2 normal, ~50 m); el bug real
+    // CONFIRMADO en este punto era del lado L4 (su plataforma sí es larga, ~100 m, y el aviso de
+    // "llegando" ahí no sonaba por falta de cobertura -- ya resuelto, ver ANDENES_LARGOS/andenLargo()
+    // más arriba). Del lado L2 nunca se confirmó una falla real de cobertura.
     //
-    // Defecto confirmado por aplicar el mismo radio amplio también al aviso NORMAL de "llegando" viajando
-    // dentro de L2 (sin cruce de por medio): Casa de Morelos y Puente de Fierro L2 quedan a solo ~247 m
-    // reales entre sí, así que un radio de 90 m (vs. los 50 m normales de Mexibús) hacía sonar el aviso
-    // muchísimo antes de llegar en realidad. Por eso este punto vive APARTE de ANDENES_LARGOS: andenLargo()
-    // (usada por radioCerca() para el aviso normal) ya NO lo incluye, y el radio amplio solo se aplica en
-    // el cruce de línea (ver andenLargoOCruceL2() y su uso en RecorridoService).
+    // El radio ampliado de ESTE punto (ver esCruceL2PuenteDeFierro()/RecorridoService.CRUCE_PF_L2_M)
+    // es PREVENTIVO, no la corrección de un defecto confirmado ahí: un margen de seguridad para el
+    // cruce de línea L4→L2, dado que ambos puntos quedan a solo 284 m reales y el tramo recto de L4
+    // (San Cristóbal -> Puente de Fierro L4) pasa a ~82 m de este punto. Por eso vive APARTE de
+    // ANDENES_LARGOS (andenLargo(), usada por el aviso normal de "llegando", NO lo incluye -- un radio
+    // amplio ahí SÍ causó un defecto real confirmado: con 90 m, el aviso de "llegando" sonaba mucho
+    // antes de tiempo en el tramo corto Casa de Morelos -> Puente de Fierro L2, ~247 m real) y usa un
+    // radio propio más angosto que ANDEN_LARGO_M, por debajo de esos ~82 m del tramo L4.
     private static final LatLng PUENTE_FIERRO_L2 = new LatLng(19.601038, -99.033787);
 
     /** ¿La parada es una estación de andén largo (~100 m, zona circular)? Coincide por cercanía al centro.
      *  NO incluye Puente de Fierro L2 (ver {@link #PUENTE_FIERRO_L2}) -- su propio andén es normal; usar
-     *  {@link #andenLargoOCruceL2} donde además haga falta cubrir el cruce L4↔L2 ahí. */
+     *  {@link #esCruceL2PuenteDeFierro} donde además se quiera un margen preventivo para el cruce L4↔L2
+     *  ahí (con SU PROPIO radio, más angosto que el de andén largo -- ver el comentario de
+     *  {@link #PUENTE_FIERRO_L2}). */
     public static boolean andenLargo(Parada p) {
         if (p == null || p.pos == null) return false;
         for (LatLng c : ANDENES_LARGOS) if (Linea.distancia(p.pos, c) <= 30.0) return true;
         return false;
     }
 
-    /** Como {@link #andenLargo}, pero incluyendo también Puente de Fierro L2 -- para usar SOLO al evaluar
-     *  un cruce de línea ahí (L4→L2), nunca para el aviso normal de "llegando" viajando dentro de L2. */
-    public static boolean andenLargoOCruceL2(Parada p) {
+    /** ¿Es el punto de Puente de Fierro L2 (el andén REAL de esa línea, no el de L4)? Para usar SOLO al
+     *  evaluar un cruce de línea ahí (L4→L2), con el radio propio de ese cruce (nunca ANDEN_LARGO_M, y
+     *  nunca para el aviso normal de "llegando" viajando dentro de L2). */
+    public static boolean esCruceL2PuenteDeFierro(Parada p) {
         if (p == null || p.pos == null) return false;
-        if (andenLargo(p)) return true;
         return Linea.distancia(p.pos, PUENTE_FIERRO_L2) <= 30.0;
     }
 

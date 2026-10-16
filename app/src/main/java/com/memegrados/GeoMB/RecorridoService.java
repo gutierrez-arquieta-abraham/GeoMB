@@ -167,6 +167,18 @@ public class RecorridoService extends Service {
     // el acceso real, sin necesitar coordenadas extra por estación.
     private static final float ANDEN_LARGO_M = 90f;
 
+    // Radio del CRUCE de línea (L4→L2) en Puente de Fierro L2 -- SOLO para ese umbral, nunca para el
+    // aviso normal de "llegando"/"próxima" viajando dentro de L2 (ver radioCruce() y su comentario).
+    // PREVENTIVO (no la corrección de un defecto confirmado de este lado: el bug real confirmado en
+    // Puente de Fierro fue la llegada a la plataforma L4, ya resuelto por ANDEN_LARGO_M) -- un margen
+    // de seguridad para el cruce, dado que ambos puntos quedan a solo 284 m reales entre sí. No puede
+    // ser tan amplio como ANDEN_LARGO_M (90 m): el propio tramo recto de L4 (San Cristóbal -> Puente de
+    // Fierro L4) pasa a solo ~82 m reales de este punto, así que con 90 m viajando en L4 (antes incluso
+    // de llegar a SU propia parada) ya se entraba al radio de "cruce" de L2. 60 m queda con margen bajo
+    // esos 82 m (deja espacio para la imprecisión normal del GPS) y sigue siendo más amplio que el
+    // radio normal de Mexibús (50 m).
+    private static final float CRUCE_PF_L2_M = 60f;
+
     /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal. */
     private static float radioCerca(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
@@ -175,14 +187,16 @@ public class RecorridoService extends Service {
     }
 
     /** Como {@link #radioCerca}, pero ampliando TAMBIÉN para Puente de Fierro L2 (ver
-     *  {@code Planificador.andenLargoOCruceL2}) -- SOLO para el umbral de un CRUCE de línea ahí (L4→L2),
-     *  nunca para el aviso normal de "llegando"/"próxima" viajando dentro de L2 (ese usa radioCerca(),
-     *  que ya no incluye ese punto: su propio andén es normal, ~50 m -- caso real confirmado: con el
-     *  radio amplio aplicado también ahí, el aviso sonaba mucho antes de tiempo en el tramo corto, ~247 m,
-     *  Casa de Morelos→Puente de Fierro). */
+     *  {@code Planificador.esCruceL2PuenteDeFierro}) -- SOLO para el umbral de un CRUCE de línea ahí
+     *  (L4→L2), con SU PROPIO radio ({@link #CRUCE_PF_L2_M}, no {@link #ANDEN_LARGO_M}). Nunca para el
+     *  aviso normal de "llegando"/"próxima" viajando dentro de L2 (ese usa radioCerca(), que ya no
+     *  incluye ese punto: su propio andén es normal, ~50 m -- caso real confirmado: con el radio amplio
+     *  aplicado también ahí, el aviso sonaba mucho antes de tiempo en el tramo corto, ~247 m, Casa de
+     *  Morelos→Puente de Fierro). */
     private static float radioCruce(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
-        if (Planificador.andenLargoOCruceL2(p)) return ANDEN_LARGO_M;
+        if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
+        if (Planificador.esCruceL2PuenteDeFierro(p)) return CRUCE_PF_L2_M;
         return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
     }
 
