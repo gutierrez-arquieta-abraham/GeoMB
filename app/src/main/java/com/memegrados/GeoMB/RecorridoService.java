@@ -179,10 +179,27 @@ public class RecorridoService extends Service {
     // radio normal de Mexibús (50 m).
     private static final float CRUCE_PF_L2_M = 60f;
 
-    /** Radio de "llegando" según la parada: corredor > andén largo > Mexibús/Metrobús normal. */
+    // Radio propio de Clínica 93 (L4) -- su acceso real llega hasta ~108 m del centro registrado
+    // (19.550236,-99.052184), más que el radio compartido de ANDEN_LARGO_M (90 m). Se le da su propio
+    // radio (115 m: 108 m reales + margen) en vez de subir el compartido de las 16 estaciones de
+    // ANDENES_LARGOS -- innecesario, la separación real entre estaciones vecinas (≥457 m) deja margen
+    // de sobra para un radio mayor solo aquí (ver Planificador.esClinica93()).
+    private static final float RADIO_CLINICA_93_M = 115f;
+
+    // Radio propio de Clínica 76 (L4) -- su acceso real llega hasta ~93 m del centro registrado
+    // (19.527470,-99.081484), más que el radio compartido de ANDEN_LARGO_M (90 m). Se le da su propio
+    // radio (100 m: 93 m reales + margen) en vez de subir el compartido de las 14 estaciones restantes
+    // de ANDENES_LARGOS -- innecesario, sus vecinas (Vía Morelos, Martín Carrera) quedan a ≥825 m, sin
+    // riesgo de solape (ver Planificador.esClinica76()).
+    private static final float RADIO_CLINICA_76_M = 100f;
+
+    /** Radio de "llegando" según la parada: corredor > andén largo > Clínica 93/76 > Mexibús/Metrobús
+     *  normal. */
     private static float radioCerca(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
+        if (Planificador.esClinica93(p)) return RADIO_CLINICA_93_M;
+        if (Planificador.esClinica76(p)) return RADIO_CLINICA_76_M;
         return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
     }
 
@@ -196,6 +213,8 @@ public class RecorridoService extends Service {
     private static float radioCruce(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
+        if (Planificador.esClinica93(p)) return RADIO_CLINICA_93_M;
+        if (Planificador.esClinica76(p)) return RADIO_CLINICA_76_M;
         if (Planificador.esCruceL2PuenteDeFierro(p)) return CRUCE_PF_L2_M;
         return (p != null && p.linea >= 100) ? CERCA_MXB_M : CERCA_M;
     }

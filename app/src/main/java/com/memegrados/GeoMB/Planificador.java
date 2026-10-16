@@ -1953,14 +1953,23 @@ public final class Planificador {
             new LatLng(19.567934453237186, -99.044314244072450),  // Tulpetlac
             new LatLng(19.562224709826860, -99.046812245993980),  // 5ta Aparición
             new LatLng(19.557130059809854, -99.049387308172480),  // Industrial
-            new LatLng(19.551183746934417, -99.051961377306110),  // Clínica 93
+            // Clínica 93 NO está aquí -- su acceso real llega hasta ~108 m del centro registrado
+            // (19.550236,-99.052184), más lejos que el radio compartido de esta lista (90 m). Vive
+            // aparte con su propio radio ampliado (ver CLINICA_93/esClinica93() más abajo y
+            // RecorridoService.RADIO_CLINICA_93_M = 115 m), en vez de subir el radio compartido de las
+            // 16 estaciones de esta lista -- innecesario: la separación real entre estaciones vecinas
+            // (≥457 m aquí) deja margen de sobra para un radio mayor solo en esta.
             new LatLng(19.546968629067063, -99.052960641578550),  // Servicios Administrativos
             new LatLng(19.543509234315128, -99.055319506424750),  // Cerro Gordo
             new LatLng(19.539169184410916, -99.058963243584430),  // Santa Clara L4
             new LatLng(19.534895773843190, -99.065043423050550),  // 5 de Febrero
             new LatLng(19.532745963096280, -99.071251378907790),  // Monumento a Morelos
             new LatLng(19.530792149456463, -99.075455040827200),  // Vía Morelos
-            new LatLng(19.527056332415310, -99.082258897174240),  // Clínica 76
+            // Clínica 76 NO está aquí -- su acceso real llega hasta ~93 m del centro registrado
+            // (19.527470,-99.081484), más que el radio compartido de esta lista (90 m). Vive aparte
+            // con su propio radio ampliado (ver CLINICA_76/esClinica76() más abajo y
+            // RecorridoService.RADIO_CLINICA_76_M = 100 m) -- sus vecinas (Vía Morelos, Martín Carrera)
+            // quedan a ≥825 m, sin riesgo de solape.
             new LatLng(19.520976690807990, -99.092839154629400),  // Martín Carrera L4 / El Vigilante
     };
 
@@ -1997,6 +2006,30 @@ public final class Planificador {
     public static boolean esCruceL2PuenteDeFierro(Parada p) {
         if (p == null || p.pos == null) return false;
         return Linea.distancia(p.pos, PUENTE_FIERRO_L2) <= 30.0;
+    }
+
+    // Clínica 93 (L4) -- ver el comentario donde se saca de ANDENES_LARGOS, arriba: su acceso real
+    // llega hasta ~108 m del centro registrado, más que el radio compartido de esa lista (90 m).
+    private static final LatLng CLINICA_93 = new LatLng(19.551183746934417, -99.051961377306110);
+
+    /** ¿Es el punto de Clínica 93? Para darle su propio radio ampliado (ver {@link #CLINICA_93} y
+     *  {@code RecorridoService.RADIO_CLINICA_93_M}), más grande que {@code ANDEN_LARGO_M} pero sin
+     *  subir el radio compartido de las otras 15 estaciones de {@link #ANDENES_LARGOS}. */
+    public static boolean esClinica93(Parada p) {
+        if (p == null || p.pos == null) return false;
+        return Linea.distancia(p.pos, CLINICA_93) <= 30.0;
+    }
+
+    // Clínica 76 (L4) -- ver el comentario donde se saca de ANDENES_LARGOS, arriba: su acceso real
+    // llega hasta ~93 m del centro registrado, más que el radio compartido de esa lista (90 m).
+    private static final LatLng CLINICA_76 = new LatLng(19.527056332415310, -99.082258897174240);
+
+    /** ¿Es el punto de Clínica 76? Para darle su propio radio ampliado (ver {@link #CLINICA_76} y
+     *  {@code RecorridoService.RADIO_CLINICA_76_M}), más grande que {@code ANDEN_LARGO_M} pero sin
+     *  subir el radio compartido de las otras 14 estaciones de {@link #ANDENES_LARGOS}. */
+    public static boolean esClinica76(Parada p) {
+        if (p == null || p.pos == null) return false;
+        return Linea.distancia(p.pos, CLINICA_76) <= 30.0;
     }
 
     /** Distancia (m) del usuario a la ZONA de cobertura (corredor) de la parada; -1 si no tiene zona

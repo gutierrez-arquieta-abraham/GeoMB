@@ -92,4 +92,84 @@ public class PlanificadorAndenLargoTest {
     public void esCruceL2PuenteDeFierro_upe_noCalifica() {
         assertFalse(Planificador.esCruceL2PuenteDeFierro(paradaEn(19.601909, -99.041841)));
     }
+
+    // =====================================================================================
+    // Clínica 93 (L4): su acceso real llega hasta 19.550236,-99.052184, ~108 m del centro
+    // registrado -- más que el radio compartido de ANDENES_LARGOS (90 m). Vive aparte con su propio
+    // radio ampliado (115 m), confirmado seguro: la separación real a sus vecinas (Industrial,
+    // Servicios Administrativos) es de ≥480 m, sin riesgo de solape.
+    // =====================================================================================
+    @Test
+    public void andenLargo_clinica93_yaNoCalifica() {
+        // Se sacó de ANDENES_LARGOS (ver su comentario): ya no usa el radio compartido de 90 m, sino
+        // el propio (115 m, ver esClinica93_...).
+        assertFalse("Clínica 93 ya no debe calificar por el radio compartido de andén largo",
+                Planificador.andenLargo(paradaEn(19.551183746934417, -99.051961377306110)));
+    }
+
+    @Test
+    public void esClinica93_centroRegistrado_siCalifica() {
+        assertTrue(Planificador.esClinica93(paradaEn(19.551183746934417, -99.051961377306110)));
+    }
+
+    @Test
+    public void esClinica93_industrial_noCalifica() {
+        assertFalse(Planificador.esClinica93(paradaEn(19.557130059809854, -99.049387308172480)));
+    }
+
+    @Test
+    public void esClinica93_serviciosAdministrativos_noCalifica() {
+        assertFalse(Planificador.esClinica93(paradaEn(19.546968629067063, -99.052960641578550)));
+    }
+
+    // Confirma el caso real que motivó el radio de 115 m: el punto de acceso real reportado
+    // (19.550236,-99.052184) queda a ≤115 m del centro registrado de Clínica 93 -- con el radio
+    // compartido anterior (90 m) NO llegaba a cubrirlo (~108 m > 90 m).
+    @Test
+    public void clinica93_radioAmpliado_cubreElAccesoRealReportado() {
+        LatLng centro = new LatLng(19.551183746934417, -99.051961377306110);
+        LatLng accesoReal = new LatLng(19.550236, -99.052184);
+        double d = Linea.distancia(centro, accesoReal);
+        assertTrue("el acceso real reportado debe quedar dentro del radio ampliado (115 m)", d <= 115.0);
+        assertTrue("debe confirmarse que el radio compartido anterior (90 m) NO alcanzaba", d > 90.0);
+    }
+
+    // =====================================================================================
+    // Clínica 76 (L4): su acceso real llega hasta 19.527470,-99.081484, ~93 m del centro
+    // registrado -- más que el radio compartido de ANDENES_LARGOS (90 m). Vive aparte con su propio
+    // radio ampliado (100 m), confirmado seguro: la separación real a sus vecinas (Vía Morelos,
+    // Martín Carrera/El Vigilante) es de ≥825 m, sin riesgo de solape.
+    // =====================================================================================
+    @Test
+    public void andenLargo_clinica76_yaNoCalifica() {
+        assertFalse("Clínica 76 ya no debe calificar por el radio compartido de andén largo",
+                Planificador.andenLargo(paradaEn(19.527056332415310, -99.082258897174240)));
+    }
+
+    @Test
+    public void esClinica76_centroRegistrado_siCalifica() {
+        assertTrue(Planificador.esClinica76(paradaEn(19.527056332415310, -99.082258897174240)));
+    }
+
+    @Test
+    public void esClinica76_viaMorelos_noCalifica() {
+        assertFalse(Planificador.esClinica76(paradaEn(19.530792149456463, -99.075455040827200)));
+    }
+
+    @Test
+    public void esClinica76_martinCarrera_noCalifica() {
+        assertFalse(Planificador.esClinica76(paradaEn(19.520976690807990, -99.092839154629400)));
+    }
+
+    // Confirma el caso real que motivó el radio de 100 m: el punto de acceso real reportado
+    // (19.527470,-99.081484) queda a ≤100 m del centro registrado de Clínica 76 -- con el radio
+    // compartido anterior (90 m) NO llegaba a cubrirlo (~93 m > 90 m).
+    @Test
+    public void clinica76_radioAmpliado_cubreElAccesoRealReportado() {
+        LatLng centro = new LatLng(19.527056332415310, -99.082258897174240);
+        LatLng accesoReal = new LatLng(19.527470, -99.081484);
+        double d = Linea.distancia(centro, accesoReal);
+        assertTrue("el acceso real reportado debe quedar dentro del radio ampliado (100 m)", d <= 100.0);
+        assertTrue("debe confirmarse que el radio compartido anterior (90 m) NO alcanzaba", d > 90.0);
+    }
 }
