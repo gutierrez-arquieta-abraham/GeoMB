@@ -172,4 +172,28 @@ public class PlanificadorAndenLargoTest {
         assertTrue("el acceso real reportado debe quedar dentro del radio ampliado (100 m)", d <= 100.0);
         assertTrue("debe confirmarse que el radio compartido anterior (90 m) NO alcanzaba", d > 90.0);
     }
+
+    // =====================================================================================
+    // 1ro de Mayo (Mexibús L1/L1 Exprés, 101/121 -- misma coordenada para ambos): acceso real mide
+    // ~135 m de punta a punta; el centro registrado queda a ~79 m del extremo lejano, más que el radio
+    // normal de Mexibús (50 m) pero SÍ cubierto por el radio compartido de ANDENES_LARGOS (90 m), así
+    // que vive ahí (no necesita radio propio como Clínica 93/76). andenLargo() no filtra por línea, así
+    // que una sola fila cubre ordinario (101) y exprés (121) por igual.
+    // =====================================================================================
+    @Test
+    public void andenLargo_primeroDeMayo_siCalifica() {
+        assertTrue("el centro registrado de 1ro de Mayo debe calificar como andén largo",
+                Planificador.andenLargo(paradaEn(19.587645, -99.024727)));
+    }
+
+    // Confirma el caso real reportado: el extremo lejano del andén (19.588244,-99.024314) queda
+    // cubierto por el radio compartido (90 m), que antes (radio normal de 50 m) no alcanzaba.
+    @Test
+    public void primeroDeMayo_radioCompartido_cubreElExtremoLejanoReportado() {
+        LatLng centro = new LatLng(19.587645, -99.024727);
+        LatLng extremoLejano = new LatLng(19.588244, -99.024314);
+        double d = Linea.distancia(centro, extremoLejano);
+        assertTrue("el extremo lejano reportado debe quedar dentro del radio compartido (90 m)", d <= 90.0);
+        assertTrue("debe confirmarse que el radio normal de Mexibús (50 m) NO alcanzaba", d > 50.0);
+    }
 }

@@ -1941,10 +1941,11 @@ public final class Planificador {
     /** ¿La parada tiene una ZONA de cobertura (corredor de andén, p. ej. Indios Verdes)? */
     public static boolean tieneZona(Parada p) { return corredorZona(p) != null; }
 
-    // Estaciones de Mexibús L4 con andén largo (~100 m). Solo se tiene el punto CENTRAL, así que su zona de
-    // cobertura es CIRCULAR (radio mayor) en vez de corredor. La coincidencia es por cercanía al centro.
-    // Son plataformas genuinamente largas: el radio amplio aplica SIEMPRE (tanto para el aviso normal de
-    // "llegando" viajando dentro de L4 como para cualquier cruce de línea ahí) -- ver andenLargo().
+    // Estaciones de Mexibús con andén largo (~100-135 m; mayoría L4, una de L1/L1 Exprés -- ver su fila
+    // abajo). Solo se tiene el punto CENTRAL, así que su zona de cobertura es CIRCULAR (radio mayor) en
+    // vez de corredor. La coincidencia es por cercanía al centro. Son plataformas genuinamente largas:
+    // el radio amplio aplica SIEMPRE (tanto para el aviso normal de "llegando" viajando dentro de su
+    // línea como para cualquier cruce de línea ahí) -- ver andenLargo().
     private static final LatLng[] ANDENES_LARGOS = {
             new LatLng(19.603558838994957, -99.033337377486620),  // Puente de Fierro L4
             new LatLng(19.591949711573108, -99.039179995606560),  // La Viga
@@ -1971,6 +1972,12 @@ public final class Planificador {
             // RecorridoService.RADIO_CLINICA_76_M = 100 m) -- sus vecinas (Vía Morelos, Martín Carrera)
             // quedan a ≥825 m, sin riesgo de solape.
             new LatLng(19.520976690807990, -99.092839154629400),  // Martín Carrera L4 / El Vigilante
+            // 1ro de Mayo (Mexibús L1/L1 Exprés, 101/121 -- misma coordenada para ambos): acceso real
+            // mide ~135 m de punta a punta (19.587210,-99.024986 a 19.588244,-99.024314), con el centro
+            // registrado a ~79 m del extremo lejano -- más que el radio normal de Mexibús (50 m), pero
+            // cubierto por el radio compartido de esta lista (90 m). Vecinas en L1 (Las Américas a
+            // 790 m, Hospital a 928 m) sin riesgo de solape.
+            new LatLng(19.587645, -99.024727),  // 1ro de Mayo L1/L1 Exprés
     };
 
     // Puente de Fierro L2 -- NO es el mismo punto que su copia L4 (ANDENES_LARGOS): quedan a 284 m

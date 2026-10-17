@@ -253,12 +253,19 @@ public class RecorridoService extends Service {
     private boolean cadenciaIniciada = false;   // ya se registró un request de ubicación (permite el primero)
     private final Runnable tick = this::ciclo;
 
-    /** Stream continuo de ubicación (como Google Maps): entrega en cuanto el GPS tiene un fix. */
+    /** Stream continuo de ubicación (como Google Maps): entrega en cuanto el GPS tiene un fix. El
+     *  request pide lote (ver {@link #aplicarCadencia}, setMaxUpdateDelayMillis) para ahorrar batería;
+     *  con la pantalla apagada Android puede retener varios fixes y entregarlos juntos en un solo
+     *  LocationResult. Defecto real confirmado: quedarse solo con getLastLocation() descartaba los
+     *  fixes intermedios del lote, así que un recorrido con pantalla apagada podía saltar de "aún
+     *  lejos" a "ya pasaste la estación" en una sola llamada -- y el SIGUIENTE lote (casi sin pausa
+     *  real, apenas el siguiente puñado de fixes) completaba el aviso de "próxima estación" enseguida,
+     *  sonando los dos avisos pegados en el mismo punto. Procesando TODOS los fixes del lote, en orden,
+     *  cada transición de estado (ultLlegando/ultProxima) avanza una por una como si no hubiera lote. */
     private final LocationCallback locCb = new LocationCallback() {
         @Override public void onLocationResult(LocationResult r) {
             if (r == null) return;
-            android.location.Location l = r.getLastLocation();
-            if (l != null) procesar(l);
+            for (android.location.Location l : r.getLocations()) if (l != null) procesar(l);
         }
     };
 
@@ -1159,6 +1166,10 @@ public class RecorridoService extends Service {
                 .replace("CCH", "Cecehache")          // sin vocales que leer: intentaba deletrearlo mal
                 .replace("SCOP", "Escop")             // el español no empieza palabra con "sc-"
                 .replace("New's Divine", "Niuz Diváin")   // nombre en inglés leído letra por letra
+                // "1ro"/"1°" leído literal ("uno Ro", "uno grado") en vez de "Primero" -- defecto real
+                // confirmado en "1ro de Mayo" (Mexibús L1/L1 Exprés); "1° de Mayo" (L2) es el mismo caso.
+                .replace("1ro de Mayo", "Primero de Mayo")
+                .replace("1° de Mayo", "Primero de Mayo")
                 // Nombres de 2 localidades unidas por guión (p. ej. "Bandera - Tultitlán", "Héroes -
                 // Canosas", "Lindavista - Vallejo"): el TTS leía el guión como una pausa/separación
                 // rara ("guion largo"). Coma: pausa natural de enumeración, sin el símbolo.
