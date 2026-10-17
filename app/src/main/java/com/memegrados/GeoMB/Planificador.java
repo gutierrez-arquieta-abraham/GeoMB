@@ -1987,6 +1987,8 @@ public final class Planificador {
             new LatLng(19.594708, -99.020001),   // Hospital
             new LatLng(19.600724, -99.016138),   // Jardines de Morelos
             new LatLng(19.646458, -99.005058),   // Cuahutémoc Norte
+            new LatLng(19.625682, -99.003135),   // Insurgentes (solo L1 ordinario, no en el Exprés)
+            new LatLng(19.633488, -99.002121),   // Hidalgo (solo L1 ordinario, no en el Exprés)
     };
 
     // Puente de Fierro L2 -- NO es el mismo punto que su copia L4 (ANDENES_LARGOS): quedan a 284 m
@@ -2055,6 +2057,49 @@ public final class Planificador {
         if (seg == null) return -1;
         LatLng u = new LatLng(lat, lon);
         return Linea.distancia(proyecta(seg[0], seg[1], u), u);
+    }
+
+    // CEDA Ecatepec (Central de Abastos): plataforma CUÁDRUPLE pero unida en un solo andén largo, tanto
+    // en Mexibús L4/L4 Exprés (104/124) como en L1/L1 Exprés (101/121) -- 2 estaciones físicas distintas
+    // (sus centros registrados quedan a ~37 m uno del otro, cada una con su propio corredor). Corredor
+    // propio (no comparte mecanismo con las zonas de Indios Verdes, que usan un radio ancho de 70 m para
+    // distinguir andenes AMBIGUOS y co-ubicados -- aquí no hay ambigüedad, cada plataforma es una sola,
+    // así que el radio es angosto: 7 m, solo el margen de imprecisión del GPS a través del corredor).
+    private static final LatLng CEDA_ECATEPEC_L4 = new LatLng(19.616013, -99.007485);  // coordenada corregida (catálogo real)
+    private static final LatLng[] Z_CEDA_ECATEPEC_L4 = {
+            new LatLng(19.615841666666668, -99.00731388888889),   // 19°36'57.03"N 99°00'26.33"W
+            new LatLng(19.616183333333336, -99.00761666666666),   // 19°36'58.26"N 99°00'27.42"W
+    };
+    private static final LatLng CEDA_ECATEPEC_L1 = new LatLng(19.616632, -99.007987);
+    // Polilínea de 3 puntos (2 tramos): el andén de L1 no es recto como el de L4.
+    private static final LatLng[] Z_CEDA_ECATEPEC_L1 = {
+            new LatLng(19.616233333333334, -99.00764166666667),   // 19°36'58.44"N 99°00'27.51"W
+            new LatLng(19.616758333333333, -99.00809444444444),   // 19°37'00.33"N 99°00'29.14"W
+            new LatLng(19.616900000000000, -99.00846666666666),   // 19°37'00.84"N 99°00'30.48"W
+    };
+
+    /** ¿Es el punto de CEDA Ecatepec (Central de Abastos, cualquiera de sus 2 estaciones: L4/L4 Exprés o
+     *  L1/L1 Exprés)? Para usar su propio corredor y radio angosto, separados del mecanismo de zonas de
+     *  Indios Verdes. */
+    public static boolean esCedaEcatepec(Parada p) {
+        if (p == null || p.pos == null) return false;
+        return Linea.distancia(p.pos, CEDA_ECATEPEC_L4) <= 30.0 || Linea.distancia(p.pos, CEDA_ECATEPEC_L1) <= 30.0;
+    }
+
+    /** Distancia (m) del usuario al corredor de CEDA Ecatepec (el de L4 o el de L1, según corresponda);
+     *  -1 si la parada no es esa estación (entonces se mide contra el punto, o contra otro mecanismo).
+     *  Cubre la plataforma cuádruple unida de cada una. */
+    public static double distanciaCedaEcatepec(Parada p, double lat, double lon) {
+        if (p == null || p.pos == null) return -1;
+        LatLng[] poli;
+        if (Linea.distancia(p.pos, CEDA_ECATEPEC_L4) <= 30.0) poli = Z_CEDA_ECATEPEC_L4;
+        else if (Linea.distancia(p.pos, CEDA_ECATEPEC_L1) <= 30.0) poli = Z_CEDA_ECATEPEC_L1;
+        else return -1;
+        LatLng u = new LatLng(lat, lon);
+        double min = Double.MAX_VALUE;
+        for (int i = 0; i + 1 < poli.length; i++)
+            min = Math.min(min, Linea.distancia(proyecta(poli[i], poli[i + 1], u), u));
+        return min;
     }
 
     /** Punto de Indios Verdes ajustado a la plataforma según el ROL en la ruta: si BOARD (la línea previa

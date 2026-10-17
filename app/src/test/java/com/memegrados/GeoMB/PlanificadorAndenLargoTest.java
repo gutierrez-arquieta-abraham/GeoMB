@@ -233,4 +233,73 @@ public class PlanificadorAndenLargoTest {
         // no debe calificar, confirma que el radio de 30 m de andenLargo() no se infló de más.
         assertFalse(Planificador.andenLargo(paradaEn(19.550115, -99.020875)));
     }
+
+    @Test
+    public void andenLargo_insurgentes_siCalifica() {
+        // Solo existe en L1 ordinario (el Exprés no para ahí); vecinas en L1 (Central de Abastos a
+        // 1127 m, Hidalgo a 875 m) sin riesgo de solape.
+        assertTrue(Planificador.andenLargo(paradaEn(19.625682, -99.003135)));
+    }
+
+    @Test
+    public void andenLargo_hidalgo_siCalifica() {
+        // Solo existe en L1 ordinario; vecinas en L1 (Insurgentes a 875 m, Cuauhtémoc Sur a 502 m) sin
+        // riesgo de solape.
+        assertTrue(Planificador.andenLargo(paradaEn(19.633488, -99.002121)));
+    }
+
+    // =====================================================================================
+    // CEDA Ecatepec (Central de Abastos): plataforma CUÁDRUPLE unida, tanto en Mexibús L4/L4 Exprés
+    // como en L1/L1 Exprés (2 estaciones físicas distintas, cada una con su propio corredor, centros a
+    // ~37 m uno del otro). No comparte radio con las zonas de Indios Verdes (70 m) -- aquí no hay
+    // andenes ambiguos que distinguir, el radio es angosto: 7 m.
+    // =====================================================================================
+    @Test
+    public void esCedaEcatepec_centroRegistradoL4_siCalifica() {
+        assertTrue(Planificador.esCedaEcatepec(paradaEn(19.616013, -99.007485)));
+    }
+
+    @Test
+    public void esCedaEcatepec_centroRegistradoL1_siCalifica() {
+        assertTrue(Planificador.esCedaEcatepec(paradaEn(19.616632, -99.007987)));
+    }
+
+    @Test
+    public void esCedaEcatepec_izcalliPalomas_noCalifica() {
+        // Control: estación vecina en L4 -- no debe calificar.
+        assertFalse(Planificador.esCedaEcatepec(paradaEn(19.612332, -99.019792)));
+    }
+
+    @Test
+    public void distanciaCedaEcatepec_paradaDistinta_devuelveMenosUno() {
+        assertEquals(-1.0, Planificador.distanciaCedaEcatepec(
+                paradaEn(19.612332, -99.019792), 19.616013, -99.007485), 0.001);
+    }
+
+    // Confirma que el corredor de L4 cubre la plataforma: un punto sobre uno de sus extremos (el real,
+    // dado por el usuario como esquina de la zona de cobertura) debe quedar a ~0 m del corredor, aunque
+    // esté a más de 20 m del centro registrado (ya corregido) usado solo para identificar la estación.
+    @Test
+    public void distanciaCedaEcatepecL4_extremoDelCorredor_quedaMuyCerca() {
+        Planificador.Parada p = paradaEn(19.616013, -99.007485);
+        double d = Planificador.distanciaCedaEcatepec(p, 19.615841666666668, -99.00731388888889);
+        assertTrue("el extremo del corredor debe quedar prácticamente sobre él (~0 m)", d <= 1.0);
+    }
+
+    // Confirma que el corredor de L1 (polilínea de 3 puntos, 2 tramos: el andén no es recto) cubre toda
+    // su extensión: tanto el punto INTERMEDIO (vértice entre los 2 tramos) como el extremo final deben
+    // quedar prácticamente sobre él, aunque disten de donde cae el otro extremo.
+    @Test
+    public void distanciaCedaEcatepecL1_verticeIntermedio_quedaMuyCerca() {
+        Planificador.Parada p = paradaEn(19.616632, -99.007987);
+        double d = Planificador.distanciaCedaEcatepec(p, 19.616758333333333, -99.00809444444444);
+        assertTrue("el vértice intermedio del corredor debe quedar prácticamente sobre él (~0 m)", d <= 1.0);
+    }
+
+    @Test
+    public void distanciaCedaEcatepecL1_extremoFinal_quedaMuyCerca() {
+        Planificador.Parada p = paradaEn(19.616632, -99.007987);
+        double d = Planificador.distanciaCedaEcatepec(p, 19.616900000000000, -99.00846666666666);
+        assertTrue("el extremo final del corredor debe quedar prácticamente sobre él (~0 m)", d <= 1.0);
+    }
 }

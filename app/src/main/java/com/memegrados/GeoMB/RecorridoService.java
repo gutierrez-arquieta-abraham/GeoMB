@@ -193,10 +193,18 @@ public class RecorridoService extends Service {
     // riesgo de solape (ver Planificador.esClinica76()).
     private static final float RADIO_CLINICA_76_M = 100f;
 
-    /** Radio de "llegando" según la parada: corredor > andén largo > Clínica 93/76 > Mexibús/Metrobús
-     *  normal. */
+    // Radio propio de CEDA Ecatepec (Central de Abastos, L4/L4 Exprés) -- plataforma CUÁDRUPLE unida,
+    // medida contra su propio corredor (ver Planificador.Z_CEDA_ECATEPEC/distanciaCedaEcatepec()), así
+    // que el radio solo necesita cubrir la imprecisión normal del GPS a través del corredor, no la
+    // longitud completa del andén (eso ya lo cubre el corredor). Nunca ZONA_CERCA_M (70 m, Indios
+    // Verdes): ahí no hay ambigüedad entre andenes distintos que distinguir.
+    private static final float RADIO_CEDA_ECATEPEC_M = 7f;
+
+    /** Radio de "llegando" según la parada: corredor (Indios Verdes) > CEDA Ecatepec > andén largo >
+     *  Clínica 93/76 > Mexibús/Metrobús normal. */
     private static float radioCerca(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
+        if (Planificador.esCedaEcatepec(p)) return RADIO_CEDA_ECATEPEC_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
         if (Planificador.esClinica93(p)) return RADIO_CLINICA_93_M;
         if (Planificador.esClinica76(p)) return RADIO_CLINICA_76_M;
@@ -212,6 +220,7 @@ public class RecorridoService extends Service {
      *  Morelos→Puente de Fierro). */
     private static float radioCruce(Planificador.Parada p) {
         if (Planificador.tieneZona(p)) return ZONA_CERCA_M;
+        if (Planificador.esCedaEcatepec(p)) return RADIO_CEDA_ECATEPEC_M;
         if (Planificador.andenLargo(p)) return ANDEN_LARGO_M;
         if (Planificador.esClinica93(p)) return RADIO_CLINICA_93_M;
         if (Planificador.esClinica76(p)) return RADIO_CLINICA_76_M;
@@ -546,15 +555,18 @@ public class RecorridoService extends Service {
     }
 
     /** Distancia a la parada. En Indios Verdes cada andén tiene una ZONA de cobertura (corredor A→B): se
-     *  mide contra el segmento para cubrir toda su longitud; en el resto, contra el punto (p.pos). Las
-     *  estaciones de "andén largo" (p. ej. Puente de Fierro L4) YA cubren la plataforma completa por el
-     *  radio ampliado de {@link #ANDEN_LARGO_M}, así que no hace falta un punto de acceso peatonal
-     *  adicional aquí (se quitó: cubría solo una estación y de forma puntual, en vez de resolverlo con
-     *  un radio que sirva para todas). */
+     *  mide contra el segmento para cubrir toda su longitud; en CEDA Ecatepec (Central de Abastos, su
+     *  propio corredor más angosto, ver {@link Planificador#distanciaCedaEcatepec}) igual; en el resto,
+     *  contra el punto (p.pos). Las estaciones de "andén largo" (p. ej. Puente de Fierro L4) YA cubren
+     *  la plataforma completa por el radio ampliado de {@link #ANDEN_LARGO_M}, así que no hace falta un
+     *  punto de acceso peatonal adicional aquí (se quitó: cubría solo una estación y de forma puntual,
+     *  en vez de resolverlo con un radio que sirva para todas). */
     private double distParada(android.location.Location l, Planificador.Parada p) {
         double dz = Planificador.distanciaZona(p, l.getLatitude(), l.getLongitude());
-        return dz >= 0 ? dz
-                : haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
+        if (dz >= 0) return dz;
+        double dc = Planificador.distanciaCedaEcatepec(p, l.getLatitude(), l.getLongitude());
+        if (dc >= 0) return dc;
+        return haversine(l.getLatitude(), l.getLongitude(), p.pos.latitude, p.pos.longitude);
     }
 
     /** Distancia mínima recorrida dentro del trazo (tras la correspondencia, sumando tramos entre
