@@ -58,4 +58,58 @@ public class PlanificadorCorresp1deMayoTest {
         assertFalse(Planificador.excluidoCorresp(nn("1ro de Mayo"), nn("1° de Mayo")));
         assertFalse(Planificador.excluidoCorresp(nn("1° de Mayo"), nn("1° de Mayo")));
     }
+
+    /**
+     * Defecto real CONFIRMADO (distinto del de arriba): {@code RecorridoService.lineasEnEstacion()} --
+     * la función que arma el texto "correspondencia con línea X" para la VOZ de llegada/próxima -- NUNCA
+     * consulta {@code Planificador.CORRESP_MANUAL}/{@code corrManual()}. Solo encuentra correspondencias
+     * por NOMBRE (igual o núcleo coincidente) + cercanía (≤600 m). El A* SÍ puede trazar/transbordar en
+     * 1ro de Mayo↔Las Américas (ver corrManual_* arriba), pero como sus nombres NO comparten ninguna
+     * palabra, nucleoCoincide() -- el mismo chequeo de nombre que usa lineasEnEstacion() -- nunca los
+     * relaciona: el aviso de llegada a "1ro de Mayo" queda SIN nombrar "línea 2"/"línea 2A" aunque la
+     * ruta sí transborde ahí (el "favor de irte preparando" genérico si suena, porque ese depende solo
+     * del flag Parada.transbordo, no de esta función -- ver vozProxima()/RecorridoService.java:1201-1207).
+     */
+    @Test
+    public void nucleoCoincide_1roDeMayo_lasAmericas_noCoincide_confirmaElHuecoDeLaVoz() {
+        assertFalse("nombres sin palabra en común: lineasEnEstacion() nunca las relaciona por nombre",
+                Planificador.nucleoCoincide("MXB 1ro de Mayo", "MXB Las Américas"));
+    }
+
+    // Corrección del hueco: Planificador.corrManualLineas() es lo que RecorridoService.lineasEnEstacion()
+    // ahora consulta además de nombre+cercanía (ver su comentario).
+    @Test
+    public void corrManualLineas_1roDeMayoL1_devuelveL2yL2A() {
+        java.util.Set<Integer> l = Planificador.corrManualLineas(101, nn("1ro de Mayo"));
+        assertTrue("debe incluir L2 (102)", l.contains(102));
+        assertTrue("debe incluir L2A (112), SIN colapsar a 102 -- para poder decir 'línea 2A'", l.contains(112));
+        assertEquals(2, l.size());
+    }
+
+    @Test
+    public void corrManualLineas_1roDeMayoL1Expres_mismoResultadoQueOrdinario() {
+        // 121 (exprés) tiene sus propias filas en CORRESP_MANUAL -- mismo resultado que 101 (ordinario).
+        java.util.Set<Integer> l = Planificador.corrManualLineas(121, nn("1ro de Mayo"));
+        assertTrue(l.contains(102));
+        assertTrue(l.contains(112));
+    }
+
+    @Test
+    public void corrManualLineas_lasAmericasL2_devuelveL1_colapsaExpresDeL1() {
+        // Desde Las Américas (L2), el otro lado es L1 (101) -- tanto si el A* cruzó con el ordinario
+        // (101) como con el exprés (121) de 1ro de Mayo, se colapsan al mismo "línea 1" (claveTerminal).
+        java.util.Set<Integer> l = Planificador.corrManualLineas(102, nn("Las Américas"));
+        assertEquals(java.util.Collections.singleton(101), l);
+    }
+
+    @Test
+    public void corrManualLineas_lasAmericasL2A_devuelveL1() {
+        java.util.Set<Integer> l = Planificador.corrManualLineas(112, nn("Las Américas"));
+        assertEquals(java.util.Collections.singleton(101), l);
+    }
+
+    @Test
+    public void corrManualLineas_estacionSinCorrespondenciaManual_vacio() {
+        assertTrue(Planificador.corrManualLineas(101, nn("Hospital")).isEmpty());
+    }
 }

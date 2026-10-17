@@ -373,6 +373,25 @@ public final class Planificador {
         return false;
     }
 
+    /** Líneas con las que la parada (línea EXACTA, nombre normalizado -- mismo formato que usa
+     *  {@link #corrManual}) tiene una correspondencia MANUAL declarada en {@link #CORRESP_MANUAL}, en
+     *  cualquier sentido. Defecto real confirmado: {@code RecorridoService.lineasEnEstacion()} (arma el
+     *  texto "correspondencia con línea X" de la VOZ) solo encontraba correspondencias por NOMBRE igual
+     *  o núcleo coincidente + cercanía -- nunca consultaba esta tabla, así que pares con nombres que no
+     *  comparten ninguna palabra (p. ej. "1ro de Mayo"↔"Las Américas") quedaban sin nombrar en el aviso
+     *  de llegada, aunque el A* sí transborde ahí (corrManual() ya lo permite). Colapsa ORDINARIO↔EXPRÉS
+     *  con {@link #claveTerminal} (misma línea hablada, p. ej. 121→101) pero NO ramales (112 se queda
+     *  112, para poder decir "línea 2A" distinto de "línea 2" -- ver RecorridoService.etiquetaLinea). */
+    public static java.util.Set<Integer> corrManualLineas(int linea, String nombreNorm) {
+        java.util.Set<Integer> out = new java.util.LinkedHashSet<>();
+        for (String[] p : CORRESP_MANUAL) {
+            int l1 = Integer.parseInt(p[0]), l2 = Integer.parseInt(p[2]);
+            if (linea == l1 && nombreNorm.equals(p[1])) out.add(claveTerminal(l2));
+            else if (linea == l2 && nombreNorm.equals(p[3])) out.add(claveTerminal(l1));
+        }
+        return out;
+    }
+
     private Planificador() {}
 
     public static final class Paso {

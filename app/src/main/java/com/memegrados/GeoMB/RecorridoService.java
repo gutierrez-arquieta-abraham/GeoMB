@@ -1607,6 +1607,10 @@ public class RecorridoService extends Service {
     /** Etiqueta de línea para la correspondencia; L4 añade su ruta (Norte/Sur) según la estación. */
     private String etiquetaLinea(int n, String estacion) {
         if (n >= 200) return getString(R.string.voz_linea_mxc, n - 200);   // Mexicable Línea X
+        // Ramales Mexibús (111/112/113): "Línea 1A/2A/3A", no "Línea 11/12/13" (n-100 a secas). Defecto
+        // real confirmado: sin este caso, un ramal llegado por correspondencia MANUAL (ver
+        // corrManualLineas(), que SÍ preserva el número exacto del ramal) se anunciaba como "Línea 12".
+        if (n >= 111 && n <= 113) return getString(R.string.voz_linea_mxb, n - 110) + "A";
         if (n >= 100) return getString(R.string.voz_linea_mxb, n - 100);   // Mexibús Línea X
         if (n == 4) {
             int r = RutasMixtas.rutaL4(estacion);
@@ -1711,6 +1715,13 @@ public class RecorridoService extends Service {
                 }
             }
         } catch (Exception ignore) {}
+        // Correspondencias MANUALES (Planificador.CORRESP_MANUAL): transbordos reales que el A* SÍ usa
+        // (ver Planificador.corrManual()) pero cuyo nombre no comparte ninguna palabra con el de la otra
+        // estación (p. ej. "1ro de Mayo"↔"Las Américas") -- el bucle de arriba nunca los encuentra, así
+        // que sin esto el aviso de llegada quedaba mudo sobre a qué línea conectas, aunque la ruta sí
+        // transborde ahí. Línea EXACTA (no baseLinea()): preserva ramales (112 = "2A") distintos de su
+        // ordinario (102 = "2"), ver Planificador.corrManualLineas() y RecorridoService.etiquetaLinea().
+        s.addAll(Planificador.corrManualLineas(p.linea, Planificador.norm(p.nombre)));
         return s;
     }
 
