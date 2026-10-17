@@ -1978,6 +1978,15 @@ public final class Planificador {
             // cubierto por el radio compartido de esta lista (90 m). Vecinas en L1 (Las Américas a
             // 790 m, Hospital a 928 m) sin riesgo de solape.
             new LatLng(19.587645, -99.024727),  // 1ro de Mayo L1/L1 Exprés
+            // Resto de los andenes largos de Mexibús L1/L1 Exprés (101/121, misma coordenada para
+            // ambos; estaciones con carril de rebase del Exprés, por eso el andén es más largo que el
+            // resto de L1): separación real a sus vecinas en L1 confirmada ≥314 m en todos los casos,
+            // sin riesgo de solape con el radio compartido (90 m).
+            new LatLng(19.554361, -99.01925),    // UNITEC
+            new LatLng(19.570011, -99.017984),   // Vocacional 3
+            new LatLng(19.594708, -99.020001),   // Hospital
+            new LatLng(19.600724, -99.016138),   // Jardines de Morelos
+            new LatLng(19.646458, -99.005058),   // Cuahutémoc Norte
     };
 
     // Puente de Fierro L2 -- NO es el mismo punto que su copia L4 (ANDENES_LARGOS): quedan a 284 m

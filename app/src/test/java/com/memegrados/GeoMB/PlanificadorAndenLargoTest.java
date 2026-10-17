@@ -196,4 +196,41 @@ public class PlanificadorAndenLargoTest {
         assertTrue("el extremo lejano reportado debe quedar dentro del radio compartido (90 m)", d <= 90.0);
         assertTrue("debe confirmarse que el radio normal de Mexibús (50 m) NO alcanzaba", d > 50.0);
     }
+
+    // =====================================================================================
+    // Resto de los andenes largos de Mexibús L1/L1 Exprés (101/121): UNITEC, Vocacional 3, Hospital,
+    // Jardines de Morelos y Cuahutémoc Norte. Separación real a sus vecinas en L1 confirmada ≥314 m en
+    // todos los casos, sin riesgo de solape con el radio compartido (90 m).
+    // =====================================================================================
+    @Test
+    public void andenLargo_unitec_siCalifica() {
+        assertTrue(Planificador.andenLargo(paradaEn(19.554361, -99.01925)));
+    }
+
+    @Test
+    public void andenLargo_vocacional3_siCalifica() {
+        assertTrue(Planificador.andenLargo(paradaEn(19.570011, -99.017984)));
+    }
+
+    @Test
+    public void andenLargo_hospital_siCalifica() {
+        assertTrue(Planificador.andenLargo(paradaEn(19.594708, -99.020001)));
+    }
+
+    @Test
+    public void andenLargo_jardinesDeMorelos_siCalifica() {
+        assertTrue(Planificador.andenLargo(paradaEn(19.600724, -99.016138)));
+    }
+
+    @Test
+    public void andenLargo_cuahutemocNorte_siCalifica() {
+        assertTrue(Planificador.andenLargo(paradaEn(19.646458, -99.005058)));
+    }
+
+    @Test
+    public void andenLargo_industrialL1_noCalifica() {
+        // Control: estación vecina de UNITEC en L1 (nombre coincide con la de L4, línea distinta) --
+        // no debe calificar, confirma que el radio de 30 m de andenLargo() no se infló de más.
+        assertFalse(Planificador.andenLargo(paradaEn(19.550115, -99.020875)));
+    }
 }
