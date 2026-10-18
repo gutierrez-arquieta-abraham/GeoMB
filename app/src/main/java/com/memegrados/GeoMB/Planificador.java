@@ -1647,12 +1647,19 @@ public final class Planificador {
             LatLng bPos = plataformaIndiosVerdes(b.linea, b.nombre, b.pos, b.linea, nextLinSeg, bPrev, bNext);
 
             List<LatLng> pts;
-            // Estaciones del tramo en orden de viaje (respaldo si no hay geometría).
+            // Estaciones del tramo en orden de viaje (respaldo si no hay geometría). Se sigue el
+            // camino REAL (node/camino de i a j), no un rango numérico siA..siB asumido monótono --
+            // defecto real confirmado en L2A/L3A (CIRCUITO de una sola vía, ver dirRoute("L112o"/
+            // "L113o") y el cierre last→first del grafo): cuando el camino real envuelve el circuito
+            // (p. ej. sube en el índice 3, baja en el índice 0 dando toda la vuelta por 4,5,6,7,8,9),
+            // siA(3) > siB(0) hacía iterar HACIA ATRÁS (3,2,1,0) -- un tramo que ni siquiera existe en
+            // una vía de un solo sentido -- dejando el trazo incompleto/equivocado en el mapa.
             List<LatLng> paradasPos = new ArrayList<>();
-            if (siA <= siB) for (int k = siA; k <= siB; k++)
-                paradasPos.add(k == siA ? aPos : (k == siB ? bPos : r.stops.get(k).pos));
-            else for (int k = siA; k >= siB; k--)
-                paradasPos.add(k == siA ? aPos : (k == siB ? bPos : r.stops.get(k).pos));
+            for (int m = i; m <= j; m++) {
+                int si = node.get(camino.get(m))[1];
+                paradasPos.add(m == i ? aPos : (m == j ? bPos : r.stops.get(si).pos));
+            }
+            boolean circuito = "L112o".equals(r.id) || "L113o".equals(r.id);   // L2A/L3A
 
             if (r.mixta) {
                 // Recorrido mixto: geometría real de cada línea que atraviesa (L7/L4 por servicio).
@@ -1664,7 +1671,7 @@ public final class Planificador {
                 // y eso hacía caer TODO el tramo a líneas rectas). Si no cubre, va por las estaciones.
                 List<LatLng> geo = geomSentido(ctx, r.linea.numero, aPos, bPos);
                 pts = (geo != null && geo.size() >= 2 && cercaDeRuta(geo, aPos) && cercaDeRuta(geo, bPos))
-                        ? subRuta(geo, aPos, bPos) : paradasPos;
+                        ? subRuta(geo, aPos, bPos, circuito) : paradasPos;
             } else {
                 pts = paradasPos;                            // sin geometría: por las estaciones
             }
@@ -2461,15 +2468,34 @@ public final class Planificador {
      * ruta (así el trazo cae exactamente sobre la línea a la altura de la estación y NO se
      * extiende de más), y agrega los vértices intermedios en orden.
      */
-    private static List<LatLng> subRuta(List<LatLng> ruta, LatLng a, LatLng b) {
+    static List<LatLng> subRuta(List<LatLng> ruta, LatLng a, LatLng b) {
+        return subRuta(ruta, a, b, false);
+    }
+
+    /** Recorta el shape entre los puntos a/b. Con {@code circuito=true} (L2A/L3A, un solo sentido en
+     *  bucle -- ver dirRoute("L112o"/"L113o") y su cierre last→first en el grafo), si 'a' cae MÁS
+     *  ADELANTE en el shape que 'b' (sa > sb) no se retrocede (eso no existe en una vía de un sentido):
+     *  se sigue hacia ADELANTE hasta el final del shape y se envuelve al principio hasta 'b'. Defecto
+     *  real confirmado: antes siempre retrocedía en ese caso (misma asunción monótona que el fallback
+     *  por estaciones, ver su comentario en buscarYConstruir()), dejando el trazo de L2A/L3A en el mapa
+     *  incompleto o yendo por el lado equivocado del circuito cuando el tramo envuelve el punto de cierre. */
+    static List<LatLng> subRuta(List<LatLng> ruta, LatLng a, LatLng b, boolean circuito) {
         List<LatLng> out = new ArrayList<>();
         if (ruta == null || ruta.size() < 2) { out.add(a); out.add(b); return out; }
         int sa = segCercano(ruta, a), sb = segCercano(ruta, b);
         LatLng pa = proyecta(ruta.get(sa), ruta.get(sa + 1), a);
         LatLng pb = proyecta(ruta.get(sb), ruta.get(sb + 1), b);
         out.add(pa);
-        if (sa < sb) for (int k = sa + 1; k <= sb; k++) out.add(ruta.get(k));
-        else if (sa > sb) for (int k = sa; k >= sb + 1; k--) out.add(ruta.get(k));
+        if (sa < sb) {
+            for (int k = sa + 1; k <= sb; k++) out.add(ruta.get(k));
+        } else if (sa > sb) {
+            if (circuito) {
+                for (int k = sa + 1; k < ruta.size(); k++) out.add(ruta.get(k));
+                for (int k = 0; k <= sb; k++) out.add(ruta.get(k));
+            } else {
+                for (int k = sa; k >= sb + 1; k--) out.add(ruta.get(k));
+            }
+        }
         out.add(pb);
         return out;
     }
