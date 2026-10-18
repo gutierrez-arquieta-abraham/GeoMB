@@ -390,9 +390,28 @@ public class PlanificadorFragment extends Fragment {
                     Estacion e = Planificador.masCercana(requireContext(),
                             new LatLng(l.getLatitude(), l.getLongitude()));
                     if (e == null) return;
-                    setOrigen(e.nombre);
-                    if (inDestino.getText().length() > 0) trazar();
+                    resolverOrigenPorGps(e, () -> { if (inDestino.getText().length() > 0) trazar(); });
                 });
+    }
+
+    /** Resuelve la estación MÁS CERCANA por GPS por el mismo camino de candidatos/agrupación que usa
+     *  el texto escrito a mano (candidatos()+agruparPorEstacionFisica(), vía desambiguar()): si hay más
+     *  de una plataforma distinta muy cerca (p. ej. "Jardines de Morelos" -- Mexibús L1 y L2A a 54 m,
+     *  bases DISTINTAS), pregunta en vez de quedarse en silencio con la geométricamente más cercana sin
+     *  comparar cuál arma mejor ruta. Defecto real confirmado: antes esto llamaba setOrigen(e.nombre)
+     *  directo, que marca el origen como "ya resuelto" -- el atajo de desambiguar() ("el campo no
+     *  cambió, no vuelvas a preguntar") se activaba entonces con un origen que NUNCA pasó por
+     *  candidatos()/agruparCandidatos(), dejando ganar a la plataforma más cercana por una fracción
+     *  aunque la ruta resultante (L2A, de un solo sentido) fuera un rodeo enorme frente a L1. */
+    private void resolverOrigenPorGps(Estacion e, Runnable alTerminar) {
+        inOrigen.setText(Planificador.sinMxb(e.nombre));
+        origenCanon = null; origenLinea = 0; origenSeleccionPos = null;   // fuerza a NO tomar el atajo "sin cambios"
+        desambiguar(inOrigen, origenCanon, origenLinea, origenSeleccionPos, (om, or, lo, posO) -> {
+            if (!isAdded()) return;
+            origenCanon = or; origenLinea = lo; origenSeleccionPos = posO;
+            if (om != null) inOrigen.setText(Planificador.sinMxb(om));
+            if (alTerminar != null) alTerminar.run();
+        });
     }
 
     /** Botón de localización del panel: centra el mapa en la ubicación actual del usuario. */
@@ -419,12 +438,12 @@ public class PlanificadorFragment extends Fragment {
         loc.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                 .addOnSuccessListener(l -> {
                     if (!isAdded()) return;
-                    if (l != null) {
-                        Estacion e = Planificador.masCercana(requireContext(),
-                                new LatLng(l.getLatitude(), l.getLongitude()));
-                        if (e != null && inOrigen.getText().length() == 0) setOrigen(e.nombre);
-                    }
-                    if (autoTrazar) { autoTrazar = false; trazar(); }
+                    Estacion e = l != null && inOrigen.getText().length() == 0
+                            ? Planificador.masCercana(requireContext(), new LatLng(l.getLatitude(), l.getLongitude()))
+                            : null;
+                    if (e != null) {
+                        resolverOrigenPorGps(e, () -> { if (autoTrazar) { autoTrazar = false; trazar(); } });
+                    } else if (autoTrazar) { autoTrazar = false; trazar(); }
                 })
                 .addOnFailureListener(e -> { if (autoTrazar) { autoTrazar = false; trazar(); } });
     }
