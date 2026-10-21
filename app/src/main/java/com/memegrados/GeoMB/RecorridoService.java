@@ -225,25 +225,6 @@ public class RecorridoService extends Service {
         return radioCerca(p);
     }
 
-    // Margen para el disparo de "llegando" por SALIDA de zona (ver llegandoPorSalidaDeZona()): cuánto
-    // debe haber crecido 'bd' sobre 'distMin' para contar como "ya te estás alejando", no solo ruido
-    // normal de GPS rondando el mínimo. Mismo orden que CAMBIO_LINEA_M (15)/MARGEN_MEJORA_M (25).
-    private static final float MARGEN_SALIDA_ZONA_M = 5f;
-
-    /** Respaldo del aviso de "llegando" SOLO para plataformas con zona (Indios Verdes): si ya entraste
-     *  a la zona ANCHA (ZONA_CERCA_M=70 m -- fiable, no depende de qué tan preciso sea el corredor
-     *  registrado) y tu distancia actual ya creció sobre el mínimo alcanzado ({@code distMin}, ya
-     *  trackeado para "próxima estación"), es que ya pasaste el punto más cercano real y te estás
-     *  alejando -- cuenta como llegada aunque nunca hayas caído dentro del radio angosto
-     *  ({@link #RADIO_LLEGADA_ZONA_M}=10 m, sensible a la precisión del shape/corredor). Caso real: el
-     *  shape oficial de Mexibús L4 pasa ~11.8 m del corredor de Indios Verdes -- apenas fuera del radio
-     *  angosto -- así que sin este respaldo el aviso podía quedar sin disparar nunca en ese tramo.
-     *  Gateado por {@code tieneZona()}: nunca aplica a Puente de Fierro (sin zona, radio circular
-     *  normal a un solo punto vía {@code andenLargo()}), ni a ningún otro caso. */
-    static boolean llegandoPorSalidaDeZona(Planificador.Parada p, float bd, float distMin) {
-        return Planificador.tieneZona(p) && distMin <= ZONA_CERCA_M && bd > distMin + MARGEN_SALIDA_ZONA_M;
-    }
-
     /** Radio de "llegando" según la parada: corredor (Indios Verdes) > CEDA Ecatepec > andén largo >
      *  Clínica 93/76 > Mexibús/Metrobús normal. */
     private static float radioCerca(Planificador.Parada p) {
@@ -826,6 +807,19 @@ public class RecorridoService extends Service {
                         ultLlegando = best;
                         Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
                         sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea);
+                    } else if (alcanzasteAnterior && ultProxima != i) {
+                        // Defecto real confirmado (Indios Verdes, los 4 andenes quedan a 30-50 m entre sí --
+                        // MENOS que radioCruce()=70 m de zona): cuando el salto se habilita por el camino
+                        // NORMAL (alcanzasteAnterior, no el de "correspondencia corta" de arriba), la
+                        // llegada al andén viejo (Mexibús) YA sonó en un ciclo anterior -- pero por estar
+                        // tan cerca, este mismo ciclo (o el siguiente) ya satisface también el umbral de
+                        // cruce, y el bucle corta (break) y salta ANTES de que el bloque normal de
+                        // "próxima estación" (más abajo, con el aviso "favor de irte preparando") llegue a
+                        // ejecutarse para 'best' -- se perdía por completo. Se anuncia aquí explícitamente,
+                        // mismo patrón que el caso de arriba: 'i' ES el propio nodo de correspondencia (pi),
+                        // así que "próxima: i" con preparación es siempre el aviso correcto antes de saltar.
+                        ultProxima = i;
+                        sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea);
                     }
                     bd = d; best = i;
                     corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
@@ -946,8 +940,15 @@ public class RecorridoService extends Service {
             // correspondencias co-ubicadas (p. ej. Indios Verdes) no suena el tururu de Metrobús mientras
             // sigues en Mexibús.
             sonarYHablar(vozProxima(seq, proxIdx, prepararse), seq.get(best).linea);   // "Próxima estación X" (+ correspondencia / prep)
-        } else if ((bd <= radioLlegada(seq.get(best)) || llegandoPorSalidaDeZona(seq.get(best), (float) bd, distMin))
-                && ultLlegando != best) {
+        // REVERTIDO: llegandoPorSalidaDeZona() (respaldo "entró a la zona ancha y ya se aleja del
+        // mínimo") se quitó -- confirmado con video real que seguía disparando PREMATURO en el mismo
+        // punto de siempre (el mínimo local se alcanza mucho antes de llegar al andén real), y ese
+        // disparo temprano encadenaba: marca ultLlegando de golpe, lo que satisface alcanzasteAnterior
+        // en el bloque de cruce de línea de arriba y salta YA a la línea nueva -- saltándose el aviso
+        // de "próxima: Indios Verdes" (y su "favor de irte preparando") del lado Metrobús por completo.
+        // Mejor que el aviso a veces no dispare por imprecisión de GPS (silencioso) a que dispare mal y
+        // arrastre este efecto dominó. Vuelve a ser solo el radio angosto.
+        } else if (bd <= radioLlegada(seq.get(best)) && ultLlegando != best) {
             ultLlegando = best;
             ultProxima = -99;
             Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);

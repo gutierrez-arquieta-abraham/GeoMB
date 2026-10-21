@@ -14,12 +14,15 @@ import static org.junit.Assert.*;
  * trato que {@code Planificador.corrManual()}/{@code subRuta()}), dejando intacto el radio ancho que
  * usa la lógica de cruce/correspondencia (radioCruce()/radioCerca(), sin cambios).
  *
- * El radio angosto depende de qué tan preciso sea el corredor registrado; simulado contra el shape
- * OFICIAL de Mexibús L4, el GPS nunca cae dentro de los 10 m (pasa a 11.8 m del corredor). Por eso se
- * agregó {@link RecorridoService#llegandoPorSalidaDeZona} como respaldo: si ya entraste a la zona
- * ANCHA (70 m, fiable) y tu distancia actual ya creció sobre el mínimo alcanzado, cuenta como llegada
- * aunque nunca hayas caído en el radio angosto. Gateado por tieneZona(): nunca aplica a Puente de
- * Fierro (sin zona).
+ * NOTA sobre un respaldo REVERTIDO: se probó un {@code llegandoPorSalidaDeZona()} (disparar "llegando"
+ * al detectar que ya entraste a la zona ancha y tu distancia empezó a crecer de nuevo), pensado para
+ * cuando el shape oficial de Mexibús L4 nunca cae dentro del radio angosto (pasa a 11.8 m del corredor,
+ * simulado). Confirmado con video real que esa heurística seguía disparando PREMATURO en el mismo punto
+ * de siempre (el mínimo local se alcanza mucho antes del andén real) -- y ese disparo temprano
+ * encadenaba un salto inmediato a la línea nueva (satisface alcanzasteAnterior en el bloque de cruce),
+ * saltándose el aviso de "próxima: Indios Verdes" del lado Metrobús por completo. Se quitó: mejor que el
+ * aviso a veces no dispare por imprecisión de GPS (silencioso) a que dispare mal y arrastre ese efecto
+ * dominó. Solo queda el radio angosto.
  */
 public class RecorridoServiceRadioLlegadaTest {
 
@@ -54,44 +57,11 @@ public class RecorridoServiceRadioLlegadaTest {
     }
 
     @Test
-    public void llegandoPorSalida_zonaIndiosVerdes_entroYSeAleja_disparaAunqueNuncaCupoEnElRadioAngosto() {
-        // Caso real confirmado por simulación: el shape oficial de Mexibús L4 llega a 11.8 m del
-        // corredor (más que el radio angosto de 10 m) pero sí entra a la zona ancha (70 m). Si ya
-        // alcanzaste ese mínimo (distMin=11.8) y ahora bd creció por encima del margen, cuenta como
-        // llegada.
-        Planificador.Parada p = parada(104, Planificador.IV_L4_LLEGA);
-        assertTrue(RecorridoService.llegandoPorSalidaDeZona(p, 20f, 11.8f));
-    }
-
-    @Test
-    public void llegandoPorSalida_zonaIndiosVerdes_todaviaAcercandose_noDispara() {
-        // bd sigue bajando (o igual al mínimo): todavía te estás acercando, no alejando -- no debe
-        // disparar por este camino (si acaso, por el radio angosto normal).
-        Planificador.Parada p = parada(104, Planificador.IV_L4_LLEGA);
-        assertFalse(RecorridoService.llegandoPorSalidaDeZona(p, 11.8f, 11.8f));
-        assertFalse(RecorridoService.llegandoPorSalidaDeZona(p, 10f, 11.8f));
-    }
-
-    @Test
-    public void llegandoPorSalida_zonaIndiosVerdes_margenPequenoNoCuenta_evitaRuidoDeGps() {
-        // Un crecimiento menor al margen (5 m) es ruido normal de GPS rondando el mínimo, no una
-        // salida real de la zona.
-        Planificador.Parada p = parada(104, Planificador.IV_L4_LLEGA);
-        assertFalse(RecorridoService.llegandoPorSalidaDeZona(p, 14f, 11.8f));
-    }
-
-    @Test
-    public void llegandoPorSalida_nuncaEntroALaZonaAncha_noDispara() {
-        // distMin > 70 m: ni siquiera llegaste a entrar a la zona ancha -- no hay "salida" que detectar.
-        Planificador.Parada p = parada(104, Planificador.IV_L4_LLEGA);
-        assertFalse(RecorridoService.llegandoPorSalidaDeZona(p, 90f, 80f));
-    }
-
-    @Test
-    public void llegandoPorSalida_paradaSinZona_nuncaDispara_puenteDeFierroIntacto() {
-        // Puente de Fierro (andén largo, SIN zona): esta lógica nunca debe aplicarle, sin importar los
-        // valores de bd/distMin.
+    public void puenteDeFierro_radioAndenLargo90m_nuncaElAngostoDeIndiosVerdes() {
+        // Confirma explícitamente lo que pidió el usuario al revertir llegandoPorSalidaDeZona(): Puente
+        // de Fierro (andén largo, SIN zona) sigue con su propio radio de 90 m -- nunca el angosto de 10 m
+        // de Indios Verdes (tieneZona() es falso para él, así que cae directo a radioCerca()).
         Planificador.Parada p = parada(104, new com.google.android.gms.maps.model.LatLng(19.603559, -99.033337));
-        assertFalse(RecorridoService.llegandoPorSalidaDeZona(p, 200f, 50f));
+        assertEquals(90f, RecorridoService.radioLlegada(p), 0.001f);
     }
 }
