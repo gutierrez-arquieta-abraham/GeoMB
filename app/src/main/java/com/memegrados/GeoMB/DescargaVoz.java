@@ -179,8 +179,13 @@ public final class DescargaVoz {
         });
     }
 
-    /** Baja un texto a la caché de voz (si no está ya). Devuelve true si quedó el archivo. */
-    private static boolean descargarUno(Context ctx, String texto, int linea, String voz) throws java.io.IOException {
+    /** Baja un texto a la caché de voz (si no está ya). `vozElegida` es la PREFERENCIA del usuario
+     *  ("Mia" o "Ximena"); la voz REAL usada cae a "Mia" para cualquier línea cuyo sistema no tenga
+     *  el switch de Ximena activo (ver Modos.vozXimenaPermitida()) -- así "descargar todas" puede
+     *  pedir Ximena una sola vez y que cada línea respete su propio switch, en vez de forzar Ximena
+     *  (de pago) en un sistema que el usuario nunca activó para eso. Devuelve true si quedó el archivo. */
+    private static boolean descargarUno(Context ctx, String texto, int linea, String vozElegida) throws java.io.IOException {
+        String voz = "Ximena".equals(vozElegida) && Modos.vozXimenaPermitida(ctx, linea) ? "Ximena" : "Mia";
         File out = archivoVoz(ctx, texto, linea, voz);
         if (out == null) return false;
         if (out.exists() && out.length() > 0) return true;   // ya cacheado

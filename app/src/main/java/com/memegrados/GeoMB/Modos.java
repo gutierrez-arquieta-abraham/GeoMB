@@ -92,15 +92,22 @@ public final class Modos {
         return vozXimenaDisponible(c) && p(c).getBoolean(K_VOZ_XIMENA_MEXICABLE, false);
     }
 
+    /** ¿El sistema de esta línea tiene su propio switch de Ximena activo? Único punto de verdad
+     *  compartido por {@link #vozActual} (avisos en vivo) y la pre-descarga masiva (DescargaVoz vía
+     *  ConfiguracionFragment), para que ambos resuelvan "puede esta línea usar Ximena" igual. */
+    public static boolean vozXimenaPermitida(Context c, int linea) {
+        switch (Sistemas.sistemaDe(linea)) {
+            case Sistemas.MEXIBUS:   return vozXimenaMexibus(c);
+            case Sistemas.MEXICABLE: return vozXimenaMexicable(c);
+            default:                 return vozXimenaMetrobus(c);
+        }
+    }
+
     /** Nombre de voz a pedirle al backend (/api/tts?voz=...) para una parada de esta línea: "Ximena"
      *  solo si el sistema de esa línea tiene su propio switch activo; "Mia" (AWS Polly, de siempre)
      *  en cualquier otro caso -- cada sistema elige su voz por separado. */
     public static String vozActual(Context c, int linea) {
-        switch (Sistemas.sistemaDe(linea)) {
-            case Sistemas.MEXIBUS:   return vozXimenaMexibus(c)   ? "Ximena" : "Mia";
-            case Sistemas.MEXICABLE: return vozXimenaMexicable(c) ? "Ximena" : "Mia";
-            default:                 return vozXimenaMetrobus(c) ? "Ximena" : "Mia";
-        }
+        return vozXimenaPermitida(c, linea) ? "Ximena" : "Mia";
     }
 
     public static void setPersonalizado(Context c, boolean v) {

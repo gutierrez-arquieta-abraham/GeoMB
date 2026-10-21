@@ -752,13 +752,15 @@ public class ConfiguracionFragment extends Fragment {
         final java.util.List<String> nom = new java.util.ArrayList<>();
         final java.util.List<Integer> todas = new java.util.ArrayList<>();
         for (int i = 1; i <= 7; i++) { cod.add(i); nom.add("Metrobús L" + i); todas.add(i); }
-        if (Modos.mostrarMexibus(requireContext())) {
+        if (Modos.mostrarMexibus(requireContext()) || Modos.mostrarMexicable(requireContext())) {
             for (Linea l : GtfsRepository.getMexibus(requireContext())) {
-                if ((l.numero >= 101 && l.numero <= 104) || (l.numero >= 111 && l.numero <= 113)) {
-                    cod.add(l.numero);
-                    nom.add("Mexibús L" + Planificador.etiquetaLineaCortaPub(l.numero));
-                    todas.add(l.numero);
-                }
+                boolean esMxc = Sistemas.sistemaDe(l.numero) == Sistemas.MEXICABLE;
+                if (esMxc ? !Modos.mostrarMexicable(requireContext()) : !Modos.mostrarMexibus(requireContext())) continue;
+                boolean esMxbOrdinarioORamal = (l.numero >= 101 && l.numero <= 104) || (l.numero >= 111 && l.numero <= 113);
+                if (!esMxc && !esMxbOrdinarioORamal) continue;
+                cod.add(l.numero);
+                nom.add((esMxc ? "Mexicable L" : "Mexibús L") + Planificador.etiquetaLineaCortaPub(l.numero));
+                todas.add(l.numero);
             }
         }
         // Opciones extra al inicio (descargar todas) y al final (borrar).
@@ -773,36 +775,30 @@ public class ConfiguracionFragment extends Fragment {
                         android.widget.Toast.makeText(requireContext(),
                                 getString(R.string.audios_borrados, n), android.widget.Toast.LENGTH_SHORT).show();
                     } else if (c == -2) {
-                        // "Todas" mezcla sistemas (Metrobús + Mexibús) que pueden tener Ximena activa
-                        // en uno y no en el otro -- para no complicar qué voz le toca a cada línea,
-                        // "todas" se queda siempre en Mia. El selector de voz solo aplica a una línea
-                        // a la vez (ver preguntarVozYDescargar()), donde el sistema es inequívoco.
-                        descargarAudios(todas, getString(R.string.audios_todas), "Mia");
+                        preguntarVozYDescargar(todas, getString(R.string.audios_todas));
                     } else {
-                        preguntarVozYDescargar(c, nom.get(w));
+                        preguntarVozYDescargar(java.util.Collections.singletonList(c), nom.get(w));
                     }
                 }).show();
     }
 
-    /** Si el sistema de esta línea tiene Ximena activa (ver Modos.vozXimenaMetrobus()/Mexibus()/
-     *  Mexicable()), pregunta qué voz descargar antes de arrancar; si no, descarga "Mia" directo
-     *  sin preguntar nada (comportamiento de siempre para quien no activó el modo experimental). */
-    private void preguntarVozYDescargar(int linea, String nombre) {
-        boolean ximenaActiva;
-        switch (Sistemas.sistemaDe(linea)) {
-            case Sistemas.MEXIBUS:   ximenaActiva = Modos.vozXimenaMexibus(requireContext()); break;
-            case Sistemas.MEXICABLE: ximenaActiva = Modos.vozXimenaMexicable(requireContext()); break;
-            default:                 ximenaActiva = Modos.vozXimenaMetrobus(requireContext()); break;
-        }
-        if (!ximenaActiva) {
-            descargarAudios(java.util.Collections.singletonList(linea), nombre, "Mia");
+    /** Si ALGUNA de estas líneas tiene Ximena activa en su sistema (ver Modos.vozXimenaPermitida()),
+     *  pregunta qué voz descargar antes de arrancar; si NINGUNA la tiene, descarga "Mia" directo sin
+     *  preguntar nada (comportamiento de siempre para quien no activó el modo experimental). Si se
+     *  elige Ximena con líneas de VARIOS sistemas (p. ej. "descargar todas"), cada línea respeta su
+     *  propio switch (ver DescargaVoz.descargarUno()): la que sí lo tenga activo usa Ximena, la que
+     *  no, cae a Mia sola -- nunca Ximena (de pago) en un sistema que no la activó. */
+    private void preguntarVozYDescargar(java.util.List<Integer> lineas, String nombre) {
+        boolean algunaConXimena = false;
+        for (int ln : lineas) if (Modos.vozXimenaPermitida(requireContext(), ln)) { algunaConXimena = true; break; }
+        if (!algunaConXimena) {
+            descargarAudios(lineas, nombre, "Mia");
             return;
         }
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle(R.string.audios_elegir_voz_titulo)
                 .setItems(new String[]{"Mia", "Ximena"}, (d, w) ->
-                        descargarAudios(java.util.Collections.singletonList(linea), nombre,
-                                w == 1 ? "Ximena" : "Mia"))
+                        descargarAudios(lineas, nombre, w == 1 ? "Ximena" : "Mia"))
                 .show();
     }
 
