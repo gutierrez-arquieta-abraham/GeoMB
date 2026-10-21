@@ -1154,7 +1154,7 @@ public class RecorridoService extends Service {
         if (base == null) base = getFilesDir();
         java.io.File dir = new java.io.File(base, "voz");
         if (!dir.exists()) dir.mkdirs();
-        return new java.io.File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
+        return new java.io.File(dir, Integer.toHexString((Modos.vozActual(this) + "|" + texto).hashCode()) + ".mp3");
     }
 
     private java.io.File descargarVoz(String texto) {
@@ -1162,7 +1162,8 @@ public class RecorridoService extends Service {
         if (out == null) return null;
         java.net.HttpURLConnection c = null;
         try {
-            String u = "https://geomb.duckdns.org/api/tts?voz=Mia&texto=" + android.net.Uri.encode(texto);
+            String u = "https://geomb.duckdns.org/api/tts?voz=" + Modos.vozActual(this)
+                    + "&texto=" + android.net.Uri.encode(texto);
             c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
             c.setConnectTimeout(3000);
             c.setReadTimeout(8000);

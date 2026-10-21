@@ -27,6 +27,7 @@
     <string name="modo_desbloqueado">Custom mode unlocked</string>
     <string name="modo_sw_cachondo">Flirty notifications (search)</string>
     <string name="modo_sw_pbs">Operation codes (PBS)</string>
+    <string name="modo_sw_voz_ximena">Experimental Ximena voice (paid, EC2 covers the cost)</string>
     <string name="modo_ver_claves">View operation codes</string>
     <string name="modo_claves_no">Place Claves.png in res/raw to view them</string>
     <string name="modo_salir">Exit custom mode</string>

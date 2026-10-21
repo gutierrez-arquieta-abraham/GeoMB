@@ -38,11 +38,18 @@ public final class Modos {
     private static final String K_PERSON = "personalizado";
     private static final String K_CACHONDO = "cachondo";
     private static final String K_PBS = "pbs";
+    private static final String K_VOZ_XIMENA = "voz_ximena";
     private static final String K_SINCRO = "sincro_fondo";
 
     /** Frases secretas EXACTAS (se comparan tal cual, con mayúsculas y acentos). */
     public static final String FRASE_CACHONDO = "CUMsultando a la patrona";
     public static final String FRASE_PBS = "Metrobús & Mexibús PBS";
+    // Voz Ximena (Fish Audio, clon de Loquendo) es de PAGO por uso en el backend -- a
+    // diferencia de cachondo/pbs (gratis, solo cosméticos), esta SÍ le cuesta dinero al EC2
+    // cada vez que se habla con ella. Por eso vive tras su propia frase secreta (no basta con
+    // desbloquear "personalizado"), para que nadie la active sin querer ni la descubra por
+    // accidente -- solo quien ya sabe esta frase específica.
+    public static final String FRASE_VOZ_XIMENA = "Ximena Loquendo experimental";
 
     private Modos() {}
 
@@ -62,9 +69,19 @@ public final class Modos {
         return personalizado(c) && p(c).getBoolean(K_PBS, false);
     }
 
+    public static boolean vozXimena(Context c) {
+        return personalizado(c) && p(c).getBoolean(K_VOZ_XIMENA, false);
+    }
+
+    /** Nombre de voz a pedirle al backend (/api/tts?voz=...): "Ximena" solo si ese modo
+     *  experimental está activo; "Mia" (la de siempre, AWS Polly) en cualquier otro caso. */
+    public static String vozActual(Context c) {
+        return vozXimena(c) ? "Ximena" : "Mia";
+    }
+
     public static void setPersonalizado(Context c, boolean v) {
         p(c).edit().putBoolean(K_PERSON, v).apply();
-        if (!v) { setCachondo(c, false); setPbs(c, false); }   // apagar todo con él
+        if (!v) { setCachondo(c, false); setPbs(c, false); setVozXimena(c, false); }   // apagar todo con él
     }
 
     public static void setCachondo(Context c, boolean v) {
@@ -73,6 +90,10 @@ public final class Modos {
 
     public static void setPbs(Context c, boolean v) {
         p(c).edit().putBoolean(K_PBS, v).apply();
+    }
+
+    public static void setVozXimena(Context c, boolean v) {
+        p(c).edit().putBoolean(K_VOZ_XIMENA, v).apply();
     }
 
     // --- Sincronización en segundo plano (independiente del modo personalizado) ---

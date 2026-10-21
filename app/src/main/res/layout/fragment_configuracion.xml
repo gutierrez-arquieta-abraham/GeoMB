@@ -592,6 +592,14 @@
                 android:text="@string/modo_sw_pbs"
                 android:visibility="gone" />
 
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/sw_voz_ximena"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/modo_sw_voz_ximena"
+                android:visibility="gone" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_ver_claves"
                 style="@style/Widget.Material3.Button.TonalButton"

@@ -217,6 +217,13 @@ public final class DescargaVoz {
     // el sistema nunca lo borra bajo presión de espacio (solo al desinstalar la app), y a diferencia
     // de getFilesDir() sí es accesible con un explorador de archivos, sin permisos especiales. Si no
     // hay almacenamiento externo disponible, cae al interno para no perder la función. ---
+    // A PROPÓSITO sigue fija en "Mia", sin seguir Modos.vozActual()/el modo experimental de Ximena
+    // (Fish Audio, de pago por caracter): esta es una pre-descarga MASIVA (todas las estaciones de
+    // una línea de un golpe), mientras que RecorridoService.decirConVoz() solo pide UNA frase a la
+    // vez, según el recorrido real -- el costo ahí queda acotado por cuánto de verdad viajas. Si esto
+    // siguiera al modo experimental, activar Ximena dispararía decenas de llamadas pagadas de golpe
+    // con solo tocar "descargar". Cuando Ximena esté activa, RecorridoService simplemente no
+    // encuentra el archivo pre-cacheado aquí (clave distinta) y cae a su descarga normal por frase.
     private static File archivoVoz(Context ctx, String texto) {
         File base = ctx.getExternalFilesDir(null);
         if (base == null) base = ctx.getFilesDir();

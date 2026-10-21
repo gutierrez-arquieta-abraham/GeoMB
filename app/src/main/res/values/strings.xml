@@ -25,6 +25,7 @@
     <string name="modo_desbloqueado">Modo personalizado desbloqueado</string>
     <string name="modo_sw_cachondo">Notificaciones coquetas (búsqueda)</string>
     <string name="modo_sw_pbs">Claves de operación (PBS)</string>
+    <string name="modo_sw_voz_ximena">Voz experimental Ximena (de pago, EC2 asume el costo)</string>
     <string name="modo_ver_claves">Ver claves de operación</string>
     <string name="modo_claves_no">Coloca Claves.png en res/raw para verlas</string>
     <string name="modo_salir">Salir del modo personalizado</string>

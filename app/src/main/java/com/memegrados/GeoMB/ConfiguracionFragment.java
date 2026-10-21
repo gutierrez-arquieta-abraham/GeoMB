@@ -61,7 +61,7 @@ import java.io.InputStream;
 public class ConfiguracionFragment extends Fragment {
 
     private View panel;
-    private SwitchMaterial swCachondo, swPbs;
+    private SwitchMaterial swCachondo, swPbs, swVozXimena;
     private View btnVerClaves;
     private AlertDialog dlgDescargaAudios;   // se cierra en onDestroyView para no dejar la ventana "colgada"
     private final CheckBox[] chkLineas = new CheckBox[8];   // 1..7 (índice 0 sin usar)
@@ -134,6 +134,7 @@ public class ConfiguracionFragment extends Fragment {
         panel = view.findViewById(R.id.panel_personalizado);
         swCachondo = view.findViewById(R.id.sw_cachondo);
         swPbs = view.findViewById(R.id.sw_pbs);
+        swVozXimena = view.findViewById(R.id.sw_voz_ximena);
         btnVerClaves = view.findViewById(R.id.btn_ver_claves);
         EditText inputFrase = view.findViewById(R.id.input_frase);
 
@@ -220,6 +221,10 @@ public class ConfiguracionFragment extends Fragment {
         });
         swPbs.setOnClickListener(v2 -> {
             Modos.setPbs(requireContext(), swPbs.isChecked());
+            refrescar();
+        });
+        swVozXimena.setOnClickListener(v2 -> {
+            Modos.setVozXimena(requireContext(), swVozXimena.isChecked());
             refrescar();
         });
         btnVerClaves.setOnClickListener(v2 -> verClaves());
@@ -471,6 +476,9 @@ public class ConfiguracionFragment extends Fragment {
         } else if (Modos.FRASE_PBS.equals(f)) {
             Modos.setPbs(requireContext(), true);
             Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
+        } else if (Modos.FRASE_VOZ_XIMENA.equals(f)) {
+            Modos.setVozXimena(requireContext(), true);
+            Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(requireContext(), R.string.modo_frase_no, Toast.LENGTH_SHORT).show();
         }
@@ -483,10 +491,13 @@ public class ConfiguracionFragment extends Fragment {
         if (!person) return;
         boolean cach = Modos.cachondo(requireContext());
         boolean pbs = Modos.pbs(requireContext());
+        boolean vozXimena = Modos.vozXimena(requireContext());
         swCachondo.setVisibility(cach ? View.VISIBLE : View.GONE);
         swCachondo.setChecked(cach);
         swPbs.setVisibility(pbs ? View.VISIBLE : View.GONE);
         swPbs.setChecked(pbs);
+        swVozXimena.setVisibility(vozXimena ? View.VISIBLE : View.GONE);
+        swVozXimena.setChecked(vozXimena);
         btnVerClaves.setVisibility(pbs ? View.VISIBLE : View.GONE);
     }
 
