@@ -1946,16 +1946,16 @@ public final class Planificador {
     // Plataformas de Indios Verdes por línea y ROL: LLEGADA = andén de descenso (alight); SALIDA = andén
     // de ascenso (board). El andén de llegada y el de salida son distintos (es terminal de ambas líneas).
     static final LatLng IV_L1_LLEGA = new LatLng(19.494040000000000, -99.119630000000000); // L1 sur, descenso
-    static final LatLng IV_L1_SALE  = new LatLng(19.496411482889120, -99.119465116656490); // L1 norte, ascenso
+    static final LatLng IV_L1_SALE  = new LatLng(19.496963, -99.119262); // L1 norte, ascenso (coordenada corregida)
     static final LatLng IV_L4_LLEGA = new LatLng(19.493988000000000, -99.120012000000000); // L4 sur (dir La Raza)
     static final LatLng IV_L4_SALE  = new LatLng(19.496370747877478, -99.119083404304850); // L4 norte (dir UMB)
 
     // Zonas de COBERTURA (corredor A→B) de cada andén de Indios Verdes: el aviso de llegada/cambio se mide
     // como distancia al SEGMENTO (no al punto), para cubrir toda la longitud del andén (radio ~2 m de ancho).
-    private static final LatLng[] Z_IV_L1_SALE  = {new LatLng(19.496947292303584, -99.119243569356030), new LatLng(19.495489581666096, -99.119647241356560)};
-    private static final LatLng[] Z_IV_L1_LLEGA = {new LatLng(19.493379070441666, -99.119904759918270), new LatLng(19.494207749627176, -99.119649928529500)};
-    private static final LatLng[] Z_IV_L4_LLEGA = {new LatLng(19.494419028286020, -99.119889171399010), new LatLng(19.493412590131070, -99.120054893133240)};
-    private static final LatLng[] Z_IV_L4_SALE  = {new LatLng(19.495363749243566, -99.119336074990000), new LatLng(19.496896376678077, -99.118979084763800)};
+    static final LatLng[] Z_IV_L1_SALE  = {new LatLng(19.496947292303584, -99.119243569356030), new LatLng(19.495489581666096, -99.119647241356560)};
+    static final LatLng[] Z_IV_L1_LLEGA = {new LatLng(19.493379070441666, -99.119904759918270), new LatLng(19.494207749627176, -99.119649928529500)};
+    static final LatLng[] Z_IV_L4_LLEGA = {new LatLng(19.494419028286020, -99.119889171399010), new LatLng(19.493412590131070, -99.120054893133240)};
+    static final LatLng[] Z_IV_L4_SALE  = {new LatLng(19.495363749243566, -99.119336074990000), new LatLng(19.496896376678077, -99.118979084763800)};
 
     /** Corredor (segmento) del andén al que pertenece la parada, o null si no tiene zona de cobertura. */
     private static LatLng[] corredorZona(Parada p) {
@@ -2144,17 +2144,12 @@ public final class Planificador {
             boolean inicioSegmento = prevLin < 0 || baseLinea(prevLin) != baseLinea(linea);
             boolean finSegmento    = nextLin < 0 || baseLinea(nextLin) != baseLinea(linea);
             boolean sale = inicioSegmento && !finSegmento;
-            // Defecto real confirmado (video, Bosques del Valle -> IPN: L4 sur, viniendo del norte,
-            // seguido de L1 sur hacia Deportivo 18 de Marzo/Potrero): al ABORDAR L1 tras L4 esto
-            // SIEMPRE devolvía el andén de ascenso NORTE (IV_L1_SALE), sin importar de qué lado de L4
-            // vinieras. Si L4 ya te dejó en el andén SUR (IV_L4_LLEGA), ese punto queda a ~276 m real
-            // de IV_L1_SALE -- bastante más que el radio normal de "llegando" de Mexibús (50 m) -- así
-            // que el aviso de llegada a Mexibús nunca se cumplía desde donde en verdad estabas, y
-            // quedaba "atorado" hasta acercarte al andén norte de L1 (ver el mecanismo de "correspondencia
-            // corta" en RecorridoService). prevPos aquí ya es la posición RESUELTA del nodo anterior (ver
-            // su construcción en el bucle de arriba): si es el andén sur de L4, se usa el mismo lado sur
-            // para L1 (quedan a ~40 m, como cualquier otro transbordo normal en Indios Verdes).
-            if (sale && prevPos != null && prevPos.equals(IV_L4_LLEGA)) return IV_L1_LLEGA;
+            // REVERTIDO (corrección confirmada por el usuario con coordenadas reales): se había agregado
+            // aquí un caso especial para usar el andén SUR (IV_L1_LLEGA) al abordar L1 tras bajar de
+            // Mexibús L4-sur, a partir de una hipótesis armada con un video -- resultó estar mal: el
+            // abordaje real de L1 en ese caso (venir de L4 viniendo del norte) sigue siendo por el andén
+            // NORTE (IV_L1_SALE), igual que cualquier otro abordaje. Lo que de verdad hacía falta era
+            // corregir la coordenada de IV_L1_SALE (ver su constante, arriba), no cambiar de andén.
             return sale ? IV_L1_SALE : IV_L1_LLEGA;
         }
         // Mexibús L4: Indios Verdes es estación de PASO; la plataforma depende del SENTIDO de viaje

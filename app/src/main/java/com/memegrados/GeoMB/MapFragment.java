@@ -611,6 +611,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             }
 
             for (Estacion e : linea.estaciones) {
+                if (linea.numero == 1 && "Indios Verdes".equals(e.nombre)) {
+                    // Metrobús L1 Indios Verdes: 2 andenes separados (sur/norte), mismas coordenadas
+                    // EXACTAS que usa Planificador.plataformaIndiosVerdes() para el aviso de llegada --
+                    // antes el mapa solo mostraba un pin (el del catálogo, que coincidía con el andén
+                    // sur) y nunca el norte. Único punto de verdad: si se corrige IV_L1_*, el mapa
+                    // cambia solo (ver mismo patrón en Mexibús L4, abajo).
+                    EstMapa a = new EstMapa(e, linea.numero, linea.color);
+                    a.pos = Planificador.IV_L1_LLEGA; a.titulo = "Indios Verdes · andén sur (dir. Deportivo 18 de Marzo)";
+                    EstMapa b = new EstMapa(e, linea.numero, linea.color);
+                    b.pos = Planificador.IV_L1_SALE; b.titulo = "Indios Verdes · andén norte (ascenso)";
+                    estaciones.add(a); estaciones.add(b);
+                    continue;
+                }
                 EstMapa em = new EstMapa(e, linea.numero, linea.color);
                 // "Tacubaya"/"De la Salle" de L2 son el extremo real de H72 hacia L7 -- llevan el
                 // mismo ícono diagonal que los 3 puntos propios de H72 (agregarEstacionesH72()), a
@@ -623,6 +636,24 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             }
         }
         dibujarMixtas();
+        dibujarZonasIndiosVerdes();
+    }
+
+    /** Dibuja los 4 corredores de cobertura de Indios Verdes (Planificador.Z_IV_*) como líneas
+     *  delgadas sobre el mapa -- la misma fuente de verdad que usa Planificador.distanciaZona() para
+     *  disparar el aviso de "llegando". Permite comparar a simple vista contra satélite/calle si el
+     *  corredor registrado se mete donde no debe (p. ej. hasta el andén de la otra línea). Puramente
+     *  visual/de calibración: no afecta la lógica de avisos. */
+    private void dibujarZonasIndiosVerdes() {
+        int grosor = 4;
+        mapa.addPolyline(new PolylineOptions().addAll(java.util.Arrays.asList(Planificador.Z_IV_L1_LLEGA))
+                .color(0xA0D40D0D).width(grosor).zIndex(6f).clickable(false));
+        mapa.addPolyline(new PolylineOptions().addAll(java.util.Arrays.asList(Planificador.Z_IV_L1_SALE))
+                .color(0xA0D40D0D).width(grosor).zIndex(6f).clickable(false));
+        mapa.addPolyline(new PolylineOptions().addAll(java.util.Arrays.asList(Planificador.Z_IV_L4_LLEGA))
+                .color(0xA0F8971B).width(grosor).zIndex(6f).clickable(false));
+        mapa.addPolyline(new PolylineOptions().addAll(java.util.Arrays.asList(Planificador.Z_IV_L4_SALE))
+                .color(0xA0F8971B).width(grosor).zIndex(6f).clickable(false));
     }
 
     /** Región visible del mapa, ampliada un poco para precargar más allá del borde. */
@@ -779,11 +810,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // registran; se crean por demanda al acercar, en crearMexibusVisibles() (igual que el Metrobús).
             for (Estacion e : l.estaciones) {
                 if (l.numero == 104 && e.nombre.startsWith("Indios Verdes")) {
-                    // Indios Verdes L4: 2 andenes separados (sur/norte).
+                    // Indios Verdes L4: 2 andenes separados (sur/norte), mismas coordenadas EXACTAS que
+                    // Planificador.IV_L4_LLEGA/IV_L4_SALE (antes este mapa tenía su propio par de
+                    // coordenadas hardcodeado aparte, que se fue desalineando ~10-26 m de la lógica real
+                    // de avisos -- único punto de verdad ahora).
                     EstMapa a = new EstMapa(e, l.numero, l.color);
-                    a.pos = new LatLng(19.493912, -99.119961); a.titulo = "Indios Verdes · andén sur (dir. La Raza)";
+                    a.pos = Planificador.IV_L4_LLEGA; a.titulo = "Indios Verdes · andén sur (dir. La Raza)";
                     EstMapa b = new EstMapa(e, l.numero, l.color);
-                    b.pos = new LatLng(19.496143, -99.119133); b.titulo = "Indios Verdes · andén norte (dir. UMB Tecámac)";
+                    b.pos = Planificador.IV_L4_SALE; b.titulo = "Indios Verdes · andén norte (dir. UMB Tecámac)";
                     mexibusEst.add(a); mexibusEst.add(b);
                     continue;
                 }

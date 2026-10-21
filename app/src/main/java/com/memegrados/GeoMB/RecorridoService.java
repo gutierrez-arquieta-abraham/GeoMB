@@ -200,6 +200,50 @@ public class RecorridoService extends Service {
     // Verdes): ahí no hay ambigüedad entre andenes distintos que distinguir.
     private static final float RADIO_CEDA_ECATEPEC_M = 7f;
 
+    // Radio ANGOSTO del aviso de "llegando" (propio) para las 4 plataformas con zona de Indios Verdes --
+    // SOLO para ese aviso de la línea en la que ya vas viajando (ver radioLlegada()/su único uso, línea
+    // ~905): el radio ANCHO (ZONA_CERCA_M=70 m) sigue intacto en radioCerca()/radioCruce() para la
+    // lógica de correspondencia/cruce (distinguir entre los 4 andenes co-ubicados, "fin" de recorrido en
+    // L4, "próxima estación" al alejarse) -- esa SÍ necesita el radio ancho a propósito (ver sus propios
+    // comentarios). Defecto real confirmado (Mexibús L4 sur viniendo del norte): el corredor de cobertura
+    // de Indios Verdes (Z_IV_L4_LLEGA, ~112 m) tiene su extremo norte a solo ~50 m del andén de Metrobús
+    // L1 sur -- MENOS que ZONA_CERCA_M (70 m) -- así que el aviso de "llegando a tu Mexibús" podía sonar
+    // estando aún a la altura del andén de Metrobús, no genuinamente sobre el andén de Mexibús. Mismo
+    // criterio que CEDA Ecatepec (RADIO_CEDA_ECATEPEC_M=7): el corredor ya cubre toda la longitud real
+    // del andén por SEGMENTO, así que el radio perpendicular solo necesita cubrir el margen normal de
+    // imprecisión del GPS, no la ambigüedad entre plataformas (eso lo sigue resolviendo el radio ancho
+    // en la lógica de cruce). Un poco más amplio que CEDA Ecatepec (7 m, coordenada medida con precisión)
+    // porque estos 4 corredores se ubicaron a ojo sobre el mapa, no con una medición exacta.
+    private static final float RADIO_LLEGADA_ZONA_M = 10f;
+
+    /** Radio ANGOSTO de "llegando" para Indios Verdes (ver {@link #RADIO_LLEGADA_ZONA_M}); el resto de
+     *  casos es idéntico a {@link #radioCerca}. Úsese SOLO para el aviso de llegada a la parada en la
+     *  que ya vas viajando -- nunca para el umbral de cruce de línea ({@link #radioCruce}) ni para
+     *  "fin"/"próxima", que necesitan el radio ancho a propósito. */
+    static float radioLlegada(Planificador.Parada p) {
+        if (Planificador.tieneZona(p)) return RADIO_LLEGADA_ZONA_M;
+        return radioCerca(p);
+    }
+
+    // Margen para el disparo de "llegando" por SALIDA de zona (ver llegandoPorSalidaDeZona()): cuánto
+    // debe haber crecido 'bd' sobre 'distMin' para contar como "ya te estás alejando", no solo ruido
+    // normal de GPS rondando el mínimo. Mismo orden que CAMBIO_LINEA_M (15)/MARGEN_MEJORA_M (25).
+    private static final float MARGEN_SALIDA_ZONA_M = 5f;
+
+    /** Respaldo del aviso de "llegando" SOLO para plataformas con zona (Indios Verdes): si ya entraste
+     *  a la zona ANCHA (ZONA_CERCA_M=70 m -- fiable, no depende de qué tan preciso sea el corredor
+     *  registrado) y tu distancia actual ya creció sobre el mínimo alcanzado ({@code distMin}, ya
+     *  trackeado para "próxima estación"), es que ya pasaste el punto más cercano real y te estás
+     *  alejando -- cuenta como llegada aunque nunca hayas caído dentro del radio angosto
+     *  ({@link #RADIO_LLEGADA_ZONA_M}=10 m, sensible a la precisión del shape/corredor). Caso real: el
+     *  shape oficial de Mexibús L4 pasa ~11.8 m del corredor de Indios Verdes -- apenas fuera del radio
+     *  angosto -- así que sin este respaldo el aviso podía quedar sin disparar nunca en ese tramo.
+     *  Gateado por {@code tieneZona()}: nunca aplica a Puente de Fierro (sin zona, radio circular
+     *  normal a un solo punto vía {@code andenLargo()}), ni a ningún otro caso. */
+    static boolean llegandoPorSalidaDeZona(Planificador.Parada p, float bd, float distMin) {
+        return Planificador.tieneZona(p) && distMin <= ZONA_CERCA_M && bd > distMin + MARGEN_SALIDA_ZONA_M;
+    }
+
     /** Radio de "llegando" según la parada: corredor (Indios Verdes) > CEDA Ecatepec > andén largo >
      *  Clínica 93/76 > Mexibús/Metrobús normal. */
     private static float radioCerca(Planificador.Parada p) {
@@ -902,7 +946,8 @@ public class RecorridoService extends Service {
             // correspondencias co-ubicadas (p. ej. Indios Verdes) no suena el tururu de Metrobús mientras
             // sigues en Mexibús.
             sonarYHablar(vozProxima(seq, proxIdx, prepararse), seq.get(best).linea);   // "Próxima estación X" (+ correspondencia / prep)
-        } else if (bd <= radioCerca(seq.get(best)) && ultLlegando != best) {
+        } else if ((bd <= radioLlegada(seq.get(best)) || llegandoPorSalidaDeZona(seq.get(best), (float) bd, distMin))
+                && ultLlegando != best) {
             ultLlegando = best;
             ultProxima = -99;
             Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
