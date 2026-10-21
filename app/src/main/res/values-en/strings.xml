@@ -27,7 +27,9 @@
     <string name="modo_desbloqueado">Custom mode unlocked</string>
     <string name="modo_sw_cachondo">Flirty notifications (search)</string>
     <string name="modo_sw_pbs">Operation codes (PBS)</string>
-    <string name="modo_sw_voz_ximena">Experimental Ximena voice (paid, EC2 covers the cost)</string>
+    <string name="modo_sw_voz_ximena_metrobus">Ximena on Metrobús (paid, EC2 covers the cost)</string>
+    <string name="modo_sw_voz_ximena_mexibus">Ximena on Mexibús (paid, EC2 covers the cost)</string>
+    <string name="modo_sw_voz_ximena_mexicable">Ximena on Mexicable (paid, EC2 covers the cost)</string>
     <string name="modo_ver_claves">View operation codes</string>
     <string name="modo_claves_no">Place Claves.png in res/raw to view them</string>
     <string name="modo_salir">Exit custom mode</string>
@@ -250,6 +252,7 @@
     <string name="afectaciones_carta_vacio">There are active service disruptions, but none match this specific route.</string>
     <string name="audios_descargar">Download audios (offline)</string>
     <string name="audios_titulo">Download route audios</string>
+    <string name="audios_elegir_voz_titulo">Which voice do you want to download?</string>
     <string name="audios_preparando">Preparing download…</string>
     <string name="audios_descargando">Downloading %1$d/%2$d…</string>
     <string name="audios_listo">Audios ready (%1$d)</string>

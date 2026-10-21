@@ -61,7 +61,8 @@ import java.io.InputStream;
 public class ConfiguracionFragment extends Fragment {
 
     private View panel;
-    private SwitchMaterial swCachondo, swPbs, swVozXimena;
+    private SwitchMaterial swCachondo, swPbs;
+    private SwitchMaterial swVozXimenaMetrobus, swVozXimenaMexibus, swVozXimenaMexicable;
     private View btnVerClaves;
     private AlertDialog dlgDescargaAudios;   // se cierra en onDestroyView para no dejar la ventana "colgada"
     private final CheckBox[] chkLineas = new CheckBox[8];   // 1..7 (índice 0 sin usar)
@@ -134,7 +135,9 @@ public class ConfiguracionFragment extends Fragment {
         panel = view.findViewById(R.id.panel_personalizado);
         swCachondo = view.findViewById(R.id.sw_cachondo);
         swPbs = view.findViewById(R.id.sw_pbs);
-        swVozXimena = view.findViewById(R.id.sw_voz_ximena);
+        swVozXimenaMetrobus = view.findViewById(R.id.sw_voz_ximena_metrobus);
+        swVozXimenaMexibus = view.findViewById(R.id.sw_voz_ximena_mexibus);
+        swVozXimenaMexicable = view.findViewById(R.id.sw_voz_ximena_mexicable);
         btnVerClaves = view.findViewById(R.id.btn_ver_claves);
         EditText inputFrase = view.findViewById(R.id.input_frase);
 
@@ -223,8 +226,16 @@ public class ConfiguracionFragment extends Fragment {
             Modos.setPbs(requireContext(), swPbs.isChecked());
             refrescar();
         });
-        swVozXimena.setOnClickListener(v2 -> {
-            Modos.setVozXimena(requireContext(), swVozXimena.isChecked());
+        swVozXimenaMetrobus.setOnClickListener(v2 -> {
+            Modos.setVozXimenaMetrobus(requireContext(), swVozXimenaMetrobus.isChecked());
+            refrescar();
+        });
+        swVozXimenaMexibus.setOnClickListener(v2 -> {
+            Modos.setVozXimenaMexibus(requireContext(), swVozXimenaMexibus.isChecked());
+            refrescar();
+        });
+        swVozXimenaMexicable.setOnClickListener(v2 -> {
+            Modos.setVozXimenaMexicable(requireContext(), swVozXimenaMexicable.isChecked());
             refrescar();
         });
         btnVerClaves.setOnClickListener(v2 -> verClaves());
@@ -477,7 +488,7 @@ public class ConfiguracionFragment extends Fragment {
             Modos.setPbs(requireContext(), true);
             Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
         } else if (Modos.FRASE_VOZ_XIMENA.equals(f)) {
-            Modos.setVozXimena(requireContext(), true);
+            Modos.setVozXimenaDisponible(requireContext(), true);
             Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(requireContext(), R.string.modo_frase_no, Toast.LENGTH_SHORT).show();
@@ -491,13 +502,18 @@ public class ConfiguracionFragment extends Fragment {
         if (!person) return;
         boolean cach = Modos.cachondo(requireContext());
         boolean pbs = Modos.pbs(requireContext());
-        boolean vozXimena = Modos.vozXimena(requireContext());
+        boolean vozXimenaDisp = Modos.vozXimenaDisponible(requireContext());
         swCachondo.setVisibility(cach ? View.VISIBLE : View.GONE);
         swCachondo.setChecked(cach);
         swPbs.setVisibility(pbs ? View.VISIBLE : View.GONE);
         swPbs.setChecked(pbs);
-        swVozXimena.setVisibility(vozXimena ? View.VISIBLE : View.GONE);
-        swVozXimena.setChecked(vozXimena);
+        int visXimena = vozXimenaDisp ? View.VISIBLE : View.GONE;
+        swVozXimenaMetrobus.setVisibility(visXimena);
+        swVozXimenaMetrobus.setChecked(Modos.vozXimenaMetrobus(requireContext()));
+        swVozXimenaMexibus.setVisibility(visXimena);
+        swVozXimenaMexibus.setChecked(Modos.vozXimenaMexibus(requireContext()));
+        swVozXimenaMexicable.setVisibility(visXimena);
+        swVozXimenaMexicable.setChecked(Modos.vozXimenaMexicable(requireContext()));
         btnVerClaves.setVisibility(pbs ? View.VISIBLE : View.GONE);
     }
 
@@ -757,11 +773,37 @@ public class ConfiguracionFragment extends Fragment {
                         android.widget.Toast.makeText(requireContext(),
                                 getString(R.string.audios_borrados, n), android.widget.Toast.LENGTH_SHORT).show();
                     } else if (c == -2) {
-                        descargarAudios(todas, getString(R.string.audios_todas));
+                        // "Todas" mezcla sistemas (Metrobús + Mexibús) que pueden tener Ximena activa
+                        // en uno y no en el otro -- para no complicar qué voz le toca a cada línea,
+                        // "todas" se queda siempre en Mia. El selector de voz solo aplica a una línea
+                        // a la vez (ver preguntarVozYDescargar()), donde el sistema es inequívoco.
+                        descargarAudios(todas, getString(R.string.audios_todas), "Mia");
                     } else {
-                        descargarAudios(java.util.Collections.singletonList(c), nom.get(w));
+                        preguntarVozYDescargar(c, nom.get(w));
                     }
                 }).show();
+    }
+
+    /** Si el sistema de esta línea tiene Ximena activa (ver Modos.vozXimenaMetrobus()/Mexibus()/
+     *  Mexicable()), pregunta qué voz descargar antes de arrancar; si no, descarga "Mia" directo
+     *  sin preguntar nada (comportamiento de siempre para quien no activó el modo experimental). */
+    private void preguntarVozYDescargar(int linea, String nombre) {
+        boolean ximenaActiva;
+        switch (Sistemas.sistemaDe(linea)) {
+            case Sistemas.MEXIBUS:   ximenaActiva = Modos.vozXimenaMexibus(requireContext()); break;
+            case Sistemas.MEXICABLE: ximenaActiva = Modos.vozXimenaMexicable(requireContext()); break;
+            default:                 ximenaActiva = Modos.vozXimenaMetrobus(requireContext()); break;
+        }
+        if (!ximenaActiva) {
+            descargarAudios(java.util.Collections.singletonList(linea), nombre, "Mia");
+            return;
+        }
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.audios_elegir_voz_titulo)
+                .setItems(new String[]{"Mia", "Ximena"}, (d, w) ->
+                        descargarAudios(java.util.Collections.singletonList(linea), nombre,
+                                w == 1 ? "Ximena" : "Mia"))
+                .show();
     }
 
     /**
@@ -779,7 +821,7 @@ public class ConfiguracionFragment extends Fragment {
      * la reportara como "no responde" y la cerrara -- exactamente el mismo cálculo YA lo hace
      * DescargaVozService en su hilo de 2º plano; aquí solo se refleja cuando llegue el primer avance().
      */
-    private void descargarAudios(java.util.List<Integer> lineas, String nombre) {
+    private void descargarAudios(java.util.List<Integer> lineas, String nombre, String voz) {
         if (DescargaVozService.corriendo) {
             Toast.makeText(requireContext(), R.string.audios_en_curso, Toast.LENGTH_SHORT).show();
             return;
@@ -810,6 +852,6 @@ public class ConfiguracionFragment extends Fragment {
                 if (isAdded()) Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show();
             }
         });
-        DescargaVozService.iniciar(requireContext(), lineas, nombre);
+        DescargaVozService.iniciar(requireContext(), lineas, nombre, voz);
     }
 }

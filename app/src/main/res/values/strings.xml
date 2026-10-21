@@ -25,7 +25,9 @@
     <string name="modo_desbloqueado">Modo personalizado desbloqueado</string>
     <string name="modo_sw_cachondo">Notificaciones coquetas (búsqueda)</string>
     <string name="modo_sw_pbs">Claves de operación (PBS)</string>
-    <string name="modo_sw_voz_ximena">Voz experimental Ximena (de pago, EC2 asume el costo)</string>
+    <string name="modo_sw_voz_ximena_metrobus">Ximena en Metrobús (de pago, EC2 asume el costo)</string>
+    <string name="modo_sw_voz_ximena_mexibus">Ximena en Mexibús (de pago, EC2 asume el costo)</string>
+    <string name="modo_sw_voz_ximena_mexicable">Ximena en Mexicable (de pago, EC2 asume el costo)</string>
     <string name="modo_ver_claves">Ver claves de operación</string>
     <string name="modo_claves_no">Coloca Claves.png en res/raw para verlas</string>
     <string name="modo_salir">Salir del modo personalizado</string>
@@ -280,6 +282,7 @@
     <string name="afectaciones_carta_vacio">Hay afectaciones activas en el servicio, pero ninguna coincide con esta ruta en particular.</string>
     <string name="audios_descargar">Descargar audios (offline)</string>
     <string name="audios_titulo">Descargar audios del recorrido</string>
+    <string name="audios_elegir_voz_titulo">¿Qué voz quieres descargar?</string>
     <string name="audios_preparando">Preparando descarga…</string>
     <string name="audios_descargando">Descargando %1$d/%2$d…</string>
     <string name="audios_listo">Audios listos (%1$d)</string>

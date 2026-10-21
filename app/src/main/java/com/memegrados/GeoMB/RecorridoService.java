@@ -1038,12 +1038,12 @@ public class RecorridoService extends Service {
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
-                        handler.postDelayed(() -> decirConVoz(texto), 250);   // deja respirar antes de la voz
+                        handler.postDelayed(() -> decirConVoz(texto, linea), 250);   // deja respirar antes de la voz
                     });
                     mp.setOnErrorListener((m, a, b) -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
-                        decirConVoz(texto);
+                        decirConVoz(texto, linea);
                         return true;
                     });
                     mp.start();
@@ -1051,7 +1051,7 @@ public class RecorridoService extends Service {
                 }
             } catch (Exception ignore) {}
         }
-        decirConVoz(texto);
+        decirConVoz(texto, linea);
     }
 
     /** Detiene y libera el reproductor en curso (tururu o voz) para que no se encimen. */
@@ -1108,23 +1108,24 @@ public class RecorridoService extends Service {
 
     // ---- voz Mia (AWS Polly) con caché local; respaldo al TTS de Android ----
 
-    /** Reproduce la frase con la voz Mia (mp3 del backend, cacheada). Si falla/offline, usa TTS. */
-    private void decirConVoz(String texto) {
+    /** Reproduce la frase con la voz del backend (Mia o Ximena, según el sistema de `linea` -- ver
+     *  Modos.vozActual()), cacheada. Si falla/offline, usa TTS. */
+    private void decirConVoz(String texto, int linea) {
         if (destruido) { vozOcupada = false; return; }
-        java.io.File cache = archivoVoz(texto);
+        java.io.File cache = archivoVoz(texto, linea);
         if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }   // ya en caché: no gasta datos
         // Modo ahorro de datos (activo por defecto en datos móviles, desactivable en "Acerca de"):
-        // si esta frase no está ya cacheada, no se descarga la voz Mia -se habla directo con la voz
-        // local del teléfono (TTS, sin conexión, cero datos).
+        // si esta frase no está ya cacheada, no se descarga la voz del backend -se habla directo con
+        // la voz local del teléfono (TTS, sin conexión, cero datos).
         // Wi-Fi "conectada" pero sin internet real (router sin servicio, portal cautivo) con datos
         // móviles también encendidos: Android puede seguir marcando la Wi-Fi muerta como red activa,
         // así que sin este chequeo se intentaba la descarga sobre una red que nunca va a responder
         // -tardando mucho más en fallar (o colgándose) que "sin red" de plano, y dejando el aviso
         // varado sin avanzar a los siguientes de la cola.
         if (Red.ahorrarAhora(this) || !Red.hayInternetReal(this)) { hablar(texto); return; }
-        // Descarga la voz Mia PERO con un límite (VOZ_TIMEOUT_MS): si no llega a tiempo, se habla ya
-        // con el TTS de Google para no dejar esperando; la descarga sigue y queda cacheada para la
-        // próxima. Este aviso YA está "en curso" (vozOcupada=true): el siguiente de la cola espera.
+        // Descarga la voz del backend PERO con un límite (VOZ_TIMEOUT_MS): si no llega a tiempo, se
+        // habla ya con el TTS de Google para no dejar esperando; la descarga sigue y queda cacheada
+        // para la próxima. Este aviso YA está "en curso" (vozOcupada=true): el siguiente de la cola espera.
         final boolean[] resuelto = {false};
         handler.postDelayed(() -> {
             if (destruido || resuelto[0]) return;
@@ -1132,7 +1133,7 @@ public class RecorridoService extends Service {
             hablar(texto);   // se pasó del timeout: TTS inmediato
         }, VOZ_TIMEOUT_MS);
         new Thread(() -> {
-            java.io.File out = descargarVoz(texto);
+            java.io.File out = descargarVoz(texto, linea);
             handler.post(() -> {
                 if (destruido || resuelto[0]) return;   // ya habló el TTS por timeout
                 resuelto[0] = true;
@@ -1149,20 +1150,25 @@ public class RecorridoService extends Service {
     // "de datos de la app" no necesita permiso de almacenamiento en ninguna versión de Android.
     // Si por lo que sea no hay almacenamiento externo disponible (SD extraíble desmontada, etc.),
     // cae al interno para no perder la función.
-    private java.io.File archivoVoz(String texto) {
+    // Subcarpetas voz/<voz>/<sistema>/L<línea>/: para poder navegar/filtrar a mano con un explorador
+    // de archivos (p. ej. ver solo lo de Mexibús, o solo lo de Ximena). El nombre del archivo ya no
+    // necesita llevar la voz (vive en la carpeta), solo el hash del texto.
+    private java.io.File archivoVoz(String texto, int linea) {
         java.io.File base = getExternalFilesDir(null);
         if (base == null) base = getFilesDir();
-        java.io.File dir = new java.io.File(base, "voz");
+        String voz = Modos.vozActual(this, linea);
+        java.io.File dir = new java.io.File(base, "voz/" + voz + "/" + Sistemas.carpeta(Sistemas.sistemaDe(linea))
+                + "/L" + Sistemas.numeroDeLinea(linea));
         if (!dir.exists()) dir.mkdirs();
-        return new java.io.File(dir, Integer.toHexString((Modos.vozActual(this) + "|" + texto).hashCode()) + ".mp3");
+        return new java.io.File(dir, Integer.toHexString(texto.hashCode()) + ".mp3");
     }
 
-    private java.io.File descargarVoz(String texto) {
-        java.io.File out = archivoVoz(texto);
+    private java.io.File descargarVoz(String texto, int linea) {
+        java.io.File out = archivoVoz(texto, linea);
         if (out == null) return null;
         java.net.HttpURLConnection c = null;
         try {
-            String u = "https://geomb.duckdns.org/api/tts?voz=" + Modos.vozActual(this)
+            String u = "https://geomb.duckdns.org/api/tts?voz=" + Modos.vozActual(this, linea)
                     + "&texto=" + android.net.Uri.encode(texto);
             c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
             c.setConnectTimeout(3000);

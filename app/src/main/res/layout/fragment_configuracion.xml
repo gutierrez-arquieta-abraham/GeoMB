@@ -593,11 +593,27 @@
                 android:visibility="gone" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/sw_voz_ximena"
+                android:id="@+id/sw_voz_ximena_metrobus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="@string/modo_sw_voz_ximena"
+                android:text="@string/modo_sw_voz_ximena_metrobus"
+                android:visibility="gone" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/sw_voz_ximena_mexibus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/modo_sw_voz_ximena_mexibus"
+                android:visibility="gone" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/sw_voz_ximena_mexicable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/modo_sw_voz_ximena_mexicable"
                 android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton

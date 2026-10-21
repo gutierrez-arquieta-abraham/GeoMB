@@ -55,6 +55,7 @@ public class DescargaVozService extends Service {
 
     private static final String EXTRA_LINEAS = "lineas";
     private static final String EXTRA_NOMBRE = "nombre";
+    private static final String EXTRA_VOZ = "voz";
     private static final String ACCION_CANCELAR = "cancelar_descarga_audios";
     private static final String CANAL = "descarga_audios";
     private static final int ID_ONGOING = 4301;
@@ -69,13 +70,22 @@ public class DescargaVozService extends Service {
 
     public static void setEscucha(Escucha e) { escucha = e; }
 
-    /** Arranca la descarga (si no hay ya una en curso: ignora el duplicado). */
+    /** Arranca la descarga con la voz "Mia" (ver el overload con `voz` para elegir otra; si no hay
+     *  ya una en curso: ignora el duplicado). */
     public static void iniciar(Context c, List<Integer> lineas, String nombre) {
+        iniciar(c, lineas, nombre, "Mia");
+    }
+
+    /** Arranca la descarga con la voz indicada (p. ej. "Ximena" si el usuario la elige en el
+     *  selector de ConfiguracionFragment.menuAudios() -- solo ofrecido cuando ese sistema ya tiene
+     *  su propio modo experimental activo). */
+    public static void iniciar(Context c, List<Integer> lineas, String nombre, String voz) {
         int[] arr = new int[lineas.size()];
         for (int i = 0; i < arr.length; i++) arr[i] = lineas.get(i);
         Intent i = new Intent(c, DescargaVozService.class)
                 .putExtra(EXTRA_LINEAS, arr)
-                .putExtra(EXTRA_NOMBRE, nombre);
+                .putExtra(EXTRA_NOMBRE, nombre)
+                .putExtra(EXTRA_VOZ, voz);
         try {
             ContextCompat.startForegroundService(c, i);
         } catch (IllegalStateException | SecurityException e) {
@@ -107,6 +117,8 @@ public class DescargaVozService extends Service {
         if (lineas == null || lineas.length == 0) { stopSelf(); return START_NOT_STICKY; }
         nombre = intent.getStringExtra(EXTRA_NOMBRE);
         if (nombre == null) nombre = getString(R.string.audios_titulo);
+        String voz = intent.getStringExtra(EXTRA_VOZ);
+        if (voz == null) voz = "Mia";
         corriendo = true;
         hechos = 0; total = 0;
         arrancarPrimerPlano();
@@ -116,7 +128,7 @@ public class DescargaVozService extends Service {
         // avance()/fin() corren en el hilo de descarga de DescargaVoz; una excepción sin atrapar ahí
         // (notificación, o el callback 'escucha' de un diálogo en un estado inesperado) tumbaría
         // este servicio en primer plano a media descarga.
-        DescargaVoz.descargarVarias(this, ls, new DescargaVoz.Progreso() {
+        DescargaVoz.descargarVarias(this, ls, voz, new DescargaVoz.Progreso() {
             @Override public void avance(int h, int t) {
                 try {
                     hechos = h; total = t;

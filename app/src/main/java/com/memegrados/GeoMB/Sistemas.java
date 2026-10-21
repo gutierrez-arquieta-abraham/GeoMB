@@ -35,4 +35,21 @@ public final class Sistemas {
         if (numeroLinea >= 100) return MEXIBUS;
         return METROBUS;
     }
+
+    /** Nombre de carpeta del sistema (sin acentos/espacios), para organizar archivos por sistema
+     *  (ver DescargaVoz/RecorridoService -- carpeta de voz voz/<voz>/<sistema>/<línea>/). */
+    public static String carpeta(int sistema) {
+        switch (sistema) {
+            case MEXIBUS: return "Mexibus";
+            case MEXICABLE: return "Mexicable";
+            default: return "Metrobus";
+        }
+    }
+
+    /** Número de línea "limpio" (1-7 Metrobús directo; Mexibús/Mexicable ordinario/ramal/exprés
+     *  colapsan al mismo número por su último dígito: 101/111/121 -> 1, 104/124 -> 4, 201/202 -> 1/2).
+     *  Para la carpeta de voz ("L" + este número) y cualquier otro agrupado por línea física. */
+    public static int numeroDeLinea(int numeroLinea) {
+        return numeroLinea >= 100 ? numeroLinea % 10 : numeroLinea;
+    }
 }

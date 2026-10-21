@@ -38,7 +38,10 @@ public final class Modos {
     private static final String K_PERSON = "personalizado";
     private static final String K_CACHONDO = "cachondo";
     private static final String K_PBS = "pbs";
-    private static final String K_VOZ_XIMENA = "voz_ximena";
+    private static final String K_VOZ_XIMENA_DISP = "voz_ximena";   // gate maestro (frase secreta)
+    private static final String K_VOZ_XIMENA_METROBUS = "voz_ximena_metrobus";
+    private static final String K_VOZ_XIMENA_MEXIBUS = "voz_ximena_mexibus";
+    private static final String K_VOZ_XIMENA_MEXICABLE = "voz_ximena_mexicable";
     private static final String K_SINCRO = "sincro_fondo";
 
     /** Frases secretas EXACTAS (se comparan tal cual, con mayúsculas y acentos). */
@@ -69,19 +72,41 @@ public final class Modos {
         return personalizado(c) && p(c).getBoolean(K_PBS, false);
     }
 
-    public static boolean vozXimena(Context c) {
-        return personalizado(c) && p(c).getBoolean(K_VOZ_XIMENA, false);
+    /** Gate maestro de la voz Ximena (desbloqueado con su frase secreta): si está apagado, NINGÚN
+     *  sistema puede usar Ximena sin importar lo que tengan guardado sus 3 switches individuales. */
+    public static boolean vozXimenaDisponible(Context c) {
+        return personalizado(c) && p(c).getBoolean(K_VOZ_XIMENA_DISP, false);
     }
 
-    /** Nombre de voz a pedirle al backend (/api/tts?voz=...): "Ximena" solo si ese modo
-     *  experimental está activo; "Mia" (la de siempre, AWS Polly) en cualquier otro caso. */
-    public static String vozActual(Context c) {
-        return vozXimena(c) ? "Ximena" : "Mia";
+    /** Switch de Ximena POR SISTEMA (Metrobús/Mexibús/Mexicable, independientes entre sí) --
+     *  solo cuentan si {@link #vozXimenaDisponible} ya está activo. */
+    public static boolean vozXimenaMetrobus(Context c) {
+        return vozXimenaDisponible(c) && p(c).getBoolean(K_VOZ_XIMENA_METROBUS, false);
+    }
+
+    public static boolean vozXimenaMexibus(Context c) {
+        return vozXimenaDisponible(c) && p(c).getBoolean(K_VOZ_XIMENA_MEXIBUS, false);
+    }
+
+    public static boolean vozXimenaMexicable(Context c) {
+        return vozXimenaDisponible(c) && p(c).getBoolean(K_VOZ_XIMENA_MEXICABLE, false);
+    }
+
+    /** Nombre de voz a pedirle al backend (/api/tts?voz=...) para una parada de esta línea: "Ximena"
+     *  solo si el sistema de esa línea tiene su propio switch activo; "Mia" (AWS Polly, de siempre)
+     *  en cualquier otro caso -- cada sistema elige su voz por separado. */
+    public static String vozActual(Context c, int linea) {
+        switch (Sistemas.sistemaDe(linea)) {
+            case Sistemas.MEXIBUS:   return vozXimenaMexibus(c)   ? "Ximena" : "Mia";
+            case Sistemas.MEXICABLE: return vozXimenaMexicable(c) ? "Ximena" : "Mia";
+            default:                 return vozXimenaMetrobus(c) ? "Ximena" : "Mia";
+        }
     }
 
     public static void setPersonalizado(Context c, boolean v) {
         p(c).edit().putBoolean(K_PERSON, v).apply();
-        if (!v) { setCachondo(c, false); setPbs(c, false); setVozXimena(c, false); }   // apagar todo con él
+        // apagar todo con él
+        if (!v) { setCachondo(c, false); setPbs(c, false); setVozXimenaDisponible(c, false); }
     }
 
     public static void setCachondo(Context c, boolean v) {
@@ -92,8 +117,25 @@ public final class Modos {
         p(c).edit().putBoolean(K_PBS, v).apply();
     }
 
-    public static void setVozXimena(Context c, boolean v) {
-        p(c).edit().putBoolean(K_VOZ_XIMENA, v).apply();
+    public static void setVozXimenaDisponible(Context c, boolean v) {
+        p(c).edit().putBoolean(K_VOZ_XIMENA_DISP, v).apply();
+        if (!v) {   // apaga los 3 switches individuales con el gate maestro
+            setVozXimenaMetrobus(c, false);
+            setVozXimenaMexibus(c, false);
+            setVozXimenaMexicable(c, false);
+        }
+    }
+
+    public static void setVozXimenaMetrobus(Context c, boolean v) {
+        p(c).edit().putBoolean(K_VOZ_XIMENA_METROBUS, v).apply();
+    }
+
+    public static void setVozXimenaMexibus(Context c, boolean v) {
+        p(c).edit().putBoolean(K_VOZ_XIMENA_MEXIBUS, v).apply();
+    }
+
+    public static void setVozXimenaMexicable(Context c, boolean v) {
+        p(c).edit().putBoolean(K_VOZ_XIMENA_MEXICABLE, v).apply();
     }
 
     // --- Sincronización en segundo plano (independiente del modo personalizado) ---

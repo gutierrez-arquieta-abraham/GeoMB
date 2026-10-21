@@ -18,9 +18,9 @@ import java.util.concurrent.Executors;
 
 /**
  * Pre-descarga (Fase 1) los audios base del recorrido de una LÍNEA al MISMO almacenamiento que usa
- * {@link RecorridoService} ({@code Android/data/<paquete>/files/voz/}, nombre
- * {@code hash("Mia|"+texto).mp3} -- NO caché, para que no se borren solos bajo presión de espacio;
- * es almacenamiento externo PROPIO de la app, visible con un explorador de archivos y sin permisos
+ * {@link RecorridoService} ({@code Android/data/<paquete>/files/voz/Mia/<sistema>/L<línea>/}, nombre
+ * {@code hash(texto).mp3} -- NO caché, para que no se borren solos bajo presión de espacio; es
+ * almacenamiento externo PROPIO de la app, visible con un explorador de archivos y sin permisos
  * especiales), para que el recorrido los reproduzca offline. Fase 1 = por cada estación: "Llegando
  * a estación: X" y "Próxima estación: X" (los strings exactos del recorrido). Las variantes de
  * correspondencia/conexión son Fase 2.
@@ -34,9 +34,9 @@ import java.util.concurrent.Executors;
 //
 // Pre-descarga (Fase 1) los audios base del recorrido de UNA línea al
 // MISMO almacenamiento que usa RecorridoService (Android/data/<paquete>/
-// files/voz/, nombre hash("Mia|"+texto).mp3 -- NO caché), para que el
-// recorrido se oiga OFFLINE sin que el sistema borre los audios ya
-// descargados.
+// files/voz/Mia/<sistema>/L<línea>/, nombre hash(texto).mp3 -- NO caché),
+// para que el recorrido se oiga OFFLINE sin que el sistema borre los
+// audios ya descargados.
 //
 // Fase 1 = por cada estación: "Llegando a estación: X" y "Próxima
 // estación: X" (los textos EXACTOS del recorrido). Las variantes de
@@ -120,13 +120,29 @@ public final class DescargaVoz {
         return new ArrayList<>(t);
     }
 
-    /** Descarga los audios de UNA línea. */
+    /** Descarga los audios de UNA línea, con la voz "Mia" (ver {@link #descargarLinea(Context, int,
+     *  String, Progreso)} para elegir otra). */
     public static void descargarLinea(Context ctx, int linea, Progreso cb) {
-        descargarVarias(ctx, java.util.Collections.singletonList(linea), cb);
+        descargarLinea(ctx, linea, "Mia", cb);
     }
 
-    /** Descarga los audios de VARIAS líneas (para "descargar todas"), en segundo plano. */
+    /** Descarga los audios de UNA línea con la voz indicada (p. ej. "Ximena" si ese sistema tiene
+     *  el modo experimental activo -- ver ConfiguracionFragment.menuAudios()). */
+    public static void descargarLinea(Context ctx, int linea, String voz, Progreso cb) {
+        descargarVarias(ctx, java.util.Collections.singletonList(linea), voz, cb);
+    }
+
+    /** Descarga los audios de VARIAS líneas (para "descargar todas") con la voz "Mia" (ver el
+     *  overload con `voz` para elegir otra). */
     public static void descargarVarias(Context ctx, List<Integer> lineas, Progreso cb) {
+        descargarVarias(ctx, lineas, "Mia", cb);
+    }
+
+    /** Descarga los audios de VARIAS líneas con la voz indicada, en segundo plano. Por cada línea en
+     *  SU PROPIA carpeta (voz/<voz>/<sistema>/L<línea>/): si el mismo texto se repite entre 2 líneas
+     *  (p. ej. mismo nombre de estación), se descarga una vez por cada una -- la carpeta de cada
+     *  línea queda completa por sí sola, en vez de depender de qué otras líneas ya bajaste. */
+    public static void descargarVarias(Context ctx, List<Integer> lineas, String voz, Progreso cb) {
         final Context app = ctx.getApplicationContext();
         cancelar = false;
         EXEC.execute(() -> {
@@ -136,14 +152,19 @@ public final class DescargaVoz {
                 MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
                 return;
             }
-            Set<String> set = new LinkedHashSet<>();
-            for (int ln : lineas) set.addAll(textosLinea(app, ln));   // unión sin duplicar
-            List<String> textos = new ArrayList<>(set);
-            int total = textos.size(), hechos = 0, ok = 0, fallosSeguidos = 0;
-            for (String t : textos) {
+            List<String> textosPorPendiente = new ArrayList<>();
+            List<Integer> lineaPorPendiente = new ArrayList<>();
+            for (int ln : lineas) for (String t : textosLinea(app, ln)) {
+                textosPorPendiente.add(t);
+                lineaPorPendiente.add(ln);
+            }
+            int total = textosPorPendiente.size(), hechos = 0, ok = 0, fallosSeguidos = 0;
+            for (int i = 0; i < total; i++) {
                 if (cancelar) break;
+                String t = textosPorPendiente.get(i);
+                int ln = lineaPorPendiente.get(i);
                 boolean bien = false;
-                try { bien = descargarUno(app, t); } catch (Exception ignore) {}
+                try { bien = descargarUno(app, t, ln, voz); } catch (Exception ignore) {}
                 if (bien) { ok++; fallosSeguidos = 0; }
                 else if (++fallosSeguidos >= FALLOS_SEGUIDOS_ABORTAR) {
                     MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
@@ -159,11 +180,11 @@ public final class DescargaVoz {
     }
 
     /** Baja un texto a la caché de voz (si no está ya). Devuelve true si quedó el archivo. */
-    private static boolean descargarUno(Context ctx, String texto) throws java.io.IOException {
-        File out = archivoVoz(ctx, texto);
+    private static boolean descargarUno(Context ctx, String texto, int linea, String voz) throws java.io.IOException {
+        File out = archivoVoz(ctx, texto, linea, voz);
         if (out == null) return false;
         if (out.exists() && out.length() > 0) return true;   // ya cacheado
-        URL url = new URL("https://geomb.duckdns.org/api/tts?voz=Mia&texto="
+        URL url = new URL("https://geomb.duckdns.org/api/tts?voz=" + voz + "&texto="
                 + android.net.Uri.encode(texto));
         HttpURLConnection c = (HttpURLConnection) url.openConnection();
         c.setConnectTimeout(8000);
@@ -183,31 +204,52 @@ public final class DescargaVoz {
         }
     }
 
-    /** Borra los audios (Fase 1) de una línea. */
+    /** Voces que puede haber descargado la pre-descarga masiva (ver menuAudios(): "Mia" siempre
+     *  disponible; "Ximena" solo si el usuario la elige cuando el sistema de esa línea tiene el
+     *  modo experimental activo) -- borrarLinea()/cuantosDescargados() revisan AMBAS, porque la
+     *  misma línea pudo haberse descargado primero en una y después en la otra. */
+    private static final String[] VOCES_CONOCIDAS = {"Mia", "Ximena"};
+
+    /** Borra los audios (Fase 1) de una línea, en CUALQUIERA de las voces que se hayan descargado. */
     public static int borrarLinea(Context ctx, int linea) {
         int n = 0;
         for (String t : textosLinea(ctx, linea)) {
-            File f = archivoVoz(ctx, t);
-            if (f != null && f.exists() && f.delete()) n++;
+            for (String voz : VOCES_CONOCIDAS) {
+                File f = archivoVoz(ctx, t, linea, voz);
+                if (f != null && f.exists() && f.delete()) n++;
+            }
         }
         return n;
     }
 
-    /** Borra TODOS los audios descargados (toda la carpeta de voz). Devuelve cuántos borró. */
+    /** Borra TODOS los audios descargados (toda la carpeta voz/, recursivo: ya tiene subcarpetas
+     *  <voz>/<sistema>/<línea>/). Devuelve cuántos ARCHIVOS borró (no cuenta carpetas). */
     public static int borrarTodo(Context ctx) {
+        File base = ctx.getExternalFilesDir(null);
+        if (base == null) base = ctx.getFilesDir();
+        return borrarRecursivo(new File(base, "voz"));
+    }
+
+    private static int borrarRecursivo(File dir) {
         int n = 0;
-        File dir = new File(ctx.getFilesDir(), "voz");
         File[] fs = dir.listFiles();
-        if (fs != null) for (File f : fs) if (f.delete()) n++;
+        if (fs == null) return 0;
+        for (File f : fs) {
+            if (f.isDirectory()) n += borrarRecursivo(f);
+            else if (f.delete()) n++;
+        }
         return n;
     }
 
-    /** ¿Cuántos audios de la línea ya están descargados? (para mostrar estado). */
+    /** ¿Cuántos audios de la línea ya están descargados, en CUALQUIERA de las voces? (para mostrar
+     *  estado). Si se descargó en las 2 voces, cuenta ambas (coherente con borrarLinea()). */
     public static int cuantosDescargados(Context ctx, int linea) {
         int n = 0;
         for (String t : textosLinea(ctx, linea)) {
-            File f = archivoVoz(ctx, t);
-            if (f != null && f.exists() && f.length() > 0) n++;
+            for (String voz : VOCES_CONOCIDAS) {
+                File f = archivoVoz(ctx, t, linea, voz);
+                if (f != null && f.exists() && f.length() > 0) n++;
+            }
         }
         return n;
     }
@@ -216,20 +258,21 @@ public final class DescargaVoz {
     // Almacenamiento EXTERNO propio de la app (Android/data/<paquete>/files/voz/, NO getCacheDir()):
     // el sistema nunca lo borra bajo presión de espacio (solo al desinstalar la app), y a diferencia
     // de getFilesDir() sí es accesible con un explorador de archivos, sin permisos especiales. Si no
-    // hay almacenamiento externo disponible, cae al interno para no perder la función. ---
-    // A PROPÓSITO sigue fija en "Mia", sin seguir Modos.vozActual()/el modo experimental de Ximena
-    // (Fish Audio, de pago por caracter): esta es una pre-descarga MASIVA (todas las estaciones de
-    // una línea de un golpe), mientras que RecorridoService.decirConVoz() solo pide UNA frase a la
-    // vez, según el recorrido real -- el costo ahí queda acotado por cuánto de verdad viajas. Si esto
-    // siguiera al modo experimental, activar Ximena dispararía decenas de llamadas pagadas de golpe
-    // con solo tocar "descargar". Cuando Ximena esté activa, RecorridoService simplemente no
-    // encuentra el archivo pre-cacheado aquí (clave distinta) y cae a su descarga normal por frase.
-    private static File archivoVoz(Context ctx, String texto) {
+    // hay almacenamiento externo disponible, cae al interno para no perder la función.
+    // Subcarpetas voz/<voz>/<sistema>/L<línea>/ -- navegables/filtrables a mano (ver Sistemas.carpeta()/
+    // numeroDeLinea()). Por DEFAULT la pre-descarga masiva sigue siendo "Mia" (ver los overloads sin
+    // `voz` de descargarLinea()/descargarVarias()): esta es una descarga de TODAS las estaciones de
+    // una línea de un golpe, mientras que RecorridoService.decirConVoz() solo pide UNA frase a la vez
+    // según el recorrido real -- el costo ahí queda acotado por cuánto de verdad viajas. Por eso
+    // ConfiguracionFragment solo ofrece elegir "Ximena" aquí cuando el sistema de esa línea YA tiene
+    // su propio switch activo (Modos.vozXimenaMetrobus()/Mexibus()/Mexicable()) -- nunca por default. ---
+    private static File archivoVoz(Context ctx, String texto, int linea, String voz) {
         File base = ctx.getExternalFilesDir(null);
         if (base == null) base = ctx.getFilesDir();
-        File dir = new File(base, "voz");
+        File dir = new File(base, "voz/" + voz + "/" + Sistemas.carpeta(Sistemas.sistemaDe(linea))
+                + "/L" + Sistemas.numeroDeLinea(linea));
         if (!dir.exists()) dir.mkdirs();
-        return new File(dir, Integer.toHexString(("Mia|" + texto).hashCode()) + ".mp3");
+        return new File(dir, Integer.toHexString(texto.hashCode()) + ".mp3");
     }
 
     /** Réplica exacta de RecorridoService.nom(): sin 'MXB ' y cortando en '('. */
