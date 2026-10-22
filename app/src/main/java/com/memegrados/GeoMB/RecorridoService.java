@@ -795,11 +795,25 @@ public class RecorridoService extends Service {
                 // hablaba de la estación siguiente. Al cortar aquí, este ciclo se queda EN el nodo de
                 // correspondencia y el de llegada podrá anunciarlo; recién el siguiente ciclo avanza más.
                 if ((alcanzasteAnterior || alcanzasteNueva) && d <= umbral && cruzaZona) {
+                    // Defecto real confirmado (Indios Verdes): el bloque de cruce corta (break) y salta
+                    // a la línea nueva ANTES de que el bloque normal de "próxima estación" (más abajo, con
+                    // "favor de irte preparando") llegue a ejecutarse para 'best' -- se perdía por
+                    // completo, sin importar por cuál de los 2 caminos (alcanzasteAnterior/alcanzasteNueva)
+                    // se habilitó el salto. 'i' ES el propio nodo de correspondencia (pi), así que
+                    // "próxima: i" con preparación es siempre el aviso correcto antes de saltar; se
+                    // anuncia aquí, PRIMERO (antes que la llegada a la línea vieja, si aplica abajo) por
+                    // orden lógico: "prepárate" antes de "ya llegaste".
+                    if (ultProxima != i) {
+                        ultProxima = i;
+                        sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea);
+                    }
                     // Caso real confirmado (Indios Verdes, Mexibús→Metrobús): cuando es el camino de
                     // "correspondencia corta" (alcanzasteNueva, NO alcanzasteAnterior) el que habilita el
-                    // salto, la llegada al andén VIEJO (Mexibús) nunca pasó por la rama normal de abajo
-                    // (líneas ~825 en adelante) -- ultLlegando seguía apuntando a una parada anterior, así
-                    // que su propio aviso de "llegando a X" + instrucción de bajada (que ya incluye la
+                    // salto -- p. ej. aquí mismo, IV_L1_SALE queda a ~340 m de IV_L4_LLEGA, más que
+                    // radioCerca() (70 m): geométricamente imposible cumplir el camino normal -- la
+                    // llegada al andén VIEJO (Mexibús) nunca pasó por la rama normal de abajo (líneas
+                    // ~825 en adelante) -- ultLlegando seguía apuntando a una parada anterior, así que su
+                    // propio aviso de "llegando a X" + instrucción de bajada (que ya incluye la
                     // correspondencia/conexión con la línea nueva, ver vozLlegada()) nunca sonaba: el
                     // usuario solo escuchaba el aviso del andén NUEVO (Metrobús), nunca el de Mexibús. Se
                     // anuncia aquí explícitamente, antes de saltar, tratando el andén viejo como alcanzado.
@@ -807,19 +821,6 @@ public class RecorridoService extends Service {
                         ultLlegando = best;
                         Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
                         sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea);
-                    } else if (alcanzasteAnterior && ultProxima != i) {
-                        // Defecto real confirmado (Indios Verdes, los 4 andenes quedan a 30-50 m entre sí --
-                        // MENOS que radioCruce()=70 m de zona): cuando el salto se habilita por el camino
-                        // NORMAL (alcanzasteAnterior, no el de "correspondencia corta" de arriba), la
-                        // llegada al andén viejo (Mexibús) YA sonó en un ciclo anterior -- pero por estar
-                        // tan cerca, este mismo ciclo (o el siguiente) ya satisface también el umbral de
-                        // cruce, y el bucle corta (break) y salta ANTES de que el bloque normal de
-                        // "próxima estación" (más abajo, con el aviso "favor de irte preparando") llegue a
-                        // ejecutarse para 'best' -- se perdía por completo. Se anuncia aquí explícitamente,
-                        // mismo patrón que el caso de arriba: 'i' ES el propio nodo de correspondencia (pi),
-                        // así que "próxima: i" con preparación es siempre el aviso correcto antes de saltar.
-                        ultProxima = i;
-                        sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea);
                     }
                     bd = d; best = i;
                     corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
