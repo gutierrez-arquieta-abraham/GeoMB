@@ -78,7 +78,11 @@ public final class DescargaVoz {
         String prep = ctx.getString(R.string.voz_transbordo_prep);
         // Mexicable (teleférico): se viaja en CABINA, no "unidad" (debe coincidir con RecorridoService).
         String ult  = ctx.getString(linea >= 200 ? R.string.voz_ultima_est_cabina : R.string.voz_ultima_est);
-        int[] palabras = {R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia, R.string.voz_palabra_conexion};
+        // Solo transbordo/correspondencia: su instrucción de bajada es genérica (no nombra destino),
+        // ver abajo. "conexión" (Metrobús↔Edomex) NO entra aquí -- su instrucción real SÍ nombra la
+        // estación+línea de destino (RecorridoService.instruccionBajada()/nombreConexion()), así que se
+        // genera aparte, una vez por cada línea de conexión real de la estación (ver más abajo).
+        int[] palabras = {R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia};
         for (Estacion e : l.estaciones) {
             if (e.soloMapa) continue;
             String nom = nomDe(e.nombre);
@@ -103,8 +107,8 @@ public final class DescargaVoz {
                 String tp = Locuciones.vozTerminal(ctx, linea, e.nombre, pos, false);  // próxima
                 t.add(tl); t.add(tp); t.add(tl + ". " + ult);
             } else {
-                String tf = Locuciones.transferenciaTexto(ctx, linea,
-                        Locuciones.basesCorresp(ctx, linea, e.nombre, pos));
+                java.util.TreeSet<Integer> bases = Locuciones.basesCorresp(ctx, linea, e.nombre, pos);
+                String tf = Locuciones.transferenciaTexto(ctx, linea, bases);
                 if (!tf.isEmpty()) {
                     String px = ctx.getString(R.string.voz_prox_base, nom) + tf;
                     t.add(px);
@@ -114,6 +118,14 @@ public final class DescargaVoz {
                     t.add(lg + ". " + ult);
                     for (int pal : palabras)
                         t.add(lg + ". " + ctx.getString(R.string.voz_baja_realiza, ctx.getString(pal)));
+                    // "conexión" (Metrobús↔Edomex): una variante por cada línea de conexión real de la
+                    // estación, con el texto EXACTO que usa RecorridoService.instruccionBajada() (nombra
+                    // la estación+línea de destino, no el genérico de arriba).
+                    for (int b : bases) {
+                        if (Locuciones.palabraTransferencia(linea, b) != R.string.voz_palabra_conexion) continue;
+                        t.add(lg + ". " + ctx.getString(R.string.voz_camina_conexion,
+                                Locuciones.nombreConexion(ctx, b, e.nombre)));
+                    }
                 }
             }
         }

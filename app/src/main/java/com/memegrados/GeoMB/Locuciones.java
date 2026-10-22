@@ -198,6 +198,28 @@ public final class Locuciones {
         return v.toString();
     }
 
+    /** Etiqueta de línea para nombrar la conexión ("Meksibús Línea 2", "L4 Ruta Sur", "Meksicable Línea
+     *  1", "Línea 1", …). Réplica EXACTA de RecorridoService.etiquetaLinea(): debe mantenerse en
+     *  sincronía (si no, el audio de "camina hasta la conexión con …" nunca calza con el pre-descargado
+     *  y se cae siempre al TTS en vivo). */
+    static String etiquetaLinea(Context ctx, int n, String estacion) {
+        if (n >= 200) return ctx.getString(R.string.voz_linea_mxc, n - 200);
+        if (n >= 111 && n <= 113) return ctx.getString(R.string.voz_linea_mxb, n - 110) + "A";
+        if (n >= 100) return ctx.getString(R.string.voz_linea_mxb, n - 100);
+        if (n == 4) {
+            int r = RutasMixtas.rutaL4(estacion);
+            if (r == 1) return ctx.getString(R.string.voz_linea_l4, ctx.getString(R.string.voz_ruta_norte));
+            if (r == 2) return ctx.getString(R.string.voz_linea_l4, ctx.getString(R.string.voz_ruta_sur));
+        }
+        return ctx.getString(R.string.voz_linea_n, n);
+    }
+
+    /** "{estación} {etiqueta de línea}" para "camina hasta la conexión con …". Réplica EXACTA de
+     *  RecorridoService.nombreConexion(): debe mantenerse en sincronía. */
+    static String nombreConexion(Context ctx, int baseDestino, String nombre) {
+        return nom(nombre) + " " + etiquetaLinea(ctx, baseDestino, nombre);
+    }
+
     static boolean esTerminal(int linea, String nombre) {
         if ((linea == 104 || linea == 124) && Planificador.norm(nombre).contains("indios verdes")) return false;
         return Planificador.esTerminalDe(linea, nombre);
