@@ -1970,6 +1970,32 @@ public final class Planificador {
     /** ¿La parada tiene una ZONA de cobertura (corredor de andén, p. ej. Indios Verdes)? */
     public static boolean tieneZona(Parada p) { return corredorZona(p) != null; }
 
+    // Zona CENTRAL de Indios Verdes: centroide real de las 4 plataformas de arriba (Mexibús L4
+    // norte/sur, Metrobús L1 norte/sur) -- la pasarela/plaza que las conecta a todas. Defecto real
+    // confirmado (viaje real, Mexibús→Metrobús): el aviso de "correspondencia corta" (ver
+    // RecorridoService) seguía disparando de más cerca del andén de Mexibús, antes de cruzar
+    // genuinamente hacia el de Metrobús -- probable ruido/multipath del GPS típico de estructuras
+    // elevadas, no necesariamente estar fuera del radio de 70 m del andén nuevo. Exigir haber
+    // pasado por esta zona central ANTES de aceptar el salto agrega evidencia física independiente
+    // del radio de cada andén (distancia al centroide real: 122-182 m según la plataforma, así que
+    // 100 m de radio exige acercarse genuinamente al cruce sin llegar a tocar ningún andén todavía).
+    static final LatLng IV_ZONA_CENTRAL = new LatLng(19.495340436969370, -99.119496851076220);
+    static final float IV_ZONA_CENTRAL_RADIO_M = 100f;
+
+    /** ¿La parada es una de las 4 plataformas de Indios Verdes (Mexibús L4 / Metrobús L1, llegada o
+     *  salida)? Acota el chequeo de zona central SOLO a este cruce -- su geometría de 4 andenes es
+     *  única en el sistema (ningún otro par de líneas tiene tantas plataformas tan cercanas). */
+    public static boolean esPlataformaIndiosVerdes(Parada p) {
+        if (p == null || p.pos == null) return false;
+        return p.pos.equals(IV_L1_SALE) || p.pos.equals(IV_L1_LLEGA)
+                || p.pos.equals(IV_L4_LLEGA) || p.pos.equals(IV_L4_SALE);
+    }
+
+    /** ¿La posición actual ya pasó por la zona central de Indios Verdes (ver {@link #IV_ZONA_CENTRAL})? */
+    public static boolean enZonaCentralIndiosVerdes(LatLng pos) {
+        return pos != null && Linea.distancia(pos, IV_ZONA_CENTRAL) <= IV_ZONA_CENTRAL_RADIO_M;
+    }
+
     // Estaciones de Mexibús con andén largo (~100-135 m; mayoría L4, una de L1/L1 Exprés -- ver su fila
     // abajo). Solo se tiene el punto CENTRAL, así que su zona de cobertura es CIRCULAR (radio mayor) en
     // vez de corredor. La coincidencia es por cercanía al centro. Son plataformas genuinamente largas:
