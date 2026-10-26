@@ -220,6 +220,17 @@ public final class Locuciones {
         return nom(nombre) + " " + etiquetaLinea(ctx, baseDestino, nombre);
     }
 
+    /** Nombre de ESTACIÓN sanitizado para usarse como carpeta (voz/<voz>/<sistema>/L<línea>/<estación>/,
+     *  ver RecorridoService.archivoVoz()/DescargaVoz.archivoVoz()): quita caracteres inválidos en
+     *  nombres de carpeta en Android/Windows (p. ej. si algún nombre de estación trajera "/"). Null o
+     *  vacío (avisos que no son de una estación específica, p. ej. "Aborda la unidad…" o afectaciones)
+     *  cae en "_general". Compartido para que RecorridoService y DescargaVoz usen EXACTAMENTE la misma
+     *  carpeta para el mismo (estación, texto) y sus hashes de caché coincidan. */
+    static String carpetaEstacion(String estacion) {
+        if (estacion == null || estacion.trim().isEmpty()) return "_general";
+        return estacion.replaceAll("[\\\\/:*?\"<>|]", "-").trim();
+    }
+
     static boolean esTerminal(int linea, String nombre) {
         if ((linea == 104 || linea == 124) && Planificador.norm(nombre).contains("indios verdes")) return false;
         return Planificador.esTerminalDe(linea, nombre);

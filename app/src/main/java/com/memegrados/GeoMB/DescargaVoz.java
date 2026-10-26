@@ -18,8 +18,8 @@ import java.util.concurrent.Executors;
 
 /**
  * Pre-descarga (Fase 1) los audios base del recorrido de una LÍNEA al MISMO almacenamiento que usa
- * {@link RecorridoService} ({@code Android/data/<paquete>/files/voz/Mia/<sistema>/L<línea>/}, nombre
- * {@code hash(texto).mp3} -- NO caché, para que no se borren solos bajo presión de espacio; es
+ * {@link RecorridoService} ({@code Android/data/<paquete>/files/voz/Mia/<sistema>/L<línea>/<estación>/},
+ * nombre {@code hash(texto).mp3} -- NO caché, para que no se borren solos bajo presión de espacio; es
  * almacenamiento externo PROPIO de la app, visible con un explorador de archivos y sin permisos
  * especiales), para que el recorrido los reproduzca offline. Fase 1 = por cada estación: "Llegando
  * a estación: X" y "Próxima estación: X" (los strings exactos del recorrido). Las variantes de
@@ -34,9 +34,9 @@ import java.util.concurrent.Executors;
 //
 // Pre-descarga (Fase 1) los audios base del recorrido de UNA línea al
 // MISMO almacenamiento que usa RecorridoService (Android/data/<paquete>/
-// files/voz/Mia/<sistema>/L<línea>/, nombre hash(texto).mp3 -- NO caché),
-// para que el recorrido se oiga OFFLINE sin que el sistema borre los
-// audios ya descargados.
+// files/voz/Mia/<sistema>/L<línea>/<estación>/, nombre hash(texto).mp3 --
+// NO caché), para que el recorrido se oiga OFFLINE sin que el sistema
+// borre los audios ya descargados.
 //
 // Fase 1 = por cada estación: "Llegando a estación: X" y "Próxima
 // estación: X" (los textos EXACTOS del recorrido). Las variantes de
@@ -69,12 +69,25 @@ public final class DescargaVoz {
 
     public static void cancelar() { cancelar = true; }
 
-    /** Todos los textos (exactos) de una línea: base por estación (Fase 1) + variantes de
-     *  correspondencia/terminal (Fase 2), replicadas vía {@link Locuciones}. */
-    public static List<String> textosLinea(Context ctx, int linea) {
-        Set<String> t = new LinkedHashSet<>();   // sin duplicar, en orden
+    /** Un texto a pre-descargar junto con la ESTACIÓN a la que pertenece (ver la carpeta
+     *  voz/<voz>/<sistema>/L<línea>/<estación>/ en archivoVoz() -- mismo esquema que
+     *  RecorridoService.archivoVoz()/carpetaEstacion()). */
+    static final class TextoEstacion {
+        final String texto, estacion;
+        TextoEstacion(String texto, String estacion) { this.texto = texto; this.estacion = estacion; }
+    }
+
+    /** Todos los textos (exactos) de una línea, cada uno con su estación: base por estación (Fase 1)
+     *  + variantes de correspondencia/terminal (Fase 2), replicadas vía {@link Locuciones}. */
+    public static List<TextoEstacion> textosLinea(Context ctx, int linea) {
+        // Set por (estación+texto): en la práctica los nombres de estación ya son únicos dentro de
+        // una línea, así que esto rara vez deduplica algo real -- pero es la clave CORRECTA ahora que
+        // la carpeta de cada texto depende de su estación (antes deduplicaba por texto a secas, sin
+        // esa dependencia).
+        Set<String> vistos = new LinkedHashSet<>();
+        List<TextoEstacion> t = new ArrayList<>();
         Linea l = GtfsRepository.porNumero(ctx, linea);
-        if (l == null) return new ArrayList<>(t);
+        if (l == null) return t;
         String prep = ctx.getString(R.string.voz_transbordo_prep);
         // Mexicable (teleférico): se viaja en CABINA, no "unidad" (debe coincidir con RecorridoService).
         String ult  = ctx.getString(linea >= 200 ? R.string.voz_ultima_est_cabina : R.string.voz_ultima_est);
@@ -96,40 +109,46 @@ public final class DescargaVoz {
             // correspondencia terminaba en TTS por defecto, no solo las que sí son
             // correspondencia/conexión/transbordo (esas se aceptan con TTS por lo combinatorio).
             String llegandoBase = ctx.getString(R.string.voz_llegando_est, nom);
-            t.add(llegandoBase);
-            t.add(llegandoBase + ". " + ult);
-            for (int tipRes : TIPS_BASE) t.add(llegandoBase + ". " + ctx.getString(tipRes));
-            if (linea >= 100 && linea < 200) t.add(llegandoBase + ". " + ctx.getString(R.string.voz_tip_rosa));
-            t.add(ctx.getString(R.string.voz_proxima, nom));
+            agregar(t, vistos, nom, llegandoBase);
+            agregar(t, vistos, nom, llegandoBase + ". " + ult);
+            for (int tipRes : TIPS_BASE) agregar(t, vistos, nom, llegandoBase + ". " + ctx.getString(tipRes));
+            if (linea >= 100 && linea < 200) agregar(t, vistos, nom, llegandoBase + ". " + ctx.getString(R.string.voz_tip_rosa));
+            agregar(t, vistos, nom, ctx.getString(R.string.voz_proxima, nom));
             // Fase 2: terminal o correspondencia
             if (Locuciones.esTerminal(linea, e.nombre)) {
                 String tl = Locuciones.vozTerminal(ctx, linea, e.nombre, pos, true);   // llegada
                 String tp = Locuciones.vozTerminal(ctx, linea, e.nombre, pos, false);  // próxima
-                t.add(tl); t.add(tp); t.add(tl + ". " + ult);
+                agregar(t, vistos, nom, tl); agregar(t, vistos, nom, tp); agregar(t, vistos, nom, tl + ". " + ult);
             } else {
                 java.util.TreeSet<Integer> bases = Locuciones.basesCorresp(ctx, linea, e.nombre, pos);
                 String tf = Locuciones.transferenciaTexto(ctx, linea, bases);
                 if (!tf.isEmpty()) {
                     String px = ctx.getString(R.string.voz_prox_base, nom) + tf;
-                    t.add(px);
-                    t.add(px + ". " + prep);
+                    agregar(t, vistos, nom, px);
+                    agregar(t, vistos, nom, px + ". " + prep);
                     String lg = ctx.getString(R.string.voz_lleg_base, nom) + tf;
-                    t.add(lg);
-                    t.add(lg + ". " + ult);
+                    agregar(t, vistos, nom, lg);
+                    agregar(t, vistos, nom, lg + ". " + ult);
                     for (int pal : palabras)
-                        t.add(lg + ". " + ctx.getString(R.string.voz_baja_realiza, ctx.getString(pal)));
+                        agregar(t, vistos, nom, lg + ". " + ctx.getString(R.string.voz_baja_realiza, ctx.getString(pal)));
                     // "conexión" (Metrobús↔Edomex): una variante por cada línea de conexión real de la
                     // estación, con el texto EXACTO que usa RecorridoService.instruccionBajada() (nombra
                     // la estación+línea de destino, no el genérico de arriba).
                     for (int b : bases) {
                         if (Locuciones.palabraTransferencia(linea, b) != R.string.voz_palabra_conexion) continue;
-                        t.add(lg + ". " + ctx.getString(R.string.voz_camina_conexion,
+                        agregar(t, vistos, nom, lg + ". " + ctx.getString(R.string.voz_camina_conexion,
                                 Locuciones.nombreConexion(ctx, b, e.nombre)));
                     }
                 }
             }
         }
-        return new ArrayList<>(t);
+        return t;
+    }
+
+    /** Agrega (estacion, texto) a la lista si ese PAR no se había visto (dedup -- ver su comentario
+     *  en textosLinea()). */
+    private static void agregar(List<TextoEstacion> t, Set<String> vistos, String estacion, String texto) {
+        if (vistos.add(estacion + "\u0000" + texto)) t.add(new TextoEstacion(texto, estacion));
     }
 
     /** Descarga los audios de UNA línea, con la voz "Mia" (ver {@link #descargarLinea(Context, int,
@@ -164,19 +183,19 @@ public final class DescargaVoz {
                 MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
                 return;
             }
-            List<String> textosPorPendiente = new ArrayList<>();
+            List<TextoEstacion> pendientes = new ArrayList<>();
             List<Integer> lineaPorPendiente = new ArrayList<>();
-            for (int ln : lineas) for (String t : textosLinea(app, ln)) {
-                textosPorPendiente.add(t);
+            for (int ln : lineas) for (TextoEstacion te : textosLinea(app, ln)) {
+                pendientes.add(te);
                 lineaPorPendiente.add(ln);
             }
-            int total = textosPorPendiente.size(), hechos = 0, ok = 0, fallosSeguidos = 0;
+            int total = pendientes.size(), hechos = 0, ok = 0, fallosSeguidos = 0;
             for (int i = 0; i < total; i++) {
                 if (cancelar) break;
-                String t = textosPorPendiente.get(i);
+                TextoEstacion te = pendientes.get(i);
                 int ln = lineaPorPendiente.get(i);
                 boolean bien = false;
-                try { bien = descargarUno(app, t, ln, voz); } catch (Exception ignore) {}
+                try { bien = descargarUno(app, te.texto, ln, voz, te.estacion); } catch (Exception ignore) {}
                 if (bien) { ok++; fallosSeguidos = 0; }
                 else if (++fallosSeguidos >= FALLOS_SEGUIDOS_ABORTAR) {
                     MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
@@ -196,9 +215,9 @@ public final class DescargaVoz {
      *  el switch de Ximena activo (ver Modos.vozXimenaPermitida()) -- así "descargar todas" puede
      *  pedir Ximena una sola vez y que cada línea respete su propio switch, en vez de forzar Ximena
      *  (de pago) en un sistema que el usuario nunca activó para eso. Devuelve true si quedó el archivo. */
-    private static boolean descargarUno(Context ctx, String texto, int linea, String vozElegida) throws java.io.IOException {
+    private static boolean descargarUno(Context ctx, String texto, int linea, String vozElegida, String estacion) throws java.io.IOException {
         String voz = "Ximena".equals(vozElegida) && Modos.vozXimenaPermitida(ctx, linea) ? "Ximena" : "Mia";
-        File out = archivoVoz(ctx, texto, linea, voz);
+        File out = archivoVoz(ctx, texto, linea, voz, estacion);
         if (out == null) return false;
         if (out.exists() && out.length() > 0) return true;   // ya cacheado
         URL url = new URL("https://geomb.duckdns.org/api/tts?voz=" + voz + "&texto="
@@ -230,9 +249,9 @@ public final class DescargaVoz {
     /** Borra los audios (Fase 1) de una línea, en CUALQUIERA de las voces que se hayan descargado. */
     public static int borrarLinea(Context ctx, int linea) {
         int n = 0;
-        for (String t : textosLinea(ctx, linea)) {
+        for (TextoEstacion te : textosLinea(ctx, linea)) {
             for (String voz : VOCES_CONOCIDAS) {
-                File f = archivoVoz(ctx, t, linea, voz);
+                File f = archivoVoz(ctx, te.texto, linea, voz, te.estacion);
                 if (f != null && f.exists() && f.delete()) n++;
             }
         }
@@ -262,9 +281,9 @@ public final class DescargaVoz {
      *  estado). Si se descargó en las 2 voces, cuenta ambas (coherente con borrarLinea()). */
     public static int cuantosDescargados(Context ctx, int linea) {
         int n = 0;
-        for (String t : textosLinea(ctx, linea)) {
+        for (TextoEstacion te : textosLinea(ctx, linea)) {
             for (String voz : VOCES_CONOCIDAS) {
-                File f = archivoVoz(ctx, t, linea, voz);
+                File f = archivoVoz(ctx, te.texto, linea, voz, te.estacion);
                 if (f != null && f.exists() && f.length() > 0) n++;
             }
         }
@@ -276,18 +295,19 @@ public final class DescargaVoz {
     // el sistema nunca lo borra bajo presión de espacio (solo al desinstalar la app), y a diferencia
     // de getFilesDir() sí es accesible con un explorador de archivos, sin permisos especiales. Si no
     // hay almacenamiento externo disponible, cae al interno para no perder la función.
-    // Subcarpetas voz/<voz>/<sistema>/L<línea>/ -- navegables/filtrables a mano (ver Sistemas.carpeta()/
-    // numeroDeLinea()). Por DEFAULT la pre-descarga masiva sigue siendo "Mia" (ver los overloads sin
+    // Subcarpetas voz/<voz>/<sistema>/L<línea>/<estación>/ -- navegables/filtrables a mano (ver
+    // Sistemas.carpeta()/numeroDeLinea()/Locuciones.carpetaEstacion()). Por DEFAULT la pre-descarga
+    // masiva sigue siendo "Mia" (ver los overloads sin
     // `voz` de descargarLinea()/descargarVarias()): esta es una descarga de TODAS las estaciones de
     // una línea de un golpe, mientras que RecorridoService.decirConVoz() solo pide UNA frase a la vez
     // según el recorrido real -- el costo ahí queda acotado por cuánto de verdad viajas. Por eso
     // ConfiguracionFragment solo ofrece elegir "Ximena" aquí cuando el sistema de esa línea YA tiene
     // su propio switch activo (Modos.vozXimenaMetrobus()/Mexibus()/Mexicable()) -- nunca por default. ---
-    private static File archivoVoz(Context ctx, String texto, int linea, String voz) {
+    private static File archivoVoz(Context ctx, String texto, int linea, String voz, String estacion) {
         File base = ctx.getExternalFilesDir(null);
         if (base == null) base = ctx.getFilesDir();
         File dir = new File(base, "voz/" + voz + "/" + Sistemas.carpeta(Sistemas.sistemaDe(linea))
-                + "/L" + Sistemas.numeroDeLinea(linea));
+                + "/L" + Sistemas.numeroDeLinea(linea) + "/" + Locuciones.carpetaEstacion(estacion));
         if (!dir.exists()) dir.mkdirs();
         return new File(dir, Integer.toHexString(texto.hashCode()) + ".mp3");
     }

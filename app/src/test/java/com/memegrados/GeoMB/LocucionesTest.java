@@ -53,4 +53,28 @@ public class LocucionesTest {
     public void palabraTransferencia_mexibusAMexibus_esCorrespondencia() {
         assertEquals(R.string.voz_palabra_correspondencia, Locuciones.palabraTransferencia(104, 101));
     }
+
+    /** Reestructuración de voz/<voz>/<sistema>/L<línea>/ a .../L<línea>/<estación>/ (pedida por el
+     *  usuario, para poder navegar los audios por estación con un explorador de archivos). Se prueba
+     *  contra la función real que ambos (RecorridoService.archivoVoz()/DescargaVoz.archivoVoz())
+     *  comparten para que sus carpetas coincidan exactamente. */
+    @Test
+    public void carpetaEstacion_nombreNormal_sinCambios() {
+        assertEquals("Indios Verdes", Locuciones.carpetaEstacion("Indios Verdes"));
+    }
+
+    @Test
+    public void carpetaEstacion_nulo_cae_general() {
+        assertEquals("_general", Locuciones.carpetaEstacion(null));
+    }
+
+    @Test
+    public void carpetaEstacion_vacio_cae_general() {
+        assertEquals("_general", Locuciones.carpetaEstacion("   "));
+    }
+
+    @Test
+    public void carpetaEstacion_conCaracteresInvalidos_seReemplazan() {
+        assertEquals("Las Flores - Zacuautitla", Locuciones.carpetaEstacion("Las Flores / Zacuautitla"));
+    }
 }

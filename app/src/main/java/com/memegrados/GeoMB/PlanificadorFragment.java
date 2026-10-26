@@ -943,8 +943,9 @@ public class PlanificadorFragment extends Fragment {
         if (aviso.length() > 0) resAviso.setText(aviso.toString());
         panelResultado.setVisibility(View.VISIBLE);
 
-        // deslizador de estaciones (arriba) + chips de instrucción por tramo (Aborda/Toma · dirección)
-        sliderAdapter.set(r.secuencia, r.instrucciones);
+        // deslizador de estaciones (arriba) + chips de instrucción por tramo (Aborda/Toma · dirección,
+        // y "Cambia a Ordinario/Exprés" cuando aplica -- ver EstacionRutaAdapter.set())
+        sliderAdapter.set(r.secuencia, r.instrucciones, requireContext());
         panelEstaciones.setVisibility(r.secuencia.isEmpty() ? View.GONE : View.VISIBLE);
         ajustarPanelZoomRuta();
         btnContraerOd.setVisibility(View.VISIBLE);   // ya hay ruta: se puede contraer el buscador a mano

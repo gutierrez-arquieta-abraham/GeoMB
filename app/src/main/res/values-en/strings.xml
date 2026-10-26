@@ -189,6 +189,7 @@
     <string name="servicio_titulo_linea">Which service on %1$s?</string>
     <string name="servicio_ordinario">Ordinary</string>
     <string name="servicio_express">Express</string>
+    <string name="ruta_cambia_servicio">Switch to %1$s</string>
     <string name="servicio_voz">You are on the %1$s service.</string>
     <string name="servicio_voz_rosa">You are on the %1$s service, in a pink vehicle reserved for women and children.</string>
     <string name="canal_recorrido">Trip in progress</string>

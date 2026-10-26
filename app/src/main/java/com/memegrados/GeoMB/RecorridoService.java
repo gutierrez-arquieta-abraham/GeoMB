@@ -841,7 +841,7 @@ public class RecorridoService extends Service {
                     // orden lógico: "prepárate" antes de "ya llegaste".
                     if (ultProxima != i) {
                         ultProxima = i;
-                        sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea);
+                        sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea, nom(seq.get(i)));
                     }
                     // Caso real confirmado (Indios Verdes, Mexibús→Metrobús): cuando es el camino de
                     // "correspondencia corta" (alcanzasteNueva, NO alcanzasteAnterior) el que habilita el
@@ -856,7 +856,16 @@ public class RecorridoService extends Service {
                     if (alcanzasteNueva && !alcanzasteAnterior && ultLlegando < best) {
                         ultLlegando = best;
                         Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
-                        sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea);
+                        // Defecto real confirmado (viaje real, Indios Verdes): para cuando se confirma el
+                        // salto (tras CORRESP_CORTA_CICLOS_MIN ciclos + zona central), puede que ya estés
+                        // DENTRO del radio angosto (10 m, radioLlegada()) del andén NUEVO (Metrobús) --
+                        // decir "llegando a Mexibús" en ese momento ya no tiene sentido, es obvio que
+                        // llegaste a Metrobús. El estado interno (ultLlegando) se marca igual -- el resto
+                        // de la lógica que depende de "ya se anunció Mexibús" no cambia -- solo se omite
+                        // la VOZ cuando ya estás así de cerca del andén nuevo.
+                        if (d > radioLlegada(pi)) {
+                            sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea, nom(seq.get(best)));
+                        }
                     }
                     bd = d; best = i;
                     corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
@@ -966,7 +975,7 @@ public class RecorridoService extends Service {
                 Telemetria.finalizarRecorrido(this);
                 alFinVoz = this::stopSelf;   // finaliza cuando acabe la voz del aviso final
                 // Mismo aviso combinado de llegada (incluye "última estación de tu recorrido").
-                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);
+                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea, nom(seq.get(best)));
                 handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
             }
             return;   // no se anuncian más estaciones tras el final
@@ -978,7 +987,7 @@ public class RecorridoService extends Service {
             // El jingle usa la línea que VAS VIAJANDO (la actual), no la de la próxima parada: así en
             // correspondencias co-ubicadas (p. ej. Indios Verdes) no suena el tururu de Metrobús mientras
             // sigues en Mexibús.
-            sonarYHablar(vozProxima(seq, proxIdx, prepararse), seq.get(best).linea);   // "Próxima estación X" (+ correspondencia / prep)
+            sonarYHablar(vozProxima(seq, proxIdx, prepararse), seq.get(best).linea, nom(seq.get(proxIdx)));   // "Próxima estación X" (+ correspondencia / prep)
         // REVERTIDO: llegandoPorSalidaDeZona() (respaldo "entró a la zona ancha y ya se aleja del
         // mínimo") se quitó -- confirmado con video real que seguía disparando PREMATURO en el mismo
         // punto de siempre (el mínimo local se alcanza mucho antes de llegar al andén real), y ese
@@ -1003,11 +1012,11 @@ public class RecorridoService extends Service {
                 detenerUbicacion();
                 Telemetria.finalizarRecorrido(this);
                 alFinVoz = this::stopSelf;
-                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea);
+                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea, nom(seq.get(best)));
                 handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
                 return;
             }
-            sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea);   // "Llegando a X" (+ cambio de dirección/unidad/ruta)
+            sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea, nom(seq.get(best)));   // "Llegando a X" (+ cambio de dirección/unidad/ruta)
         }
         // voz de afectación (una vez, si aparece durante el recorrido), con voz Mia.
         if (Manifestaciones.hay() && !afectacionAvisada) {
@@ -1041,12 +1050,20 @@ public class RecorridoService extends Service {
      * de Mia puede tardar hasta el timeout de {@link #VOZ_TIMEOUT_MS}), y el aviso importante del
      * transbordo se perdía en silencio. Ahora simplemente espera su turno.
      */
-    private void sonarYHablar(String texto) { sonarYHablar(texto, 0); }
+    private void sonarYHablar(String texto) { sonarYHablar(texto, 0, null); }
 
-    /** Jingle según el sistema de la estación (Mexibús/Mexicable = tururu_mxb; Metrobús = tururu_mb) + voz. */
-    private void sonarYHablar(String texto, int linea) {
+    /** Sin estación específica (avisos generales: abordaje, afectaciones) -- cae en la carpeta
+     *  "_general" (ver Locuciones.carpetaEstacion()). Para avisos DE una estación, usar el overload
+     *  de abajo con su nombre. */
+    private void sonarYHablar(String texto, int linea) { sonarYHablar(texto, linea, null); }
+
+    /** Jingle según el sistema de la estación (Mexibús/Mexicable = tururu_mxb; Metrobús = tururu_mb) + voz.
+     *  'estacion' es el nombre de LA estación a la que pertenece este aviso (ver Locuciones.nom()/
+     *  carpetaEstacion()) -- organiza el caché de voz en voz/<voz>/<sistema>/L<línea>/<estación>/, o
+     *  null para avisos que no son de una estación específica. */
+    private void sonarYHablar(String texto, int linea, String estacion) {
         if (destruido) return;
-        colaVoz.add(new Object[]{texto, linea});
+        colaVoz.add(new Object[]{texto, linea, estacion});
         if (!vozOcupada) {
             pedirFocoAudio();   // "duckea" lo que esté sonando (música, podcast) mientras avisamos
             procesarSiguienteVoz();
@@ -1065,6 +1082,7 @@ public class RecorridoService extends Service {
         vozOcupada = true;
         String texto = (String) item[0];
         int linea = (Integer) item[1];
+        String estacion = (String) item[2];
         soltarActual();                       // corta cualquier audio en curso (evita el "agudo" por traslape)
         String raw = linea >= 100 ? "tururu_mxb" : "tururu_mb";
         int id = getResources().getIdentifier(raw, "raw", getPackageName());
@@ -1079,12 +1097,12 @@ public class RecorridoService extends Service {
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
-                        handler.postDelayed(() -> decirConVoz(texto, linea), 250);   // deja respirar antes de la voz
+                        handler.postDelayed(() -> decirConVoz(texto, linea, estacion), 250);   // deja respirar antes de la voz
                     });
                     mp.setOnErrorListener((m, a, b) -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
-                        decirConVoz(texto, linea);
+                        decirConVoz(texto, linea, estacion);
                         return true;
                     });
                     mp.start();
@@ -1092,7 +1110,7 @@ public class RecorridoService extends Service {
                 }
             } catch (Exception ignore) {}
         }
-        decirConVoz(texto, linea);
+        decirConVoz(texto, linea, estacion);
     }
 
     /** Detiene y libera el reproductor en curso (tururu o voz) para que no se encimen. */
@@ -1151,9 +1169,9 @@ public class RecorridoService extends Service {
 
     /** Reproduce la frase con la voz del backend (Mia o Ximena, según el sistema de `linea` -- ver
      *  Modos.vozActual()), cacheada. Si falla/offline, usa TTS. */
-    private void decirConVoz(String texto, int linea) {
+    private void decirConVoz(String texto, int linea, String estacion) {
         if (destruido) { vozOcupada = false; return; }
-        java.io.File cache = archivoVoz(texto, linea);
+        java.io.File cache = archivoVoz(texto, linea, estacion);
         if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }   // ya en caché: no gasta datos
         // Modo ahorro de datos (activo por defecto en datos móviles, desactivable en "Acerca de"):
         // si esta frase no está ya cacheada, no se descarga la voz del backend -se habla directo con
@@ -1174,7 +1192,7 @@ public class RecorridoService extends Service {
             hablar(texto);   // se pasó del timeout: TTS inmediato
         }, VOZ_TIMEOUT_MS);
         new Thread(() -> {
-            java.io.File out = descargarVoz(texto, linea);
+            java.io.File out = descargarVoz(texto, linea, estacion);
             handler.post(() -> {
                 if (destruido || resuelto[0]) return;   // ya habló el TTS por timeout
                 resuelto[0] = true;
@@ -1191,21 +1209,23 @@ public class RecorridoService extends Service {
     // "de datos de la app" no necesita permiso de almacenamiento en ninguna versión de Android.
     // Si por lo que sea no hay almacenamiento externo disponible (SD extraíble desmontada, etc.),
     // cae al interno para no perder la función.
-    // Subcarpetas voz/<voz>/<sistema>/L<línea>/: para poder navegar/filtrar a mano con un explorador
-    // de archivos (p. ej. ver solo lo de Mexibús, o solo lo de Ximena). El nombre del archivo ya no
-    // necesita llevar la voz (vive en la carpeta), solo el hash del texto.
-    private java.io.File archivoVoz(String texto, int linea) {
+    // Subcarpetas voz/<voz>/<sistema>/L<línea>/<estación>/: para poder navegar/filtrar a mano con un
+    // explorador de archivos (p. ej. ver solo lo de Mexibús, solo lo de Ximena, o solo una estación
+    // dentro de una línea larga). El nombre del archivo ya no necesita llevar la voz ni la estación
+    // (viven en la carpeta), solo el hash del texto. 'estacion' va sin sanitizar: carpetaEstacion()
+    // se encarga (null/vacío -> "_general", ver su comentario).
+    private java.io.File archivoVoz(String texto, int linea, String estacion) {
         java.io.File base = getExternalFilesDir(null);
         if (base == null) base = getFilesDir();
         String voz = Modos.vozActual(this, linea);
         java.io.File dir = new java.io.File(base, "voz/" + voz + "/" + Sistemas.carpeta(Sistemas.sistemaDe(linea))
-                + "/L" + Sistemas.numeroDeLinea(linea));
+                + "/L" + Sistemas.numeroDeLinea(linea) + "/" + Locuciones.carpetaEstacion(estacion));
         if (!dir.exists()) dir.mkdirs();
         return new java.io.File(dir, Integer.toHexString(texto.hashCode()) + ".mp3");
     }
 
-    private java.io.File descargarVoz(String texto, int linea) {
-        java.io.File out = archivoVoz(texto, linea);
+    private java.io.File descargarVoz(String texto, int linea, String estacion) {
+        java.io.File out = archivoVoz(texto, linea, estacion);
         if (out == null) return null;
         java.net.HttpURLConnection c = null;
         try {
@@ -1389,7 +1409,13 @@ public class RecorridoService extends Service {
         String terminal = direccionTerminal(seq, i);
         int str = lineaNueva >= 200 ? R.string.voz_toma_cabina        // Mexicable: cabina, no unidad
                 : conexion ? R.string.voz_toma_autobus : R.string.voz_toma_unidad;
-        return ". " + getString(str, terminal);
+        StringBuilder v = new StringBuilder(getString(str, terminal));
+        // Defecto real confirmado (L1/L2/L3 Mexibús abordados por TRANSBORDO): este sufijo nunca
+        // mencionaba el tipo de servicio (Ordinario/Exprés), a diferencia de avisoAbordaje() (primer
+        // abordaje del viaje), que sí lo hace -- mismo patrón aquí, igual para las 4 líneas de Mexibús.
+        String svc = servicioNombre(seq, i, esRosa());
+        if (!svc.isEmpty()) v.append(getString(R.string.voz_aborda_servicio, svc));
+        return ". " + v;
     }
 
     /** Aviso inicial de abordaje: "Aborda una unidad/cabina con destino a {terminal}[, servicio {X}]

@@ -187,6 +187,7 @@
     <string name="servicio_titulo_linea">¿Qué servicio en %1$s?</string>
     <string name="servicio_ordinario">Ordinario</string>
     <string name="servicio_express">Express</string>
+    <string name="ruta_cambia_servicio">Cambia a %1$s</string>
     <string name="servicio_voz">Vas en el servicio %1$s.</string>
     <string name="servicio_voz_rosa">Vas en el servicio %1$s, en unidad rosa exclusiva para mujeres, niñas y niños.</string>
     <string name="canal_recorrido">Recorrido en curso</string>

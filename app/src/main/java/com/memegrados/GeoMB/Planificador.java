@@ -425,11 +425,19 @@ public final class Planificador {
         public final String nombre;
         public final int linea, color;
         public final boolean transbordo;
+        // Cambio de ordinario↔exprés de la MISMA línea base (p. ej. 104↔124): a propósito NO es
+        // 'transbordo' (ver su comentario en el bucle que arma 'secuencia', más abajo -- no es una
+        // correspondencia real), pero sí se quiere mostrar/anunciar como un cambio de servicio. Campo
+        // separado para no afectar nada de lo que ya depende de 'transbordo' en el resto de la app.
+        public final boolean cambioServicio;
         public final LatLng pos;
         public final String icono;
         Parada(String nombre, int linea, int color, boolean transbordo, LatLng pos, String icono) {
+            this(nombre, linea, color, transbordo, false, pos, icono);
+        }
+        Parada(String nombre, int linea, int color, boolean transbordo, boolean cambioServicio, LatLng pos, String icono) {
             this.nombre = nombre; this.linea = linea; this.color = color;
-            this.transbordo = transbordo; this.pos = pos; this.icono = icono;
+            this.transbordo = transbordo; this.cambioServicio = cambioServicio; this.pos = pos; this.icono = icono;
         }
     }
 
@@ -774,7 +782,12 @@ public final class Planificador {
             case 121: return new String[]{"MXB Ciudad Azteca", "MXB Ojo de Agua"};                            // L1 Exprés (TR3/TR4; TR4 sale de Central de Abastos)
             case 122: return new String[]{"MXB Ecatepec", "MXB Lechería"};                                    // L2 Exprés (ERO)
             case 123: return new String[]{"Pantitlán (conexión Metrobús L4)", "MXB Chimalhuacán"};           // L3 Exprés
-            case 124: return new String[]{"Indios Verdes", "MXB Universidad Mexiquense del Bicentenario"};    // L4 Exprés (sur en Indios Verdes)
+            // Defecto real confirmado: "Indios Verdes" como terminal sur del exprés estaba mal -- La
+            // Raza SÍ funciona como terminal de LLEGADA (dirección sur, canon[0]) para el exprés, igual
+            // que para el ordinario (case 104, arriba); el exprés simplemente no tiene SALIDA (dirección
+            // norte, canon[1], que sigue siendo UMB sin cambios) desde La Raza como sí la tiene el
+            // ordinario -- esa asimetría no afecta a canon[0], que es el único valor que cambia aquí.
+            case 124: return new String[]{"MXB La Raza", "MXB Universidad Mexiquense del Bicentenario"};      // L4 Exprés
             default: return null;
         }
     }
@@ -1608,12 +1621,16 @@ public final class Planificador {
         // secuencia (deslizador): ⇄ cuando cambia de ruta
         for (int k = 0; k < camino.size(); k++) {
             Stop s = stopDe(rutas, node.get(camino.get(k)));
-            boolean trans = false;
+            boolean trans = false, cambioServicio = false;
             if (k > 0 && node.get(camino.get(k))[0] != node.get(camino.get(k - 1))[0]) {
                 Stop sPrev = stopDe(rutas, node.get(camino.get(k - 1)));
                 // Cambio de ordinario↔exprés de la MISMA línea (claveTerminal: 104↔124) NO es correspondencia.
                 // OJO: claveTerminal NO une ramales (L1↔L1A sí son correspondencia real).
                 trans = claveTerminal(s.linea) != claveTerminal(sPrev.linea);
+                // Es justo el caso que acaba de descartarse arriba (misma claveTerminal, pero SÍ cambió
+                // de línea real 104↔124): se marca aparte para mostrarlo/anunciarlo como cambio de
+                // servicio sin tocar nada de lo que ya depende de 'trans' (ver Parada.cambioServicio).
+                cambioServicio = !trans && s.linea != sPrev.linea;
             }
             // Indios Verdes: plataforma según SALIDA (asciendes/board) o LLEGADA (desciendes/alight),
             // que se decide por si la línea previa/siguiente en el camino es la misma o cambia.
@@ -1625,7 +1642,7 @@ public final class Planificador {
             LatLng prevPos = (k > 0) ? secuencia.get(secuencia.size() - 1).pos : null;
             LatLng nextPos = (k + 1 < camino.size()) ? stopDe(rutas, node.get(camino.get(k + 1))).pos : null;
             LatLng pos = plataformaIndiosVerdes(s.linea, s.nombre, s.pos, prevLin, nextLin, prevPos, nextPos);
-            secuencia.add(new Parada(s.nombre, s.linea, s.color, trans, pos, s.icono));
+            secuencia.add(new Parada(s.nombre, s.linea, s.color, trans, cambioServicio, pos, s.icono));
         }
 
         int i = 0;

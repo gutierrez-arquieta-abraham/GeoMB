@@ -53,8 +53,15 @@ public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     /** Solo estaciones (sin instrucciones): compat para el listado previo a un recorrido. */
     public void set(List<Planificador.Parada> nuevas) { set(nuevas, null); }
 
-    /** Estaciones + instrucciones de tramo (chips de dirección entre líneas). */
+    /** Estaciones + instrucciones de tramo (chips de dirección entre líneas). 'ctx' solo se necesita
+     *  para el texto localizado del chip de cambio de servicio (ver abajo); null se tolera (el chip
+     *  simplemente no aparece) para no romper otros llamadores. */
     public void set(List<Planificador.Parada> paradas, List<Planificador.Instruccion> instrucciones) {
+        set(paradas, instrucciones, null);
+    }
+
+    public void set(List<Planificador.Parada> paradas, List<Planificador.Instruccion> instrucciones,
+                     android.content.Context ctx) {
         items.clear();
         if (paradas != null) {
             int leg = 0;
@@ -64,6 +71,15 @@ public class EstacionRutaAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                 if (nuevoTramo && instrucciones != null && leg < instrucciones.size()) {
                     items.add(new Item(textoInstr(instrucciones.get(leg)), instrucciones.get(leg).color));
                     leg++;
+                }
+                // Cambio de ordinario↔exprés de la MISMA línea (p. ej. L4 104↔124): NO es un tramo
+                // nuevo (no incrementa 'leg', no tiene su propia Instruccion -- ver el comentario de
+                // Planificador.Parada.cambioServicio), así que se muestra con su PROPIO chip simple,
+                // independiente del de arriba.
+                if (p.cambioServicio && ctx != null) {
+                    boolean express = p.linea >= 121 && p.linea <= 124;
+                    String tipo = ctx.getString(express ? R.string.servicio_express : R.string.servicio_ordinario);
+                    items.add(new Item(ctx.getString(R.string.ruta_cambia_servicio, tipo), p.color));
                 }
                 items.add(new Item(p, k));
             }
