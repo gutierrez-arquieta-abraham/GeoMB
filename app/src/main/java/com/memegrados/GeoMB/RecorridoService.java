@@ -839,10 +839,21 @@ public class RecorridoService extends Service {
                     // "próxima: i" con preparación es siempre el aviso correcto antes de saltar; se
                     // anuncia aquí, PRIMERO (antes que la llegada a la línea vieja, si aplica abajo) por
                     // orden lógico: "prepárate" antes de "ya llegaste".
-                    if (ultProxima != i) {
-                        ultProxima = i;
+                    // Defecto real confirmado (viaje real, Mexibús L4 Periférico→Indios Verdes): Indios
+                    // Verdes es la parada INMEDIATA siguiente a Periférico en la secuencia -- el bloque
+                    // NORMAL de "próxima estación" (más abajo) ya la anuncia correctamente apenas sales
+                    // de Periférico (con "favor de irte preparando" incluido, porque Indios Verdes YA
+                    // tiene correspondencia real con Metrobús). Ese aviso usa el índice del nodo
+                    // MEXIBÚS; este bloque usa el índice del nodo METROBÚS -- son DOS nodos de secuencia
+                    // distintos para la MISMA estación física (coUbicada), así que "ultProxima != i" por
+                    // sí solo no detectaba que ya se había avisado. Se evita repetir si el candidato
+                    // anterior YA estaba co-ubicado con este.
+                    boolean yaAvisado = ultProxima == i
+                            || (ultProxima >= 0 && ultProxima < seq.size() && coUbicada(seq.get(ultProxima), pi));
+                    if (!yaAvisado) {
                         sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea, nom(seq.get(i)));
                     }
+                    ultProxima = i;
                     // Caso real confirmado (Indios Verdes, Mexibús→Metrobús): cuando es el camino de
                     // "correspondencia corta" (alcanzasteNueva, NO alcanzasteAnterior) el que habilita el
                     // salto -- p. ej. aquí mismo, IV_L1_SALE queda a ~340 m de IV_L4_LLEGA, más que
@@ -1780,7 +1791,7 @@ public class RecorridoService extends Service {
      *  andenes de distinto sistema cuyo nombre difiere por el paréntesis de conexión (p. ej. Indios Verdes
      *  "…" ↔ "Indios Verdes (conexión Metrobús L1 y L7)"). El límite de distancia evita casar estaciones
      *  homónimas lejanas. */
-    private static boolean coUbicada(Planificador.Parada a, Planificador.Parada b) {
+    static boolean coUbicada(Planificador.Parada a, Planificador.Parada b) {
         if (mismaEstacion(a, b)) return true;
         if (a == null || b == null || a.pos == null || b.pos == null) return false;
         return nucleoCoincide(a.nombre, b.nombre) && Linea.distancia(a.pos, b.pos) < 350.0;
