@@ -37,4 +37,21 @@ public class LocucionesBasesCorrespTest {
         java.util.Set<Integer> r = Planificador.corrManualLineas(101, Planificador.norm("MXB 1ro de Mayo"));
         assertFalse("debería incluir 102 y/o 112 (Las Américas)", r.isEmpty());
     }
+
+    // Segundo defecto real confirmado (mismo reporte): faltaba la mención de L2A (112) al llegar a
+    // "Las Américas" por L2 ordinario (102) -- misma terminal física, mismo nombre exacto, pero
+    // lineasEnEstacion() se salta las líneas con el mismo baseLinea() (102 y 112 colapsan ahí por
+    // error). Fila manual nueva en CORRESP_MANUAL (102↔112, mismo nombre en ambos lados).
+
+    @Test
+    public void corrManualLineas_lasAmericasOrdinarioL2_incluyeL2A() {
+        java.util.Set<Integer> r = Planificador.corrManualLineas(102, Planificador.norm("MXB Las Américas"));
+        assertTrue("debería incluir 112 (L2A)", r.contains(112));
+    }
+
+    @Test
+    public void corrManualLineas_lasAmericasRamalL2A_incluyeL2Ordinario() {
+        java.util.Set<Integer> r = Planificador.corrManualLineas(112, Planificador.norm("MXB Las Américas"));
+        assertTrue("debería incluir 102 (L2 ordinario)", r.contains(102));
+    }
 }

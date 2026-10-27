@@ -202,6 +202,15 @@ public final class Planificador {
             // el tramo y además sale más rápido.
             {"121", "mxb 1ro de mayo",     "102", "mxb las americas"},
             {"121", "mxb 1ro de mayo",     "112", "mxb las americas"},
+            // Defecto real confirmado (reporte del usuario): "Las Américas" es la MISMA terminal física
+            // para L2 ordinario (102) y L2A (112) -- mismo nombre exacto, mismo punto -- pero el bucle
+            // principal de lineasEnEstacion() se salta cualquier línea con el mismo baseLinea() que la
+            // actual (pensado para colapsar ordinario↔exprés, p. ej. 101/121), y baseLinea() también
+            // colapsa por error ordinario↔ramal (102 y 112 dan ambos 102), así que esas dos nunca se
+            // comparan entre sí aunque compartan nombre y posición. Misma fila manual que el caso
+            // 1ro de Mayo/Las Américas, en vez de tocar lineasEnEstacion() (compartida por TODAS las
+            // correspondencias de la app -- más riesgo de romper otra cosa).
+            {"102", "mxb las americas",    "112", "mxb las americas"},
             {"5", "rio de los remedios",   "112", "mxb rio de los remedios"},   // transbordo real Metrobús L5 – Mexibús L2A (Río de los Remedios)
             // Transbordo real H72 (su propio punto GTFS "Alameda Tacubaya", ver RutasMixtas.H72 y
             // ALIAS_H72) -- Tacubaya troncal de L2, ~110 m. Sin esta fila, un camino que de verdad

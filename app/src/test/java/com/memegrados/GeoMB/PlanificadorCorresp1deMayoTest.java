@@ -95,17 +95,21 @@ public class PlanificadorCorresp1deMayoTest {
     }
 
     @Test
-    public void corrManualLineas_lasAmericasL2_devuelveL1_colapsaExpresDeL1() {
-        // Desde Las Américas (L2), el otro lado es L1 (101) -- tanto si el A* cruzó con el ordinario
+    public void corrManualLineas_lasAmericasL2_devuelveL1YL2A() {
+        // Desde Las Américas (L2), un lado es L1 (101) -- tanto si el A* cruzó con el ordinario
         // (101) como con el exprés (121) de 1ro de Mayo, se colapsan al mismo "línea 1" (claveTerminal).
+        // Defecto real confirmado (reporte del usuario): el OTRO lado es L2A (112) -- misma terminal
+        // física, mismo nombre exacto, pero lineasEnEstacion() se salta las líneas con el mismo
+        // baseLinea() que la actual (102 y 112 colapsan ahí por error), así que nunca se comparaban
+        // entre sí. Fila manual nueva en CORRESP_MANUAL (102↔112, ver su comentario).
         java.util.Set<Integer> l = Planificador.corrManualLineas(102, nn("Las Américas"));
-        assertEquals(java.util.Collections.singleton(101), l);
+        assertEquals(new java.util.TreeSet<>(java.util.Arrays.asList(101, 112)), l);
     }
 
     @Test
-    public void corrManualLineas_lasAmericasL2A_devuelveL1() {
+    public void corrManualLineas_lasAmericasL2A_devuelveL1YL2Ordinario() {
         java.util.Set<Integer> l = Planificador.corrManualLineas(112, nn("Las Américas"));
-        assertEquals(java.util.Collections.singleton(101), l);
+        assertEquals(new java.util.TreeSet<>(java.util.Arrays.asList(101, 102)), l);
     }
 
     @Test
