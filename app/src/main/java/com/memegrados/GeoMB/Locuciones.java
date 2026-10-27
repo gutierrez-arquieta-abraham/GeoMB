@@ -149,6 +149,13 @@ public final class Locuciones {
     static TreeSet<Integer> basesCorresp(Context ctx, int linea, String nombre, LatLng pos) {
         TreeSet<Integer> bases = lineasEnEstacion(ctx, linea, nombre, pos);
         correspManuales(nombre, linea, bases);
+        // Defecto real confirmado (descargas de audio): esta réplica se había quedado desincronizada
+        // de RecorridoService.lineasEnEstacion(), que SÍ consulta Planificador.CORRESP_MANUAL (pares
+        // con nombres que no comparten ninguna palabra, p. ej. "1ro de Mayo"↔"Las Américas", 288 m) --
+        // sin esto, el audio PRE-DESCARGADO para esas estaciones nunca mencionaba la correspondencia,
+        // aunque la ruta sí transborde ahí. Mismo criterio que RecorridoService: línea EXACTA (no
+        // baseLinea), para preservar ramales (112 = "2A") distintos de su ordinario (102 = "2").
+        bases.addAll(Planificador.corrManualLineas(linea, Planificador.norm(nombre)));
         boolean mxb = Modos.mostrarMexibus(ctx);
         boolean mxc = Modos.mostrarMexicable(ctx);
         java.util.Iterator<Integer> it = bases.iterator();
