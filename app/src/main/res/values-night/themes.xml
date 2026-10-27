@@ -8,7 +8,9 @@
         <item name="colorSecondary">@color/mb_gray_light</item>
         <item name="colorSurface">@color/mb_surface_dark</item>
         <!-- Sin statusBarColor/navigationBarColor (deprecados en Android 15). Borde a borde
-             + insets. Iconos claros sobre barras oscuras. -->
+             + insets. Iconos claros sobre barras oscuras. windowBackground = colorSurface: ver
+             el mismo comentario en values/themes.xml (franja detrás de bottom_nav). -->
+        <item name="android:windowBackground">?attr/colorSurface</item>
         <item name="android:windowLightStatusBar">false</item>
         <!-- windowLightNavigationBar requiere API 27: se define en values-night-v27 -->
     </style>

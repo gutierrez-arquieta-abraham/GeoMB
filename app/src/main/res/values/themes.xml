@@ -9,7 +9,13 @@
         <item name="colorSurface">@color/mb_surface</item>
         <item name="colorOutline">@color/mb_outline</item>
         <!-- Sin statusBarColor/navigationBarColor: deprecados en Android 15; se maneja
-             con borde a borde (EdgeToEdge) e insets. Iconos oscuros sobre barras claras. -->
+             con borde a borde (EdgeToEdge) e insets. Iconos oscuros sobre barras claras.
+             windowBackground SÍ se fija a colorSurface: es lo que se ve detrás de bottom_nav en
+             la franja del inset inferior (MainActivity aplica el inset como padding, bottom_nav
+             no se dibuja ahí). Sin esto, Android usaba su negro/blanco por defecto, distinto
+             del tono de bottom_nav (que además se ve con surface tint por su elevation), y esa
+             diferencia de color se veía como un "margen" raro debajo de la barra. -->
+        <item name="android:windowBackground">?attr/colorSurface</item>
         <item name="android:windowLightStatusBar">true</item>
         <!-- windowLightNavigationBar requiere API 27: se define en values-v27 -->
     </style>
