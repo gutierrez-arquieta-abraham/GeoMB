@@ -1328,6 +1328,14 @@ public class RecorridoService extends Service {
         return p != null ? Planificador.nombreMostrar(this, p.nombre, p.linea) : null;
     }
 
+    /** Elige entre el string normal y su variante "_ximena" (redacción + pausas largas calcadas del
+     *  anuncio real del Metrobús) según si ESTA línea tiene la voz Ximena activa (Modos.vozActual,
+     *  por sistema: Metrobús/Mexibús/Mexicable son independientes). Mia/TTS del sistema nunca ven
+     *  la variante Ximena. */
+    private int vozTxt(int normal, int ximena, int linea) {
+        return "Ximena".equals(Modos.vozActual(this, linea)) ? ximena : normal;
+    }
+
     /** Aviso de PRÓXIMA estación. Si tiene correspondencia (líneas cercanas) la nombra; y si el usuario
      *  transbordará ahí, añade la preparación ("atención… favor de irte preparando"). */
     private String vozProxima(List<Planificador.Parada> seq, int idx, boolean prepararse) {
@@ -1335,8 +1343,8 @@ public class RecorridoService extends Service {
         if (esTerminal(prox) && !esAbordaje(seq, idx)) return vozTerminal(prox, false);   // terminal de línea (al llegar)
         String tf = transferenciaTexto(prox.linea, basesCorresp(prox));
         StringBuilder v = tf.isEmpty()
-                ? new StringBuilder(getString(R.string.voz_proxima, nom(prox)))
-                : new StringBuilder(getString(R.string.voz_prox_base, nom(prox))).append(tf);
+                ? new StringBuilder(getString(vozTxt(R.string.voz_proxima, R.string.voz_proxima_ximena, prox.linea), nom(prox)))
+                : new StringBuilder(getString(vozTxt(R.string.voz_prox_base, R.string.voz_prox_base_ximena, prox.linea), nom(prox))).append(tf);
         // "Favor de irte preparando" cuando te ACERCAS a la estación donde bajarás a hacer la
         // correspondencia (no cuando ya llegaste al andén de la otra línea).
         if (prepararse) v.append(". ").append(getString(R.string.voz_transbordo_prep));
@@ -1368,7 +1376,7 @@ public class RecorridoService extends Service {
         boolean bajas = tcSig != 0 || (best + 1 < seq.size() && seq.get(best + 1).transbordo);
         String tf = transferenciaTexto(p.linea, basesCorresp(p));
         if (tf.isEmpty() && !bajas) {
-            StringBuilder v = new StringBuilder(getString(R.string.voz_llegando_est, nom(p)));
+            StringBuilder v = new StringBuilder(getString(vozTxt(R.string.voz_llegando_est, R.string.voz_llegando_est_ximena, p.linea), nom(p)));
             if (esFinal) {
                 v.append(". ").append(getString(ultimaEst(p.linea)));   // "última estación de tu recorrido"
             } else {
@@ -1377,7 +1385,7 @@ public class RecorridoService extends Service {
             }
             return v.toString();
         }
-        StringBuilder v = new StringBuilder(getString(R.string.voz_lleg_base, nom(p))).append(tf);
+        StringBuilder v = new StringBuilder(getString(vozTxt(R.string.voz_lleg_base, R.string.voz_lleg_base_ximena, p.linea), nom(p))).append(tf);
         if (bajas) {
             // Instrucción de bajada según el cambio: transbordo/correspondencia, conexión (camina) o
             // cambio de servicio/ruta (baja y toma el servicio con dirección).
@@ -1575,8 +1583,9 @@ public class RecorridoService extends Service {
      *  · Mexibús L4 La Raza: "…estación terminal, La Raza, conexión con Metrobús Líneas 1 y 3".
      */
     private String vozTerminal(Planificador.Parada p, boolean llegada) {
-        StringBuilder v = new StringBuilder(getString(
-                llegada ? R.string.voz_term_lleg : R.string.voz_term_prox, nom(p)));
+        int base = llegada ? R.string.voz_term_lleg : R.string.voz_term_prox;
+        int ximena = llegada ? R.string.voz_term_lleg_ximena : R.string.voz_term_prox_ximena;
+        StringBuilder v = new StringBuilder(getString(vozTxt(base, ximena, p.linea), nom(p)));
         return v.append(transferenciaTexto(p.linea, basesCorresp(p))).toString();
     }
 
@@ -1628,8 +1637,8 @@ public class RecorridoService extends Service {
             if (g.isEmpty()) continue;
             String lista = listaLineas(lineaActual, g);
             String palabra = getString(r);
-            if (primero) { v.append(getString(R.string.voz_tf_primera, palabra, lista)); primero = false; }
-            else { v.append(getString(R.string.voz_tf_sig, cap(palabra), lista)); }
+            if (primero) { v.append(getString(vozTxt(R.string.voz_tf_primera, R.string.voz_tf_primera_ximena, lineaActual), palabra, lista)); primero = false; }
+            else { v.append(getString(vozTxt(R.string.voz_tf_sig, R.string.voz_tf_sig_ximena, lineaActual), cap(palabra), lista)); }
         }
         return v.toString();
     }

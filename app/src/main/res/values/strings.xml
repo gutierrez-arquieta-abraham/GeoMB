@@ -199,6 +199,10 @@
     <string name="notif_destino_fmt">Destino: %1$s</string>
     <string name="voz_llegando">Llegando a %1$s</string>
     <string name="voz_proxima">Próxima estación: %1$s</string>
+    <!-- Variantes SOLO para la voz Ximena (clon del anuncio real del Metrobús, ver tts_backend.py):
+         redacción y pausas largas calcadas de la transcripción real. Mia/TTS del sistema siguen
+         usando los strings de arriba sin tocar. Ver RecorridoService.vozTxt(). -->
+    <string name="voz_proxima_ximena">Próxima estación… %1$s</string>
     <string name="voz_transborda">Estás llegando a %1$s. Baja y haz tu correspondencia a la Línea %2$s.</string>
     <string name="voz_llegaste">Llegaste a %1$s, última estación de tu recorrido.</string>
     <string name="voz_afectacion">Atención: hay afectaciones en el servicio. Verifica tu ruta.</string>
@@ -207,6 +211,8 @@
     <string name="ruta_final">Destino</string>
     <string name="voz_llegando_est">Llegando a estación: %1$s</string>
     <string name="voz_llegando_terminal">Llegando a terminal: %1$s</string>
+    <string name="voz_llegando_est_ximena">Llegando a… %1$s</string>
+    <string name="voz_llegando_terminal_ximena">Llegando a… terminal %1$s</string>
     <string name="voz_transbordo_linea">. Correspondencia con Línea %1$d</string>
     <string name="voz_transbordo_varias">. Correspondencia con Líneas %1$s</string>
     <string name="voz_transbordo">. Correspondencia con %1$s</string>
@@ -260,9 +266,15 @@
     <string name="voz_term_prox">Próxima estación terminal, %1$s</string>
     <string name="voz_lleg_base">Llegando a estación, %1$s</string>
     <string name="voz_prox_base">Próxima estación, %1$s</string>
+    <string name="voz_term_lleg_ximena">Llegando a… terminal %1$s</string>
+    <string name="voz_term_prox_ximena">Próxima estación… terminal %1$s</string>
+    <string name="voz_lleg_base_ximena">Llegando a… %1$s</string>
+    <string name="voz_prox_base_ximena">Próxima estación… %1$s</string>
     <!-- Cláusulas de transferencia: %1$s = lista de líneas/sistemas -->
     <string name="voz_tf_primera">, %1$s con %2$s</string>
     <string name="voz_tf_sig">. %1$s con %2$s</string>
+    <string name="voz_tf_primera_ximena">… %1$s con… %2$s</string>
+    <string name="voz_tf_sig_ximena">… %1$s con… %2$s</string>
     <string name="voz_sis_mb">Metrobús</string>
     <string name="voz_sis_mxb">Meksibús</string>
     <string name="voz_sis_mxc">Meksicable</string>
