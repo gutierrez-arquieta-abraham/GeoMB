@@ -867,16 +867,14 @@ public class RecorridoService extends Service {
                     if (alcanzasteNueva && !alcanzasteAnterior && ultLlegando < best) {
                         ultLlegando = best;
                         Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
-                        // Defecto real confirmado (viaje real, Indios Verdes): para cuando se confirma el
-                        // salto (tras CORRESP_CORTA_CICLOS_MIN ciclos + zona central), puede que ya estés
-                        // DENTRO del radio angosto (10 m, radioLlegada()) del andén NUEVO (Metrobús) --
-                        // decir "llegando a Mexibús" en ese momento ya no tiene sentido, es obvio que
-                        // llegaste a Metrobús. El estado interno (ultLlegando) se marca igual -- el resto
-                        // de la lógica que depende de "ya se anunció Mexibús" no cambia -- solo se omite
-                        // la VOZ cuando ya estás así de cerca del andén nuevo.
-                        if (d > radioLlegada(pi)) {
-                            sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea, nom(seq.get(best)));
-                        }
+                        // Defecto real confirmado (viaje real, Indios Verdes): se probó omitir este aviso
+                        // cuando ya se estaba DENTRO del radio angosto (10 m, radioLlegada()) del andén
+                        // NUEVO (Metrobús), asumiendo que sería obvio/redundante -- en la práctica dejaba
+                        // la correspondencia SIN NINGÚN cierre audible del lado Mexibús: lo único que se
+                        // alcanzaba a oír era el aviso normal de Metrobús (más abajo), nunca el tono/voz de
+                        // Mexibús. Se revierte esa condición: el aviso de llegada de Mexibús SIEMPRE suena
+                        // aquí, sin importar qué tan cerca ya estés del andén nuevo.
+                        sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea, nom(seq.get(best)));
                     }
                     bd = d; best = i;
                     corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
