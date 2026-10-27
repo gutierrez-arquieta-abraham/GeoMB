@@ -112,12 +112,17 @@ public final class Locuciones {
     static TreeSet<Integer> lineasEnEstacion(Context ctx, int linea, String nombre, LatLng pos) {
         TreeSet<Integer> s = new TreeSet<>();
         if (pos == null) return s;
-        int bp = baseLinea(linea), sisP = Sistemas.sistemaDe(linea);
+        // claveTerminal() (NO baseLinea()) -- debe mantenerse en sincronía con
+        // RecorridoService.lineasEnEstacion(), ver su comentario: baseLinea() colapsa
+        // ordinario↔ramal además de ordinario↔exprés, así que se saltaba por error cualquier
+        // ramal que comparte estación física con su ordinario (Ojo de Agua, Las Américas,
+        // Acuitlapilco).
+        int bp = Planificador.claveTerminal(linea), sisP = Sistemas.sistemaDe(linea);
         String pn = Planificador.norm(Planificador.sinMxb(nombre));
         List<Linea> todas = new ArrayList<>(GtfsRepository.getLineas(ctx));
         todas.addAll(GtfsRepository.getMexibus(ctx));
         for (Linea l : todas) {
-            if (baseLinea(l.numero) == bp) continue;
+            if (Planificador.claveTerminal(l.numero) == bp) continue;
             boolean mismoSistema = Sistemas.sistemaDe(l.numero) == sisP;
             for (Estacion e : l.estaciones) {
                 if (e.soloMapa) continue;
@@ -129,7 +134,7 @@ public final class Locuciones {
                         ? (Planificador.norm(Planificador.sinMxb(e.nombre)).equals(pn) || nucleoCoincide(nombre, e.nombre))
                         : nucleoCoincide(nombre, e.nombre);
                 if (!nombreOk) continue;
-                if (Linea.distancia(pos, e.posicion) <= CORRESP_VOZ_M) { s.add(baseLinea(l.numero)); break; }
+                if (Linea.distancia(pos, e.posicion) <= CORRESP_VOZ_M) { s.add(Planificador.claveTerminal(l.numero)); break; }
             }
         }
         return s;
@@ -186,7 +191,9 @@ public final class Locuciones {
     }
 
     static String transferenciaTexto(Context ctx, int lineaActual, TreeSet<Integer> bases) {
-        bases.remove(baseLinea(lineaActual));
+        // claveTerminal() (NO baseLinea()) -- ver el mismo comentario en RecorridoService: viajando
+        // en un RAMAL esto borraba por error la mención real de su ordinario (misma baseLinea).
+        bases.remove(Planificador.claveTerminal(lineaActual));
         if (bases.isEmpty()) return "";
         int[] orden = {R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia, R.string.voz_palabra_conexion};
         Map<Integer, TreeSet<Integer>> porPalabra = new HashMap<>();

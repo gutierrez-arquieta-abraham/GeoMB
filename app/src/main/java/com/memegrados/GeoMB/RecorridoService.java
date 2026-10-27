@@ -1624,7 +1624,12 @@ public class RecorridoService extends Service {
      * ", conexión con Metrobús Líneas 1 y 3".
      */
     private String transferenciaTexto(int lineaActual, java.util.TreeSet<Integer> bases) {
-        bases.remove(baseLinea(lineaActual));
+        // claveTerminal() (NO baseLinea()): 'bases' ahora puede traer un ramal (111/112/113) distinto
+        // de su ordinario (ver lineasEnEstacion()) -- si aquí se quitara con baseLinea(), viajando en
+        // el RAMAL (p. ej. 112) esto borraba por error la mención real del ordinario (102), porque
+        // baseLinea(112) también da 102. claveTerminal() solo quita lo que de verdad es "yo mismo"
+        // (colapsa ordinario↔exprés, deja los ramales distintos).
+        bases.remove(Planificador.claveTerminal(lineaActual));
         if (bases.isEmpty()) return "";
         int[] orden = {R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia, R.string.voz_palabra_conexion};
         java.util.Map<Integer, java.util.TreeSet<Integer>> porPalabra = new java.util.HashMap<>();
@@ -1839,14 +1844,20 @@ public class RecorridoService extends Service {
     private java.util.TreeSet<Integer> lineasEnEstacion(Planificador.Parada p) {
         java.util.TreeSet<Integer> s = new java.util.TreeSet<>();
         if (p == null || p.pos == null) return s;
-        int bp = baseLinea(p.linea);
+        // claveTerminal() (NO baseLinea()): baseLinea() colapsa ordinario↔ramal además de
+        // ordinario↔exprés (101/111/121 dan los 3 el mismo 101), así que esta comparación se
+        // saltaba por error cualquier ramal que comparte estación física con su ordinario (p. ej.
+        // "Ojo de Agua" L1↔L1A, "Las Américas" L2↔L2A, "Acuitlapilco" L3↔L3A -- defecto real
+        // confirmado: ninguno de esos 3 avisaba la correspondencia con el ramal). claveTerminal()
+        // SÍ colapsa exprés (121→101) pero deja los ramales (111/112/113) distintos.
+        int bp = Planificador.claveTerminal(p.linea);
         int sisP = Sistemas.sistemaDe(p.linea);
         try {
             String pn = Planificador.norm(Planificador.sinMxb(p.nombre));
             java.util.List<Linea> todas = new java.util.ArrayList<>(GtfsRepository.getLineas(this));
             todas.addAll(GtfsRepository.getMexibus(this));
             for (Linea l : todas) {
-                if (baseLinea(l.numero) == bp) continue;   // misma línea/servicio: no es transbordo
+                if (Planificador.claveTerminal(l.numero) == bp) continue;   // mismo servicio: no es transbordo
                 boolean mismoSistema = Sistemas.sistemaDe(l.numero) == sisP;
                 for (Estacion e : l.estaciones) {
                     if (e.soloMapa) continue;
@@ -1861,7 +1872,7 @@ public class RecorridoService extends Service {
                     if (!nombreOk) continue;
                     double d = haversine(p.pos.latitude, p.pos.longitude,
                             e.posicion.latitude, e.posicion.longitude);
-                    if (d <= CORRESP_VOZ_M) { s.add(baseLinea(l.numero)); break; }
+                    if (d <= CORRESP_VOZ_M) { s.add(Planificador.claveTerminal(l.numero)); break; }
                 }
             }
         } catch (Exception ignore) {}
