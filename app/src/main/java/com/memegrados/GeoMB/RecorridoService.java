@@ -675,11 +675,24 @@ public class RecorridoService extends Service {
         // GPS causa el salto falso), se descartan todas las candidatas en o más allá. Lejos de él, NO
         // se restringe: ese es el caso legítimo en que te subiste directo más adelante en la ruta sin
         // pasar nunca por esa correspondencia (reanclaje general, la razón de ser de esta función).
+        //
+        // Defecto real confirmado (viaje real): esta misma protección se queda atorada si el
+        // recorrido arranca YA de pie en el andén de un punto de transbordo real (p. ej. iniciar la
+        // app ya en Indios Verdes, con una ruta Bosques del Valle→IPN) -- nunca se va a "llegar" a
+        // ese transbordo por el camino normal (el usuario jamás viajó el tramo Mexibús), así que
+        // ultLlegando nunca lo alcanza y el límite se queda clavado para siempre. Esta protección
+        // solo tiene sentido A MITAD DE VIAJE (vas acercándote de verdad por la línea anterior); al
+        // INICIAR el recorrido (avanceMin==0, nada anunciado aún) no aplica -- el salto sigue
+        // pasando por la confirmación normal de 2 ciclos de reanclarOtraLinea() (más abajo, en su
+        // único llamador), así que no se vuelve menos estricto contra ruido de GPS puntual.
+        boolean inicioDelRecorrido = avanceMin == 0 && ultLlegando == -99;
         int limite = seq.size();
-        for (int k = best + 1; k < seq.size(); k++) {
-            if (seq.get(k).transbordo && ultLlegando < k) {
-                if (distParada(l, seq.get(k)) <= RADIO_REUBICACION_M) limite = k;
-                break;
+        if (!inicioDelRecorrido) {
+            for (int k = best + 1; k < seq.size(); k++) {
+                if (seq.get(k).transbordo && ultLlegando < k) {
+                    if (distParada(l, seq.get(k)) <= RADIO_REUBICACION_M) limite = k;
+                    break;
+                }
             }
         }
         for (int j = best + 1; j < limite; j++) {
