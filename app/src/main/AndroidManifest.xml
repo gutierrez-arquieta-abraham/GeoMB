@@ -39,7 +39,7 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBVWqLHPP_BgAX0y1qewGY98-zk00McoSo" />
+            android:value="${mapsApiKey}" />
 
         <!-- AdMob: banner no invasivo para ayudar a cubrir el costo de rss.app (ver Config.java).
              App ID real de la cuenta de AdMob (GeoMB, Android). -->

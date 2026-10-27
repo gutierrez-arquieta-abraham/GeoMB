@@ -35,15 +35,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Barra inferior: BottomNavigationView estándar (Material 1.13, soporta hasta 5 ítems fijos
-         sin "modo shifting" con labelVisibilityMode="labeled") + menú/colores en res/menu,res/color. -->
+    <!-- Barra inferior: BottomNavigationView estándar (Material 1.13) + menú/colores en
+         res/menu,res/color. labelVisibilityMode="auto" (no "labeled" fijo): con 5 ítems en una
+         pantalla angosta (~320-360dp) cada uno tiene ~64dp, insuficiente para que "Servicio" (la
+         etiqueta más larga) no se corte/salte de línea si se fuerza el texto en los 5 a la vez;
+         "auto" deja que Material muestre solo el ícono en los no seleccionados cuando no caben. -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_nav"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="?attr/colorSurface"
         android:elevation="8dp"
-        app:labelVisibilityMode="labeled"
+        app:labelVisibilityMode="auto"
         app:itemIconTint="@color/bottom_nav_color"
         app:itemTextColor="@color/bottom_nav_color"
         app:menu="@menu/bottom_nav_menu"

@@ -128,17 +128,24 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Controles de zoom y orientación (izquierda) -->
+    <!-- Controles de zoom y orientación (izquierda). Acotado entre search_bar y panel_mapa (NO
+         top/bottom_toXOf parent): con ambos extremos anclados al padre, ConstraintLayout solo lo
+         centraba en TODA la altura de pantalla sin importar dónde terminan esas otras barras.
+         En una pantalla chica esta columna de 5 botones (~228dp) se encimaba con la barra de
+         búsqueda arriba y/o con panel_mapa/txt_conteo abajo. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/panel_zoom"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
         app:cardCornerRadius="22dp"
         app:cardElevation="4dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/search_bar"
+        app:layout_constraintBottom_toTopOf="@id/panel_mapa"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintVertical_bias="0.5">
 
         <LinearLayout
             android:layout_width="wrap_content"

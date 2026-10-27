@@ -17,8 +17,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Maps API key por variante: la key compartida (AndroidManifest antes) quedó restringida en
+    // Google Cloud Console a "Apps para Android" con el SHA-1 de Play App Signing (release) -- el
+    // keystore de debug tiene OTRO SHA-1, así que debug necesita su PROPIA key (sin esa
+    // restricción, o restringida al SHA-1 de debug) para que el mapa siga funcionando al compilar
+    // localmente. Ver AndroidManifest.xml: <meta-data android:value="${mapsApiKey}">.
     buildTypes {
+        debug {
+            manifestPlaceholders["mapsApiKey"] = "AIzaSyBP-_aWAJWygVA33obzPPlhlyu1afgNV5g"
+        }
         release {
+            manifestPlaceholders["mapsApiKey"] = "AIzaSyBVWqLHPP_BgAX0y1qewGY98-zk00McoSo"
             isMinifyEnabled = true      // R8: optimiza y reduce el código
             isShrinkResources = true    // elimina recursos no usados (requiere minify)
             proguardFiles(
