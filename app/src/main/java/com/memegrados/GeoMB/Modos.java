@@ -47,12 +47,13 @@ public final class Modos {
     /** Frases secretas EXACTAS (se comparan tal cual, con mayúsculas y acentos). */
     public static final String FRASE_CACHONDO = "CUMsultando a la patrona";
     public static final String FRASE_PBS = "Metrobús & Mexibús PBS";
-    // Voz Ximena (Fish Audio, clon de Loquendo) es de PAGO por uso en el backend -- a
+    // Voz Ximena (Fish Audio, clon del anuncio real del Metrobús/CITI Indra) es de PAGO por uso
+    // en el backend -- a
     // diferencia de cachondo/pbs (gratis, solo cosméticos), esta SÍ le cuesta dinero al EC2
     // cada vez que se habla con ella. Por eso vive tras su propia frase secreta (no basta con
     // desbloquear "personalizado"), para que nadie la active sin querer ni la descubra por
     // accidente -- solo quien ya sabe esta frase específica.
-    public static final String FRASE_VOZ_XIMENA = "Ximena Loquendo experimental";
+    public static final String FRASE_VOZ_XIMENA = "Voz CITI Indra";
 
     private Modos() {}
 

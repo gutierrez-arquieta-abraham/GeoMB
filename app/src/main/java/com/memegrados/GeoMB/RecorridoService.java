@@ -1909,7 +1909,7 @@ public class RecorridoService extends Service {
     /**
      * Elige la mejor voz femenina en español (México &gt; EE.UU. &gt; España) entre las que
      * ofrezca el motor TTS instalado. Es la aproximación más cercana a la voz "Ximena"
-     * (Loquendo es software propietario y no puede empaquetarse en la app).
+     * (el modelo clonado real vive en Fish Audio/el backend, no puede empaquetarse en la app).
      */
     private void seleccionarVozFemenina() {
         try {
