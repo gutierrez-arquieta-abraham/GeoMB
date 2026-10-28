@@ -169,6 +169,10 @@ CA propia `/etc/nginx/certs/geomb-admin-ca.crt`); `/admin` **bloqueado (404) en 
 - Correspondencias Metrobús↔Mexibús declaradas en el nombre hoy solo etiquetan; forzar ruteo si se desea.
 
 ## Archivos clave (referencia)
+- **`docs/INDICE_CODIGO.md`** (generado, `python3 scripts/graphify.py`): línea exacta de cada método/constante de los 8 archivos
+  más grandes/acoplados (Planificador, MapFragment, RecorridoService, ManifestacionesService, PlanificadorFragment, Locuciones,
+  GtfsRepository, Linea). Consultar ESTO primero para ubicar una función en un archivo grande, en vez de leerlo completo o
+  grepearlo a ciegas -- ahorra contexto. Puede quedar desfasado tras refactors grandes; regenerar si las líneas no cuadran.
 - Datos: `assets/mexibus.json`, `assets/horarios.json`, `assets/servicios_mexibus.json`, `lineas/estaciones/segmentos/sublineas.json`.
 - Núcleo: `GtfsRepository`, `Planificador`, `RutasMixtas`, `Servicios`, `ServiciosMexibus`, `Horarios`, `Linea` (`distanciaEn`/`puntoEn`).
 - Tiempo real: `RealtimeRepository`, `UnidadReal`, `UnidadAnimador`, `Llegadas`, `MapFragment`, `PlanificadorFragment`.

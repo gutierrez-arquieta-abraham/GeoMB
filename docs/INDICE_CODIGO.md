@@ -1,0 +1,605 @@
+# Índice de código (generado)
+
+Métodos y constantes clave de los archivos más grandes/acoplados, con su línea actual --
+para buscar "¿dónde está X?" aquí en vez de releer el archivo completo. Puede quedar
+desfasado tras refactors grandes: regenerar con `python3 scripts/graphify.py`.
+No reemplaza MEMORIA.md (el porqué); esto es solo el mapa de ubicaciones.
+
+## Planificador.java
+
+**Constantes:**
+- `63`: `private static final double SEG_PARADA = 100.0;`
+- `64`: `private static final double SEG_TRANSBORDO = 300.0;`
+- `69`: `private static final double PENAL_PASAJE_EXTRA = 1200.0;`
+- `70`: `private static final double VEL_MS = 6.0;      // velocidad media del BRT (~21.6 km/h) para el costo por distancia`
+- `71`: `private static final double DWELL_S = 20.0;    // parada en estación (subir/bajar)`
+- `90`: `private static final double RADIO_CORRESP = 800.0;   // transbordo por CERCANÍA: hasta 800 m se camina`
+- `95`: `private static final double ANCLA_ORIGEN_M = 25.0;`
+- `189`: `private static final String[][] CORRESP_MANUAL =`
+- `241`: `private static final String[][] EXCL_CORRESP =`
+- `289`: `private static final Object[][] ALIAS_H72 =`
+- `344`: `private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(`
+- `349`: `private static final Pattern P_TOKEN_LINEA = Pattern.compile("l[0-9]+a?");`
+- `351`: `private static final Map<String, String> CACHE_NUCLEO = new HashMap<>();`
+- `501`: `private static final Pattern P_ACENTOS = Pattern.compile("\\p{Mn}");`
+- `502`: `private static final Pattern P_NO_ALNUM = Pattern.compile("[^a-z0-9 ]");`
+- `503`: `private static final Pattern P_ESPACIOS = Pattern.compile("\\s+");`
+- `505`: `private static final Map<String, String> CACHE_NORM = new HashMap<>();`
+- `620`: `private static final double RADIO_AGRUPAR_ESTACION_FISICA = 400.0;`
+- `730`: `private static final Set<String> L2_IDA = set("rio frio", "general antonio de leon", "parque lira", "coyuya");   // fuera hacia Tepalcates (Coyuya es de una vía, hacia Tacubaya)`
+- `731`: `private static final Set<String> L2_VUELTA = set("del moral", "canal de san juan", "nicolas bravo", "antonio maceo"); // fuera hacia Tacubaya`
+- `732`: `private static final Set<String> L6_IDA = set("de los misterios", "hospital infantil la villa",`
+- `734`: `private static final Set<String> L6_VUELTA = set("482", "414", "416 oriente");                    // fuera hacia El Rosario`
+- `735`: `private static final Set<String> L7_IDA = set("hospital infantil la villa");   // Indios→sur va por De los Misterios`
+- `748`: `private static final Map<Integer, Set<String>> DOS_PLATAFORMAS = new HashMap<>();`
+- `817`: `private static final java.util.Map<Integer, String[]> TERMINALES_EXTRA = new java.util.HashMap<>();`
+- `865`: `private static final java.util.Map<Integer, String[]> TERMINALES_MXB = new java.util.HashMap<>();`
+- `1146`: `public static final int MOTIVO_OK = 0, MOTIVO_ESTACION_CERRADA = 1, MOTIVO_HORARIO = 2,`
+- `1170`: `private static final double PENAL_SERVICIO = 500.0;   // fija, al abordar/transbordar (desempate en origen)`
+- `1175`: `private static final double K_PENAL_TRAMO = 0.75;`
+- `1180`: `private static final double RATIO_ESCAPE = 1.10;`
+- `1981`: `static final LatLng IV_L1_LLEGA = new LatLng(19.494040000000000, -99.119630000000000); // L1 sur, descenso`
+- `1982`: `static final LatLng IV_L1_SALE  = new LatLng(19.496963, -99.119262); // L1 norte, ascenso (coordenada corregida)`
+- `1983`: `static final LatLng IV_L4_LLEGA = new LatLng(19.493988000000000, -99.120012000000000); // L4 sur (dir La Raza)`
+- `1984`: `static final LatLng IV_L4_SALE  = new LatLng(19.496370747877478, -99.119083404304850); // L4 norte (dir UMB)`
+- `1988`: `static final LatLng[] Z_IV_L1_SALE  = {new LatLng(19.496947292303584, -99.119243569356030), new LatLng(19.495489581666096, -99.119647241356560)};`
+- `1989`: `static final LatLng[] Z_IV_L1_LLEGA = {new LatLng(19.493379070441666, -99.119904759918270), new LatLng(19.494207749627176, -99.119649928529500)};`
+- `1990`: `static final LatLng[] Z_IV_L4_LLEGA = {new LatLng(19.494419028286020, -99.119889171399010), new LatLng(19.493412590131070, -99.120054893133240)};`
+- `1991`: `static final LatLng[] Z_IV_L4_SALE  = {new LatLng(19.495363749243566, -99.119336074990000), new LatLng(19.496896376678077, -99.118979084763800)};`
+- `2015`: `static final LatLng IV_ZONA_CENTRAL = new LatLng(19.495340436969370, -99.119496851076220);`
+- `2016`: `static final float IV_ZONA_CENTRAL_RADIO_M = 100f;`
+- `2037`: `private static final LatLng[] ANDENES_LARGOS =`
+- `2096`: `private static final LatLng PUENTE_FIERRO_L2 = new LatLng(19.601038, -99.033787);`
+- `2119`: `private static final LatLng CLINICA_93 = new LatLng(19.551183746934417, -99.051961377306110);`
+- `2131`: `private static final LatLng CLINICA_76 = new LatLng(19.527056332415310, -99.082258897174240);`
+- `2156`: `private static final LatLng CEDA_ECATEPEC_L4 = new LatLng(19.616013, -99.007485);  // coordenada corregida (catálogo real)`
+- `2157`: `private static final LatLng[] Z_CEDA_ECATEPEC_L4 =`
+- `2161`: `private static final LatLng CEDA_ECATEPEC_L1 = new LatLng(19.616632, -99.007987);`
+- `2163`: `private static final LatLng[] Z_CEDA_ECATEPEC_L1 =`
+
+**Métodos:**
+- `74`: `private static double costoTramo(LatLng a, LatLng b)`
+- `83`: `private static double esperaExtra(int linea)`
+- `102`: `private static double penalConexion(Stop s)`
+- `108`: `private static double caminata(double metros)`
+- `113`: `public static String sinMxb(String nombre)`
+- `124`: `private static int baseLinea(int n)`
+- `129`: `private static synchronized java.util.Set<String> ambiguos(Context ctx)`
+- `151`: `private static String etiquetaLineaCorta(int n)`
+- `168`: `public static String nombreCorto(String nombre)`
+- `178`: `public static String nombreMostrar(Context ctx, String nombre, int linea)`
+- `300`: `private static Object[] aliasH72Por(String canon)`
+- `318`: `static boolean aliasH72OfreceComoCandidato(String aliasNombre, String troncalDisparador, String canon, String texto)`
+- `327`: `static Object[] andenDeLaSalleH72(boolean invertir)`
+- `337`: `public static String nombreRutaDeAlias(String canon)`
+- `354`: `static String nucleoNombre(String nombre)`
+- `369`: `static boolean nucleoCoincide(String a, String b)`
+- `376`: `static boolean excluidoCorresp(String na, String nb)`
+- `383`: `static boolean corrManual(int la, String na, int lb, String nb)`
+- `401`: `public static java.util.Set<Integer> corrManualLineas(int linea, String nombreNorm)`
+- `507`: `public static String norm(String s)`
+- `523`: `private static String alias(String q)`
+- `532`: `public static String estacionParecida(Context ctx, String texto)`
+- `571`: `public static java.util.List<Match> candidatos(Context ctx, String texto)`
+- `630`: `public static java.util.List<java.util.List<Match>> agruparPorEstacionFisica(java.util.List<Match> cs)`
+- `652`: `public static boolean estacionEnLinea(Context ctx, String nombre, int numero)`
+- `661`: `private static int puntaje(String nn, String q)`
+- `668`: `private static int edicion(String a, String b)`
+- `683`: `public static Estacion masCercana(Context ctx, LatLng p)`
+- `702`: `private static Estacion enLinea(Context ctx, int linea, String name, LatLng ref)`
+- `737`: `private static Set<String> set(String... xs)`
+- `769`: `private static boolean dosPlataformas(int linea, String nn)`
+- `775`: `public static String[] terminales(int linea)`
+- `835`: `public static boolean esTerminalDe(int linea, String nombre)`
+- `844`: `private static boolean coincideTerm(String est, String term)`
+- `854`: `public static Set<String> excluidasSentido(int linea, boolean haciaFinal)`
+- `880`: `static int claveTerminal(int linea)`
+- `885`: `public static String terminalesMexibusPar(int linea)`
+- `892`: `private static boolean coincideTerminal(String oficial, String est)`
+- `900`: `private static String terminalMexibus(Context ctx, int lineaNum, LatLng finPos)`
+- `929`: `private static java.util.Map<Integer, List<LatLng>> expresPos(Context ctx)`
+- `949`: `private static boolean esParadaExpres(Context ctx, Stop s)`
+- `959`: `private static boolean corrMismaEstacion(Context ctx, Stop sa, Stop sb)`
+- `966`: `private static String terminalCanonico(String id)`
+- `982`: `private static boolean esLinealSinCouplet(int linea)`
+- `987`: `private static Route dirRoute(Linea l, String id, boolean ida, Set<String> excluir)`
+- `1008`: `private static Set<Integer> agregarVariantes(Context ctx, List<Route> rutas)`
+- `1066`: `private static String limpiaNom(String s)`
+- `1072`: `private static Estacion resolverEstacion(java.util.Map<String, Estacion> idx, String nombre)`
+- `1088`: `private static Route construirMixta(Context ctx, RutasMixtas.SeqMixta sm, boolean invertir)`
+- `1155`: `public static Ruta calcular(Context ctx, String origen, String destino)`
+- `1165`: `public static Ruta calcular(Context ctx, String origen, String destino, int lineaO, int lineaD)`
+- `1184`: `private static double penalServicio(int linea, java.util.Map<Integer, Boolean> pref)`
+- `1194`: `private static double penalTramo(int linea, java.util.Map<Integer, Boolean> pref, double costoBaseArista)`
+- `1199`: `private static boolean noPreferido(int linea, java.util.Map<Integer, Boolean> pref)`
+- `1212`: `private static boolean okLineaPref(int lineaFijada, int lineaNodo, java.util.Map<Integer, Boolean> pref)`
+- `1229`: `private static boolean lineaAbierta(Context ctx, Stop s, Calendar momento)`
+- `1236`: `private static Calendar proyectar(Calendar base, double segundos)`
+- `1816`: `private static Stop stopDe(List<Route> rutas, int[] nd)`
+- `1957`: `private static boolean nodoBloqueado(Context ctx, List<Route> rutas, int[] nd)`
+- `1994`: `private static LatLng[] corredorZona(Parada p)`
+- `2021`: `public static boolean esPlataformaIndiosVerdes(Parada p)`
+- `2028`: `public static boolean enZonaCentralIndiosVerdes(LatLng pos)`
+- `2103`: `public static boolean andenLargo(Parada p)`
+- `2112`: `public static boolean esCruceL2PuenteDeFierro(Parada p)`
+- `2124`: `public static boolean esClinica93(Parada p)`
+- `2136`: `public static boolean esClinica76(Parada p)`
+- `2143`: `public static double distanciaZona(Parada p, double lat, double lon)`
+- `2172`: `public static boolean esCedaEcatepec(Parada p)`
+- `2180`: `public static double distanciaCedaEcatepec(Parada p, double lat, double lon)`
+- `2236`: `private static LatLng posEstacion(Context ctx, String nn)`
+- `2251`: `private static List<LatLng> trazoMixto(Context ctx, Route r, int siA, int siB)`
+- `2318`: `private static double longitud(List<LatLng> pts)`
+- `2325`: `private static String claveMixta(String id)`
+- `2331`: `private static List<LatLng> geomLinea(Context ctx, int linea, String seqId, List<LatLng> grupo)`
+- `2418`: `private static boolean cerca(LatLng p, LatLng ref)`
+- `2437`: `private static List<LatLng> segmentoEntre(Context ctx, int linea, LatLng p0, LatLng p1)`
+- `2476`: `private static boolean enZonaAeropuerto(Context ctx, List<LatLng> grupo)`
+- `2489`: `private static List<LatLng> geomSentido(Context ctx, int linea, LatLng desde, LatLng hasta)`
+- `2503`: `static List<LatLng> elegirSentido(List<LatLng> ida, List<LatLng> vuelta, LatLng desde, LatLng hasta)`
+- `2515`: `private static String claveSublineaL7(String seqId, List<LatLng> grupo)`
+- `2528`: `private static boolean cercaDeRuta(List<LatLng> ruta, LatLng p)`
+- `2539`: `static List<LatLng> subRuta(List<LatLng> ruta, LatLng a, LatLng b)`
+- `2550`: `static List<LatLng> subRuta(List<LatLng> ruta, LatLng a, LatLng b, boolean circuito)`
+- `2572`: `private static int segCercano(List<LatLng> ruta, LatLng p)`
+- `2582`: `private static LatLng proyecta(LatLng a, LatLng b, LatLng p)`
+- `2590`: `private static int idxCercano(List<LatLng> ruta, LatLng p)`
+
+## MapFragment.java
+
+**Constantes:**
+- `90`: `private static final LatLng CDMX = new LatLng(19.41, -99.14);`
+- `91`: `private static final float ZOOM_INICIAL = 11f;`
+- `92`: `private static final float ZOOM_ESTACIONES = 12.5f;`
+- `93`: `private static final float ZOOM_CERCANO = 14f;        // ~2 km a la vista al iniciar`
+- `94`: `private static final double RADIO_MAPA_M = 2000.0;    // radio máx. de carga (estaciones/unidades)`
+- `97`: `private static final int TAMANO_UNIDAD_DP = 40;                 // tamaño normal del icono (igual que antes)`
+- `98`: `private static final int TAMANO_UNIDAD_SEGUIDA_DP = 50;         // 50/40 = 1.25x el normal`
+- `99`: `private static final float ALFA_UNIDAD_NO_SEGUIDA = 0.55f;      // atenuación del resto mientras hay una seguida`
+- `100`: `private static final double PULSO_RADIO_BASE_M = 16.0;          // radio del anillo pulsante en reposo`
+- `101`: `private static final double PULSO_RADIO_EXTRA_M = 10.0;         // cuánto "respira" hacia afuera`
+- `102`: `private static final int PULSO_ALFA_BASE = 70;                  // 0-255: discreto, no estridente`
+- `103`: `private static final long PULSO_DURACION_MS = 1400;             // medio ciclo (crece/decrece), lento y suave`
+- `939`: `static final double RADIO_MISMA_PARADA_M = 100.0;   // paquete-visible: reutilizada por las pruebas JUnit`
+- `1647`: `private static final int GRIS_FUERA_SERVICIO = 0xFF9E9E9E;`
+
+**Métodos:**
+- `243`: `public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState)`
+- `322`: `private void mostrarMenuCapas(View ancla)`
+- `338`: `private void alternarEstaciones()`
+- `348`: `private void actualizarLogoIconos(boolean nuevos)`
+- `358`: `private void alternarUnidades()`
+- `374`: `private void aplicarVisibilidadEstaciones()`
+- `383`: `private void alternar3d()`
+- `393`: `private void orientarNorte()`
+- `401`: `private boolean esNoche()`
+- `407`: `private void alternarTrafico()`
+- `414`: `private void alternarTipo()`
+- `423`: `private String nombreTipo(int t)`
+- `430`: `private void ajustarRed()`
+- `455`: `public void onFiltrosCambiados()`
+- `460`: `private void actualizarChip()`
+- `471`: `private void actualizarConteo(int mostradas)`
+- `475`: `private void alMapaListo(GoogleMap googleMap)`
+- `592`: `private void dibujarRed()`
+- `647`: `private void dibujarZonasIndiosVerdes()`
+- `660`: `private LatLngBounds rangoVisible()`
+- `673`: `private void crearEstacionesVisibles()`
+- `692`: `private Estacion estacionMasCercana(LatLng p)`
+- `721`: `private void centrarEnCercana()`
+- `738`: `private void aplicarCentro(LatLng centro)`
+- `756`: `private void dibujarMixtas()`
+- `771`: `private void agregarEstacionesH72()`
+- `781`: `private void agregarEstacionTransbordo(String nombre, double lat, double lon, String icono, String nombreRuta)`
+- `793`: `private void dibujarMexibus()`
+- `846`: `private void crearMexibusVisibles()`
+- `866`: `private void actualizarEstadoEstaciones()`
+- `882`: `private BitmapDescriptor iconoMexibus(EstMapa em)`
+- `886`: `private BitmapDescriptor iconoMexibus(EstMapa em, java.util.Set<String> bloqueadas)`
+- `893`: `private BitmapDescriptor iconoEstacionMexibus(int color, boolean fueraDeServicio)`
+- `916`: `private boolean fueraDeServicio(EstMapa em)`
+- `920`: `private boolean fueraDeServicio(EstMapa em, java.util.Set<String> bloqueadas)`
+- `972`: `private boolean mismaParadaFisica(int ln, String nn, LatLng posEstacion)`
+- `990`: `private void aplicarMexibus()`
+- `1010`: `private void alternarIconos()`
+- `1028`: `private void dibujarMixtaShape(String base, int lineaA, int lineaB)`
+- `1042`: `private void actualizarUnidades(List<UnidadReal> unidades)`
+- `1051`: `private void actualizarUnidades(List<UnidadReal> unidades, LatLng centroForzado)`
+- `1140`: `private String snippet(UnidadReal u)`
+- `1145`: `private int colorDeLinea(Integer linea)`
+- `1151`: `private String numeroDeMarcador(Marker m)`
+- `1158`: `private EstMapa estacionDeMarcador(Marker m)`
+- `1167`: `private EstMapa estacionPorNombreLinea(String nombre, int linea)`
+- `1174`: `private void ocultarCarta()`
+- `1187`: `private void ajustarPanelZoom()`
+- `1219`: `private void mostrarCartaUnidad(String eco, UnidadReal u)`
+- `1286`: `private void expandirCarta()`
+- `1298`: `private void colapsarCarta()`
+- `1311`: `private void actualizarBotonSeguirCarta()`
+- `1338`: `private void abrirMenuOpcionesCarta(View ancla)`
+- `1353`: `private void mostrarMenuOpcionesCarta(View ancla, String eco, EconomicoFavoritoEntity fav)`
+- `1388`: `private static String etiquetaRadio(int metros)`
+- `1394`: `private void toggleGuardarUnidad(String eco, boolean yaGuardada)`
+- `1410`: `private void toggleAlertaUnidad(String eco, boolean activaAhora, int radioActual)`
+- `1437`: `private void mostrarMenuRadioAlerta(View ancla, String eco)`
+- `1455`: `private void detenerTodosCarta()`
+- `1469`: `private void refrescarResaltadoSeguimiento(String eco)`
+- `1488`: `private void refrescarProminenciaUnidades()`
+- `1497`: `private void intentarSeguirCarta()`
+- `1512`: `private void arrancarSeguimientoCarta()`
+- `1523`: `private void mostrarCartaEstacion(EstMapa em)`
+- `1553`: `private void destelloEstacion(LatLng pos, int color)`
+- `1559`: `private void destelloUnidad(LatLng pos, int color)`
+- `1563`: `private void destello(LatLng pos, int color, boolean dejarResidual)`
+- `1605`: `private static int colorConAlfa(int color, int alfa)`
+- `1610`: `private void aplicarSeleccionUnidad()`
+- `1629`: `private void aplicarSeleccionLinea()`
+- `1650`: `private static Paint paintGris()`
+- `1666`: `private BitmapDescriptor iconoEstacionOTransbordo(EstMapa em, boolean fueraDeServicio)`
+- `1679`: `private BitmapDescriptor iconoEstacion(Estacion e, int color, boolean fueraDeServicio)`
+- `1708`: `private void dibujarBadgeAfectacion(Canvas c, int px)`
+- `1731`: `private BitmapDescriptor iconoEstacionTransbordo(Estacion e, int colorA, int colorB, boolean fueraDeServicio)`
+- `1772`: `private BitmapDescriptor iconoParaUnidad(UnidadReal u)`
+- `1786`: `private BitmapDescriptor iconoUnidad(int color, String numero, boolean siguiendo)`
+- `1814`: `private BitmapDescriptor iconoUnidadMixta(int colorArriba, int colorAbajo, String numero, boolean siguiendo)`
+- `1854`: `private void limpiarCacheIconoUnidad(String eco)`
+- `1864`: `private void dibujarHalo(Canvas c, int d, Drawable bus, boolean siguiendo)`
+- `1883`: `private void dibujarNumeroParabrisas(Canvas c, int d, String numero)`
+- `1915`: `private void dibujarBadgeEconomico(Canvas c, int d, String numero)`
+- `1953`: `private void iniciarPulso(String eco, LatLng posInicial)`
+- `1982`: `private void detenerPulso(String eco)`
+- `1990`: `private void detenerTodosPulsos()`
+- `1994`: `private boolean tienePermisoUbicacion()`
+- `2000`: `private void activarCapaUbicacion()`
+- `2008`: `private void irAMiUbicacion()`
+- `2024`: `private void buscarEnMapa(String texto)`
+- `2075`: `private void buscarEstacionEnMapa(String texto)`
+- `2105`: `private void centrarGrupoEnMapa(java.util.List<Planificador.Match> grupo)`
+- `2118`: `private void ocultarTeclado()`
+- `2127`: `public void onResume()`
+- `2133`: `public void onDestroyView()`
+
+## RecorridoService.java
+
+**Constantes:**
+- `72`: `public static final String ACCION_DETENER = "detener_recorrido";`
+- `73`: `private static final String CANAL = "recorrido";`
+- `74`: `private static final int ID = 4401;`
+- `77`: `private static final float CERCA_M = 50f;   // "llegando a estación" cuando estás a ≤50 m del punto`
+- `78`: `private static final float CERCA_MXB_M = 50f;`
+- `81`: `private static final float COBERTURA_EXTRA_M = 20f;`
+- `84`: `private static final float CAMBIO_LINEA_M = 15f;`
+- `88`: `private static final float FIN_M = 30f;`
+- `89`: `private static final long INTERVALO_MS = 1000L;   // revisa la ubicación cada 1 s durante el recorrido`
+- `97`: `private static final float CADENCIA_LEJOS_M = 500f;`
+- `98`: `private static final long INTERVALO_LEJOS_MS = 3000L;`
+- `99`: `private static final float TURURU_VOL = 0.7f;     // volumen del "tururu" (70% del real)`
+- `106`: `private static final float VOZ_VOL = 0.7f;`
+- `113`: `private static final float ALTAVOZ_ATENUACION = 0.55f;`
+- `155`: `private static final long VOZ_TIMEOUT_MS = 7000L; // margen para descargar la voz Mia antes de caer al TTS`
+- `160`: `private static final float ZONA_CERCA_M = 70f;    // corredor de andén (Indios Verdes): radio amplio`
+- `168`: `private static final float ANDEN_LARGO_M = 90f;`
+- `180`: `private static final float CRUCE_PF_L2_M = 60f;`
+- `187`: `private static final float RADIO_CLINICA_93_M = 115f;`
+- `194`: `private static final float RADIO_CLINICA_76_M = 100f;`
+- `201`: `private static final float RADIO_CEDA_ECATEPEC_M = 7f;`
+- `217`: `private static final float RADIO_LLEGADA_ZONA_M = 10f;`
+- `222`: `private static final int CORRESP_CORTA_CICLOS_MIN = 3;`
+- `401`: `private static final String PREFS = "recorrido_estado";`
+- `620`: `private static final float SALTO_MIN_METROS = 800f;`
+- `631`: `private static final float RADIO_REUBICACION_M = 900f;`
+- `641`: `private static final float MARGEN_MEJORA_M = 25f;`
+- `1779`: `private static final double CORRESP_VOZ_M = 600.0;   // radio para considerar correspondencia por voz`
+- `1789`: `private static final java.util.Set<String> STOP_NUCLEO = new java.util.HashSet<>(java.util.Arrays.asList(`
+
+**Métodos:**
+- `118`: `private boolean salidaEsAltavoz()`
+- `141`: `private float volumenSistema()`
+- `228`: `static float radioLlegada(Planificador.Parada p)`
+- `235`: `private static float radioCerca(Planificador.Parada p)`
+- `251`: `private static float radioCruce(Planificador.Parada p)`
+- `262`: `private static double haversine(double lat1, double lon1, double lat2, double lon2)`
+- `317`: `private void dispararFinVoz()`
+- `333`: `private void vozTerminada()`
+- `383`: `public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term)`
+- `396`: `public static void detener(android.content.Context c)`
+- `404`: `private static void persistir(android.content.Context c)`
+- `424`: `private boolean restaurar()`
+- `447`: `private static void limpiarPersistencia(android.content.Context c)`
+- `483`: `private void detenerDeVerdad()`
+- `545`: `private void pedirUbicacion()`
+- `559`: `private void aplicarCadencia(boolean rapida)`
+- `574`: `private void ciclo()`
+- `587`: `private java.util.List<com.google.android.gms.maps.model.LatLng> plataformasIV()`
+- `608`: `private double distParada(android.location.Location l, Planificador.Parada p)`
+- `661`: `private int reanclarOtraLinea(android.location.Location l, List<Planificador.Parada> seq, int best)`
+- `717`: `private static double distanciaTrazo(List<Planificador.Parada> seq, int inicio, int j)`
+- `730`: `private void procesar(android.location.Location l)`
+- `738`: `private void procesarInterno(android.location.Location l)`
+- `1052`: `private void hablar(String t)`
+- `1086`: `private void sonarYHablar(String texto, int linea, String estacion)`
+- `1097`: `private void procesarSiguienteVoz()`
+- `1139`: `private void soltarActual()`
+- `1156`: `private void pedirFocoAudio()`
+- `1178`: `private void soltarFocoAudio()`
+- `1194`: `private void decirConVoz(String texto, int linea, String estacion)`
+- `1239`: `private java.io.File archivoVoz(String texto, int linea, String estacion)`
+- `1249`: `private java.io.File descargarVoz(String texto, int linea, String estacion)`
+- `1273`: `private void reproducir(java.io.File f)`
+- `1298`: `private static String nom(Planificador.Parada p)`
+- `1309`: `private static String respellVoz(String nombre)`
+- `1327`: `private String vis(Planificador.Parada p)`
+- `1335`: `private int vozTxt(int normal, int ximena, int linea)`
+- `1341`: `private String vozProxima(List<Planificador.Parada> seq, int idx, boolean prepararse)`
+- `1357`: `private boolean esAbordaje(List<Planificador.Parada> seq, int idx)`
+- `1366`: `private String vozLlegada(List<Planificador.Parada> seq, int best)`
+- `1400`: `private int contarEstaciones(List<Planificador.Parada> seq)`
+- `1410`: `private int tipoCambio(List<Planificador.Parada> seq, int i)`
+- `1424`: `private static int ultimaEst(int linea)`
+- `1427`: `private static int terminalEst(int linea)`
+- `1434`: `private String sufijoCambio(List<Planificador.Parada> seq, int i)`
+- `1453`: `private String avisoAbordaje(List<Planificador.Parada> seq, int i)`
+- `1464`: `private boolean esRosa()`
+- `1471`: `private String servicioNombre(List<Planificador.Parada> seq, int i, boolean rosa)`
+- `1494`: `private String instruccionBajada(List<Planificador.Parada> seq, int best, int tc)`
+- `1508`: `private String nombreConexion(List<Planificador.Parada> seq, int i)`
+- `1515`: `private String direccionTerminal(List<Planificador.Parada> seq, int i)`
+- `1544`: `private String terminalSentido(List<Planificador.Parada> seq, int i)`
+- `1571`: `private static String terminalPlanificador(List<Planificador.Parada> seq, int i)`
+- `1585`: `private String vozTerminal(Planificador.Parada p, boolean llegada)`
+- `1594`: `private java.util.TreeSet<Integer> basesCorresp(Planificador.Parada p)`
+- `1609`: `private void correspManuales(Planificador.Parada p, java.util.TreeSet<Integer> bases)`
+- `1626`: `private String transferenciaTexto(int lineaActual, java.util.TreeSet<Integer> bases)`
+- `1653`: `private String listaLineas(int lineaActual, java.util.TreeSet<Integer> bases)`
+- `1673`: `private static String numLinea(int base)`
+- `1678`: `private static String cap(String s)`
+- `1683`: `private static String unir(java.util.List<String> ls)`
+- `1694`: `private String lineasCorrespLista(Planificador.Parada p)`
+- `1710`: `private int primeraLineaCercana(Planificador.Parada p)`
+- `1717`: `private String avisoLlegada(List<Planificador.Parada> seq, int best)`
+- `1734`: `private int palabraTransferencia(int lineaActual, int lineaOtra)`
+- `1746`: `private String avisoCorrespondencia(Planificador.Parada prox)`
+- `1763`: `private String etiquetaLinea(int n, String estacion)`
+- `1782`: `private static int baseLinea(int n)`
+- `1794`: `private static String nucleo(String nombre)`
+- `1805`: `private static boolean nucleoCoincide(String a, String b)`
+- `1819`: `static boolean coUbicada(Planificador.Parada a, Planificador.Parada b)`
+- `1827`: `private static boolean mismaEstacion(Planificador.Parada a, Planificador.Parada b)`
+- `1844`: `private java.util.TreeSet<Integer> lineasEnEstacion(Planificador.Parada p)`
+- `1890`: `private boolean esTerminal(Planificador.Parada p)`
+- `1899`: `private String tipAleatorio(int linea)`
+- `1914`: `private void seleccionarVozFemenina()`
+- `1940`: `private Bitmap pictograma(String icono)`
+- `1947`: `private Bitmap pico(Planificador.Parada p)`
+- `1960`: `private void crearCanal()`
+- `1968`: `private PendingIntent piAbrir()`
+- `1976`: `private PendingIntent piDetener()`
+- `2041`: `private boolean tienePermiso()`
+- `2047`: `private void detenerUbicacion()`
+
+## ManifestacionesService.java
+
+**Constantes:**
+- `56`: `private static final String URL_ESTADO =`
+- `59`: `private static final String URL_SERVICIOMB = "https://www.metrobus.cdmx.gob.mx/ServicioMB";`
+- `62`: `private static final String JS_ESTADO =`
+- `73`: `private static final String JS_TABLAS =`
+- `86`: `private static final long INTERVALO_MS = 60_000L;   // cada minuto`
+- `87`: `private static final String CANAL = "manifestaciones";       // ongoing (silencioso)`
+- `88`: `private static final String CANAL_AVISO = "manifestaciones_avisos"; // tarjetas de afectación`
+- `89`: `private static final int ID_ONGOING = 4301;`
+- `90`: `private static final int ID_ESTADO_BASE = 4310;              // (heredado) estado por línea`
+- `91`: `private static final int ID_ESTADO_CLAVE_BASE = 43100;       // estado por AFECTACIÓN (43100..44099), evita duplicados`
+- `92`: `private static final int ID_OTROS_BASE = 4330;              // elevadores + mantenimiento (2 al día)`
+- `93`: `private static final int ID_OTROS_SUMMARY = 4329;`
+- `94`: `private static final String GRUPO_OTROS = "afectaciones_otros";`
+- `220`: `private static final long CANDADO_MS = 50_000L;`
+- `242`: `private static final long SEGURIDAD_MS = 15_000L;`
+- `427`: `private static final java.util.regex.Pattern P_SEP_LISTA_ESTACIONES =`
+- `464`: `private static final java.util.regex.Pattern P_RANGO_ESTACIONES =`
+- `524`: `private static final String[] TERMINALES_EXTRA_L4 = {"Pantitlán", "Alameda Oriente"};`
+- `845`: `private static final java.util.regex.Pattern P_DIR = java.util.regex.Pattern.compile(`
+- `848`: `private static final String[] MESES = {"enero", "febrero", "marzo", "abril", "mayo", "junio",`
+- `892`: `private static final Set<String> ABREV_PUNTO = new HashSet<>(Arrays.asList("av", "dr", "sta"));`
+- `941`: `private static final java.util.regex.Pattern P_COMA_NUEVA_AFIRMACION = java.util.regex.Pattern.compile(`
+- `1002`: `private static final String[] MARCADORES_RUTA_SIN_SERVICIO =`
+- `1606`: `private static final java.util.regex.Pattern P_RELLENO_NOMBRE =`
+
+**Métodos:**
+- `161`: `private WebView crearWebView()`
+- `207`: `private void recrearWebView()`
+- `230`: `private void candadoVencido(int gen)`
+- `247`: `private void seguridadVencida(int gen)`
+- `258`: `public static void iniciar(android.content.Context c)`
+- `268`: `public void onCreate()`
+- `275`: `public int onStartCommand(Intent intent, int flags, int startId)`
+- `282`: `private void revisar()`
+- `324`: `private void onTablas(int gen, String jsonValue)`
+- `345`: `private void onEstado(int gen, String jsonValue)`
+- `361`: `private void guardarStore()`
+- `389`: `private String direccionEfectiva(int nlinea, String direccion, String motivo)`
+- `451`: `static List<String> itemsEstaciones(String estacionesRaw)`
+- `485`: `static int[] rangoEstacionesCerradas(String estacionesRaw, List<Estacion> catalogoLinea)`
+- `500`: `private void bloquearNn(int linea, String nn, String terminalSentido)`
+- `535`: `static String terminalEnTexto(int linea, String textoNorm)`
+- `578`: `private void procesarFilas(String jsonValue)`
+- `852`: `private static boolean vigenteHoy(String periodo)`
+- `873`: `private static String limpiar(String v)`
+- `882`: `private static String extraerDireccion(String texto)`
+- `907`: `static List<String> oracionesDe(String texto)`
+- `948`: `static String conLimitesDeOracion(String texto)`
+- `1014`: `static String rutaSinServicio(String normFull)`
+- `1032`: `private void bloquearTramos(String normFull, Set<String> afect, int cortarLineaHint)`
+- `1099`: `static java.util.Map<Integer, List<Integer>> indicesFueraDeRangoPorLinea(String seg, List<CandidatoLinea> lineas)`
+- `1155`: `private void cortarLineaServicios(int nlinea)`
+- `1229`: `static java.util.Set<String> estacionesEnServicioExplicito(String normFull)`
+- `1262`: `private static void agregarSiResuelveL4(String nombre, java.util.Set<String> out)`
+- `1294`: `static boolean filaDescribeCierre(String sev, String estado)`
+- `1344`: `static boolean[] rutasL4Cerradas(String infoRaw)`
+- `1366`: `private void cortarAlrededor(int nlinea, String nn)`
+- `1444`: `private void bloquearTramosServicios(int nlinea, String normFull, Set<String> afect)`
+- `1552`: `static int idxEnSecuencia(RutasMixtas.SeqMixta sm, int nlinea, String q)`
+- `1608`: `private static String sinRelleno(String normalizado)`
+- `1612`: `static int idxEstacion(List<Estacion> estaciones, String q)`
+- `1624`: `private static String recortar(String s, int max)`
+- `1630`: `private String join(List<String> xs)`
+- `1640`: `private static void crearCanal(android.content.Context ctx)`
+- `1654`: `private static PendingIntent piAbrir(android.content.Context ctx)`
+- `1660`: `private void arrancarPrimerPlano()`
+- `1697`: `private void refrescarEc2()`
+- `1712`: `private boolean ec2Activo()`
+- `1718`: `private void notificar()`
+- `1776`: `private static int idClave(String clave)`
+- `1781`: `private static int lineaDeClave(String clave)`
+- `1789`: `private void cargarNotifEstado()`
+- `1801`: `private void guardarNotifEstado()`
+- `1814`: `private static void emitirTarjeta(android.content.Context ctx, NotificationManager nm, int id, Manifestaciones.Afectacion a)`
+- `1860`: `public static void emitirAvisoPrueba(android.content.Context ctx, Manifestaciones.Afectacion a)`
+- `1869`: `private void notificarOtros(NotificationManager nm, List<Manifestaciones.Afectacion> otros)`
+- `1929`: `public void onTimeout(int startId)`
+- `1937`: `public void onTimeout(int startId, int fgsType)`
+- `1942`: `public void onDestroy()`
+
+## PlanificadorFragment.java
+
+**Constantes:**
+- `69`: `public static final String ARG_DESTINO = "destino";`
+- `73`: `public static final String ARG_DESTINO_LINEA = "destino_linea";`
+- `119`: `private static final double RADIO_ESTACION_M = 50;   // metros a la redonda del trazo para mostrar unidades`
+- `120`: `private static final double PASO_TRAZO_M = 12;       // separación de los puntos finos del trazo (progreso suave)`
+- `196`: `private static final long TICK_RECORRIDO_MS = 400L;`
+- `483`: `private static final long TRANSICION_PANEL_MS = 180L;`
+- `484`: `private static final long AJUSTE_MAPA_DEBOUNCE_MS = 350L;`
+
+**Métodos:**
+- `215`: `public static PlanificadorFragment nuevo(String destino, int linea)`
+- `226`: `public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup c, @Nullable Bundle s)`
+- `231`: `public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState)`
+- `379`: `private void usarUbicacionOrigen()`
+- `405`: `private void resolverOrigenPorGps(Estacion e, Runnable alTerminar)`
+- `418`: `private void centrarEnUbicacion()`
+- `434`: `private void rellenarOrigen()`
+- `456`: `private void colapsarOrigenDestino()`
+- `469`: `private void expandirOrigenDestino()`
+- `486`: `private void iniciarTransicionPanel()`
+- `524`: `private void reajustarMapaTrasPanel()`
+- `539`: `private void alternarResultado()`
+- `548`: `private void colapsarResultado()`
+- `557`: `private void expandirResultado()`
+- `566`: `private void setOrigen(String canon)`
+- `581`: `private String resolver(android.widget.EditText campo, String canon)`
+- `595`: `private void trazar()`
+- `649`: `private void retrazarSiRecorrido()`
+- `664`: `private void finalizarTraza(Planificador.Ruta r, String destino)`
+- `676`: `private static void sembrarPrefServicio(java.util.Map<Integer, Boolean> pref, int linea)`
+- `683`: `private java.util.List<Integer> basesTroncalesConExpress(Planificador.Ruta r)`
+- `730`: `private static java.util.List<Planificador.Match> porLineaBase(java.util.List<Planificador.Match> cs, int sis)`
+- `741`: `private void desambiguar(EditText campo, String canonRec, int lineaRec, LatLng posRec, ResueltoCb cb)`
+- `777`: `private java.util.List<java.util.List<Planificador.Match>> agruparCandidatos(java.util.List<Planificador.Match> cs)`
+- `784`: `private void elegirEstacion(EditText campo, java.util.List<java.util.List<Planificador.Match>> grupos, ResueltoCb cb)`
+- `809`: `private void elegirLinea(EditText campo, java.util.List<Planificador.Match> ops, ResueltoCb cb)`
+- `821`: `private static java.util.List<Planificador.Match> colapsarCoubicadas(java.util.List<Planificador.Match> in)`
+- `840`: `private void fijar(EditText campo, Planificador.Match m, ResueltoCb cb)`
+- `848`: `private static int verboTransferencia(int lineaAnt, int lineaAct)`
+- `860`: `private String mensajeFallo(String destino)`
+- `885`: `private void dibujar(Planificador.Ruta r, String destino)`
+- `975`: `private void mostrarCartaAfectaciones()`
+- `1028`: `private static boolean tocaLugarRuta(String lugarNorm, java.util.Set<String> nombresRuta)`
+- `1040`: `private static boolean rutaTieneAfectacion(Planificador.Ruta r)`
+- `1057`: `private String infoHorario(Planificador.Ruta r)`
+- `1086`: `private static String etiquetaHorario(int n)`
+- `1099`: `private void pintarPasos(Planificador.Ruta r)`
+- `1155`: `private static boolean mismoTrazo(int a, int b)`
+- `1162`: `private android.view.View filaIndicacion(Planificador.Instruccion ins)`
+- `1195`: `private android.view.View filaTransfer(boolean camina, String texto)`
+- `1224`: `private boolean esNoche()`
+- `1231`: `private void actualizarLogoIconos(boolean nuevos)`
+- `1240`: `private BitmapDescriptor bitmapEstacion(String icono, int color)`
+- `1257`: `private BitmapDescriptor bitmapEstacionTransbordo(String icono, int colorArriba, int colorAbajo)`
+- `1265`: `private int colorDe(int lineaNum)`
+- `1271`: `private void dibujarUnidades(List<UnidadReal> unidades)`
+- `1314`: `private void moverMarcador(String numero, com.google.android.gms.maps.model.Marker marker, LatLng destino)`
+- `1335`: `private List<LatLng> densificar(List<LatLng> pts, double pasoM)`
+- `1354`: `private void pintarPuntero(LatLng gps)`
+- `1376`: `private float rumboEntre(LatLng a, LatLng b)`
+- `1385`: `private BitmapDescriptor iconoPuntero()`
+- `1405`: `private String snippet(UnidadReal u)`
+- `1414`: `private BitmapDescriptor iconoUnidad(UnidadReal u)`
+- `1457`: `private void dibujarNumeroParabrisas(Canvas c, int d, String numero)`
+- `1481`: `private void pintarProgreso(LatLng pos)`
+- `1502`: `private void ajustarPanelZoomRuta()`
+- `1531`: `private void encuadrarAhora(LatLngBounds limites)`
+- `1550`: `private void centrarRecorrido(LatLng pos)`
+- `1572`: `private void alternarRecorrido()`
+- `1578`: `private void iniciarRecorrido()`
+- `1593`: `private void configurarSwitchServicio(Planificador.Ruta r)`
+- `1620`: `private static int baseUnicaMexibus(java.util.List<Planificador.Parada> seq)`
+- `1631`: `private void arrancarRecorrido(Servicios.Servicio s)`
+- `1651`: `private void detenerRecorrido()`
+- `1663`: `private void refrescarRecorridoUI()`
+- `1689`: `private void centrarSlider(int idx)`
+- `1708`: `private void revisarUnidad(List<UnidadReal> unidades)`
+
+## Locuciones.java
+
+**Constantes:**
+- `40`: `private static final double CORRESP_VOZ_M = 600.0;`
+- `93`: `private static final Set<String> STOP_NUCLEO = new HashSet<>(Arrays.asList(`
+
+**Métodos:**
+- `45`: `public static String nom(String nombre)`
+- `55`: `private static String respellVoz(String nombre)`
+- `67`: `static int baseLinea(int n)`
+- `72`: `static String numLinea(int base)`
+- `76`: `static String unir(List<String> ls)`
+- `86`: `static int palabraTransferencia(int a, int b)`
+- `96`: `private static String nucleo(String nombre)`
+- `105`: `private static boolean nucleoCoincide(String a, String b)`
+- `112`: `static TreeSet<Integer> lineasEnEstacion(Context ctx, int linea, String nombre, LatLng pos)`
+- `143`: `private static void correspManuales(String nombre, int linea, TreeSet<Integer> bases)`
+- `154`: `static TreeSet<Integer> basesCorresp(Context ctx, int linea, String nombre, LatLng pos)`
+- `174`: `private static String listaLineas(Context ctx, int lineaActual, TreeSet<Integer> bases)`
+- `193`: `static String transferenciaTexto(Context ctx, int lineaActual, TreeSet<Integer> bases)`
+- `219`: `static String etiquetaLinea(Context ctx, int n, String estacion)`
+- `233`: `static String nombreConexion(Context ctx, int baseDestino, String nombre)`
+- `243`: `static String carpetaEstacion(String estacion)`
+- `248`: `static boolean esTerminal(int linea, String nombre)`
+- `253`: `static String vozTerminal(Context ctx, int linea, String nombre, LatLng pos, boolean llegada)`
+
+## GtfsRepository.java
+
+**Constantes:**
+- `69`: `private static final ExecutorService IO = Executors.newSingleThreadExecutor(r ->`
+- `80`: `private static final Handler MAIN = new Handler(Looper.getMainLooper());`
+
+**Métodos:**
+- `84`: `public static List<Linea> getLineas(Context c)`
+- `101`: `public static List<Linea> getMexibus(Context c)`
+- `115`: `public static List<Linea> getRuteables(Context c)`
+- `132`: `public static Linea porNumero(Context c, int numero)`
+- `137`: `public static List<LatLng> sublinea(Context c, String clave)`
+- `159`: `public static void precargar(Context c, Runnable onReady)`
+- `179`: `private static JsonReader reader(Context ctx, String asset) throws IOException`
+- `184`: `private static List<Linea> cargarLineas(Context ctx)`
+- `206`: `private static List<Linea> cargarArchivo(Context ctx, String archivo, boolean conIcono)`
+- `224`: `private static Linea parseLinea(JsonReader jr, Map<Integer, List<Estacion>> ofic, boolean conIcono) throws IOException`
+- `248`: `private static List<Estacion> parseEstaciones(JsonReader jr, boolean conIcono) throws IOException`
+- `271`: `private static List<LatLng> parseRuta(JsonReader jr) throws IOException`
+- `286`: `private static Map<String, List<LatLng>> cargarSublineas(Context ctx)`
+- `312`: `private static Map<Integer, List<Estacion>> leerEstaciones(Context ctx)`
+- `372`: `private static void cargarSegmentos(Context ctx, List<Linea> lineas)`
+
+## Linea.java
+
+**Constantes:**
+- `40`: `private static final double M_GRADO = 111320.0;`
+- `41`: `private static final double COS_LAT = Math.cos(Math.toRadians(19.4));`
+
+**Métodos:**
+- `94`: `public double largoTotal()`
+- `99`: `public LatLng puntoEn(double metros)`
+- `119`: `public double distanciaEn(LatLng p)`
+- `134`: `private static double[] proyectar(LatLng p, LatLng a, LatLng b)`
+- `155`: `public LatLngBounds limites()`
+- `161`: `static double distancia(LatLng a, LatLng b)`
+
