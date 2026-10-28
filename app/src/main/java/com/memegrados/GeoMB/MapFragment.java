@@ -806,6 +806,18 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             Polyline pl = mapa.addPolyline(po);
             pl.setTag(l.numero);   // permite reconocer su sistema (Mexibús/Mexicable) después, sin otra lista
             mexibusLineas.add(pl);
+            // Sentido contrario (ver Linea.rutaVuelta): calle físicamente distinta del otro carril,
+            // NO la misma l.ruta invertida -- se dibuja como una segunda polyline independiente,
+            // misma visibilidad/estilo, para no dejar sin trazo las calles exclusivas de ese sentido.
+            if (l.rutaVuelta != null) {
+                PolylineOptions pov = new PolylineOptions()
+                        .addAll(l.rutaVuelta).color(l.color).geodesic(false).visible(vis)
+                        .width(expres ? 7f : 9f).zIndex(expres ? 5f : 3f);
+                if (expres) pov.pattern(punteado);
+                Polyline plv = mapa.addPolyline(pov);
+                plv.setTag(l.numero);
+                mexibusLineas.add(plv);
+            }
             // Los MARCADORES NO se crean aquí (eran cientos de golpe → congelaba el arranque). Solo se
             // registran; se crean por demanda al acercar, en crearMexibusVisibles() (igual que el Metrobús).
             for (Estacion e : l.estaciones) {

@@ -225,20 +225,24 @@ public final class GtfsRepository {
         int numero = 0; String nombre = "", color = "";
         List<Estacion> est = new ArrayList<>();
         List<LatLng> ruta = new ArrayList<>();
+        List<LatLng> rutaVuelta = null;
         jr.beginObject();
         while (jr.hasNext()) {
             switch (jr.nextName()) {
-                case "numero":     numero = jr.nextInt(); break;
-                case "nombre":     nombre = jr.nextString(); break;
-                case "color":      color = jr.nextString(); break;
-                case "estaciones": est = parseEstaciones(jr, conIcono); break;
-                case "ruta":       ruta = parseRuta(jr); break;
-                default:           jr.skipValue();
+                case "numero":       numero = jr.nextInt(); break;
+                case "nombre":       nombre = jr.nextString(); break;
+                case "color":        color = jr.nextString(); break;
+                case "estaciones":   est = parseEstaciones(jr, conIcono); break;
+                case "ruta":         ruta = parseRuta(jr); break;
+                case "ruta_vuelta":  rutaVuelta = parseRuta(jr); break;   // opcional, ver Linea.rutaVuelta
+                default:             jr.skipValue();
             }
         }
         jr.endObject();
         if (ofic != null && ofic.containsKey(numero)) est = ofic.get(numero);
-        return new Linea(numero, nombre, color, est, ruta);
+        Linea l = new Linea(numero, nombre, color, est, ruta);
+        if (rutaVuelta != null && rutaVuelta.size() >= 2) l.rutaVuelta = rutaVuelta;
+        return l;
     }
 
     private static List<Estacion> parseEstaciones(JsonReader jr, boolean conIcono) throws IOException {

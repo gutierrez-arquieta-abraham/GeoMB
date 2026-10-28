@@ -63,6 +63,17 @@ public class Linea {
      */
     public Map<Integer, List<LatLng>> segmentosVuelta;
 
+    /**
+     * Trazo del sentido CONTRARIO a {@link #ruta}, SOLO para dibujar en el mapa general de Mexibús
+     * (ver {@code MapFragment.dibujarMexibus()}) cuando el carril real de cada sentido es una calle
+     * físicamente distinta (no la misma {@link #ruta} invertida). Nunca participa en
+     * {@link #distanciaEn}/{@link #puntoEn} (eso sigue usando SOLO {@link #ruta}, igual que siempre)
+     * ni en el trazo del Planificador para un viaje puntual (ese usa su propio mecanismo de
+     * sentido -- ver {@code Planificador.geomSentido()} y las claves "L101-ida"/"L101-vuelta" de
+     * sublineas.json). Null si la línea no tiene variante de vuelta (la inmensa mayoría).
+     */
+    public List<LatLng> rutaVuelta;
+
     /** Distancia acumulada (m) hasta cada punto de la ruta. */
     private final double[] acumulado;
 

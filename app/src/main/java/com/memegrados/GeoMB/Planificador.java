@@ -2500,7 +2500,7 @@ public final class Planificador {
      * Elige entre ida/vuelta el shape que va en la dirección origen→destino: aquel donde 'desde'
      * se proyecta ANTES que 'hasta' (robusto también para tramos a media ruta). Empata por extremos.
      */
-    private static List<LatLng> elegirSentido(List<LatLng> ida, List<LatLng> vuelta, LatLng desde, LatLng hasta) {
+    static List<LatLng> elegirSentido(List<LatLng> ida, List<LatLng> vuelta, LatLng desde, LatLng hasta) {
         if (ida == null) return vuelta;
         if (vuelta == null) return ida;
         boolean idaOk = idxCercano(ida, desde) <= idxCercano(ida, hasta);
