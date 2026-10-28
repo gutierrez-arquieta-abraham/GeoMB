@@ -104,9 +104,20 @@ public class MainActivity extends AppCompatActivity {
         // cambio de padding en el layout. Confirmado con capturas reales en ambos casos. Por eso
         // aquí solo se aplican las barras del sistema (edge-to-edge); el teclado puede tapar parte
         // del mapa mientras se escribe, y es preferible a que la pantalla se rompa.
+        // El inset INFERIOR (barra de navegación/gestos) NO va aquí como padding del contenedor
+        // raíz -- eso dejaba un hueco vacío debajo de bottom_nav (su fondo terminaba antes del
+        // borde real de la pantalla, aunque ya combinara de color con windowBackground). Se mueve
+        // a padding DENTRO de bottom_nav: su fondo (colorSurface) llega hasta el borde real, y el
+        // contenido (íconos/etiquetas) queda despejado del área del sistema. fragment_container
+        // (el mapa) está anclado a ad_banner, no al padre, así que no le afecta ninguno de los dos
+        // cambios -- sigue sin tocarse su tamaño (ver el comentario de arriba sobre el teclado).
+        com.google.android.material.bottomnavigation.BottomNavigationView bottomNavInsets =
+                findViewById(R.id.bottom_nav);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0);
+            bottomNavInsets.setPadding(bottomNavInsets.getPaddingLeft(), bottomNavInsets.getPaddingTop(),
+                    bottomNavInsets.getPaddingRight(), systemBars.bottom);
             return insets;
         });
 
