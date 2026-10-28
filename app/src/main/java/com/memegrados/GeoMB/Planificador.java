@@ -202,6 +202,13 @@ public final class Planificador {
             // el tramo y además sale más rápido.
             {"121", "mxb 1ro de mayo",     "102", "mxb las americas"},
             {"121", "mxb 1ro de mayo",     "112", "mxb las americas"},
+            // Cruce de Las Américas visto desde "Hospital" (la parada siguiente a 1ro de Mayo en
+            // L1/L1 Exprés) -- confirmado por el usuario: a diferencia de 1ro de Mayo, Hospital SOLO
+            // conecta con L2A (112), no con L2 ordinario (102). Hospital también existe en el exprés
+            // (121), igual que 1ro de Mayo, así que necesita ambas filas (ordinario/exprés) por la
+            // misma razón de arriba (corrManual() compara por línea exacta).
+            {"101", "mxb hospital",        "112", "mxb las americas"},
+            {"121", "mxb hospital",        "112", "mxb las americas"},
             // Defecto real confirmado (reporte del usuario): "Las Américas" es la MISMA terminal física
             // para L2 ordinario (102) y L2A (112) -- mismo nombre exacto, mismo punto -- pero el bucle
             // principal de lineasEnEstacion() se salta cualquier línea con el mismo baseLinea() que la

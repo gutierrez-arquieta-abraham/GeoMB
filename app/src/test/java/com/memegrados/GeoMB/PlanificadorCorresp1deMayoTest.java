@@ -114,6 +114,39 @@ public class PlanificadorCorresp1deMayoTest {
 
     @Test
     public void corrManualLineas_estacionSinCorrespondenciaManual_vacio() {
-        assertTrue(Planificador.corrManualLineas(101, nn("Hospital")).isEmpty());
+        assertTrue(Planificador.corrManualLineas(101, nn("Quinto Sol")).isEmpty());
+    }
+
+    /**
+     * Cruce de Las Américas visto desde "Hospital" (parada siguiente a 1ro de Mayo en L1/L1 Exprés) --
+     * confirmado por el usuario: a diferencia de 1ro de Mayo, Hospital SOLO conecta con L2A (112), NO
+     * con L2 ordinario (102).
+     */
+    @Test
+    public void corrManual_hospitalL1_conLasAmericasL2A_siCorresponde() {
+        assertTrue(Planificador.corrManual(101, nn("Hospital"), 112, nn("Las Américas")));
+        assertTrue(Planificador.corrManual(112, nn("Las Américas"), 101, nn("Hospital")));   // en cualquier orden
+    }
+
+    @Test
+    public void corrManual_hospitalL1_conLasAmericasL2_noCorresponde() {
+        assertFalse(Planificador.corrManual(101, nn("Hospital"), 102, nn("Las Américas")));
+    }
+
+    @Test
+    public void corrManual_hospitalL1Expres_conLasAmericasL2A_siCorresponde() {
+        assertTrue(Planificador.corrManual(121, nn("Hospital"), 112, nn("Las Américas")));
+    }
+
+    @Test
+    public void corrManualLineas_hospitalL1_devuelveSoloL2A() {
+        java.util.Set<Integer> l = Planificador.corrManualLineas(101, nn("Hospital"));
+        assertEquals(java.util.Collections.singleton(112), l);
+    }
+
+    @Test
+    public void corrManualLineas_hospitalL1Expres_mismoResultadoQueOrdinario() {
+        java.util.Set<Integer> l = Planificador.corrManualLineas(121, nn("Hospital"));
+        assertEquals(java.util.Collections.singleton(112), l);
     }
 }
