@@ -10,16 +10,18 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 /**
- * Regresión: el trazo que dibuja el Planificador para un tramo de viaje en Mexibús L1 (101) y L1A
- * (111) usaba SIEMPRE la misma geometría de {@code Linea.ruta} sin importar el sentido real de
- * viaje -- a diferencia de Metrobús, que ya elige entre "Lx-ida"/"Lx-vuelta" (sublineas.json) según
- * hacia dónde se viaja (ver {@code Planificador.geomSentido()}/{@code elegirSentido()}). Mexibús
- * nunca tuvo esas claves en sublineas.json, así que {@code geomSentido()} caía siempre al fallback
- * de {@code Linea.ruta} (un solo sentido). Se agregaron "L101-ida"/"L101-vuelta" y
- * "L111-ida"/"L111-vuelta" con la geometría real del GTFS (shapes direccionales reales, no la
- * misma calle invertida). Prueba la función pura {@code elegirSentido()} (package-private para
- * esto, mismo trato que corrManual()/nucleoCoincide()) con los extremos REALES de cada shape --
- * no hace falta Context/Robolectric porque no toca GtfsRepository.sublinea().
+ * Regresión: el trazo que dibuja el Planificador para un tramo de viaje en Mexibús L1 (101), L1
+ * Exprés (121) y L1A (111) usaba SIEMPRE la misma geometría de {@code Linea.ruta} sin importar el
+ * sentido real de viaje -- a diferencia de Metrobús, que ya elige entre "Lx-ida"/"Lx-vuelta"
+ * (sublineas.json) según hacia dónde se viaja (ver {@code Planificador.geomSentido()}/
+ * {@code elegirSentido()}). Mexibús nunca tuvo esas claves en sublineas.json, así que
+ * {@code geomSentido()} caía siempre al fallback de {@code Linea.ruta} (un solo sentido). Se
+ * agregaron "L101-ida"/"L101-vuelta", "L121-ida"/"L121-vuelta" (el exprés corre por la MISMA calle
+ * física que el ordinario -- mismos shapes) y "L111-ida"/"L111-vuelta" con la geometría real del
+ * GTFS (shapes direccionales reales, no la misma calle invertida). Prueba la función pura
+ * {@code elegirSentido()} (package-private para esto, mismo trato que corrManual()/
+ * nucleoCoincide()) con los extremos REALES de cada shape -- no hace falta Context/Robolectric
+ * porque no toca GtfsRepository.sublinea().
  */
 public class PlanificadorGeomSentidoMexibusTest {
 
@@ -69,6 +71,21 @@ public class PlanificadorGeomSentidoMexibusTest {
         List<LatLng> g = Planificador.elegirSentido(L111_IDA, L111_VUELTA,
                 L111_VUELTA.get(0), L111_VUELTA.get(1));   // viaja AIFA -> Ojo de Agua
         assertSame("debe elegir L111-vuelta (va en ese sentido)", L111_VUELTA, g);
+    }
+
+    @Test
+    public void elegirSentido_l1expres_haciaCiudadAzteca_usaIda() {
+        // Mismos shapes reales que L101 -- el exprés corre por la misma calle física.
+        List<LatLng> g = Planificador.elegirSentido(L101_IDA, L101_VUELTA,
+                L101_IDA.get(0), L101_IDA.get(1));
+        assertSame(L101_IDA, g);
+    }
+
+    @Test
+    public void elegirSentido_l1expres_haciaOjoDeAgua_usaVuelta() {
+        List<LatLng> g = Planificador.elegirSentido(L101_IDA, L101_VUELTA,
+                L101_VUELTA.get(0), L101_VUELTA.get(1));
+        assertSame(L101_VUELTA, g);
     }
 
     @Test
