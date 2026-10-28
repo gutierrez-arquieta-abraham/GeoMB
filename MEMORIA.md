@@ -93,6 +93,14 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
   núcleo + <350 m, `coUbicada`) para no repetir "próxima Indios Verdes" ni pisar el aviso de conexión.
 - **Puente de Fierro:** la llegada considera además el **acceso peatonal** (19.602869, −99.033683), usando el mínimo entre andén y acceso.
 - L4 nombra su **ruta** en la voz (Norte/Sur/L4 en tramo compartido). Descarga de audios offline (`DescargaVoz`/`Locuciones`): base + correspondencia/terminal; por línea/todas/borrar.
+- **Mapa de sincronización (fuente repetida de bugs de drift):** `Locuciones.java` es una réplica AISLADA de la lógica de voz de
+  `RecorridoService.java` (la usa `DescargaVoz` para pre-descargar audio sin tener un recorrido activo) — **no comparten código**,
+  así que un fix en uno NO se propaga al otro. Pares que deben tocarse juntos: `lineasEnEstacion()`, `basesCorresp()`,
+  `transferenciaTexto()`, `esTerminal()`, `vozTerminal()`. Ambas copias sí llaman a las mismas funciones compartidas de
+  `Planificador` (`corrManualLineas()`, `claveTerminal()`, `CORRESP_MANUAL`), así que un fix ahí (p. ej. una fila nueva de
+  correspondencia) se refleja automáticamente en las dos — el riesgo real es solo cuando el fix toca la lógica PROPIA de
+  `lineasEnEstacion()`/`transferenciaTexto()` en vez de la tabla compartida (pasó 2 veces esta sesión: `claveTerminal()` vs
+  `baseLinea()`, y `basesCorresp()` sin su llamada a `corrManualLineas()`). Al tocar cualquiera de los 5, revisar su par.
 
 ## Afectaciones + notificaciones (evitar duplicados)
 - **EC2 push** → `MensajesService.notificarAfectacion` (topic `afectaciones`), autoritativo cuando el EC2 vive.
