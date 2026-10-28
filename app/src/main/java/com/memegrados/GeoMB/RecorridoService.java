@@ -1547,20 +1547,33 @@ public class RecorridoService extends Service {
         int fin = i;
         while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
         Linea l = GtfsRepository.porNumero(this, p.linea);
-        if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
-            int ia = Horarios.idxEnLinea(l, seq.get(i).nombre);
-            int ib = Horarios.idxEnLinea(l, seq.get(fin).nombre);
+        // ia/ib se resuelven contra el ORDINARIO del mismo claveTerminal (Planificador.claveTerminal,
+        // que a diferencia de baseLinea() de ARRIBA NO colapsa ramales -- solo ordinario↔exprés), no
+        // contra el catálogo de p.linea: el tramo puede extenderse por un cambio exprés→ordinario SIN
+        // transbordo real (mismo baseLinea, ver el bucle de 'fin'), y el catálogo del exprés suele ser
+        // un subconjunto reducido que puede NO incluir el nombre donde cae 'fin'. Defecto real
+        // confirmado (reporte del usuario): Bosques del Valle→IPN en Mexibús L2 Exprés (122) anunciaba
+        // "Puente de Fierro" (donde el A* sigue en ordinario) en vez de la terminal real -- idxEnLinea
+        // fallaba contra la lista reducida de 122 y caía al respaldo crudo de abajo. El ordinario
+        // SIEMPRE contiene cada parada del exprés (mismo corredor/orden), así que no falla por esto.
+        int claveDir = Planificador.claveTerminal(p.linea);
+        Linea lDir = claveDir != p.linea ? GtfsRepository.porNumero(this, claveDir) : l;
+        if (lDir != null && lDir.estaciones != null && !lDir.estaciones.isEmpty()) {
+            int ia = Horarios.idxEnLinea(lDir, seq.get(i).nombre);
+            int ib = Horarios.idxEnLinea(lDir, seq.get(fin).nombre);
             if (ia >= 0 && ib >= 0 && ia != ib) {
                 // Preferir el nombre CANÓNICO de terminal (Planificador.terminales, curado a mano)
                 // sobre el nombre crudo de la primera/última estación registrada en los datos de la
-                // línea: en un exprés ese extremo puede ser un andén intermedio compartido con otra
-                // línea (p. ej. "Puente de Fierro" en Mexibús L2 Exprés) en vez de la terminal real
-                // ("Ecatepec"), que es justo lo que ya usa el texto en pantalla -- la voz decía el
-                // nombre equivocado. Si la línea no está en la tabla canónica, cae al respaldo de siempre.
+                // línea DEL SERVICIO ABORDADO (p.linea, no lDir): en un exprés ese extremo puede ser
+                // un andén intermedio compartido con otra línea (p. ej. "Puente de Fierro" en Mexibús
+                // L2 Exprés) en vez de la terminal real ("Ecatepec"). Si la línea no está en la tabla
+                // canónica, cae al respaldo de siempre (extremos crudos del catálogo de p.linea).
                 String[] canon = Planificador.terminales(p.linea);
                 if (canon != null) return Horarios.nomNombre(ib > ia ? canon[1] : canon[0]);
-                Estacion term = ib > ia ? l.estaciones.get(l.estaciones.size() - 1) : l.estaciones.get(0);
-                return Horarios.nomNombre(term.nombre);
+                if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
+                    Estacion term = ib > ia ? l.estaciones.get(l.estaciones.size() - 1) : l.estaciones.get(0);
+                    return Horarios.nomNombre(term.nombre);
+                }
             }
         }
         return Horarios.nomNombre(seq.get(fin).nombre);   // respaldo: última parada del tramo
