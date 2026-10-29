@@ -353,12 +353,6 @@ public class RecorridoService extends Service {
     // consistente con ruido/multipath del GPS que puede durar más de 1 ciclo cerca de estructuras
     // elevadas -- se sube a 3 ciclos seguidos para exigir más margen.
     private int corresPendienteCiclos = 0;
-    // Indios Verdes (único cruce con 4 plataformas, ver Planificador.IV_ZONA_CENTRAL): si la
-    // posición ya pasó alguna vez por la zona central que conecta las 4, antes de aceptar el salto
-    // de "correspondencia corta" -- evidencia física independiente del radio angosto de cada andén,
-    // ver su uso más abajo. Nunca se reinicia a mitad de un mismo recorrido (una vez cruzada, sigue
-    // cruzada), solo al iniciar uno nuevo.
-    private boolean ivZonaCentralVista = false;
     // Candidato de reanclarOtraLinea() visto en el ciclo ANTERIOR, aún sin confirmar: un salto de línea
     // nunca se acepta de un solo fix de GPS (una lectura suelta -rebote/multipath, p. ej. bajo un
     // puente- podía ganar la comparación de distancia una sola vez y ya quedaba fijo, pues avanceMin
@@ -507,7 +501,6 @@ public class RecorridoService extends Service {
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
         corresPendienteIdx = -1;   // nuevo recorrido (o reinicio tras revivir): sin candidato pendiente
         corresPendienteCiclos = 0;
-        ivZonaCentralVista = false;
         reanclajeCandidatoPendiente = -1;
         Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
         try {
@@ -756,12 +749,6 @@ public class RecorridoService extends Service {
         List<Planificador.Parada> seq = paradas;
         if (l == null || seq == null || seq.isEmpty()) return;
         ultimaPos = new com.google.android.gms.maps.model.LatLng(l.getLatitude(), l.getLongitude());
-        // Indios Verdes: marca si ya se pasó por la zona central (ver su declaración y uso más
-        // abajo, en el bloque de cambio de línea) -- se revisa en CADA fix, no solo cuando hay
-        // correspondencia en curso, para no perder el cruce si pasó por ahí antes de que 'best'
-        // alcanzara la parada anterior a Indios Verdes.
-        if (!ivZonaCentralVista && Planificador.enZonaCentralIndiosVerdes(ultimaPos)) ivZonaCentralVista = true;
-
         // Búsqueda MONÓTONA hacia adelante: la estación más cercana se busca desde el avance mínimo ya
         // alcanzado, no desde el inicio. Así el recorrido no salta hacia atrás ni se "pega" a una estación
         // co-ubicada de otra línea antes del transbordo (se queda en su línea hasta hacer la correspondencia).
@@ -812,12 +799,12 @@ public class RecorridoService extends Service {
                 // ruta, y solo si coUbicada() ya certificó que es una correspondencia real.
                 boolean imposibleLlegarAnterior = coloc
                         && Linea.distancia(pi.pos, seq.get(best).pos) > radioCerca(seq.get(best));
-                // Indios Verdes (4 plataformas, ver Planificador.IV_ZONA_CENTRAL): exige ADEMÁS haber
-                // pasado por la zona central que las conecta -- evidencia física independiente del
-                // radio de 70 m de cada andén. Para cualquier otra correspondencia corta (p. ej.
-                // Puente de Fierro, que no tiene esa zona) esta condición no aplica (siempre true).
-                boolean centroOk = !Planificador.esPlataformaIndiosVerdes(pi) || ivZonaCentralVista;
-                boolean enNuevaAhora = imposibleLlegarAnterior && d <= umbral && centroOk;
+                // Indios Verdes (4 plataformas) ya NO exige además haber pasado por la zona central que
+                // las conecta (eliminado, reporte real del usuario: ese gate retrasaba tanto el cruce que
+                // el aviso de "próxima" (Metrobús) y el de "llegando" (Mexibús, cierre del lado viejo)
+                // terminaban disparando juntos, en vez de espaciados -- ver el comentario donde vivía
+                // esa zona en Planificador.java para el defecto original que intentaba resolver).
+                boolean enNuevaAhora = imposibleLlegarAnterior && d <= umbral;
                 // Defecto real confirmado (viaje real, Indios Verdes): 2 ciclos seguidos no bastaban --
                 // consistente con ruido/multipath del GPS cerca de estructuras elevadas, que puede
                 // durar más de 1 ciclo. Se sube a CORRESP_CORTA_CICLOS_MIN=3 ciclos seguidos.
