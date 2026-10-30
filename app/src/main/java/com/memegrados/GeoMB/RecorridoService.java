@@ -353,15 +353,6 @@ public class RecorridoService extends Service {
     // consistente con ruido/multipath del GPS que puede durar más de 1 ciclo cerca de estructuras
     // elevadas -- se sube a 3 ciclos seguidos para exigir más margen.
     private int corresPendienteCiclos = 0;
-    // Candidato del CIERRE del lado VIEJO (ver su uso más abajo, bloque de cambio de línea): separado
-    // de corresPendienteIdx/Ciclos (que es del lado NUEVO) para que el aviso de "llegando"/cierre
-    // Mexibús dispare TAN PRONTO te alejes lo suficiente del andén viejo, sin esperar a acercarte al
-    // andén nuevo (Metrobús) -- defecto real confirmado (reporte del usuario, Indios Verdes): los 2
-    // avisos ("próxima" Metrobús y "llegando" Mexibús) disparaban juntos porque antes el cierre solo
-    // se evaluaba DENTRO del mismo bloque que ya exigía estar cerca del andén nuevo. Mismas 3 ciclos
-    // seguidos que corresPendienteCiclos, misma razón (ruido/multipath del GPS).
-    private int corresCierrePendienteIdx = -1;
-    private int corresCierrePendienteCiclos = 0;
     // Candidato de reanclarOtraLinea() visto en el ciclo ANTERIOR, aún sin confirmar: un salto de línea
     // nunca se acepta de un solo fix de GPS (una lectura suelta -rebote/multipath, p. ej. bajo un
     // puente- podía ganar la comparación de distancia una sola vez y ya quedaba fijo, pues avanceMin
@@ -510,8 +501,6 @@ public class RecorridoService extends Service {
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
         corresPendienteIdx = -1;   // nuevo recorrido (o reinicio tras revivir): sin candidato pendiente
         corresPendienteCiclos = 0;
-        corresCierrePendienteIdx = -1;
-        corresCierrePendienteCiclos = 0;
         reanclajeCandidatoPendiente = -1;
         Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
         try {
@@ -810,25 +799,11 @@ public class RecorridoService extends Service {
                 // ruta, y solo si coUbicada() ya certificó que es una correspondencia real.
                 boolean imposibleLlegarAnterior = coloc
                         && Linea.distancia(pi.pos, seq.get(best).pos) > radioCerca(seq.get(best));
-                // CIERRE INDEPENDIENTE del lado VIEJO (defecto real confirmado, reporte del usuario:
-                // Indios Verdes seguía lanzando "próxima" (Metrobús) y "llegando" (Mexibús) juntos,
-                // porque el cierre solo se evaluaba más abajo, DENTRO del bloque que ya exige estar
-                // cerca del andén NUEVO). Aquí se mide, en vivo, si tu posición actual ya quedó fuera
-                // del radio normal de llegada del andén VIEJO -- evidencia de que te alejaste caminando
-                // hacia la correspondencia, sin importar qué tan lejos esté todavía el andén nuevo.
-                // Mismas 3 ciclos seguidos que corresPendienteCiclos (ruido/multipath del GPS).
-                if (imposibleLlegarAnterior) {
-                    boolean saliendoDeVieja = distParada(l, seq.get(best)) > radioCerca(seq.get(best));
-                    if (saliendoDeVieja && corresCierrePendienteIdx == i) corresCierrePendienteCiclos++;
-                    else if (saliendoDeVieja) corresCierrePendienteCiclos = 1;
-                    else corresCierrePendienteCiclos = 0;
-                    corresCierrePendienteIdx = saliendoDeVieja ? i : -1;
-                    if (corresCierrePendienteCiclos >= CORRESP_CORTA_CICLOS_MIN && ultLlegando < best) {
-                        ultLlegando = best;
-                        Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
-                        sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea, nom(seq.get(best)));
-                    }
-                }
+                // Indios Verdes (4 plataformas) ya NO exige además haber pasado por la zona central que
+                // las conecta (eliminado, reporte real del usuario: ese gate retrasaba tanto el cruce que
+                // el aviso de "próxima" (Metrobús) y el de "llegando" (Mexibús, cierre del lado viejo)
+                // terminaban disparando juntos, en vez de espaciados -- ver el comentario donde vivía
+                // esa zona en Planificador.java para el defecto original que intentaba resolver).
                 boolean enNuevaAhora = imposibleLlegarAnterior && d <= umbral;
                 // Defecto real confirmado (viaje real, Indios Verdes): 2 ciclos seguidos no bastaban --
                 // consistente con ruido/multipath del GPS cerca de estructuras elevadas, que puede
@@ -889,11 +864,6 @@ public class RecorridoService extends Service {
                     // correspondencia/conexión con la línea nueva, ver vozLlegada()) nunca sonaba: el
                     // usuario solo escuchaba el aviso del andén NUEVO (Metrobús), nunca el de Mexibús. Se
                     // anuncia aquí explícitamente, antes de saltar, tratando el andén viejo como alcanzado.
-                    // RESPALDO: lo normal es que esto ya lo haya disparado el cierre independiente de
-                    // arriba (corresCierrePendienteIdx/Ciclos) mientras caminabas la correspondencia, antes
-                    // de llegar aquí -- 'ultLlegando<best' entonces ya es falso y este bloque no repite
-                    // nada. Solo actúa si ese cierre no alcanzó a confirmarse a tiempo (p. ej. un hueco de
-                    // GPS que salta directo de cerca del andén viejo a cerca del nuevo).
                     if (alcanzasteNueva && !alcanzasteAnterior && ultLlegando < best) {
                         ultLlegando = best;
                         Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, true);
@@ -909,8 +879,6 @@ public class RecorridoService extends Service {
                     bd = d; best = i;
                     corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
                     corresPendienteCiclos = 0;
-                    corresCierrePendienteIdx = -1;
-                    corresCierrePendienteCiclos = 0;
                 }
                 break;
             } else if (d < bd) {
