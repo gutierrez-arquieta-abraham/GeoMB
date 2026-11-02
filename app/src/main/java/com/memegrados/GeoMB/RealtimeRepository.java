@@ -133,7 +133,8 @@ public final class RealtimeRepository {
                 String msg = e.getMessage() != null ? e.getMessage() : "error";
                 ultimoFetchError = true;
                 GeoMBApplication app = GeoMBApplication.get();
-                if (app != null) Telemetria.registrarError(app, Telemetria.ERR_RED, "RealtimeRepository.fetch", msg);
+                // En pausa la falla es esperada: no se registra como error de red.
+                if (app != null && !EstadoServicio.enPausa()) Telemetria.registrarError(app, Telemetria.ERR_RED, "RealtimeRepository.fetch", msg);
                 main.post(() -> {
                     try { cb.onError(msg); } catch (Exception e2) {
                         GeoMBApplication app2 = GeoMBApplication.get();

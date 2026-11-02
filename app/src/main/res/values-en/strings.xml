@@ -577,4 +577,7 @@
     <string name="idioma_es">Español</string>
     <string name="idioma_en">English</string>
     <string name="idioma_nah">Náhuatl</string>
+    <string name="pausa_titulo">Service paused</string>
+    <string name="pausa_mensaje">The GeoMB server is paused. In the meantime there are no real-time buses, Mia voice, assistant or bus alerts.\n\nThe map, stations, trip planner and Metrobús service alerts still work.</string>
+    <string name="pausa_entendido">Got it</string>
 </resources>

@@ -616,4 +616,8 @@
          no dice detalles técnicos porque el usuario no puede hacer nada con ellos; el detalle
          completo ya se guardó para revisión (Telemetria.registrarError). -->
     <string name="aviso_error_generico">Ha ocurrido un error, pero la app sigue funcionando</string>
+    <!-- Servicio en pausa (EstadoServicio): textos por defecto si estado_servicio.json no trae los suyos. -->
+    <string name="pausa_titulo">Servicio en pausa</string>
+    <string name="pausa_mensaje">El servidor de GeoMB está en pausa. Mientras tanto no hay unidades en tiempo real, voz Mia, asistente ni alertas de unidades.\n\nEl mapa, las estaciones, el planificador y las afectaciones de Metrobús siguen funcionando.</string>
+    <string name="pausa_entendido">Entendido</string>
 </resources>

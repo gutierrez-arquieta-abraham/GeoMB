@@ -64,12 +64,24 @@ public class MainActivity extends AppCompatActivity {
     private AdView banner;
     private ConsentInformation consentInfo;
     private final AtomicBoolean adsInicializado = new AtomicBoolean(false);
+    private static boolean avisoPausaMostrado = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
+        // Interruptor remoto de "Servicio en pausa": primero el último estado guardado (para que
+        // lo de abajo ya no arranque el sondeo si el servidor está apagado) y luego la consulta real.
+        EstadoServicio.cargar(this);
+        if (EstadoServicio.enPausa()) mostrarAvisoPausa();
+        EstadoServicio.refrescar(this, () -> {
+            if (EstadoServicio.enPausa()) {
+                mostrarAvisoPausa();
+                SincronizacionService.detener(this);
+            }
+        });
 
         // Carga el catálogo de marca/modelo (assets/modelos.csv + Sheet) una vez.
         Modelos.init(getApplicationContext());
@@ -155,6 +167,20 @@ public class MainActivity extends AppCompatActivity {
             seleccionar(inicial);
         }
         gestionarConsentimientoAds();
+    }
+
+    /** Aviso de "Servicio en pausa", UNA vez por arranque de la app (no en cada rotación ni cada
+     *  vez que se vuelve a esta pantalla). */
+    private void mostrarAvisoPausa() {
+        if (avisoPausaMostrado || isFinishing() || isDestroyed()) return;
+        avisoPausaMostrado = true;
+        try {
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(EstadoServicio.titulo(this))
+                    .setMessage(EstadoServicio.mensaje(this))
+                    .setPositiveButton(R.string.pausa_entendido, null)
+                    .show();
+        } catch (Exception ignore) {}
     }
 
     /**

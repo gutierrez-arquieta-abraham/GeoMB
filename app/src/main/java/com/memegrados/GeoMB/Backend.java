@@ -93,6 +93,8 @@ public final class Backend {
     // ========================================================
     /** GET de un path (p. ej. "/data/vehicles.json") con failover entre los dos backends. */
     public static String descargar(String path) throws java.io.IOException {
+        // Servidor apagado a propósito: ni lo intenta (evita esperar 2 timeouts por petición).
+        if (EstadoServicio.enPausa()) throw new java.io.IOException("servicio en pausa");
         boolean tocaReintentarPrimario = !activo.equals(Config.BASE_URL)
                 && (System.currentTimeMillis() - ultimoIntentoPrimario) > REINTENTO_PRIMARIO_MS;
         String primero = tocaReintentarPrimario ? Config.BASE_URL : activo;

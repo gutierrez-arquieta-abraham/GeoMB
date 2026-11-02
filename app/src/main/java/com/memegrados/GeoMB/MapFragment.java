@@ -171,7 +171,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
                 @Override
                 public void onError(String mensaje) {
-                    if (!avisoError && isAdded()) {
+                    // En pausa no es un error: MainActivity ya mostró el aviso de "Servicio en pausa".
+                    if (!avisoError && isAdded() && !EstadoServicio.enPausa()) {
                         avisoError = true;
                         Toast.makeText(requireContext(),
                                 "Sin conexión con el servidor de unidades", Toast.LENGTH_SHORT).show();
