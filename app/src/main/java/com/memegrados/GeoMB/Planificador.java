@@ -174,13 +174,27 @@ public final class Planificador {
      * Nombre para mostrar (sin "MXB "); si ese nombre existe en varias líneas, añade su número
      * para distinguirlo (p. ej. "Las Américas 2" = la Las Américas del Mexibús Línea 2, distinta de
      * la de Línea 1).
+     * <p>Defecto real confirmado (reporte del usuario, Deportivo 18 de Marzo L1↔L6 mostrando el
+     * MISMO nombre dos veces en la notificación de recorrido, "anterior" y "próxima"): este método
+     * tenía un atajo para Metrobús ("el Metrobús no tiene estaciones homónimas reales") que resultó
+     * FALSO -- verificado contra datos reales: 20 pares de estaciones Metrobús comparten nombre
+     * exacto entre líneas distintas, con separación física real en los 20 (57-429 m, nunca el mismo
+     * punto), p. ej. Indios Verdes (L1/L7, 429 m), La Raza (L1/L3, 294 m), Plaza de la República
+     * (L1/L4, 353 m), además de Deportivo 18 de Marzo (L1/L6, 231 m). El atajo se quita; Metrobús
+     * ahora desambigua igual que Mexibús/Mexicable, vía el mismo conjunto {@link #ambiguos}.</p>
      */
     public static String nombreMostrar(Context ctx, String nombre, int linea) {
         String clean = sinMxb(nombreCorto(nombre));
-        // El Metrobús no tiene estaciones homónimas reales dentro de su sistema: su nombre va siempre
-        // limpio (p. ej. "Indios Verdes", no "Indios Verdes 1"). El sufijo solo distingue Mexibús/Mexicable.
-        if (linea > 0 && linea < 100) return clean;
-        return ambiguos(ctx).contains(norm(clean)) ? clean + " " + etiquetaLineaCorta(linea) : clean;
+        if (ctx == null) return clean;   // sin Context no se puede consultar ambiguos() (necesita GtfsRepository)
+        return nombreMostrarConAmbiguos(clean, linea, ambiguos(ctx));
+    }
+
+    /** Pieza PURA de {@link #nombreMostrar} (separada para poder probarla sin Context/GtfsRepository,
+     *  mismo trato que otras funciones puras de este archivo): agrega el sufijo de línea si
+     *  {@code limpio} (ya normalizado para mostrar, sin "MXB ") está en el conjunto de nombres
+     *  ambiguos (mismo nombre, línea base distinta -- ver {@link #ambiguos}). */
+    static String nombreMostrarConAmbiguos(String limpio, int linea, java.util.Set<String> ambiguos) {
+        return ambiguos.contains(norm(limpio)) ? limpio + " " + etiquetaLineaCorta(linea) : limpio;
     }
     /**
      * Correspondencias MANUALES: transbordos reales que quedan a MÁS de {@link #RADIO_CORRESP}

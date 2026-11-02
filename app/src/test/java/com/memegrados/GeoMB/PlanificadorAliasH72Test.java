@@ -191,7 +191,9 @@ public class PlanificadorAliasH72Test {
 
     @Test
     public void nombreMostrar_deAndenDeLaSalleH72_usaElNombreCorto() {
-        // nombreMostrar() no toca Context para Metrobús (línea < 100): seguro pasar null aquí.
+        // Sin Context, nombreMostrar() no puede consultar ambiguos() (necesita GtfsRepository) y
+        // devuelve el nombre limpio tal cual -- seguro pasar null aquí: no prueba desambiguación
+        // (ver PlanificadorNombreMostrarAmbiguosTest para eso), solo que corta el "· dirección X".
         assertEquals("De la Salle",
                 Planificador.nombreMostrar(null, "De la Salle · dirección Alameda Tacubaya", 2));
         assertEquals("De la Salle",
