@@ -307,6 +307,18 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- Marca el borde inferior de lo que haya más abajo entre la barra de búsqueda y el panel de
+         origen/destino (si está abierto): así la píldora de filtros y el resultado del planificador
+         se acomodan solos debajo de lo que esté visible en cada momento, sin encimarse, en cualquier
+         tamaño de pantalla. Un elemento GONE (panel_origen_destino cerrado) mide 0, así que no empuja
+         la barrera hacia abajo. -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/barrier_bajo_buscador"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="search_bar,panel_origen_destino" />
+
     <!-- Píldora de filtros activos (toca para limpiar) -->
     <TextView
         android:id="@+id/chip_filtros"
@@ -325,7 +337,7 @@
         app:drawableStartCompat="@drawable/ic_close_small"
         app:drawableTint="@color/white"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/search_bar" />
+        app:layout_constraintTop_toBottomOf="@id/barrier_bajo_buscador" />
 
     <!-- Contador de unidades visibles -->
     <TextView
@@ -514,7 +526,12 @@
          switch Ordinario/Exprés (solo si el viaje va por una línea Mexibús con ambos servicios) e
          "Iniciar recorrido" (seguimiento GPS en vivo), igual que fragment_planificador.xml#panel_resultado.
          Mismo contenedor map_carta_container de arriba por ahora: en la práctica no coinciden visibles
-         a la vez (buscar unidad/estación vs. trazar ruta), se revisará si hace falta separar. -->
+         a la vez (buscar unidad/estación vs. trazar ruta), se revisará si hace falta separar.
+         Acotado entre barrier_bajo_buscador (arriba) y panel_mapa (abajo) con constrainedHeight +
+         bias 1 (se "cuelga" del fondo, como antes, pero sin crecer encima de la barra de búsqueda/
+         panel_origen_destino ni tapar panel_mapa/txt_conteo/fab_filtros): en pantallas chicas o con
+         muchos pasos, el espacio disponible manda y la lista de pasos (res_pasos_scroll, con weight)
+         es la que se hace scroll, nunca el resumen/switch/botón de abajo. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/panel_resultado"
         android:layout_width="0dp"
@@ -523,13 +540,16 @@
         android:visibility="gone"
         app:cardCornerRadius="18dp"
         app:cardElevation="6dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constrainedHeight="true"
+        app:layout_constraintVertical_bias="1"
+        app:layout_constraintTop_toBottomOf="@id/barrier_bajo_buscador"
+        app:layout_constraintBottom_toTopOf="@id/panel_mapa"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:padding="14dp">
 
@@ -566,14 +586,16 @@
             <LinearLayout
                 android:id="@+id/panel_resultado_detalle"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:orientation="vertical">
 
                 <ScrollView
                     android:id="@+id/res_pasos_scroll"
                     android:tag="largo"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
                     android:layout_marginTop="6dp"
                     android:scrollbars="vertical"
                     android:fadeScrollbars="false"

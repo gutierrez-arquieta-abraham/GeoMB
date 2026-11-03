@@ -2123,10 +2123,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             String o = inOrigen.getText().toString().trim();
             String d = inDestino.getText().toString().trim();
             txtColapsado.setText((o.isEmpty() ? "?" : o) + " → " + (d.isEmpty() ? "?" : d));
+            recentrarTrasPanel();
         });
         colapsado.setOnClickListener(v -> {
             colapsado.setVisibility(View.GONE);
             expandido.setVisibility(View.VISIBLE);
+            recentrarTrasPanel();
         });
 
         view.findViewById(R.id.btn_intercambiar).setOnClickListener(v -> {
@@ -2529,7 +2531,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     /** Centra la cámara en el usuario durante el recorrido (respeta el padding de los paneles y el
      *  zoom actual). Solo re-centra si se movió apreciablemente, para no dar tirones cada segundo. */
-    private void centrarRecorrido(LatLng pos) {
+    private void centrarRecorrido(LatLng pos) { centrarRecorrido(pos, false); }
+
+    /** @param forzar ignora el "ya está centrado" de abajo y recentra aunque el target no se haya
+     *  movido -- para cuando lo que cambió fue el PADDING (p. ej. al minimizar un panel): el target
+     *  sigue igual, pero visualmente el encuadre quedó desfasado hacia el trazo completo ya dibujado
+     *  en vez de la posición actual (ver {@link #recentrarTrasPanel()}). */
+    private void centrarRecorrido(LatLng pos, boolean forzar) {
         if (!seguirCamara || pos == null || mapa == null) return;
         View root = getView();
         if (root == null) return;
@@ -2539,9 +2547,23 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         int abajo = Math.min(abajoReal, Math.round(root.getHeight() * 0.18f));
         mapa.setPadding(m, m, m, abajo + m);
         LatLng centro = mapa.getCameraPosition().target;
-        if (centro != null && Linea.distancia(centro, pos) < 25) return;   // ya está centrado
+        if (!forzar && centro != null && Linea.distancia(centro, pos) < 25) return;   // ya está centrado
         float z = Math.max(16f, mapa.getCameraPosition().zoom);
         mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, z));
+    }
+
+    /** Al minimizar/expandir el panel de resultado o el de origen/destino durante un recorrido activo,
+     *  el encuadre puede quedar mostrando el trazo COMPLETO ya dibujado (el de {@link #dibujarRuta}) en
+     *  vez de la posición actual del usuario. Espera al siguiente layout (el panel recién cambió de
+     *  tamaño) y fuerza el recentrado en el trazo del recorrido en vivo. No hace nada si no hay
+     *  recorrido activo o el usuario ya movió el mapa a mano (seguirCamara en false). */
+    private void recentrarTrasPanel() {
+        if (!recorrido) return;
+        View root = getView();
+        if (root == null) return;
+        root.post(() -> {
+            if (isAdded()) centrarRecorrido(RecorridoService.ultimaPos, true);
+        });
     }
 
     /**
@@ -2716,6 +2738,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             panelResultadoDetalle.setVisibility(View.VISIBLE);
             icContraerResultado.setRotation(-90);
         }
+        recentrarTrasPanel();
     }
 
     private void pintarPasosRuta(Planificador.Ruta r) {
@@ -2751,12 +2774,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             }
             resPasosList.addView(filaIndicacionRuta(ins.get(t)));
         }
-        resPasosScroll.post(() -> {
-            if (resPasosScroll == null) return;
-            ViewGroup.LayoutParams lp = resPasosScroll.getLayoutParams();
-            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-            resPasosScroll.setLayoutParams(lp);
-        });
     }
 
     private static boolean mismoTrazoRuta(int a, int b) {
