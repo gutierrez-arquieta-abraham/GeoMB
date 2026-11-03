@@ -332,6 +332,14 @@ public class ConfiguracionFragment extends Fragment {
      * diferencia de "Opciones de privacidad" (AdMob) que solo aparece si UMP lo exige.
      */
     private void configurarPrivacidadPublicaYEliminarCuenta(View view) {
+        view.findViewById(R.id.btn_donar).setOnClickListener(x -> {
+            try {
+                startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        Uri.parse(Config.DONACION_URL)));
+            } catch (Exception e) {
+                Toast.makeText(requireContext(), R.string.eliminar_cuenta_error_token, Toast.LENGTH_SHORT).show();
+            }
+        });
         view.findViewById(R.id.btn_politica_privacidad).setOnClickListener(x -> {
             try {
                 startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,

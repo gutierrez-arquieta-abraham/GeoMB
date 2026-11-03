@@ -55,6 +55,11 @@ public final class RealtimeRepository {
      *  estado del seguimiento), sin disparar ninguna petición nueva. */
     public static volatile long ultimoFetchExitoTs = 0L;
     public static volatile boolean ultimoFetchError = false;
+    /** true si el último fetch() exitoso vino de un camino que decodifica el .proto EN EL
+     *  TELÉFONO (UnidadRtEdge o UnidadRtDirecto) en vez del JSON ya armado por el servidor
+     *  (Config.PATH_VEHICLES) -- lo lee MapFragment para avisar que puede ser menos preciso y que
+     *  las notificaciones (FCM, siempre del lado del servidor) van a llegar más tarde. */
+    public static volatile boolean ultimoCaminoLocal = false;
 
     /** Filtros activos (compartidos entre mapa y listado). */
     public static final Filtro filtro = new Filtro();
@@ -119,6 +124,7 @@ public final class RealtimeRepository {
         executor.execute(() -> {
             try {
                 List<UnidadReal> listaObtenida;
+                boolean caminoLocal;
                 try {
                     // Camino nuevo (ver UnidadRtEdge): la app baja y decodifica el feed directo
                     // del proveedor, el servidor solo reparte la URL firmada. Si algo falla por
@@ -126,22 +132,26 @@ public final class RealtimeRepository {
                     // camino de siempre SIN que el usuario note nada -- nunca se propaga este
                     // error como si fuera un fallo real de la descarga.
                     listaObtenida = UnidadRtEdge.obtener();
+                    caminoLocal = true;
                 } catch (Exception edgeErr) {
                     try {
                         String json = Backend.descargar(Config.PATH_VEHICLES);
                         listaObtenida = parsear(json);
+                        caminoLocal = false;
                     } catch (Exception backendErr) {
                         // Los 2 caminos de siempre pasan por el backend propio (EC2/Oracle): si
                         // AMBOS fallan, es el backend el que está caído, no solo el feed. Último
                         // recurso -- ver UnidadRtDirecto -- para que el mapa en vivo siga
                         // funcionando pese a eso (p. ej. un corte por falta de pago del EC2).
                         listaObtenida = UnidadRtDirecto.obtener();
+                        caminoLocal = true;
                     }
                 }
                 final List<UnidadReal> lista = listaObtenida;
                 ultimo = lista;
                 ultimoFetchExitoTs = System.currentTimeMillis();
                 ultimoFetchError = false;
+                ultimoCaminoLocal = caminoLocal;
                 main.post(() -> {
                     try { cb.onData(lista); } catch (Exception e) {
                         GeoMBApplication app = GeoMBApplication.get();

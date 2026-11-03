@@ -155,7 +155,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private boolean avisoError = false;
-    private View bannerServidor;
+    private TextView bannerServidor;
     private long ultimaManifestMapa = -1;   // último Manifestaciones.actualizado() ya pintado en el mapa
 
     /** Ciclo de actualización: pide el feed, actualiza marcadores y se reprograma. */
@@ -166,7 +166,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 @Override
                 public void onData(List<UnidadReal> unidades) {
                     avisoError = false;   // servidor OK de nuevo: permite reactivar el respaldo si vuelve a fallar
-                    if (bannerServidor != null) bannerServidor.setVisibility(View.GONE);
+                    if (bannerServidor != null) {
+                        // El feed sí llegó, pero por un camino que decodifica el .proto EN EL
+                        // TELÉFONO (UnidadRtEdge/UnidadRtDirecto) en vez del JSON ya armado por el
+                        // servidor -- avisa que puede ser menos preciso y que las notificaciones
+                        // (FCM, siempre del lado del servidor) van a llegar más tarde. No es el
+                        // mismo caso que onError (ahí NINGÚN camino respondió).
+                        if (RealtimeRepository.ultimoCaminoLocal) {
+                            bannerServidor.setText(R.string.mapa_interpretado_telefono);
+                            bannerServidor.setVisibility(View.VISIBLE);
+                        } else {
+                            bannerServidor.setVisibility(View.GONE);
+                        }
+                    }
                     if (mapa != null) actualizarUnidades(unidades);
                     if (mapa != null) actualizarEstadoEstaciones();
                 }
@@ -181,8 +193,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     // Banner PERSISTENTE (no solo el Toast de antes, que se esfuma en segundos):
                     // pensado para una caída larga del servidor (p. ej. por falta de pago del EC2),
                     // no solo un bache de red pasajero -- se queda visible hasta que vuelva a
-                    // responder (onData lo oculta arriba).
-                    if (bannerServidor != null) bannerServidor.setVisibility(View.VISIBLE);
+                    // responder (onData lo oculta arriba). Se fija el texto explícito -- no se
+                    // puede asumir que quedó éste del XML si antes se mostró el de "interpretado
+                    // en el teléfono" (onData con ultimoCaminoLocal).
+                    if (bannerServidor != null) {
+                        bannerServidor.setText(R.string.mapa_servidor_sin_respuesta);
+                        bannerServidor.setVisibility(View.VISIBLE);
+                    }
                     if (!avisoError) {
                         avisoError = true;
                         Toast.makeText(requireContext(),

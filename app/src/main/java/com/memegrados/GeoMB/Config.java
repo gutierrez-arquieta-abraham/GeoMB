@@ -83,6 +83,10 @@ public final class Config {
     public static final String DELETE_ACCOUNT_URL = BASE_URL + "/delete-account";
     public static final String ACCOUNT_DELETE_API_URL = BASE_URL + "/api/account/delete";
 
+    /** Donativo voluntario (PayPal.me del desarrollador) para los costos del servidor -- NO es un
+     *  endpoint propio, es un enlace externo que se abre tal cual en el navegador/app de PayPal. */
+    public static final String DONACION_URL = "https://paypal.me/AbrahamGeoMB?locale.x=es_XC&country.x=MX";
+
     /** Cada cuánto manda AlertasUnidadesService la ubicación actual mientras haya al menos una
      *  alerta activa (ms). No tiene sentido más frecuente que el ciclo de push_metrobus.py (60 s,
      *  ver metrobus_app) -- nadie va a leer una ubicación más fresca que eso. */

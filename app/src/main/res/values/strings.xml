@@ -43,6 +43,7 @@
     <string name="mapa_tipo_satelite">Satélite</string>
     <string name="mapa_tipo_hibrido">Híbrido</string>
     <string name="mapa_servidor_sin_respuesta">Servidor sin respuesta — mostrando datos guardados</string>
+    <string name="mapa_interpretado_telefono">Interpretando datos en el teléfono — puede ser menos preciso y las notificaciones más tardadas</string>
     <string name="mapa_acercar">Acercar</string>
     <string name="mapa_alejar">Alejar</string>
     <string name="mapa_norte">Orientar al norte</string>
@@ -570,6 +571,9 @@
     <string name="asistente_recorrido_detenido">Recorrido detenido.</string>
     <string name="asistente_seguimiento_detenido_uno">Dejaste de seguir la unidad %1$s.</string>
     <string name="asistente_seguimiento_detenido_todas">Dejaste de seguir todas las unidades.</string>
+
+    <!-- Donativo voluntario (servidor/EC2): enlace externo a PayPal.me, ver Config.DONACION_URL -->
+    <string name="config_donar">Apoyar el proyecto (donativo)</string>
 
     <!-- Reporte de un problema DE LA APP (no del servicio de Metrobús), a los correos de soporte -->
     <string name="config_reportar_app">Reportar un problema de la app</string>

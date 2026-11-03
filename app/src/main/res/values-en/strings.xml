@@ -45,6 +45,7 @@
     <string name="mapa_tipo_satelite">Satellite</string>
     <string name="mapa_tipo_hibrido">Hybrid</string>
     <string name="mapa_servidor_sin_respuesta">Server not responding — showing saved data</string>
+    <string name="mapa_interpretado_telefono">Interpreting data on the phone — may be less accurate and notifications more delayed</string>
     <string name="mapa_acercar">Zoom in</string>
     <string name="mapa_alejar">Zoom out</string>
     <string name="mapa_norte">Orient to north</string>
@@ -524,6 +525,9 @@
     <string name="asistente_recorrido_detenido">Trip stopped.</string>
     <string name="asistente_seguimiento_detenido_uno">You stopped following unit %1$s.</string>
     <string name="asistente_seguimiento_detenido_todas">You stopped following all units.</string>
+
+    <!-- Voluntary donation (server/EC2 costs): external link to PayPal.me, see Config.DONACION_URL -->
+    <string name="config_donar">Support the project (donate)</string>
 
     <!-- Report a problem WITH THE APP (not the Metrobús service), to the support emails -->
     <string name="config_reportar_app">Report a problem with the app</string>
