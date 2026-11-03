@@ -293,6 +293,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private String ecoCartaActual;   // económico mostrado en la tarjeta flotante
     private boolean cartaExpandida;  // false = píldora compacta, true = carta completa (misma vista)
     private View panelZoom;   // controles de zoom/brújula/ubicación (ver ajustarPanelZoom())
+    private View panelOrigenDestino;   // panel origen/destino del planificador (también lo usa ajustarPanelZoom())
 
     private final ActivityResultLauncher<String> permisoUbicacionCarta =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> {
@@ -1276,6 +1277,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      * post()) y solo se sube el panel lo que haga falta para dejar de encimarse; sin tarjeta visible
      * (o si no se traslapan) vuelve a su lugar original.
      */
+    /** Sube/baja panelZoom (fuera de su posición base, centrada entre search_bar y panel_mapa) para
+     *  que no quede tapado por lo que esté visible encima o debajo: la carta de unidad/estación O el
+     *  resultado del planificador (abajo, no coinciden visibles a la vez) y el panel de origen/
+     *  destino del planificador (arriba). Antes solo consideraba la carta -- con el planificador
+     *  fusionado al mapa general, panelZoom se quedaba fijo aunque esos otros paneles ocuparan todo
+     *  su espacio. */
     private void ajustarPanelZoom() {
         if (panelZoom == null) return;
         panelZoom.post(() -> {
@@ -1284,19 +1291,31 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // el panel se queda donde estaba.
             try {
                 if (!isAdded() || panelZoom.getHeight() == 0) return;
+                float aire = 12f * panelZoom.getResources().getDisplayMetrics().density;
+                int[] posPanel = new int[2];
+                panelZoom.getLocationOnScreen(posPanel);
+                int panelSuperior = posPanel[1];
+                int panelInferior = posPanel[1] + panelZoom.getHeight();
                 float desplazamiento = 0f;
-                if (cartaContainer != null && cartaContainer.getVisibility() == View.VISIBLE
-                        && cartaContainer.getHeight() > 0) {
-                    int[] posPanel = new int[2];
-                    int[] posCarta = new int[2];
-                    panelZoom.getLocationOnScreen(posPanel);
-                    cartaContainer.getLocationOnScreen(posCarta);
-                    int panelInferior = posPanel[1] + panelZoom.getHeight();
-                    int cartaSuperior = posCarta[1];
-                    if (panelInferior > cartaSuperior) {
-                        float aire = 12f * panelZoom.getResources().getDisplayMetrics().density;
-                        desplazamiento = -(panelInferior - cartaSuperior) - aire;
-                    }
+
+                View limiteAbajo = null;
+                if (cartaContainer != null && cartaContainer.getVisibility() == View.VISIBLE && cartaContainer.getHeight() > 0) {
+                    limiteAbajo = cartaContainer;
+                } else if (panelResultado != null && panelResultado.getVisibility() == View.VISIBLE && panelResultado.getHeight() > 0) {
+                    limiteAbajo = panelResultado;
+                }
+                if (limiteAbajo != null) {
+                    int[] posLim = new int[2];
+                    limiteAbajo.getLocationOnScreen(posLim);
+                    if (panelInferior > posLim[1]) desplazamiento = -(panelInferior - posLim[1]) - aire;
+                }
+
+                if (panelOrigenDestino != null && panelOrigenDestino.getVisibility() == View.VISIBLE
+                        && panelOrigenDestino.getHeight() > 0) {
+                    int[] posOd = new int[2];
+                    panelOrigenDestino.getLocationOnScreen(posOd);
+                    int odInferior = posOd[1] + panelOrigenDestino.getHeight();
+                    if (panelSuperior + desplazamiento < odInferior) desplazamiento = (odInferior - panelSuperior) + aire;
                 }
                 panelZoom.animate().translationY(desplazamiento).setDuration(150).start();
             } catch (Exception ignore) {}
@@ -2102,7 +2121,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  Planificador.calcular(), sin tocarlo), incluida la pregunta Ordinario/Exprés por cada
      *  troncal Mexibús con ambos servicios. */
     private void configurarPanelPlanificador(View view) {
-        View panelOd = view.findViewById(R.id.panel_origen_destino);
+        View panelOd = panelOrigenDestino = view.findViewById(R.id.panel_origen_destino);
         View expandido = view.findViewById(R.id.panel_od_expandido);
         View colapsado = view.findViewById(R.id.panel_od_colapsado);
         inOrigen = view.findViewById(R.id.input_origen);
@@ -2114,6 +2133,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             panelOd.setVisibility(mostrar ? View.VISIBLE : View.GONE);
             if (mostrar) { expandido.setVisibility(View.VISIBLE); colapsado.setVisibility(View.GONE); }
             recentrarTrasPanel();
+            ajustarPanelZoom();
         });
 
         view.findViewById(R.id.btn_location).setOnClickListener(v -> usarUbicacionOrigen());
@@ -2126,11 +2146,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             String d = inDestino.getText().toString().trim();
             txtColapsado.setText((o.isEmpty() ? "?" : o) + " → " + (d.isEmpty() ? "?" : d));
             recentrarTrasPanel();
+            ajustarPanelZoom();
         });
         colapsado.setOnClickListener(v -> {
             colapsado.setVisibility(View.GONE);
             expandido.setVisibility(View.VISIBLE);
             recentrarTrasPanel();
+            ajustarPanelZoom();
         });
 
         view.findViewById(R.id.btn_intercambiar).setOnClickListener(v -> {
@@ -2549,6 +2571,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // de solo 16dp en vez del alto real de la tarjeta, y el trazo queda tapado por ella.
         View root = getView();
         if (root != null) root.post(() -> { if (isAdded()) encuadrarRutaActiva(); });
+        ajustarPanelZoom();
     }
 
     /** Encuadra TODO el trazo ya dibujado (ultimosLimitesRuta) dejando libre el espacio real que
@@ -2853,6 +2876,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             icContraerResultado.setRotation(-90);
         }
         recentrarTrasPanel();
+        ajustarPanelZoom();
     }
 
     private void pintarPasosRuta(Planificador.Ruta r) {
