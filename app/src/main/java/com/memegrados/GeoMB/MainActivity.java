@@ -31,13 +31,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // DESCRIPCIÓN:
 //
 // La pantalla PRINCIPAL de la app: hospeda la barra de navegación inferior
-// y va intercambiando los FRAGMENTS (Mapa, Líneas, Ruta, Servicio [Llegadas +
-// Reportar], Configuración) según lo que toque el usuario.
+// y va intercambiando los FRAGMENTS (Mapa [con el planificador fusionado],
+// Líneas, Servicio [Llegadas + Reportar], Configuración) según lo que toque
+// el usuario.
 //
 // PUNTOS CLAVE:
 //   - bottomNav (BottomNavigationView) : barra inferior, ítems en res/menu/bottom_nav_menu.xml.
-//   - EXTRA_ABRIR_RUTA : extra para abrir directo el planificador (p. ej. al
-//     tocar la notificación de recorrido).
+//   - EXTRA_ABRIR_RUTA : extra para abrir directo el mapa (p. ej. al tocar la
+//     notificación de recorrido) -- el planificador ya vive ahí, fusionado.
 //   - EdgeToEdge : dibuja detrás de las barras del sistema (pantalla completa).
 //
 // Una "Activity" es una pantalla de Android; los "Fragments" son piezas
@@ -45,7 +46,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // ============================================================
 public class MainActivity extends AppCompatActivity {
 
-    /** Extra: abrir directamente el planificador (p.ej. al tocar la notificación de recorrido). */
+    /** Extra: abrir directamente el mapa, donde vive el planificador fusionado (p.ej. al tocar la
+     *  notificación de recorrido). */
     public static final String EXTRA_ABRIR_RUTA = "abrir_ruta";
 
     /** Extra: enfocar esta unidad en el mapa (p. ej. al tocar la notificación FCM de
@@ -159,8 +161,9 @@ public class MainActivity extends AppCompatActivity {
                 RealtimeRepository.unidadSeleccionada = ecoFoco;
                 inicial = R.id.nav_mapa;
             } else {
-                inicial = (getIntent() != null && getIntent().getBooleanExtra(EXTRA_ABRIR_RUTA, false))
-                        ? R.id.nav_ruta : R.id.nav_mapa;
+                // El planificador ya vive fusionado en el mapa general (ver MapFragment); no hay
+                // pestaña aparte a la que mandar este extra.
+                inicial = R.id.nav_mapa;
             }
             // setSelectedItemId() no dispara el listener si ese ítem ya está seleccionado por
             // defecto (el primero del menú): seleccionar() de todos modos es idempotente.
@@ -261,8 +264,10 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         if (intent.getBooleanExtra(EXTRA_ABRIR_RUTA, false)) {
-            bottomNav.setSelectedItemId(R.id.nav_ruta);
-            seleccionar(R.id.nav_ruta);
+            // El planificador ya vive fusionado en el mapa general (ver MapFragment); no hay
+            // pestaña aparte a la que mandar este extra.
+            bottomNav.setSelectedItemId(R.id.nav_mapa);
+            seleccionar(R.id.nav_mapa);
         }
     }
 
@@ -282,7 +287,6 @@ public class MainActivity extends AppCompatActivity {
 
     private Fragment fragmentDe(int id) {
         if (id == R.id.nav_lineas) return new LinesFragment();
-        if (id == R.id.nav_ruta) return new PlanificadorFragment();
         if (id == R.id.nav_llegadas) return new ServicioFragment();
         if (id == R.id.nav_acerca) return new ConfiguracionFragment();
         return new MapFragment();
@@ -336,20 +340,6 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, new UnidadesGuardadasFragment())
                 .addToBackStack("unidades_guardadas")
-                .commitAllowingStateLoss();
-    }
-
-    /** Abre el planificador de ruta hacia una estación (con botón atrás), sin línea fija: si el
-     *  nombre existe en varias líneas, el propio planificador pregunta a cuál te refieres. */
-    public void mostrarPlanificador(String destino) { mostrarPlanificador(destino, 0); }
-
-    /** Igual, pero con la línea YA conocida (p. ej. se tocó un marcador concreto en el mapa): no
-     *  pregunta a cuál estación te refieres aunque el nombre exista en otra línea también. */
-    public void mostrarPlanificador(String destino, int linea) {
-        getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fragment_container, PlanificadorFragment.nuevo(destino, linea))
-                .addToBackStack("planificador")
                 .commitAllowingStateLoss();
     }
 

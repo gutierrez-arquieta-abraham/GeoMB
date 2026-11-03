@@ -23,10 +23,9 @@ import java.util.List;
 import java.util.TreeSet;
 
 /**
- * Carta flotante de desambiguación ("¿A qué estación te refieres?"): compartida entre
- * {@link PlanificadorFragment} (al trazar una ruta) y {@link MapFragment} (buscador del mapa),
- * para que ambos usen el mismo trato visual (logo de línea + pictograma + etiqueta) en vez de
- * que uno tenga la carta ilustrada y el otro un AlertDialog de texto plano.
+ * Carta flotante de desambiguación ("¿A qué estación te refieres?"): la usa {@link MapFragment}
+ * tanto al trazar una ruta (planificador fusionado) como en su buscador, para dar el mismo trato
+ * visual (logo de línea + pictograma + etiqueta) en vez de un AlertDialog de texto plano.
  */
 public final class CartaDesambiguacion {
 
@@ -47,8 +46,8 @@ public final class CartaDesambiguacion {
     }
 
     /** "¿A qué estación te refieres?": una celda por estación física, con ícono/badge de línea y
-     *  etiqueta "Nombre (Sistema Lx y Ly)". La usan PlanificadorFragment (al trazar) y MapFragment
-     *  (buscador del mapa) para no duplicar el criterio ni el trato visual. */
+     *  etiqueta "Nombre (Sistema Lx y Ly)". La usa MapFragment (al trazar y en su buscador) para
+     *  no duplicar el criterio ni el trato visual. */
     public static void elegirEstacionFisica(Context ctx, String titulo,
                                              List<List<Planificador.Match>> grupos, AlElegirGrupo cb) {
         List<List<Planificador.Match>> ordenados = new ArrayList<>(grupos);

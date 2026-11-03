@@ -35,10 +35,10 @@ public final class Iconos {
     /** "Tacubaya" y "De la Salle" troncales de L2 son el extremo real de H72 hacia L7 (ver
      *  RutasMixtas.LISTA, Mixta("...", 7, "Alameda Tacubaya"/"De la Salle", 2)) -- llevan el ícono
      *  diagonal de transbordo en TODO lugar donde se dibujan como marcador de mapa: el mapa general
-     *  (MapFragment), el panel de Líneas (EstacionesLineaFragment) y la ruta trazada del planificador
-     *  (PlanificadorFragment). Centralizado aquí para que los 3 usen el MISMO criterio -- antes cada
-     *  uno tenía su propia copia y PlanificadorFragment nunca llegó a tener ninguna, así que una ruta
-     *  trazada que pasara por estas 2 estaciones seguía mostrando el ícono sólido de siempre. */
+     *  y la ruta trazada del planificador (ambos en MapFragment) y el panel de Líneas
+     *  (EstacionesLineaFragment). Centralizado aquí para que los 3 usen el MISMO criterio -- antes
+     *  cada uno tenía su propia copia y el trazado de rutas nunca llegó a tener ninguna, así que una
+     *  ruta trazada que pasara por estas 2 estaciones seguía mostrando el ícono sólido de siempre. */
     public static final java.util.Set<String> ESTACIONES_TRANSBORDO_H72_L2 = new java.util.HashSet<>(
             java.util.Arrays.asList(Planificador.norm("Tacubaya"), Planificador.norm("De La Salle")));
 
@@ -47,7 +47,7 @@ public final class Iconos {
      *  MapFragment.iconoEstacionOTransbordo) -- se agregaron aquí porque desde que tienen nombre PROPIO en
      *  el grafo (defecto real corregido: antes compartían nombre con la troncal y la diagonal les salía
      *  "gratis" al coincidir con el set de arriba), dejaron de calzar en ESTACIONES_TRANSBORDO_H72_L2 en
-     *  los 2 lugares que dibujan la ruta YA CALCULADA (EstacionRutaAdapter, PlanificadorFragment.dibujar) --
+     *  el lugar que dibuja la ruta YA CALCULADA (MapFragment.dibujarRuta) --
      *  los otros 2 (CartaEstacion, CartaDesambiguacion) no lo necesitan: ya deciden por su propio
      *  mecanismo (el flag transbordo del llamador, o Match.nombreRuta != null), no por nombre. NO incluye
      *  "Alameda Tacubaya": ese punto usa su propio pictograma dedicado (ic_est_2_2), nunca diagonal. */

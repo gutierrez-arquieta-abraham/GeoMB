@@ -5,8 +5,7 @@ package com.memegrados.GeoMB;
  * según la numeración de CLAUDE.md: 1-7 Metrobús, 10X/11X/12X Mexibús, 20X Mexicable.
  *
  * <p>Fuente única: antes de esta clase, {@code sistemaDe(int)} estaba duplicado (con la misma
- * lógica) en {@link CartaDesambiguacion}, {@link Locuciones}, {@link RecorridoService} y, con otro
- * nombre ({@code sistema}), en {@link PlanificadorFragment}.
+ * lógica) en {@link CartaDesambiguacion}, {@link Locuciones} y {@link RecorridoService}.
  */
 // ============================================================
 // CLASE    : Sistemas

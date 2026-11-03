@@ -87,8 +87,7 @@
                 android:textColorHint="@color/mb_gray"
                 android:textSize="16sp" />
 
-            <!-- Entrada al planificador de ruta: abre/cierra panel_origen_destino (fusión del
-                 mapa general con PlanificadorFragment, en curso). -->
+            <!-- Entrada al planificador de ruta: abre/cierra panel_origen_destino. -->
             <ImageButton
                 android:id="@+id/btn_planificar"
                 android:layout_width="40dp"
@@ -113,10 +112,8 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Panel de origen/destino del planificador (FASE 1 de la fusión con el mapa general: solo
-         la cáscara visual que abre/cierra btn_planificar, la lógica de trazar/desambiguar
-         sigue en PlanificadorFragment hasta la fase 2). Mismo layout que
-         fragment_planificador.xml#panel_origen_destino, para reusar MapFragment.configurarPanelPlanificador(). -->
+    <!-- Panel de origen/destino del planificador, fusionado en el mapa general (ver
+         MapFragment.configurarPanelPlanificador()). -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/panel_origen_destino"
         android:layout_width="0dp"
@@ -522,10 +519,10 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Resultado del planificador (fusión con el mapa general): resumen + pasos de la ruta trazada,
-         switch Ordinario/Exprés (solo si el viaje va por una línea Mexibús con ambos servicios) e
-         "Iniciar recorrido" (seguimiento GPS en vivo), igual que fragment_planificador.xml#panel_resultado.
-         Mismo contenedor map_carta_container de arriba por ahora: en la práctica no coinciden visibles
+    <!-- Resultado del planificador: resumen + pasos de la ruta trazada, switch Ordinario/Exprés
+         (solo si el viaje va por una línea Mexibús con ambos servicios) e "Iniciar recorrido"
+         (seguimiento GPS en vivo). Mismo contenedor map_carta_container de arriba por ahora: en
+         la práctica no coinciden visibles
          a la vez (buscar unidad/estación vs. trazar ruta), se revisará si hace falta separar.
          Acotado entre barrier_bajo_buscador (arriba) y panel_mapa (abajo) con constrainedHeight +
          bias 1 (se "cuelga" del fondo, como antes, pero sin crecer encima de la barra de búsqueda/

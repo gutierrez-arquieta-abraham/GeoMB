@@ -161,9 +161,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private TextView bannerServidor;
     private long ultimaManifestMapa = -1;   // último Manifestaciones.actualizado() ya pintado en el mapa
 
-    // ---- Planificador (fusión con el mapa general: calcular/dibujar la ruta + seguimiento en vivo) ----
-    // Todavía NO incluye: unidades animadas sobre el trazo (el mapa general ya las muestra en todos
-    // lados) ni el switch Ordinario/Exprés en vivo durante el recorrido (queda fijo al trazar la ruta).
+    // ---- Planificador: calcular/dibujar la ruta + seguimiento en vivo, fusionado en el mapa
+    // general (ya no hay pestaña ni pantalla aparte). No porta las unidades animadas sobre el
+    // trazo de la versión vieja: el mapa general ya las muestra en todos lados.
     private EditText inOrigen, inDestino;
     private View panelResultado, panelResultadoDetalle, filaResultadoResumen, progressTrazando;
     private android.widget.ImageView icContraerResultado;
@@ -1625,8 +1625,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // un nombre que no existe en ningún catálogo real (ver agregarEstacionesH72()), así que
         // enrutan contra la estación troncal real en su lugar.
         String nombreParaRuta = em.nombreRuta != null ? em.nombreRuta : em.e.nombre;
-        v.findViewById(R.id.btn_como_llegar_estacion).setOnClickListener(b ->
-                ((MainActivity) requireActivity()).mostrarPlanificador(nombreParaRuta, em.linea));
+        v.findViewById(R.id.btn_como_llegar_estacion).setOnClickListener(b -> {
+            ocultarCarta();
+            abrirPlanificadorConDestino(nombreParaRuta, em.linea);
+        });
         cartaContainer.setVisibility(View.VISIBLE);
         ajustarPanelZoom();
         if (em.pos != null) destelloEstacion(em.pos, em.color);   // resalta el marcador seleccionado
@@ -2094,14 +2096,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
     }
 
-    /**
-     * FASE 2 de la fusión del planificador con el mapa general (ver PlanificadorFragment): ya
-     * calcula y dibuja la ruta sobre el mapa único (mismo Planificador.calcular(), sin tocarlo),
-     * incluida la pregunta Ordinario/Exprés por cada troncal Mexibús con ambos servicios.
-     * A propósito NO incluye todavía (fases aparte, ver el comentario de los campos arriba):
-     * re-enganche de un recorrido activo, unidades animadas sobre el trazo, ni "Iniciar
-     * recorrido" (seguimiento GPS en vivo).
-     */
+    /** Panel de origen/destino: abre/cierra, intercambia y traza sobre el mapa único (mismo
+     *  Planificador.calcular(), sin tocarlo), incluida la pregunta Ordinario/Exprés por cada
+     *  troncal Mexibús con ambos servicios. */
     private void configurarPanelPlanificador(View view) {
         View panelOd = view.findViewById(R.id.panel_origen_destino);
         View expandido = view.findViewById(R.id.panel_od_expandido);
@@ -2115,6 +2112,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             panelOd.setVisibility(mostrar ? View.VISIBLE : View.GONE);
             if (mostrar) { expandido.setVisibility(View.VISIBLE); colapsado.setVisibility(View.GONE); }
         });
+
+        view.findViewById(R.id.btn_location).setOnClickListener(v -> usarUbicacionOrigen());
 
         view.findViewById(R.id.btn_contraer_od).setOnClickListener(v -> {
             expandido.setVisibility(View.GONE);
@@ -2164,7 +2163,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         btnRecorrido.setOnClickListener(v -> alternarRecorrido());
     }
 
-    // ---- Planificador: calcular y dibujar la ruta (fase 2) --------------------------------
+    // ---- Planificador: calcular y dibujar la ruta ------------------------------------------
 
     private void setOrigenRuta(String canon) {
         origenCanon = canon; origenLinea = 0; origenSeleccionPos = null;
@@ -2174,6 +2173,38 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private void setDestinoRuta(String canon) {
         destinoCanon = canon; destinoLinea = 0;
         inDestino.setText(Planificador.sinMxb(canon));
+    }
+
+    /** Botón de localización del panel: rellena el origen con la estación más cercana por GPS. */
+    private void usarUbicacionOrigen() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(requireContext(), getString(R.string.recorrido_sin_permiso), Toast.LENGTH_LONG).show();
+            return;
+        }
+        Toast.makeText(requireContext(), getString(R.string.recorrido_ubicando), Toast.LENGTH_SHORT).show();
+        locationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener(l -> {
+                    if (!isAdded() || l == null) return;
+                    Estacion e = Planificador.masCercana(requireContext(),
+                            new LatLng(l.getLatitude(), l.getLongitude()));
+                    if (e == null) return;
+                    resolverOrigenPorGpsRuta(e, () -> { if (inDestino.getText().length() > 0) trazar(); });
+                });
+    }
+
+    /** Resuelve la estación más cercana por GPS por el mismo camino de candidatos/agrupación que el
+     *  texto escrito a mano (ver desambiguarRuta): si hay más de una plataforma distinta muy cerca,
+     *  pregunta en vez de quedarse en silencio con la geométricamente más cercana. */
+    private void resolverOrigenPorGpsRuta(Estacion e, Runnable alTerminar) {
+        inOrigen.setText(Planificador.sinMxb(e.nombre));
+        origenCanon = null; origenLinea = 0; origenSeleccionPos = null;   // fuerza a NO tomar el atajo "sin cambios"
+        desambiguarRuta(inOrigen, origenCanon, origenLinea, origenSeleccionPos, (om, or, lo, posO) -> {
+            if (!isAdded()) return;
+            origenCanon = or; origenLinea = lo; origenSeleccionPos = posO;
+            if (om != null) inOrigen.setText(Planificador.sinMxb(om));
+            if (alTerminar != null) alTerminar.run();
+        });
     }
 
     private String resolverRuta(EditText campo, String canon) {
@@ -2187,8 +2218,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private interface ResueltoRutaCb { void run(String mostrado, String ruta, int linea, LatLng pos); }
 
     /** Ejecuta Planificador.calcular en segundo plano (puede tardar >1 s) y entrega el resultado
-     *  en el hilo principal -- igual que PlanificadorFragment.calcularAsync(), para no bloquear
-     *  el hilo principal ni disparar un ANR. */
+     *  en el hilo principal, para no bloquear el hilo principal ni disparar un ANR. */
     private void calcularRutaAsync(java.util.concurrent.Callable<Planificador.Ruta> tarea,
                                     androidx.core.util.Consumer<Planificador.Ruta> alTerminar) {
         if (progressTrazando != null) progressTrazando.setVisibility(View.VISIBLE);
@@ -2211,6 +2241,20 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 }
             });
         });
+    }
+
+    /** Abre el planificador embebido con el destino ya fijado (p. ej. "Cómo llegar" desde una
+     *  estación): reemplaza la pantalla aparte que existía antes de fusionar el planificador al
+     *  mapa general. Rellena el origen por GPS y traza sola, igual que antes. */
+    private void abrirPlanificadorConDestino(String destino, int linea) {
+        View root = getView();
+        if (root == null) return;
+        root.findViewById(R.id.panel_origen_destino).setVisibility(View.VISIBLE);
+        root.findViewById(R.id.panel_od_expandido).setVisibility(View.VISIBLE);
+        root.findViewById(R.id.panel_od_colapsado).setVisibility(View.GONE);
+        setDestinoRuta(destino);
+        if (linea != 0) destinoLinea = linea;
+        usarUbicacionOrigen();
     }
 
     private void trazar() {
@@ -2249,7 +2293,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // Preferencia de servicio por CADA línea troncal Mexibús (10X) con exprés que use la
             // ruta: si no hay ninguna, se dibuja directo (caso de siempre, Metrobús puro o sin
             // troncales con exprés); si hay, se pregunta Ordinario/Exprés por cada una antes de
-            // dibujar la versión final (ver PlanificadorFragment.preguntarServicioPorLinea).
+            // dibujar la versión final (ver preguntarServicioPorLineaRuta más abajo).
             java.util.List<Integer> bases = basesTroncalesConExpressRuta(r);
             if (bases.isEmpty()) { dibujarRuta(r); return; }
             preguntarServicioPorLineaRuta(fo, flo, fd, fld, fpos, bases, new java.util.HashMap<>(), 0);
