@@ -67,6 +67,16 @@ public class UnidadRtWireTest {
         return o.toByteArray();
     }
 
+    /** Con trip_id (campo 1) -- Sonda lo manda SIEMPRE, con route_id vacío en una fracción normal
+     *  de las unidades (en depósito/en vacío). */
+    private static byte[] tripDescriptor(String tripId, String routeId, int directionId) throws IOException {
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        campoCadena(o, 1, tripId);
+        campoCadena(o, 2, routeId);
+        campoVarint(o, 3, directionId);
+        return o.toByteArray();
+    }
+
     private static byte[] position(float lat, float lon, float bearing, float speed) throws IOException {
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         campoFloat(o, 1, lat);
@@ -145,6 +155,20 @@ public class UnidadRtWireTest {
     public void feedVacio_devuelveListaVacia() throws IOException {
         byte[] feed = feedMessage();
         assertTrue(UnidadRtWire.leerFeed(feed).isEmpty());
+    }
+
+    @Test
+    public void tripId_seLeeInclusoConRouteIdVacio() throws IOException {
+        // Caso real confirmado en el feed: Sonda deja route_id vacío (unidad en depósito/en vacío)
+        // pero siempre manda trip_id -- ver RutasRepository.porTripId/RutasEstaticoDirecto.
+        byte[] vp = vehiclePosition(tripDescriptor("fc73eb8fc73e9UP1", "", 0),
+                position(19.4f, -99.1f, 45f, 8.3f), 1700000000L, vehicleDescriptor("9999", "", ""));
+        byte[] feed = feedMessage(feedEntity("e1", vp));
+
+        List<UnidadRtWire.Registro> lista = UnidadRtWire.leerFeed(feed);
+        assertEquals(1, lista.size());
+        assertEquals("fc73eb8fc73e9UP1", lista.get(0).tripId);
+        assertEquals("", lista.get(0).routeId);
     }
 
     @Test

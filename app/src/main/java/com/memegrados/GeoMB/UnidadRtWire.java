@@ -21,7 +21,7 @@ import java.util.List;
 final class UnidadRtWire {
 
     static final class Registro {
-        String id, label, placa, routeId;
+        String id, label, placa, routeId, tripId;
         int directionId = -1;
         float lat = Float.NaN, lon = Float.NaN, bearing, speed;
         long timestamp;
@@ -42,7 +42,14 @@ final class UnidadRtWire {
             String low = numero.toLowerCase();
             if (low.contains("test") || low.contains("maqueta") || low.contains("carraci")) continue;
 
+            // El route_id del TripDescriptor es OPCIONAL en GTFS-realtime cuando el feed usa
+            // trip_id -- Sonda deja route_id vacío en una fracción normal de las unidades (en
+            // depósito/en vacío/cambiando de turno) y solo manda trip_id. La forma correcta de
+            // resolver esos casos es por trips.txt (trip_id -> route_id), no asumir que faltan
+            // del catálogo. Confirmado contra el feed real: sin esto, ~15-20% de las unidades
+            // salían "sin línea asignada" aunque sí tuvieran un viaje real asignado.
             Ruta ruta = RutasRepository.porRouteId(c.routeId);
+            if (ruta == null) ruta = RutasRepository.porTripId(c.tripId);
             Integer linea = (ruta != null && ruta.linea != 0) ? ruta.linea : null;
             String destino = (ruta != null && !ruta.destino.isEmpty()) ? ruta.destino : null;
             String origen = (ruta != null && !ruta.origen.isEmpty()) ? ruta.origen : null;
@@ -110,7 +117,8 @@ final class UnidadRtWire {
         while (c.quedaAlgo()) {
             int tag = c.tag();
             int campo = c.campo(tag), tipo = c.tipo(tag);
-            if (campo == 2 && tipo == 2) r.routeId = c.cadena();
+            if (campo == 1 && tipo == 2) r.tripId = c.cadena();
+            else if (campo == 2 && tipo == 2) r.routeId = c.cadena();
             else if (campo == 3 && tipo == 0) r.directionId = (int) c.varint();
             else c.saltar(tipo);
         }

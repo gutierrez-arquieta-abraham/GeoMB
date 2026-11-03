@@ -77,6 +77,13 @@ public final class RutasRepository {
         return routeId != null ? porId.get(routeId) : null;
     }
 
+    /** Ruta por trip_id (respaldo cuando el feed en vivo no manda route_id -- ver
+     *  {@link RutasEstaticoDirecto#rutaIdDeTripId} y {@link UnidadRtWire#aUnidades}), o null. */
+    public static Ruta porTripId(String tripId) {
+        String routeId = RutasEstaticoDirecto.rutaIdDeTripId(tripId);
+        return routeId != null ? porId.get(routeId) : null;
+    }
+
     /** Rutas de una línea, ordenadas por código. */
     public static List<Ruta> deLinea(int linea) {
         List<Ruta> res = new ArrayList<>();

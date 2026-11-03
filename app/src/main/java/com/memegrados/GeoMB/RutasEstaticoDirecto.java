@@ -12,7 +12,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -39,6 +42,12 @@ import java.util.zip.ZipInputStream;
  * ej. "el rosario- dep. 18 de marzo", sin espacio) -- el propio routes.json curado del backend
  * tiene ese caso con el destino vacío por partirlo con " - " literal; aquí se tolera para no
  * heredar ese defecto.
+ *
+ * De paso arma trip_id -> route_id (trips.txt, mismo zip): TripDescriptor.route_id es OPCIONAL
+ * en GTFS-realtime cuando el feed usa trip_id -- confirmado contra el feed real, Sonda deja
+ * route_id vacío en una fracción normal de las unidades (en depósito/en vacío/cambiando de
+ * turno) y solo manda trip_id. Sin este mapa esas unidades salían "sin línea asignada" aunque
+ * sí tuvieran un viaje real asignado -- ver {@link UnidadRtWire#aUnidades}.
  */
 final class RutasEstaticoDirecto {
 
@@ -57,6 +66,10 @@ final class RutasEstaticoDirecto {
     private static volatile long catalogoExpiraEpoch;
     private static final long CATALOGO_VIGENCIA_SEG = 6 * 3600;
 
+    /** trip_id -> route_id (trips.txt, mismo zip) -- ver {@link #rutaIdDeTripId}. Misma vigencia
+     *  que {@link #catalogoCache} (se arman juntos, en la misma pasada del zip). */
+    private static volatile Map<String, String> tripIdARouteId = Collections.emptyMap();
+
     static List<Ruta> obtener() throws Exception {
         if (EstadoServicio.enPausa()) throw new IllegalStateException("servicio en pausa");
         if (BuildConfig.SONDA_USUARIO.isEmpty() || BuildConfig.SONDA_SENHA.isEmpty()) {
@@ -71,6 +84,13 @@ final class RutasEstaticoDirecto {
         catalogoCache = lista;
         catalogoExpiraEpoch = ahoraSeg + CATALOGO_VIGENCIA_SEG;
         return lista;
+    }
+
+    /** route_id del trip_id dado (trips.txt), o null si no se conoce -- respaldo para cuando el
+     *  feed en vivo no manda route_id (ver {@link UnidadRtWire#aUnidades}). Vacío si este tier
+     *  nunca llegó a descargar el zip (backend respondió, o también falló). */
+    static String rutaIdDeTripId(String tripId) {
+        return (tripId != null && !tripId.isEmpty()) ? tripIdARouteId.get(tripId) : null;
     }
 
     private static synchronized String urlVigente() throws Exception {
@@ -117,16 +137,42 @@ final class RutasEstaticoDirecto {
         return sb.toString();
     }
 
-    /** Extrae y parsea SOLO routes.txt del zip -- stop_times.txt pesa decenas de MB y no hace falta. */
+    /** Extrae y parsea routes.txt Y trips.txt del zip (una sola pasada) -- el resto (stop_times.txt,
+     *  que pesa decenas de MB, shapes.txt, calendar*.txt) se descarta sin guardarlo en memoria. */
     private static List<Ruta> parsearZip(byte[] zip) throws IOException {
+        List<Ruta> rutas = null;
+        Map<String, String> trips = null;
         try (ZipInputStream zin = new ZipInputStream(new ByteArrayInputStream(zip))) {
             ZipEntry entry;
             while ((entry = zin.getNextEntry()) != null) {
-                if (!"routes.txt".equals(entry.getName())) continue;
-                return parsearRoutesTxt(zin);
+                if ("routes.txt".equals(entry.getName())) {
+                    rutas = parsearRoutesTxt(zin);
+                } else if ("trips.txt".equals(entry.getName())) {
+                    trips = parsearTripsTxt(zin);
+                }
+                if (rutas != null && trips != null) break;
             }
         }
-        throw new IOException("routes.txt no encontrado en el GTFS estático");
+        if (rutas == null) throw new IOException("routes.txt no encontrado en el GTFS estático");
+        tripIdARouteId = trips != null ? trips : Collections.emptyMap();
+        return rutas;
+    }
+
+    /** trip_id -> route_id. Columnas reales de trips.txt: route_id(0),service_id(1),trip_id(2),... */
+    static Map<String, String> parsearTripsTxt(InputStream in) throws IOException {
+        Map<String, String> mapa = new HashMap<>();
+        BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+        String encabezado = br.readLine();
+        if (encabezado == null) return mapa;
+        String linea;
+        while ((linea = br.readLine()) != null) {
+            if (linea.trim().isEmpty()) continue;
+            String[] c = linea.split(",", -1);
+            if (c.length < 3) continue;
+            String routeId = c[0].trim(), tripId = c[2].trim();
+            if (!routeId.isEmpty() && !tripId.isEmpty()) mapa.put(tripId, routeId);
+        }
+        return mapa;
     }
 
     static List<Ruta> parsearRoutesTxt(InputStream in) throws IOException {

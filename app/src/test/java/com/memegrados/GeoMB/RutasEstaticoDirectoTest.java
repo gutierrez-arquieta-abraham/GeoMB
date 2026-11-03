@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -88,5 +89,17 @@ public class RutasEstaticoDirectoTest {
         assertEquals(2, lista.size());
         assertEquals("El Rosario", lista.get(0).destino);
         assertEquals("Dep. 18 De Marzo", lista.get(1).destino);
+    }
+
+    @Test
+    public void parsearTripsTxt_mapeaTripIdARouteId() throws IOException {
+        String csv = "route_id,service_id,trip_id,trip_headsign,trip_short_name,direction_id,block_id,shape_id,wheelchair_accessible,bikes_allowed\n"
+                + "19429,fc73eb8fc73e9U,fc73eb8fc73e9UP1,Ida,,0,,19429,,\n"
+                + "19470,abc,tripXYZ,Ida,,0,,19470,,\n";
+        InputStream in = new ByteArrayInputStream(csv.getBytes(StandardCharsets.UTF_8));
+        Map<String, String> mapa = RutasEstaticoDirecto.parsearTripsTxt(in);
+        assertEquals(2, mapa.size());
+        assertEquals("19429", mapa.get("fc73eb8fc73e9UP1"));
+        assertEquals("19470", mapa.get("tripXYZ"));
     }
 }
