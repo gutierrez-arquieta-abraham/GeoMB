@@ -38,10 +38,6 @@ public class UnidadReal {
     public final String destino;    // nombre del destino según la ruta/dirección
     public final String origen;     // nombre del origen (para detectar rutas mixtas)
     public final String ruta;       // route_id del feed (identificador de la ruta)
-    // TEMPORAL: trip_id crudo del feed (solo lo trae el camino protobuf, ver UnidadRtWire), para
-    // el diagnóstico en curso de por qué algunas unidades no resuelven línea ni por route_id ni
-    // por trip_id -- ver CartaUnidad.descripcionLinea. Quitar junto con ese sufijo de depuración.
-    public final String tripId;
     public final String empresa;    // concesionario (calculado del económico)
     public final String marca;      // marca del autobús (calculada del económico)
     public final String modelo;     // modelo del autobús (calculado del económico)
@@ -54,20 +50,11 @@ public class UnidadReal {
     public UnidadReal(String numero, Integer linea, String destino, String origen, String ruta,
                       String empresa, String marca, String modelo,
                       String placa, double lat, double lon, float rumbo, float velMs, long timestamp) {
-        this(numero, linea, destino, origen, ruta, null, empresa, marca, modelo, placa, lat, lon,
-                rumbo, velMs, timestamp);
-    }
-
-    /** Igual que el constructor de siempre, con trip_id crudo del feed (ver {@link #tripId}, TEMPORAL). */
-    public UnidadReal(String numero, Integer linea, String destino, String origen, String ruta,
-                      String tripId, String empresa, String marca, String modelo,
-                      String placa, double lat, double lon, float rumbo, float velMs, long timestamp) {
         this.numero = numero;
         this.linea = linea;
         this.destino = destino;
         this.origen = origen;
         this.ruta = ruta;
-        this.tripId = tripId;
         this.empresa = empresa;
         this.marca = marca;
         this.modelo = modelo;

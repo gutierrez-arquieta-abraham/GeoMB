@@ -94,14 +94,6 @@ public final class CartaUnidad {
         v.badgeEstado.setVisibility(View.VISIBLE);
         if (u != null) {
             v.badgeEstado.setText(R.string.estado_en_ruta);
-            if (u.linea == null) {
-                // El route_id crudo NUNCA se muestra en la UI -- se registra aquí para que el
-                // reporte técnico (Configuración > Reportar un problema) lo traiga cuando el
-                // usuario mira justo esta unidad, sin tener que exponerlo en pantalla. Acotado por
-                // interacción del usuario (ver una ficha), no por el pólleo -- no ensucia el reporte.
-                Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "CartaUnidad.bind:sin_linea",
-                        "numero=" + numero + " route_id=" + u.ruta);
-            }
             String linea = descripcionLinea(ctx, u);
             v.txtLinea.setText(linea);
             Ruta r = RutasRepository.porRouteId(u.ruta);
@@ -168,16 +160,7 @@ public final class CartaUnidad {
     }
 
     private static String descripcionLinea(Context ctx, UnidadReal u) {
-        if (u.linea == null) {
-            // TEMPORAL: muestra el route_id crudo del feed para diagnosticar por qué esta unidad no
-            // resuelve línea (ver RutasRepository/RutasEstaticoDirecto) -- sin esto no hay forma de
-            // verlo (no sale en ningún otro lado de la UI) ni de mandarlo (el correo de "Reportar un
-            // problema" no incluye el log técnico, y el log se sincroniza al backend, que está
-            // caído). Quitar este sufijo una vez cerrado el diagnóstico.
-            String rid = (u.ruta != null && !u.ruta.isEmpty()) ? u.ruta : "?";
-            String tid = (u.tripId != null && !u.tripId.isEmpty()) ? u.tripId : "?";
-            return "Sin línea asignada (route_id " + rid + ", trip_id " + tid + ")";
-        }
+        if (u.linea == null) return "Sin línea asignada";
         Linea l = GtfsRepository.porNumero(ctx, u.linea);
         String nombre = l != null ? l.nombre : "";
         if (u.linea >= 100) {

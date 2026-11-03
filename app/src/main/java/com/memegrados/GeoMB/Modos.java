@@ -157,10 +157,11 @@ public final class Modos {
     }
 
     // --- Tiempo de actualización del mapa (segundos), configurable por el usuario en "Acerca de".
-    //     El endpoint SONDA refresca cada ~30–60 s, así que por defecto son 30 s. ---
+    //     El endpoint SONDA refresca cada ~30–60 s, así que por defecto son 30 s. Sin piso artificial
+    //     más allá de 1 s -- queda a consideración del usuario qué tan seguido quiere refrescar. ---
 
     private static final String K_MAPA_SEG = "mapa_refresco_seg";
-    public static final int MAPA_SEG_MIN = 15, MAPA_SEG_MAX = 120, MAPA_SEG_DEF = 30;
+    public static final int MAPA_SEG_MIN = 1, MAPA_SEG_MAX = 120, MAPA_SEG_DEF = 30;
 
     public static int mapaRefrescoSeg(Context c) {
         int s = p(c).getInt(K_MAPA_SEG, MAPA_SEG_DEF);
