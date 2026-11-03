@@ -21,6 +21,10 @@ local.properties
 *.p12
 key.properties
 
+# Credenciales de Sonda (GTFS-realtime) para el respaldo de UnidadRtDirecto: nunca al repo.
+# Ver UnidadRtDirecto.java (lee BuildConfig.SONDA_USUARIO/SENHA) para el formato esperado.
+sonda.properties
+
 # Integración Gemini (integrations/gemini/): nunca la llave real ni el entorno virtual.
 integrations/gemini/.env
 integrations/gemini/.venv/

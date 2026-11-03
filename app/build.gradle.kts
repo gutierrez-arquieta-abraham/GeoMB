@@ -1,6 +1,18 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     id("com.google.gms.google-services")
+}
+
+// Credenciales de Sonda (GTFS-realtime) para el respaldo de UnidadRtDirecto -- NUNCA en el repo
+// (ver .gitignore: sonda.properties). Mismo patrón que key.properties para la firma de la app:
+// un archivo local, fuera de git, con 2 líneas "sonda.usuario=..." / "sonda.senha=...". Si el
+// archivo no existe (por defecto, en cualquier checkout nuevo), los campos quedan vacíos y
+// UnidadRtDirecto simplemente no se activa -- nunca rompe la compilación ni el resto de la app.
+val sondaProps = Properties().apply {
+    val f = rootProject.file("sonda.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -15,6 +27,13 @@ android {
         versionName = "1.6.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "SONDA_USUARIO", "\"${sondaProps.getProperty("sonda.usuario", "")}\"")
+        buildConfigField("String", "SONDA_SENHA", "\"${sondaProps.getProperty("sonda.senha", "")}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     // Maps API key por variante: la key compartida (AndroidManifest antes) quedó restringida en

@@ -127,8 +127,16 @@ public final class RealtimeRepository {
                     // error como si fuera un fallo real de la descarga.
                     listaObtenida = UnidadRtEdge.obtener();
                 } catch (Exception edgeErr) {
-                    String json = Backend.descargar(Config.PATH_VEHICLES);
-                    listaObtenida = parsear(json);
+                    try {
+                        String json = Backend.descargar(Config.PATH_VEHICLES);
+                        listaObtenida = parsear(json);
+                    } catch (Exception backendErr) {
+                        // Los 2 caminos de siempre pasan por el backend propio (EC2/Oracle): si
+                        // AMBOS fallan, es el backend el que está caído, no solo el feed. Último
+                        // recurso -- ver UnidadRtDirecto -- para que el mapa en vivo siga
+                        // funcionando pese a eso (p. ej. un corte por falta de pago del EC2).
+                        listaObtenida = UnidadRtDirecto.obtener();
+                    }
                 }
                 final List<UnidadReal> lista = listaObtenida;
                 ultimo = lista;
