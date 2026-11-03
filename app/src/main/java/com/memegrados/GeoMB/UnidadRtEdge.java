@@ -29,8 +29,23 @@ final class UnidadRtEdge {
         if (!RutasRepository.estaCargado()) {
             throw new IllegalStateException("catalogo de rutas aun sin cargar");
         }
-        byte[] datos = Backend.descargarBinario(urlVigente());
-        return UnidadRtWire.aUnidades(UnidadRtWire.leerFeed(datos));
+        String url = urlVigente();
+        try {
+            byte[] datos = Backend.descargarBinario(url);
+            return UnidadRtWire.aUnidades(UnidadRtWire.leerFeed(datos));
+        } catch (Exception e) {
+            // La URL firmada puede morir ANTES de que caduque nuestro caché local -- igual que
+            // poll_loop() en el EC2 (metrobus_app/app.py), que pide una URL nueva DE INMEDIATO si
+            // el feed falla, en vez de esperar al siguiente ciclo del timer: se invalida el caché
+            // para forzar una llamada fresca a Config.PATH_SYNC en el próximo intento.
+            invalidarCache();
+            throw e;
+        }
+    }
+
+    private static synchronized void invalidarCache() {
+        urlCache = null;
+        expiraEpoch = 0;
     }
 
     /** URL firmada vigente: la cachea (igual que hace el propio backend) para que, aunque el

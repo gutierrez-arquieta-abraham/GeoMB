@@ -55,8 +55,25 @@ final class UnidadRtDirecto {
         if (!RutasRepository.estaCargado()) {
             throw new IllegalStateException("catalogo de rutas aun sin cargar");
         }
-        byte[] datos = Backend.descargarBinario(urlVigente());
-        return UnidadRtWire.aUnidades(UnidadRtWire.leerFeed(datos));
+        String url = urlVigente();
+        try {
+            byte[] datos = Backend.descargarBinario(url);
+            return UnidadRtWire.aUnidades(UnidadRtWire.leerFeed(datos));
+        } catch (Exception e) {
+            // La URL firmada puede morir ANTES de que caduque nuestro caché local (revocada,
+            // feed reiniciado del lado de Sonda, etc.) -- igual que poll_loop() en el EC2
+            // (metrobus_app/app.py), que pide una URL nueva DE INMEDIATO si el feed falla, en vez
+            // de esperar al siguiente ciclo del timer: se invalida el caché para forzar una
+            // llamada fresca a partnerValidation en el próximo intento, en vez de reintentar la
+            // misma URL muerta hasta por 8 min más.
+            invalidarCache();
+            throw e;
+        }
+    }
+
+    private static synchronized void invalidarCache() {
+        urlCache = null;
+        expiraEpoch = 0;
     }
 
     private static synchronized String urlVigente() throws Exception {
