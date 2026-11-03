@@ -168,7 +168,15 @@ public final class CartaUnidad {
     }
 
     private static String descripcionLinea(Context ctx, UnidadReal u) {
-        if (u.linea == null) return "Sin línea asignada";
+        if (u.linea == null) {
+            // TEMPORAL: muestra el route_id crudo del feed para diagnosticar por qué esta unidad no
+            // resuelve línea (ver RutasRepository/RutasEstaticoDirecto) -- sin esto no hay forma de
+            // verlo (no sale en ningún otro lado de la UI) ni de mandarlo (el correo de "Reportar un
+            // problema" no incluye el log técnico, y el log se sincroniza al backend, que está
+            // caído). Quitar este sufijo una vez cerrado el diagnóstico.
+            String rid = (u.ruta != null && !u.ruta.isEmpty()) ? u.ruta : "?";
+            return "Sin línea asignada (id " + rid + ")";
+        }
         Linea l = GtfsRepository.porNumero(ctx, u.linea);
         String nombre = l != null ? l.nombre : "";
         if (u.linea >= 100) {
