@@ -142,6 +142,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
     }
     private final List<EstMapa> estaciones = new ArrayList<>();
+    // Líneas base de Metrobús (dibujarRed()), para poder atenuarlas cuando hay una ruta trazada
+    // encima (ver dibujarRuta()/aplicarOpacidadRed()) y que el trazo resalte más.
+    private final List<Polyline> lineasRed = new ArrayList<>();
     // Capa Mexibús (líneas + estaciones); su visibilidad la controla "Mostrar Mexibús" (Acerca de).
     private final List<Polyline> mexibusLineas = new ArrayList<>();
     private final List<EstMapa> mexibusEst = new ArrayList<>();
@@ -159,8 +162,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private long ultimaManifestMapa = -1;   // último Manifestaciones.actualizado() ya pintado en el mapa
 
     // ---- Planificador (fusión con el mapa general, FASE 2: calcular y dibujar la ruta) ----
-    // Todavía NO incluye (fases aparte): preferencia Ordinario/Exprés por troncal Mexibús,
-    // re-enganche automático de un recorrido activo, unidades animadas sobre el trazo (el mapa
+    // Todavía NO incluye (fases aparte): re-enganche automático de un recorrido activo,
+    // unidades animadas sobre el trazo (el mapa
     // general ya las muestra en todos lados) ni el seguimiento GPS en vivo ("Iniciar recorrido").
     private EditText inOrigen, inDestino;
     private View panelResultado, panelResultadoDetalle, filaResultadoResumen, progressTrazando;
@@ -651,18 +654,18 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (linea.segmentos != null && !linea.segmentos.isEmpty()) {
                 // Trazado oficial por tramos (ida/vuelta y ramales): sin huecos.
                 for (java.util.List<LatLng> tramo : linea.segmentos) {
-                    mapa.addPolyline(new PolylineOptions()
+                    lineasRed.add(mapa.addPolyline(new PolylineOptions()
                             .addAll(tramo)
                             .color(linea.color)
                             .width(9f)
-                            .geodesic(false));
+                            .geodesic(false)));
                 }
             } else {
-                mapa.addPolyline(new PolylineOptions()
+                lineasRed.add(mapa.addPolyline(new PolylineOptions()
                         .addAll(linea.ruta)
                         .color(linea.color)
                         .width(9f)
-                        .geodesic(false));
+                        .geodesic(false)));
             }
 
             for (Estacion e : linea.estaciones) {
@@ -1088,9 +1091,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         for (String suf : new String[]{"-ida", "-vuelta"}) {
             List<LatLng> sh = GtfsRepository.sublinea(requireContext(), base + suf);
             if (sh == null || sh.size() < 2) continue;
-            mapa.addPolyline(new PolylineOptions().addAll(sh).color(a.color).width(7f).zIndex(2f));
-            mapa.addPolyline(new PolylineOptions().addAll(sh).color(b.color).width(7f)
-                    .zIndex(2f).pattern(punteado));
+            lineasRed.add(mapa.addPolyline(new PolylineOptions().addAll(sh).color(a.color).width(7f).zIndex(2f)));
+            lineasRed.add(mapa.addPolyline(new PolylineOptions().addAll(sh).color(b.color).width(7f)
+                    .zIndex(2f).pattern(punteado)));
         }
     }
 
@@ -2061,10 +2064,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     /**
      * FASE 2 de la fusión del planificador con el mapa general (ver PlanificadorFragment): ya
-     * calcula y dibuja la ruta sobre el mapa único (mismo Planificador.calcular(), sin tocarlo).
+     * calcula y dibuja la ruta sobre el mapa único (mismo Planificador.calcular(), sin tocarlo),
+     * incluida la pregunta Ordinario/Exprés por cada troncal Mexibús con ambos servicios.
      * A propósito NO incluye todavía (fases aparte, ver el comentario de los campos arriba):
-     * preferencia Ordinario/Exprés por troncal Mexibús, re-enganche de un recorrido activo,
-     * unidades animadas sobre el trazo, ni "Iniciar recorrido" (seguimiento GPS en vivo).
+     * re-enganche de un recorrido activo, unidades animadas sobre el trazo, ni "Iniciar
+     * recorrido" (seguimiento GPS en vivo).
      */
     private void configurarPanelPlanificador(View view) {
         View panelOd = view.findViewById(R.id.panel_origen_destino);
@@ -2189,10 +2193,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
         final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
         final String fom = origenMostrado; final String fdm = destinoMostrado; final LatLng fpos = posOrigen;
-        // Preferencia SUAVE sembrada desde el servicio con el que origen/destino ya quedaron fijados
-        // (ver PlanificadorFragment.sembrarPrefServicio): sin esto, el cálculo queda pineado a
-        // exactamente esa línea (102 u 122, p. ej.) sin poder caer al servicio hermano de la MISMA
-        // base si justo ese cerró. La pregunta explícita Ordinario/Exprés queda para una fase aparte.
+        // Preferencia SUAVE sembrada desde el servicio con el que origen/destino ya quedaron fijados:
+        // sin esto, el cálculo queda pineado a exactamente esa línea (102 u 122, p. ej.) sin poder
+        // caer al servicio hermano de la MISMA base si justo ese cerró. La pregunta explícita
+        // Ordinario/Exprés por cada troncal (si aplica) viene después de este primer cálculo.
         final java.util.Map<Integer, Boolean> prefInicial = new java.util.HashMap<>();
         sembrarPrefServicioRuta(prefInicial, flo);
         sembrarPrefServicioRuta(prefInicial, fld);
@@ -2205,8 +2209,59 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             inOrigen.setText(flo == 0 ? Planificador.sinMxb(fom) : Planificador.nombreMostrar(requireContext(), fom, flo));
             destinoCanon = fdm; destinoLinea = fld;
             inDestino.setText(fld == 0 ? Planificador.sinMxb(fdm) : Planificador.nombreMostrar(requireContext(), fdm, fld));
-            dibujarRuta(r);
+            // Preferencia de servicio por CADA línea troncal Mexibús (10X) con exprés que use la
+            // ruta: si no hay ninguna, se dibuja directo (caso de siempre, Metrobús puro o sin
+            // troncales con exprés); si hay, se pregunta Ordinario/Exprés por cada una antes de
+            // dibujar la versión final (ver PlanificadorFragment.preguntarServicioPorLinea).
+            java.util.List<Integer> bases = basesTroncalesConExpressRuta(r);
+            if (bases.isEmpty()) { dibujarRuta(r); return; }
+            preguntarServicioPorLineaRuta(fo, flo, fd, fld, fpos, bases, new java.util.HashMap<>(), 0);
         });
+    }
+
+    /** Bases troncales Mexibús (101..104) con servicio exprés que aparecen en la ruta, en orden. */
+    private java.util.List<Integer> basesTroncalesConExpressRuta(Planificador.Ruta r) {
+        java.util.LinkedHashSet<Integer> bases = new java.util.LinkedHashSet<>();
+        for (Planificador.Parada p : r.secuencia) {
+            if (p.linea >= 111 && p.linea <= 119) continue;
+            int base = Servicios.base(p.linea);
+            if (base >= 101 && base <= 104) bases.add(base);
+        }
+        return new java.util.ArrayList<>(bases);
+    }
+
+    /** Pregunta el servicio (Ordinario/Exprés) por cada base troncal, en secuencia; al terminar,
+     *  recalcula con la preferencia global (con fallback donde el exprés no llegue) y dibuja. */
+    private void preguntarServicioPorLineaRuta(String origen, int lineaO, String destino, int lineaD, LatLng posOrigen,
+                                                java.util.List<Integer> bases,
+                                                java.util.Map<Integer, Boolean> pref, int idx) {
+        if (idx >= bases.size()) {
+            final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
+            final LatLng fpos = posOrigen;
+            final java.util.Map<Integer, Boolean> fpref = pref;
+            calcularRutaAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, fpref, fpos), r -> {
+                if (r == null) {
+                    Toast.makeText(requireContext(), mensajeFalloRuta(fd), Toast.LENGTH_LONG).show();
+                    return;
+                }
+                dibujarRuta(r);
+            });
+            return;
+        }
+        int base = bases.get(idx), exp = base + 20;
+        String et = Planificador.etiquetaLineaCortaPub(base);
+        int colorBase = CartaDesambiguacion.colorLinea(requireContext(), base);
+        int colorExp = CartaDesambiguacion.colorLinea(requireContext(), exp);
+        java.util.List<CartaDesambiguacion.Opcion> op = new java.util.ArrayList<>();
+        op.add(new CartaDesambiguacion.Opcion(0, CartaDesambiguacion.badgeLinea(requireContext(), colorBase, et), getString(R.string.servicio_ordinario), () -> {
+            pref.put(base, false);
+            preguntarServicioPorLineaRuta(origen, lineaO, destino, lineaD, posOrigen, bases, pref, idx + 1);
+        }).col(colorBase));
+        op.add(new CartaDesambiguacion.Opcion(0, CartaDesambiguacion.badgeLinea(requireContext(), colorExp, et), getString(R.string.servicio_express), () -> {
+            pref.put(base, true);
+            preguntarServicioPorLineaRuta(origen, lineaO, destino, lineaD, posOrigen, bases, pref, idx + 1);
+        }).col(colorExp));
+        CartaDesambiguacion.mostrar(requireContext(), getString(R.string.servicio_titulo_linea, "L" + et), op);
     }
 
     private static void sembrarPrefServicioRuta(java.util.Map<Integer, Boolean> pref, int linea) {
@@ -2338,10 +2393,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         marcadoresRuta.clear();
         rutaActiva = r;
 
+        // Ancho/zIndex por encima de las líneas base (lineasRed/mexibusLineas, width 7-9f) para que
+        // el trazo resalte por sí mismo; además se atenúan esas líneas de fondo abajo.
         LatLngBounds.Builder bounds = new LatLngBounds.Builder();
         for (Planificador.Paso p : r.pasos) {
             trazoRuta.add(mapa.addPolyline(new PolylineOptions()
-                    .addAll(p.puntos).color(p.color).width(18f).zIndex(5f)));
+                    .addAll(p.puntos).color(p.color).width(22f).zIndex(5f)));
             for (LatLng pt : p.puntos) bounds.include(pt);
         }
         for (int k = 1; k < r.pasos.size(); k++) {
@@ -2349,8 +2406,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (ant.isEmpty() || act.isEmpty()) continue;
             trazoRuta.add(mapa.addPolyline(new PolylineOptions()
                     .add(ant.get(ant.size() - 1)).add(act.get(0))
-                    .color(r.pasos.get(k).color).width(12f).zIndex(4f)));
+                    .color(r.pasos.get(k).color).width(14f).zIndex(4f)));
         }
+        aplicarOpacidadRed(true);
         for (Planificador.Parada p : r.secuencia) {
             boolean esTroncalH72L2 = p.linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(p.nombre));
             boolean esPropioH72 = p.linea == 2 && Iconos.ESTACIONES_PROPIAS_H72.contains(Planificador.norm(p.nombre));
@@ -2570,6 +2628,19 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private int colorDeRuta(int lineaNum) {
         Linea l = GtfsRepository.porNumero(requireContext(), lineaNum);
         return l != null ? l.color : 0xFFFF9A03;
+    }
+
+    /** Atenúa (o restaura) las líneas base de TODA la red (las que ya están dibujadas desde que
+     *  arranca la app, ver dibujarRed()/dibujarMixtaShape()/dibujarMexibus()) para que el trazo de
+     *  una ruta activa resalte más -- sin tocar su color, solo el canal alfa. */
+    private void aplicarOpacidadRed(boolean atenuada) {
+        int alpha = atenuada ? 70 : 255;
+        for (Polyline p : lineasRed) p.setColor(conAlpha(p.getColor(), alpha));
+        for (Polyline p : mexibusLineas) p.setColor(conAlpha(p.getColor(), alpha));
+    }
+
+    private static int conAlpha(int colorArgb, int alpha) {
+        return (alpha << 24) | (colorArgb & 0x00FFFFFF);
     }
 
     private void irAMiUbicacion() {
