@@ -29,6 +29,35 @@ final class UnidadRtWire {
 
     private UnidadRtWire() {}
 
+    /** Arma la lista de {@link UnidadReal} a partir de los registros crudos ya decodificados --
+     *  mismo filtro (fantasmas, coordenadas inválidas) y mismo join con {@link RutasRepository}
+     *  (línea/origen/destino por route_id) que usa el servidor hoy antes de mandar el JSON. */
+    static java.util.List<UnidadReal> aUnidades(List<Registro> crudos) {
+        List<UnidadReal> lista = new ArrayList<>(crudos.size());
+        for (Registro c : crudos) {
+            if (Float.isNaN(c.lat) || Float.isNaN(c.lon)) continue;
+
+            String numero = (c.label != null && !c.label.isEmpty()) ? c.label
+                    : (c.id != null && !c.id.isEmpty() ? c.id : "—");
+            String low = numero.toLowerCase();
+            if (low.contains("test") || low.contains("maqueta") || low.contains("carraci")) continue;
+
+            Ruta ruta = RutasRepository.porRouteId(c.routeId);
+            Integer linea = (ruta != null && ruta.linea != 0) ? ruta.linea : null;
+            String destino = (ruta != null && !ruta.destino.isEmpty()) ? ruta.destino : null;
+            String origen = (ruta != null && !ruta.origen.isEmpty()) ? ruta.origen : null;
+
+            Modelos.Ficha ficha = Modelos.paraEconomico(numero);
+            // Igual que RealtimeRepository.parsear(): el feed manda la velocidad en km/h.
+            float velMs = c.speed / 3.6f;
+
+            lista.add(new UnidadReal(numero, linea, destino, origen, c.routeId, ficha.empresa,
+                    ficha.marca, ficha.modelo, c.placa != null ? c.placa : "",
+                    c.lat, c.lon, c.bearing, velMs, c.timestamp));
+        }
+        return lista;
+    }
+
     /** Parsea un FeedMessage completo y devuelve un registro por cada FeedEntity con 'vehicle'. */
     static List<Registro> leerFeed(byte[] datos) {
         List<Registro> out = new ArrayList<>();

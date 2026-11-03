@@ -2,7 +2,6 @@ package com.memegrados.GeoMB;
 
 import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,30 +30,7 @@ final class UnidadRtEdge {
             throw new IllegalStateException("catalogo de rutas aun sin cargar");
         }
         byte[] datos = Backend.descargarBinario(urlVigente());
-        List<UnidadRtWire.Registro> crudos = UnidadRtWire.leerFeed(datos);
-        List<UnidadReal> lista = new ArrayList<>(crudos.size());
-        for (UnidadRtWire.Registro c : crudos) {
-            if (Float.isNaN(c.lat) || Float.isNaN(c.lon)) continue;
-
-            String numero = (c.label != null && !c.label.isEmpty()) ? c.label
-                    : (c.id != null && !c.id.isEmpty() ? c.id : "—");
-            String low = numero.toLowerCase();
-            if (low.contains("test") || low.contains("maqueta") || low.contains("carraci")) continue;
-
-            Ruta ruta = RutasRepository.porRouteId(c.routeId);
-            Integer linea = (ruta != null && ruta.linea != 0) ? ruta.linea : null;
-            String destino = (ruta != null && !ruta.destino.isEmpty()) ? ruta.destino : null;
-            String origen = (ruta != null && !ruta.origen.isEmpty()) ? ruta.origen : null;
-
-            Modelos.Ficha ficha = Modelos.paraEconomico(numero);
-            // Igual que RealtimeRepository.parsear(): el feed manda la velocidad en km/h.
-            float velMs = c.speed / 3.6f;
-
-            lista.add(new UnidadReal(numero, linea, destino, origen, c.routeId, ficha.empresa,
-                    ficha.marca, ficha.modelo, c.placa != null ? c.placa : "",
-                    c.lat, c.lon, c.bearing, velMs, c.timestamp));
-        }
-        return lista;
+        return UnidadRtWire.aUnidades(UnidadRtWire.leerFeed(datos));
     }
 
     /** URL firmada vigente: la cachea (igual que hace el propio backend) para que, aunque el
