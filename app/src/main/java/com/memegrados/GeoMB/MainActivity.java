@@ -82,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
                 SincronizacionService.detener(this);
             }
         });
+        AvisoDonativo.mostrarSiToca(this);
 
         // Carga el catálogo de marca/modelo (assets/modelos.csv + Sheet) una vez.
         Modelos.init(getApplicationContext());

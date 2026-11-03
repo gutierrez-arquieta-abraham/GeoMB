@@ -195,9 +195,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     // no solo un bache de red pasajero -- se queda visible hasta que vuelva a
                     // responder (onData lo oculta arriba). Se fija el texto explícito -- no se
                     // puede asumir que quedó éste del XML si antes se mostró el de "interpretado
-                    // en el teléfono" (onData con ultimoCaminoLocal).
+                    // en el teléfono" (onData con ultimoCaminoLocal). Un HTTP 404 (el servidor SÍ
+                    // contesta, pero no tiene el recurso -- confirmado: así responde Railway hoy,
+                    // con el deploy roto) es un caso distinto de un timeout/sin conexión: aquí se
+                    // sabe que es el servidor el que está mal, no la red del usuario.
                     if (bannerServidor != null) {
-                        bannerServidor.setText(R.string.mapa_servidor_sin_respuesta);
+                        bannerServidor.setText(Backend.ultimoHttpStatus == 404
+                                ? R.string.mapa_servidor_caido : R.string.mapa_servidor_sin_respuesta);
                         bannerServidor.setVisibility(View.VISIBLE);
                     }
                     if (!avisoError) {

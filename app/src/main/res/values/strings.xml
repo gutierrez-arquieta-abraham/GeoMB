@@ -44,6 +44,7 @@
     <string name="mapa_tipo_hibrido">Híbrido</string>
     <string name="mapa_servidor_sin_respuesta">Servidor sin respuesta — mostrando datos guardados</string>
     <string name="mapa_interpretado_telefono">Interpretando datos en el teléfono — puede ser menos preciso y las notificaciones más tardadas</string>
+    <string name="mapa_servidor_caido">El servidor está caído — se está resolviendo el problema</string>
     <string name="mapa_acercar">Acercar</string>
     <string name="mapa_alejar">Alejar</string>
     <string name="mapa_norte">Orientar al norte</string>
@@ -574,6 +575,13 @@
 
     <!-- Donativo voluntario (servidor/EC2): enlace externo a PayPal.me, ver Config.DONACION_URL -->
     <string name="config_donar">Apoyar el proyecto (donativo)</string>
+
+    <!-- Ventana de donativo (AvisoDonativo), al frente de MainActivity con cooldown -->
+    <string name="donativo_titulo">¿Te gusta GeoMB?</string>
+    <string name="donativo_mensaje">Si te está sirviendo el trabajo que ves aquí y quieres apoyar para que la aplicación siga siendo gratuita, puedes hacer un donativo voluntario por PayPal.\n\nNo necesitas tener cuenta de PayPal: en la misma página puedes pagar como invitado con tarjeta de débito o crédito.</string>
+    <string name="donativo_boton_donar">Donar</string>
+    <string name="donativo_boton_ahora_no">Ahora no</string>
+    <string name="donativo_boton_no_preguntar">No volver a preguntar</string>
 
     <!-- Reporte de un problema DE LA APP (no del servicio de Metrobús), a los correos de soporte -->
     <string name="config_reportar_app">Reportar un problema de la app</string>
