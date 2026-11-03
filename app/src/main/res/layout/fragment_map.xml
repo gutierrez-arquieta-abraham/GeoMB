@@ -510,10 +510,10 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Resultado del planificador (fusión con el mapa general): resumen + pasos de la ruta trazada
-         e "Iniciar recorrido" (seguimiento GPS en vivo), igual que fragment_planificador.xml#panel_resultado,
-         todavía SIN el switch Ordinario/Exprés en vivo (eso sigue fijo al trazar la ruta). Mismo
-         contenedor map_carta_container de arriba por ahora: en la práctica no coinciden visibles
+    <!-- Resultado del planificador (fusión con el mapa general): resumen + pasos de la ruta trazada,
+         switch Ordinario/Exprés (solo si el viaje va por una línea Mexibús con ambos servicios) e
+         "Iniciar recorrido" (seguimiento GPS en vivo), igual que fragment_planificador.xml#panel_resultado.
+         Mismo contenedor map_carta_container de arriba por ahora: en la práctica no coinciden visibles
          a la vez (buscar unidad/estación vs. trazar ruta), se revisará si hace falta separar. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/panel_resultado"
@@ -612,6 +612,16 @@
                 android:textStyle="bold"
                 android:visibility="gone"
                 tools:text="Vas en Deportivo 18 de Marzo · Siguiente: La Raza" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/sw_express"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/servicio_express_switch"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_recorrido"

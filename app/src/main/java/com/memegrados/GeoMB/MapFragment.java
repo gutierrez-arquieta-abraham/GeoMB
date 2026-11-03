@@ -171,6 +171,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private android.widget.LinearLayout resPasosList;
     private android.widget.ScrollView resPasosScroll;
     private com.google.android.material.button.MaterialButton btnRecorrido;
+    private androidx.appcompat.widget.SwitchCompat swExpress;   // Ordinario/Express (viaje por una sola línea Mexibús)
+    private int svcBase;
     private String origenCanon, destinoCanon;
     private int origenLinea, destinoLinea;
     private LatLng origenSeleccionPos;
@@ -2154,6 +2156,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         resAviso = view.findViewById(R.id.res_aviso);
         resEstado = view.findViewById(R.id.res_estado);
         btnRecorrido = view.findViewById(R.id.btn_recorrido);
+        swExpress = view.findViewById(R.id.sw_express);
         filaResultadoResumen.setOnClickListener(v -> alternarResultado());
         resAviso.setOnClickListener(v -> mostrarCartaAfectacionesRuta());
         btnRecorrido.setOnClickListener(v -> alternarRecorrido());
@@ -2469,6 +2472,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         resAviso.setVisibility(aviso.length() > 0 ? View.VISIBLE : View.GONE);
         if (aviso.length() > 0) resAviso.setText(aviso.toString());
         panelResultado.setVisibility(View.VISIBLE);
+        configurarSwitchServicio(r);
 
         boolean veniaRecorrido = recorrido;
         if (recorrido) detenerRecorrido();
@@ -2538,6 +2542,46 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (centro != null && Linea.distancia(centro, pos) < 25) return;   // ya está centrado
         float z = Math.max(16f, mapa.getCameraPosition().zoom);
         mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, z));
+    }
+
+    /**
+     * Muestra el switch Ordinario/Express en el panel SOLO si el viaje va por una sola línea Mexibús
+     * que ofrece ambos servicios. Al cambiarlo, re-rutea (el Express salta estaciones) y redibuja.
+     */
+    private void configurarSwitchServicio(Planificador.Ruta r) {
+        if (swExpress == null) return;
+        int base = baseUnicaMexibus(r.secuencia);
+        java.util.List<Servicios.Servicio> ops = base != 0
+                ? Servicios.disponibles(requireContext(), base, origenCanon, destinoCanon, false)
+                : new java.util.ArrayList<>();
+        boolean hayOrd = false, hayExp = false;
+        for (Servicios.Servicio s : ops) { if (s.linea == base) hayOrd = true; if (s.linea == base + 20) hayExp = true; }
+        if (!(hayOrd && hayExp)) { swExpress.setVisibility(View.GONE); svcBase = 0; return; }
+
+        svcBase = base;
+        boolean esExpress = false;
+        for (Planificador.Parada p : r.secuencia) if (p.linea == base + 20) { esExpress = true; break; }
+        swExpress.setOnCheckedChangeListener(null);   // evita disparar el listener al fijar el estado
+        swExpress.setChecked(esExpress);
+        swExpress.setVisibility(View.VISIBLE);
+        swExpress.setOnCheckedChangeListener((btn, isChecked) -> {
+            int linea = isChecked ? svcBase + 20 : svcBase;
+            final String o = origenCanon, d = destinoCanon;
+            calcularRutaAsync(() -> Planificador.calcular(requireContext(), o, d, linea, linea), nr -> {
+                if (nr != null && !nr.secuencia.isEmpty()) dibujarRuta(nr);
+            });
+        });
+    }
+
+    /** Base Mexibús única del viaje (101..104) si TODO el recorrido va por esa línea; 0 si no aplica. */
+    private static int baseUnicaMexibus(java.util.List<Planificador.Parada> seq) {
+        int base = 0;
+        for (Planificador.Parada p : seq) {
+            int b = Servicios.base(p.linea);
+            if (b < 100 || b >= 200) return 0;         // hay tramo Metrobús/Mexicable
+            if (base == 0) base = b; else if (base != b) return 0;   // más de una línea Mexibús
+        }
+        return base;
     }
 
     private void alternarRecorrido() {
