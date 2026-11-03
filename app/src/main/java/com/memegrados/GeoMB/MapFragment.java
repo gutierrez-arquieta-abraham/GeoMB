@@ -174,6 +174,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 @Override
                 public void onError(String mensaje) {
                     if (!isAdded()) return;
+                    // En pausa no es un error: MainActivity ya mostró el aviso de "Servicio en
+                    // pausa", y el banner/Toast de "sin conexión" de aquí abajo confundiría (daría
+                    // a entender una falla técnica en vez de una pausa intencional).
+                    if (EstadoServicio.enPausa()) return;
                     // Banner PERSISTENTE (no solo el Toast de antes, que se esfuma en segundos):
                     // pensado para una caída larga del servidor (p. ej. por falta de pago del EC2),
                     // no solo un bache de red pasajero -- se queda visible hasta que vuelva a

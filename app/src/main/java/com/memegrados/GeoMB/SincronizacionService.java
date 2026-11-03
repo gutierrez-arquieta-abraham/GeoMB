@@ -53,6 +53,7 @@ public class SincronizacionService extends Service {
 
     /** Arranca el servicio (si el usuario lo habilitó). */
     public static void iniciar(Context c) {
+        if (EstadoServicio.enPausa()) return;   // servidor apagado a propósito: no hay nada que sondear
         try {
             Intent i = new Intent(c, SincronizacionService.class);
             ContextCompat.startForegroundService(c, i);
@@ -107,6 +108,8 @@ public class SincronizacionService extends Service {
             @Override
             public void onError(String mensaje) {
                 // El servidor falló: se mantiene el sondeo de respaldo hasta que vuelva (o el usuario lo apague).
+                // Salvo que esté en pausa a propósito: entonces no va a volver pronto y solo gastaría batería.
+                if (EstadoServicio.enPausa()) { stopSelf(); return; }
                 try {
                     actualizar(getString(R.string.sincro_sin_conexion));
                 } catch (Throwable t) {

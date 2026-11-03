@@ -147,6 +147,15 @@ CA propia `/etc/nginx/certs/geomb-admin-ca.crt`); `/admin` **bloqueado (404) en 
 - Metrobús/CDMX publica GTFS-Realtime (VehiclePositions + **TripUpdates/arribos por estación** + alertas, ~30 s, registro en portal
   datos abiertos) → vía posible para arribos "tipo pantalla" (incluye unidades sin GPS). Pendiente de integrar.
 
+## Servicio en pausa — `EstadoServicio.java` + `estado_servicio.json`
+- Interruptor remoto para cuando el EC2 se apaga a propósito (costo). Vive en GitHub, NO en el EC2:
+  `raw.githubusercontent.com/.../GeoMB/master/estado_servicio.json` (`Config.ESTADO_SERVICIO_URL`). Para pausar: editar
+  ese archivo en **master** y poner `"pausa": true` (titulo/mensaje opcionales). raw de GitHub cachea ~5 min.
+- Con pausa: `Backend.descargar()` falla al instante sin red, `SincronizacionService` no arranca (y se detiene si corría),
+  `MapFragment` no muestra toast de error y `MainActivity` muestra el aviso UNA vez por arranque. Último estado en
+  SharedPreferences (si no hay internet se respeta lo último sabido; por defecto sin pausa).
+- Solo aplica a versiones de la app que ya traen `EstadoServicio`.
+
 ## Unidades en tiempo real
 - `RealtimeRepository` baja `vehicles.json` (JSON, no .proto) → `UnidadReal` (con `velMs` m/s y `timestamp`). `speed` del feed en **km/h**.
 - **Llegadas** (`Llegadas.java`): **por ubicación** — proyecta unidad y estación sobre la polilínea (`Linea.distanciaEn`), ETA =

@@ -36,6 +36,14 @@ public final class Config {
      */
     public static final String PANEL_ADMIN_URL = "https://geomb.duckdns.org:8443/admin/afectacion";
 
+    /**
+     * Interruptor remoto de "Servicio en pausa" (ver {@link EstadoServicio}). Vive en GitHub y no
+     * en el EC2 porque tiene que responder justo cuando el servidor está apagado. Se edita
+     * {@code estado_servicio.json} en la rama master del repo GeoMB.
+     */
+    public static final String ESTADO_SERVICIO_URL =
+            "https://raw.githubusercontent.com/gutierrez-arquieta-abraham/GeoMB/master/estado_servicio.json";
+
     /** Rutas relativas que sirve el backend (se usan con failover, ver Backend). */
     public static final String PATH_VEHICLES = "/data/vehicles.json";
     public static final String PATH_ROUTES = "/data/routes.json";
