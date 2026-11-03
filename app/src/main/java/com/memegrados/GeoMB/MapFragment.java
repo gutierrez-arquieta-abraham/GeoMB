@@ -161,16 +161,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private TextView bannerServidor;
     private long ultimaManifestMapa = -1;   // último Manifestaciones.actualizado() ya pintado en el mapa
 
-    // ---- Planificador (fusión con el mapa general, FASE 2: calcular y dibujar la ruta) ----
-    // Todavía NO incluye (fases aparte): re-enganche automático de un recorrido activo,
-    // unidades animadas sobre el trazo (el mapa
-    // general ya las muestra en todos lados) ni el seguimiento GPS en vivo ("Iniciar recorrido").
+    // ---- Planificador (fusión con el mapa general: calcular/dibujar la ruta + seguimiento en vivo) ----
+    // Todavía NO incluye: unidades animadas sobre el trazo (el mapa general ya las muestra en todos
+    // lados) ni el switch Ordinario/Exprés en vivo durante el recorrido (queda fijo al trazar la ruta).
     private EditText inOrigen, inDestino;
     private View panelResultado, panelResultadoDetalle, filaResultadoResumen, progressTrazando;
     private android.widget.ImageView icContraerResultado;
     private TextView resResumen, resAviso, resEstado;
     private android.widget.LinearLayout resPasosList;
     private android.widget.ScrollView resPasosScroll;
+    private com.google.android.material.button.MaterialButton btnRecorrido;
     private String origenCanon, destinoCanon;
     private int origenLinea, destinoLinea;
     private LatLng origenSeleccionPos;
@@ -179,6 +179,29 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final List<Marker> marcadoresRuta = new ArrayList<>();
     private LatLngBounds ultimosLimitesRuta;
     private final java.util.concurrent.ExecutorService calcExec = java.util.concurrent.Executors.newSingleThreadExecutor();
+
+    // ---- Recorrido (seguimiento GPS en vivo sobre la ruta trazada) ----
+    private static final double PASO_TRAZO_M = 12;   // separación de los puntos finos del trazo (progreso suave)
+    private static final long TICK_RECORRIDO_MS = 400L;
+    private List<LatLng> rutaPuntos;
+    private List<LatLng> anclasZona;   // puntos densificados del trazo activo (progreso suave)
+    private LatLng origenPos;
+    private boolean avisoUnidad = false;
+    private boolean recorrido = false;
+    private boolean seguirCamara;      // durante el recorrido, la cámara sigue al usuario (como Maps)
+    private Polyline progresoLine;     // overlay que opaca lo ya recorrido
+    private final Runnable tickRecorrido = new Runnable() {
+        @Override public void run() {
+            try {
+                if (recorrido) refrescarRecorridoUI();
+            } catch (Exception e) {
+                GeoMBApplication app = GeoMBApplication.get();
+                if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "MapFragment.tickRecorrido", String.valueOf(e.getMessage()));
+            } finally {
+                if (isAdded()) handler.postDelayed(this, TICK_RECORRIDO_MS);
+            }
+        }
+    };
 
     /** Ciclo de actualización: pide el feed, actualiza marcadores y se reprograma. */
     private final Runnable poll = new Runnable() {
@@ -203,6 +226,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     }
                     if (mapa != null) actualizarUnidades(unidades);
                     if (mapa != null) actualizarEstadoEstaciones();
+                    revisarUnidad(unidades);
                 }
 
                 @Override
@@ -644,6 +668,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // arranca el polling en vivo de inmediato
         handler.removeCallbacks(poll);
         handler.post(poll);
+        handler.removeCallbacks(tickRecorrido);
+        handler.post(tickRecorrido);
+
+        mapa.setOnCameraMoveStartedListener(reason -> {
+            if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) seguirCamara = false;
+        });
     }
 
     /** Dibuja polylines y estaciones de las 7 líneas y guarda sus colores. */
@@ -2123,8 +2153,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         resPasosScroll = view.findViewById(R.id.res_pasos_scroll);
         resAviso = view.findViewById(R.id.res_aviso);
         resEstado = view.findViewById(R.id.res_estado);
+        btnRecorrido = view.findViewById(R.id.btn_recorrido);
         filaResultadoResumen.setOnClickListener(v -> alternarResultado());
         resAviso.setOnClickListener(v -> mostrarCartaAfectacionesRuta());
+        btnRecorrido.setOnClickListener(v -> alternarRecorrido());
     }
 
     // ---- Planificador: calcular y dibujar la ruta (fase 2) --------------------------------
@@ -2391,16 +2423,22 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         trazoRuta.clear();
         for (Marker m : marcadoresRuta) m.remove();
         marcadoresRuta.clear();
+        if (progresoLine != null) { progresoLine.remove(); progresoLine = null; }
         rutaActiva = r;
+        avisoUnidad = false;
+        origenPos = r.pasos.isEmpty() ? null : r.pasos.get(0).puntos.get(0);
 
         // Ancho/zIndex por encima de las líneas base (lineasRed/mexibusLineas, width 7-9f) para que
         // el trazo resalte por sí mismo; además se atenúan esas líneas de fondo abajo.
         LatLngBounds.Builder bounds = new LatLngBounds.Builder();
+        rutaPuntos = new ArrayList<>();
         for (Planificador.Paso p : r.pasos) {
             trazoRuta.add(mapa.addPolyline(new PolylineOptions()
                     .addAll(p.puntos).color(p.color).width(22f).zIndex(5f)));
+            rutaPuntos.addAll(p.puntos);
             for (LatLng pt : p.puntos) bounds.include(pt);
         }
+        anclasZona = densificar(rutaPuntos, PASO_TRAZO_M);   // puntos finos para el progreso suave
         for (int k = 1; k < r.pasos.size(); k++) {
             List<LatLng> ant = r.pasos.get(k - 1).puntos, act = r.pasos.get(k).puntos;
             if (ant.isEmpty() || act.isEmpty()) continue;
@@ -2430,11 +2468,157 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (hor != null) { if (aviso.length() > 0) aviso.append("\n"); aviso.append(hor); }
         resAviso.setVisibility(aviso.length() > 0 ? View.VISIBLE : View.GONE);
         if (aviso.length() > 0) resAviso.setText(aviso.toString());
-        resEstado.setVisibility(View.GONE);
         panelResultado.setVisibility(View.VISIBLE);
+
+        boolean veniaRecorrido = recorrido;
+        if (recorrido) detenerRecorrido();
+        resEstado.setVisibility(View.GONE);
+        btnRecorrido.setText(R.string.recorrido_iniciar);
+
+        // Si ya había un recorrido en curso (el servicio sigue vivo aunque se recalculó la ruta),
+        // reengancha el seguimiento en vez de dejarlo detenido.
+        if (!veniaRecorrido && RecorridoService.activo) {
+            recorrido = true;
+            seguirCamara = true;
+            btnRecorrido.setText(R.string.recorrido_detener);
+            resEstado.setVisibility(View.VISIBLE);
+            resEstado.setText(R.string.recorrido_ubicando);
+        }
 
         int m = (int) (16 * getResources().getDisplayMetrics().density);
         mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(ultimosLimitesRuta, m));
+    }
+
+    private List<LatLng> densificar(List<LatLng> pts, double pasoM) {
+        List<LatLng> out = new ArrayList<>();
+        if (pts == null || pts.isEmpty()) return out;
+        out.add(pts.get(0));
+        for (int i = 1; i < pts.size(); i++) {
+            LatLng a = pts.get(i - 1), b = pts.get(i);
+            double dist = Linea.distancia(a, b);
+            int n = (int) Math.floor(dist / pasoM);
+            for (int j = 1; j <= n; j++) {
+                double t = (j * pasoM) / dist;
+                out.add(new LatLng(a.latitude + (b.latitude - a.latitude) * t,
+                        a.longitude + (b.longitude - a.longitude) * t));
+            }
+            out.add(b);
+        }
+        return out;
+    }
+
+    /** Opaca (con un overlay gris translúcido) la parte de la ruta ya recorrida hasta {@code pos}. */
+    private void pintarProgreso(LatLng pos) {
+        // Usa el trazo FINO (densificado) para que el gris avance suave aunque vayas entre 2 estaciones.
+        List<LatLng> base = (anclasZona != null && anclasZona.size() >= 2) ? anclasZona : rutaPuntos;
+        if (mapa == null || base == null || base.size() < 2 || pos == null) return;
+        int k = 0; double best = Double.MAX_VALUE;
+        for (int i = 0; i < base.size(); i++) {
+            double dd = Linea.distancia(base.get(i), pos);
+            if (dd < best) { best = dd; k = i; }
+        }
+        List<LatLng> hecho = new ArrayList<>(base.subList(0, Math.max(2, k + 1)));
+        if (progresoLine != null) progresoLine.setPoints(hecho);
+        else progresoLine = mapa.addPolyline(new PolylineOptions().addAll(hecho)
+                .color(0xFF9E9E9E).width(20f).zIndex(7f));   // gris sólido encima = "ya recorrido" (estilo Maps)
+    }
+
+    /** Centra la cámara en el usuario durante el recorrido (respeta el padding de los paneles y el
+     *  zoom actual). Solo re-centra si se movió apreciablemente, para no dar tirones cada segundo. */
+    private void centrarRecorrido(LatLng pos) {
+        if (!seguirCamara || pos == null || mapa == null) return;
+        View root = getView();
+        if (root == null) return;
+        int m = (int) (16 * getResources().getDisplayMetrics().density);
+        int abajoReal = panelResultado.getVisibility() == View.VISIBLE
+                ? root.getHeight() - panelResultado.getTop() : 0;
+        int abajo = Math.min(abajoReal, Math.round(root.getHeight() * 0.18f));
+        mapa.setPadding(m, m, m, abajo + m);
+        LatLng centro = mapa.getCameraPosition().target;
+        if (centro != null && Linea.distancia(centro, pos) < 25) return;   // ya está centrado
+        float z = Math.max(16f, mapa.getCameraPosition().zoom);
+        mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, z));
+    }
+
+    private void alternarRecorrido() {
+        if (recorrido) detenerRecorrido();
+        else iniciarRecorrido();
+    }
+
+    private void iniciarRecorrido() {
+        if (rutaActiva == null || rutaActiva.secuencia.isEmpty()) return;
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(requireContext(), getString(R.string.recorrido_sin_permiso), Toast.LENGTH_LONG).show();
+            return;
+        }
+        // El servicio (Ordinario/Express) por línea ya se eligió en el trazado; la ruta activa lo refleja.
+        arrancarRecorrido();
+    }
+
+    private void arrancarRecorrido() {
+        recorrido = true;
+        seguirCamara = true;   // la cámara empieza a seguir al usuario
+        btnRecorrido.setText(R.string.recorrido_detener);
+        resEstado.setVisibility(View.VISIBLE);
+        resEstado.setText(R.string.recorrido_ubicando);
+        String destinoFinal = rutaActiva.secuencia.get(rutaActiva.secuencia.size() - 1).nombre;
+        RecorridoService.servicioTexto = null;
+        java.util.List<String> terms = new ArrayList<>();
+        if (rutaActiva.instrucciones != null)
+            for (Planificador.Instruccion ins : rutaActiva.instrucciones) terms.add(ins.terminal);
+        RecorridoService.terminalesTramo = terms;
+        RecorridoService.iniciar(requireContext(), rutaActiva.secuencia, destinoFinal);
+    }
+
+    private void detenerRecorrido() {
+        recorrido = false;
+        seguirCamara = false;
+        btnRecorrido.setText(R.string.recorrido_iniciar);
+        resEstado.setVisibility(View.GONE);
+        RecorridoService.detener(requireContext());
+    }
+
+    /** Lee del servicio en qué estación va el usuario y actualiza el estado + progreso + cámara. */
+    private void refrescarRecorridoUI() {
+        if (!recorrido || rutaActiva == null || !isAdded()) return;
+        int idx = RecorridoService.actualIdx;
+        List<Planificador.Parada> seq = rutaActiva.secuencia;
+        if (idx < 0 || idx >= seq.size()) return;
+        Planificador.Parada act = seq.get(idx);
+        LatLng posReal = RecorridoService.ultimaPos != null ? RecorridoService.ultimaPos : act.pos;
+        pintarProgreso(posReal);
+        centrarRecorrido(RecorridoService.ultimaPos);
+        java.util.function.Function<Planificador.Parada, String> vis =
+                p -> Planificador.nombreMostrar(requireContext(), p.nombre, p.linea);
+        if (idx >= seq.size() - 1) {
+            resEstado.setText(getString(R.string.recorrido_llegaste, vis.apply(act)));
+        } else {
+            Planificador.Parada sig = seq.get(idx + 1);
+            if (sig.transbordo) resEstado.setText(getString(R.string.recorrido_transborda, vis.apply(sig), Planificador.etiquetaLineaCortaPub(sig.linea)));
+            else resEstado.setText(getString(R.string.recorrido_vas, vis.apply(act), vis.apply(sig)));
+        }
+    }
+
+    /** Avisa una vez cuando la unidad del primer tramo se acerca a tu estación de origen. */
+    private void revisarUnidad(List<UnidadReal> unidades) {
+        if (!isAdded() || rutaActiva == null || origenPos == null || avisoUnidad
+                || rutaActiva.pasos.isEmpty() || unidades == null) return;
+        Planificador.Paso p0 = rutaActiva.pasos.get(0);
+        for (UnidadReal u : unidades) {
+            boolean mismaLinea = u.linea != null && u.linea == p0.linea;
+            boolean mismoSentido = u.destino == null || u.destino.isEmpty()
+                    || Planificador.norm(u.destino).contains(Planificador.norm(p0.destino))
+                    || Planificador.norm(p0.destino).contains(Planificador.norm(u.destino));
+            if (mismaLinea && mismoSentido
+                    && Linea.distancia(u.posicion, origenPos) <= Config.SEGUIR_CERCA_M) {
+                avisoUnidad = true;
+                Toast.makeText(requireContext(),
+                        getString(R.string.ruta_unidad_cerca, p0.linea, p0.destino, p0.origen),
+                        Toast.LENGTH_LONG).show();
+                break;
+            }
+        }
     }
 
     private void mostrarCartaAfectacionesRuta() {
@@ -2770,6 +2954,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     @Override
     public void onDestroyView() {
         handler.removeCallbacks(poll);
+        handler.removeCallbacks(tickRecorrido);
         marcadoresEstacion.clear();
         marcadoresUnidad.clear();
         halosSeguimiento.clear();

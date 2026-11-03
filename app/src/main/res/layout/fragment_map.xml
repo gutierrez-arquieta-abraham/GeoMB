@@ -510,9 +510,9 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Resultado del planificador (FASE 2 de la fusión con el mapa general): resumen + pasos de la
-         ruta trazada, igual que fragment_planificador.xml#panel_resultado, SIN sw_express ni
-         btn_recorrido todavía (Ordinario/Exprés y el seguimiento en vivo son fases aparte). Mismo
+    <!-- Resultado del planificador (fusión con el mapa general): resumen + pasos de la ruta trazada
+         e "Iniciar recorrido" (seguimiento GPS en vivo), igual que fragment_planificador.xml#panel_resultado,
+         todavía SIN el switch Ordinario/Exprés en vivo (eso sigue fijo al trazar la ruta). Mismo
          contenedor map_carta_container de arriba por ahora: en la práctica no coinciden visibles
          a la vez (buscar unidad/estación vs. trazar ruta), se revisará si hace falta separar. -->
     <com.google.android.material.card.MaterialCardView
@@ -612,6 +612,14 @@
                 android:textStyle="bold"
                 android:visibility="gone"
                 tools:text="Vas en Deportivo 18 de Marzo · Siguiente: La Raza" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_recorrido"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/recorrido_iniciar"
+                app:icon="@drawable/ic_my_location" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
