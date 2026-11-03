@@ -60,10 +60,12 @@ public class UnidadRtWireTest {
         return o.toByteArray();
     }
 
+    /** route_id es el campo 5 de TripDescriptor (NO el 2 -- ver UnidadRtWire, numeración real
+     *  confirmada contra gtfs-realtime-bindings, la misma librería generada que usa el backend). */
     private static byte[] tripDescriptor(String routeId, int directionId) throws IOException {
         ByteArrayOutputStream o = new ByteArrayOutputStream();
-        campoCadena(o, 2, routeId);
-        campoVarint(o, 3, directionId);
+        campoCadena(o, 5, routeId);
+        campoVarint(o, 6, directionId);
         return o.toByteArray();
     }
 
@@ -72,8 +74,8 @@ public class UnidadRtWireTest {
     private static byte[] tripDescriptor(String tripId, String routeId, int directionId) throws IOException {
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         campoCadena(o, 1, tripId);
-        campoCadena(o, 2, routeId);
-        campoVarint(o, 3, directionId);
+        campoCadena(o, 5, routeId);
+        campoVarint(o, 6, directionId);
         return o.toByteArray();
     }
 
@@ -86,11 +88,13 @@ public class UnidadRtWireTest {
         return o.toByteArray();
     }
 
+    /** timestamp es el campo 5 de VehiclePosition (NO el 6 -- ese es congestion_level; ver
+     *  UnidadRtWire, numeración real confirmada contra gtfs-realtime-bindings). */
     private static byte[] vehiclePosition(byte[] trip, byte[] pos, long timestamp, byte[] vehicleDesc) throws IOException {
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         campoMensaje(o, 1, trip);
         campoMensaje(o, 2, pos);
-        campoVarint(o, 6, timestamp);
+        campoVarint(o, 5, timestamp);
         campoMensaje(o, 8, vehicleDesc);
         return o.toByteArray();
     }
@@ -169,6 +173,23 @@ public class UnidadRtWireTest {
         assertEquals(1, lista.size());
         assertEquals("fc73eb8fc73e9UP1", lista.get(0).tripId);
         assertEquals("", lista.get(0).routeId);
+    }
+
+    @Test
+    public void timestamp_noSeConfundeConCongestionLevel() throws IOException {
+        // VehiclePosition.congestion_level es el campo 6 (no se usa); timestamp es el 5. Antes se
+        // leía al revés -- ver el bug documentado en UnidadRtWire.
+        ByteArrayOutputStream vp = new ByteArrayOutputStream();
+        campoMensaje(vp, 1, tripDescriptor("19429", 0));
+        campoMensaje(vp, 2, position(19.4f, -99.1f, 0f, 0f));
+        campoVarint(vp, 5, 1700000000L);   // timestamp real
+        campoVarint(vp, 6, 2L);            // congestion_level -- debe IGNORARSE
+        campoMensaje(vp, 8, vehicleDescriptor("1", "1", ""));
+        byte[] feed = feedMessage(feedEntity("e1", vp.toByteArray()));
+
+        List<UnidadRtWire.Registro> lista = UnidadRtWire.leerFeed(feed);
+        assertEquals(1, lista.size());
+        assertEquals(1700000000L, lista.get(0).timestamp);
     }
 
     @Test

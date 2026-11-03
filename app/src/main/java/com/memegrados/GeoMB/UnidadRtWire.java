@@ -13,10 +13,28 @@ import java.util.List;
  * con nombres reconocibles tipo "VehiclePosition"/"FeedMessage" que delaten de inmediato de qué
  * servicio viene esto ni qué campos lee.
  *
- * Esquema real (gtfs-realtime.proto, oficial): FeedMessage.entity[] (campo 2) -> FeedEntity.vehicle
- * (campo 4) -> VehiclePosition { trip (1), position (2), timestamp (6), vehicle (8) }; dentro,
- * TripDescriptor { trip_id (1), route_id (2), direction_id (3) }, Position { latitude (1),
- * longitude (2), bearing (3), speed (5) }, VehicleDescriptor { id (1), label (2), license_plate (3) }.
+ * Esquema real (gtfs-realtime.proto, oficial -- verificado contra gtfs-realtime-bindings 3.0.0,
+ * la MISMA librería generada que usa metrobus_app/app.py del lado del servidor; NO contra la
+ * memoria de una versión vieja del estándar, que tenía la numeración de TripDescriptor distinta
+ * y causó un bug real -- ver abajo):
+ *   FeedMessage.entity[] (campo 2) -> FeedEntity.vehicle (campo 4) ->
+ *   VehiclePosition { trip (1), position (2), current_stop_sequence (3), current_status (4),
+ *       timestamp (5), congestion_level (6), stop_id (7), vehicle (8), occupancy_status (9) };
+ *   TripDescriptor { trip_id (1), start_time (2), start_date (3), schedule_relationship (4),
+ *       route_id (5), direction_id (6), modified_trip (7) };
+ *   Position { latitude (1), longitude (2), bearing (3), odometer (4), speed (5) };
+ *   VehicleDescriptor { id (1), label (2), license_plate (3), wheelchair_accessible (4) }.
+ *
+ * BUG REAL que tenía esta clase (corregido): por una numeración de TripDescriptor desactualizada,
+ * route_id se leía del campo 2 (en realidad start_time, "HH:MM:SS") y direction_id del campo 3
+ * (en realidad start_date) -- y timestamp se leía del campo 6 de VehiclePosition (en realidad
+ * congestion_level, 0-4) en vez del campo 5 real. Confirmado al comparar contra las bindings
+ * reales: el decodificador en sí estaba bien escrito (un TripDescriptor sintético bien formado
+ * decodificaba correcto), el problema era la numeración de campos asumida. Efecto visible: casi
+ * ninguna unidad resolvía línea por route_id directo (el respaldo por trip_id, agregado antes,
+ * terminaba cargando con casi todo el trabajo sin que se notara la causa real), y
+ * DiagnosticoReporte.recolectar() marcaba SIEMPRE "datos desactualizados" para una unidad seguida
+ * vía este camino (edadSeg = ahora - timestamp, con timestamp siendo en realidad 0-4).
  */
 final class UnidadRtWire {
 
@@ -46,8 +64,7 @@ final class UnidadRtWire {
             // trip_id -- Sonda deja route_id vacío en una fracción normal de las unidades (en
             // depósito/en vacío/cambiando de turno) y solo manda trip_id. La forma correcta de
             // resolver esos casos es por trips.txt (trip_id -> route_id), no asumir que faltan
-            // del catálogo. Confirmado contra el feed real: sin esto, ~15-20% de las unidades
-            // salían "sin línea asignada" aunque sí tuvieran un viaje real asignado.
+            // del catálogo.
             Ruta ruta = RutasRepository.porRouteId(c.routeId);
             if (ruta == null) ruta = RutasRepository.porTripId(c.tripId);
             Integer linea = (ruta != null && ruta.linea != 0) ? ruta.linea : null;
@@ -104,7 +121,7 @@ final class UnidadRtWire {
             switch (campo) {
                 case 1: if (tipo == 2) leerTrip(c.bytesDelimitados(), r); else c.saltar(tipo); break;
                 case 2: if (tipo == 2) leerPosicion(c.bytesDelimitados(), r); else c.saltar(tipo); break;
-                case 6: if (tipo == 0) r.timestamp = c.varint(); else c.saltar(tipo); break;
+                case 5: if (tipo == 0) r.timestamp = c.varint(); else c.saltar(tipo); break;
                 case 8: if (tipo == 2) leerVehicleDescriptor(c.bytesDelimitados(), r); else c.saltar(tipo); break;
                 default: c.saltar(tipo);
             }
@@ -118,8 +135,8 @@ final class UnidadRtWire {
             int tag = c.tag();
             int campo = c.campo(tag), tipo = c.tipo(tag);
             if (campo == 1 && tipo == 2) r.tripId = c.cadena();
-            else if (campo == 2 && tipo == 2) r.routeId = c.cadena();
-            else if (campo == 3 && tipo == 0) r.directionId = (int) c.varint();
+            else if (campo == 5 && tipo == 2) r.routeId = c.cadena();
+            else if (campo == 6 && tipo == 0) r.directionId = (int) c.varint();
             else c.saltar(tipo);
         }
     }
