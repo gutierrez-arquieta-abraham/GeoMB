@@ -167,12 +167,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private EditText inOrigen, inDestino;
     private View panelResultado, panelResultadoDetalle, filaResultadoResumen, progressTrazando;
     private android.widget.ImageView icContraerResultado;
-    private TextView resResumen, resAviso, resEstado;
+    private TextView resResumen, resAviso, resEstado, txtVelocidad;
     private android.widget.LinearLayout resPasosList;
     private android.widget.ScrollView resPasosScroll;
     private com.google.android.material.button.MaterialButton btnRecorrido;
     private androidx.appcompat.widget.SwitchCompat swExpress;   // Ordinario/Express (viaje por una sola línea Mexibús)
     private int svcBase;
+    private androidx.recyclerview.widget.RecyclerView rvEstacionesRuta;
+    private final EstacionRutaAdapter sliderAdapterRuta = new EstacionRutaAdapter();
     private String origenCanon, destinoCanon;
     private int origenLinea, destinoLinea;
     private LatLng origenSeleccionPos;
@@ -2111,6 +2113,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             boolean mostrar = panelOd.getVisibility() != View.VISIBLE;
             panelOd.setVisibility(mostrar ? View.VISIBLE : View.GONE);
             if (mostrar) { expandido.setVisibility(View.VISIBLE); colapsado.setVisibility(View.GONE); }
+            recentrarTrasPanel();
         });
 
         view.findViewById(R.id.btn_location).setOnClickListener(v -> usarUbicacionOrigen());
@@ -2156,8 +2159,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         resPasosScroll = view.findViewById(R.id.res_pasos_scroll);
         resAviso = view.findViewById(R.id.res_aviso);
         resEstado = view.findViewById(R.id.res_estado);
+        txtVelocidad = view.findViewById(R.id.txt_velocidad);
         btnRecorrido = view.findViewById(R.id.btn_recorrido);
         swExpress = view.findViewById(R.id.sw_express);
+        rvEstacionesRuta = view.findViewById(R.id.rv_estaciones_ruta);
+        rvEstacionesRuta.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(
+                requireContext(), androidx.recyclerview.widget.RecyclerView.HORIZONTAL, false));
+        rvEstacionesRuta.setAdapter(sliderAdapterRuta);
         filaResultadoResumen.setOnClickListener(v -> alternarResultado());
         resAviso.setOnClickListener(v -> mostrarCartaAfectacionesRuta());
         btnRecorrido.setOnClickListener(v -> alternarRecorrido());
@@ -2510,6 +2518,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         ultimosLimitesRuta = bounds.build();
 
         resResumen.setText(getString(R.string.ruta_resumen, r.paradas, r.transbordos, r.minutos));
+        sliderAdapterRuta.set(r.secuencia, r.instrucciones, requireContext());
         pintarPasosRuta(r);
         StringBuilder aviso = new StringBuilder();
         if (rutaTieneAfectacionPlan(r)) aviso.append(getString(R.string.ruta_alterna));
@@ -2535,8 +2544,27 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             resEstado.setText(R.string.recorrido_ubicando);
         }
 
+        // Espera al siguiente layout: panel_resultado recién se hizo VISIBLE (arriba) y su alto real
+        // (según cuántos pasos tenga) todavía no está medido -- encuadrar ANTES de eso da un padding
+        // de solo 16dp en vez del alto real de la tarjeta, y el trazo queda tapado por ella.
+        View root = getView();
+        if (root != null) root.post(() -> { if (isAdded()) encuadrarRutaActiva(); });
+    }
+
+    /** Encuadra TODO el trazo ya dibujado (ultimosLimitesRuta) dejando libre el espacio real que
+     *  ocupa panel_resultado en el fondo, para que la tarjeta no tape parte de la ruta. A diferencia
+     *  de centrarRecorrido() (sigue al usuario durante el recorrido en vivo), esta es la vista
+     *  "panorámica" de toda la ruta: se usa al trazar y cada vez que el espacio disponible cambia
+     *  (ver recentrarTrasPanel()) mientras NO hay un recorrido activo. */
+    private void encuadrarRutaActiva() {
+        if (rutaActiva == null || mapa == null || ultimosLimitesRuta == null) return;
+        View root = getView();
+        if (root == null) return;
         int m = (int) (16 * getResources().getDisplayMetrics().density);
-        mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(ultimosLimitesRuta, m));
+        int abajo = panelResultado.getVisibility() == View.VISIBLE
+                ? Math.max(0, root.getHeight() - panelResultado.getTop()) : 0;
+        mapa.setPadding(m, m, m, abajo + m);
+        mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(ultimosLimitesRuta, 0));
     }
 
     private List<LatLng> densificar(List<LatLng> pts, double pasoM) {
@@ -2596,17 +2624,21 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, z));
     }
 
-    /** Al minimizar/expandir el panel de resultado o el de origen/destino durante un recorrido activo,
-     *  el encuadre puede quedar mostrando el trazo COMPLETO ya dibujado (el de {@link #dibujarRuta}) en
-     *  vez de la posición actual del usuario. Espera al siguiente layout (el panel recién cambió de
-     *  tamaño) y fuerza el recentrado en el trazo del recorrido en vivo. No hace nada si no hay
-     *  recorrido activo o el usuario ya movió el mapa a mano (seguirCamara en false). */
+    /** Al minimizar/expandir el panel de resultado o el de origen/destino, el espacio libre del mapa
+     *  cambia pero la cámara no se ajusta sola: durante un recorrido activo el encuadre puede quedar
+     *  mostrando el trazo COMPLETO ya dibujado (el de {@link #dibujarRuta}) en vez de la posición
+     *  actual del usuario; sin recorrido, el trazo puede quedar tapado por la tarjeta en vez de
+     *  encuadrado en el espacio que sí queda libre. Espera al siguiente layout (el panel recién
+     *  cambió de tamaño) y corrige lo que aplique. No hace nada si el usuario ya movió el mapa a
+     *  mano durante el recorrido (seguirCamara en false). */
     private void recentrarTrasPanel() {
-        if (!recorrido) return;
+        if (!recorrido && rutaActiva == null) return;
         View root = getView();
         if (root == null) return;
         root.post(() -> {
-            if (isAdded()) centrarRecorrido(RecorridoService.ultimaPos, true);
+            if (!isAdded()) return;
+            if (recorrido) centrarRecorrido(RecorridoService.ultimaPos, true);
+            else encuadrarRutaActiva();
         });
     }
 
@@ -2686,7 +2718,22 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         seguirCamara = false;
         btnRecorrido.setText(R.string.recorrido_iniciar);
         resEstado.setVisibility(View.GONE);
+        txtVelocidad.setVisibility(View.GONE);
+        sliderAdapterRuta.setActual(-1);
         RecorridoService.detener(requireContext());
+    }
+
+    /** Muestra la velocidad GPS actual (RecorridoService la calcula con cada fix). Se oculta si el
+     *  proveedor todavía no la reporta (-1), y se pone en rojo al llegar al mismo umbral que dispara
+     *  el aviso de exceso de velocidad del servicio, para que coincida con la notificación. */
+    private void actualizarVelocimetro() {
+        float kmh = RecorridoService.ultimaVelocidadKmh;
+        if (kmh < 0) { txtVelocidad.setVisibility(View.GONE); return; }
+        txtVelocidad.setVisibility(View.VISIBLE);
+        txtVelocidad.setText(getString(R.string.velocidad_valor_kmh, Math.round(kmh)));
+        txtVelocidad.setTextColor(kmh >= RecorridoService.UMBRAL_VELOCIDAD_KMH
+                ? ContextCompat.getColor(requireContext(), R.color.mb_red)
+                : com.google.android.material.color.MaterialColors.getColor(txtVelocidad, com.google.android.material.R.attr.colorOnSurface));
     }
 
     /** Lee del servicio en qué estación va el usuario y actualiza el estado + progreso + cámara. */
@@ -2699,6 +2746,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         LatLng posReal = RecorridoService.ultimaPos != null ? RecorridoService.ultimaPos : act.pos;
         pintarProgreso(posReal);
         centrarRecorrido(RecorridoService.ultimaPos);
+        sliderAdapterRuta.setActual(idx);
+        centrarSliderRuta(idx);   // mantiene la estación actual CENTRADA en el deslizador horizontal
+        actualizarVelocimetro();
         java.util.function.Function<Planificador.Parada, String> vis =
                 p -> Planificador.nombreMostrar(requireContext(), p.nombre, p.linea);
         if (idx >= seq.size() - 1) {
@@ -2708,6 +2758,26 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (sig.transbordo) resEstado.setText(getString(R.string.recorrido_transborda, vis.apply(sig), Planificador.etiquetaLineaCortaPub(sig.linea)));
             else resEstado.setText(getString(R.string.recorrido_vas, vis.apply(act), vis.apply(sig)));
         }
+    }
+
+    /** Desplaza el deslizador horizontal para dejar la estación {@code idx} CENTRADA (animado), de
+     *  modo que la tarjeta se vaya moviendo conforme avanza el recorrido en vez de solo asomarla. */
+    private void centrarSliderRuta(int idx) {
+        androidx.recyclerview.widget.RecyclerView.LayoutManager lm = rvEstacionesRuta.getLayoutManager();
+        if (lm == null) return;
+        int pos = sliderAdapterRuta.posDe(idx);
+        if (pos < 0) return;
+        androidx.recyclerview.widget.LinearSmoothScroller s =
+                new androidx.recyclerview.widget.LinearSmoothScroller(requireContext()) {
+                    @Override public int calculateDtToFit(int vs, int ve, int bs, int be, int sp) {
+                        return (bs + (be - bs) / 2) - (vs + (ve - vs) / 2);   // centra el item en la vista
+                    }
+                    @Override protected float calculateSpeedPerPixel(android.util.DisplayMetrics dm) {
+                        return 60f / dm.densityDpi;   // desplazamiento suave
+                    }
+                };
+        s.setTargetPosition(pos);
+        lm.startSmoothScroll(s);
     }
 
     /** Avisa una vez cuando la unidad del primer tramo se acerca a tu estación de origen. */

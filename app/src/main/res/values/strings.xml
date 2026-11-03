@@ -186,7 +186,15 @@
     <string name="servicio_titulo_linea">¿Qué servicio en %1$s?</string>
     <string name="servicio_ordinario">Ordinario</string>
     <string name="servicio_express">Express</string>
+    <string name="ruta_cambia_servicio">Cambia a %1$s</string>
     <string name="canal_recorrido">Recorrido en curso</string>
+    <string name="canal_velocidad">Exceso de velocidad</string>
+    <string name="velocidad_exceso_titulo">Tu unidad va rápido</string>
+    <string name="velocidad_exceso_texto">Detectamos %1$d km/h. ¿Quieres reportarlo?</string>
+    <string name="velocidad_reportar">Reportar</string>
+    <string name="velocidad_tipo_reporte">Exceso de velocidad</string>
+    <string name="velocidad_descripcion_reporte">La app detectó %1$d km/h por GPS durante el recorrido.</string>
+    <string name="velocidad_valor_kmh">%1$d km/h</string>
     <string name="notif_proxima">PRÓXIMA ESTACIÓN</string>
     <string name="notif_anterior">Anterior</string>
     <string name="notif_posterior">Después</string>

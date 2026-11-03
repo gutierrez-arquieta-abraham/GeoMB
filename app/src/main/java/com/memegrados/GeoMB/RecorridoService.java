@@ -72,6 +72,12 @@ public class RecorridoService extends Service {
     public static final String ACCION_DETENER = "detener_recorrido";
     private static final String CANAL = "recorrido";
     private static final int ID = 4401;
+    private static final String CANAL_VELOCIDAD = "velocidad";
+    private static final int ID_VELOCIDAD = 4402;
+    public static final float UMBRAL_VELOCIDAD_KMH = 60f;
+    // Histéresis: hay que bajar un poco más del umbral (no solo cruzarlo de vuelta) para poder
+    // volver a avisar -- si no, un GPS oscilando justo en 60 dispararía un aviso por cada fix.
+    private static final float UMBRAL_VELOCIDAD_RESET_KMH = 55f;
     // MISMA fórmula para Metrobús y Mexibús (Haversine): a ≤50 m del punto avisa la LLEGADA; y al
     // alejarse ~70 m del punto más cercano (cruzando hacia la siguiente) avisa la PRÓXIMA estación.
     private static final float CERCA_M = 50f;   // "llegando a estación" cuando estás a ≤50 m del punto
@@ -279,6 +285,9 @@ public class RecorridoService extends Service {
     private static volatile boolean servicioAnunciado = false;
     private static volatile int avanceMin = 0;             // índice mínimo ya alcanzado (progreso monótono)
     public static volatile com.google.android.gms.maps.model.LatLng ultimaPos;   // última ubicación GPS (para el puntero)
+    // Velocidad del último fix en km/h (-1 = el GPS no la reporta todavía); ver UMBRAL_VELOCIDAD_KMH.
+    public static volatile float ultimaVelocidadKmh = -1f;
+    private static volatile boolean avisoVelocidad = false;   // evita repetir el aviso mientras sigues arriba del umbral
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private FusedLocationProviderClient loc;
@@ -376,6 +385,7 @@ public class RecorridoService extends Service {
 
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
+        avisoVelocidad = false; ultimaVelocidadKmh = -1f;
         persistir(c);   // guarda la ruta: si el SO mata el proceso, el servicio (START_STICKY) la restaura
         if (seq != null && !seq.isEmpty())
             Telemetria.iniciarRecorrido(c, seq.get(0).nombre, seq.get(seq.size() - 1).nombre, seq.size());
@@ -749,6 +759,7 @@ public class RecorridoService extends Service {
         List<Planificador.Parada> seq = paradas;
         if (l == null || seq == null || seq.isEmpty()) return;
         ultimaPos = new com.google.android.gms.maps.model.LatLng(l.getLatitude(), l.getLongitude());
+        revisarVelocidad(l);
         // Búsqueda MONÓTONA hacia adelante: la estación más cercana se busca desde el avance mínimo ya
         // alcanzado, no desde el inicio. Así el recorrido no salta hacia atrás ni se "pega" a una estación
         // co-ubicada de otra línea antes del transbordo (se queda en su línea hasta hacer la correspondencia).
@@ -1957,6 +1968,66 @@ public class RecorridoService extends Service {
         return dot;
     }
 
+    /** Detecta exceso de velocidad (umbral {@link #UMBRAL_VELOCIDAD_KMH}) con histéresis: no repite el
+     *  aviso en cada fix mientras sigues arriba del umbral, solo se reactiva al bajar lo suficiente
+     *  ({@link #UMBRAL_VELOCIDAD_RESET_KMH}). Requiere que el proveedor de ubicación reporte velocidad
+     *  (Location.hasSpeed()); si no, no hay forma de saberlo y simplemente no avisa. */
+    private void revisarVelocidad(android.location.Location l) {
+        ultimaVelocidadKmh = l.hasSpeed() ? l.getSpeed() * 3.6f : -1f;
+        if (ultimaVelocidadKmh < 0) return;
+        if (ultimaVelocidadKmh >= UMBRAL_VELOCIDAD_KMH) {
+            if (!avisoVelocidad) {
+                avisoVelocidad = true;
+                avisarExcesoVelocidad(ultimaVelocidadKmh);
+            }
+        } else if (ultimaVelocidadKmh < UMBRAL_VELOCIDAD_RESET_KMH) {
+            avisoVelocidad = false;
+        }
+    }
+
+    /** Notificación (canal aparte, APARTE de la del recorrido en curso: esa es de baja prioridad y
+     *  fija; esta es puntual y sí debe sonar/asomarse) preguntando si se quiere reportar el exceso de
+     *  velocidad. Al tocarla (o su acción) abre MainActivity, que arma el correo prellenado vía
+     *  ReporteIrregularidad -- el usuario revisa y decide si lo manda, igual que cualquier otro
+     *  reporte de la app. */
+    private void avisarExcesoVelocidad(float kmh) {
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(new NotificationChannel(CANAL_VELOCIDAD,
+                    getString(R.string.canal_velocidad), NotificationManager.IMPORTANCE_DEFAULT));
+        }
+        List<Planificador.Parada> seq = paradas;
+        int idx = Math.max(0, Math.min(actualIdx, seq == null || seq.isEmpty() ? 0 : seq.size() - 1));
+        int linea = (seq != null && !seq.isEmpty()) ? seq.get(idx).linea : 0;
+        PendingIntent pi = piReportarVelocidad(linea, ultimaPos, kmh);
+        Notification n = new NotificationCompat.Builder(this, CANAL_VELOCIDAD)
+                .setSmallIcon(R.drawable.ic_route)
+                .setContentTitle(getString(R.string.velocidad_exceso_titulo))
+                .setContentText(getString(R.string.velocidad_exceso_texto, Math.round(kmh)))
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pi)
+                .addAction(R.drawable.ic_route, getString(R.string.velocidad_reportar), pi)
+                .build();
+        nm.notify(ID_VELOCIDAD, n);
+    }
+
+    private PendingIntent piReportarVelocidad(int linea, com.google.android.gms.maps.model.LatLng pos, float kmh) {
+        Intent i = new Intent(this, MainActivity.class)
+                .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_REPORTAR_VELOCIDAD, true)
+                .putExtra(MainActivity.EXTRA_VEL_LINEA, linea)
+                .putExtra(MainActivity.EXTRA_VEL_TERMINAL, terminal)
+                .putExtra(MainActivity.EXTRA_VEL_KMH, kmh);
+        if (pos != null) {
+            i.putExtra(MainActivity.EXTRA_VEL_LAT, pos.latitude);
+            i.putExtra(MainActivity.EXTRA_VEL_LON, pos.longitude);
+        }
+        return PendingIntent.getActivity(this, 2, i,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
     private void crearCanal() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager nm = getSystemService(NotificationManager.class);
@@ -2054,6 +2125,7 @@ public class RecorridoService extends Service {
 
     @Override public void onDestroy() {
         activo = false; actualIdx = -1; ultimaPos = null;
+        ultimaVelocidadKmh = -1f; avisoVelocidad = false;
         corresPendienteIdx = -1;
         detenerUbicacion();
         handler.removeCallbacksAndMessages(null);   // cancela tick y el stopSelf diferido
@@ -2066,7 +2138,7 @@ public class RecorridoService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE);
         else stopForeground(true);
         NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) nm.cancel(ID);
+        if (nm != null) { nm.cancel(ID); nm.cancel(ID_VELOCIDAD); }
         super.onDestroy();
     }
 

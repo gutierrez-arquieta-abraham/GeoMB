@@ -61,6 +61,16 @@ public class MainActivity extends AppCompatActivity {
      *  MapFragment.aplicarSeleccionUnidad(), que esta etapa decidió no ampliar. */
     public static final String EXTRA_ECONOMICO_FOCO = "economico_foco";
 
+    /** Extras del aviso de exceso de velocidad durante un recorrido (ver RecorridoService.
+     *  avisarExcesoVelocidad): al tocar la notificación o su acción "Reportar", se abre el cliente
+     *  de correo prellenado vía ReporteIrregularidad -- el usuario revisa y decide si lo manda. */
+    public static final String EXTRA_REPORTAR_VELOCIDAD = "reportar_velocidad";
+    public static final String EXTRA_VEL_LINEA = "vel_linea";
+    public static final String EXTRA_VEL_TERMINAL = "vel_terminal";
+    public static final String EXTRA_VEL_LAT = "vel_lat";
+    public static final String EXTRA_VEL_LON = "vel_lon";
+    public static final String EXTRA_VEL_KMH = "vel_kmh";
+
     private int seleccionadoId = -1;
     private BottomNavigationView bottomNav;
     private AdView banner;
@@ -155,6 +165,7 @@ public class MainActivity extends AppCompatActivity {
         bottomNav = findViewById(R.id.bottom_nav);
         bottomNav.setOnItemSelectedListener(item -> { seleccionar(item.getItemId()); return true; });
         if (savedInstanceState == null) {
+            manejarReporteVelocidad(getIntent());
             String ecoFoco = getIntent() != null ? getIntent().getStringExtra(EXTRA_ECONOMICO_FOCO) : null;
             int inicial;
             if (ecoFoco != null && !ecoFoco.isEmpty()) {
@@ -256,6 +267,12 @@ public class MainActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         if (intent == null) return;
+        if (intent.getBooleanExtra(EXTRA_REPORTAR_VELOCIDAD, false)) {
+            manejarReporteVelocidad(intent);
+            bottomNav.setSelectedItemId(R.id.nav_mapa);
+            seleccionar(R.id.nav_mapa);
+            return;
+        }
         String ecoFoco = intent.getStringExtra(EXTRA_ECONOMICO_FOCO);
         if (ecoFoco != null && !ecoFoco.isEmpty()) {
             RealtimeRepository.unidadSeleccionada = ecoFoco;
@@ -283,6 +300,24 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragment_container, fragmentDe(id))
                 .commitAllowingStateLoss();
+    }
+
+    /** Si el Intent trae el aviso de exceso de velocidad (ver RecorridoService.
+     *  avisarExcesoVelocidad), abre el cliente de correo prellenado con ReporteIrregularidad -- el
+     *  usuario revisa y decide si lo manda, igual que cualquier otro reporte de la app. */
+    private void manejarReporteVelocidad(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(EXTRA_REPORTAR_VELOCIDAD, false)) return;
+        int linea = intent.getIntExtra(EXTRA_VEL_LINEA, 0);
+        String terminal = intent.getStringExtra(EXTRA_VEL_TERMINAL);
+        float kmh = intent.getFloatExtra(EXTRA_VEL_KMH, 0f);
+        com.google.android.gms.maps.model.LatLng pos = intent.hasExtra(EXTRA_VEL_LAT)
+                ? new com.google.android.gms.maps.model.LatLng(
+                        intent.getDoubleExtra(EXTRA_VEL_LAT, 0), intent.getDoubleExtra(EXTRA_VEL_LON, 0))
+                : null;
+        ReporteIrregularidad.enviar(this, 0L, linea, null, pos, null, terminal,
+                getString(R.string.velocidad_tipo_reporte),
+                getString(R.string.velocidad_descripcion_reporte, Math.round(kmh)),
+                null, null, null, null, null, null);
     }
 
     private Fragment fragmentDe(int id) {

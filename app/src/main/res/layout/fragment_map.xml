@@ -580,6 +580,21 @@
                     app:tint="?attr/colorPrimary" />
             </LinearLayout>
 
+            <!-- Deslizador horizontal de estaciones (EstacionRutaAdapter): vista compacta y siempre
+                 visible de la secuencia completa, con chips de instrucción entre tramos; durante el
+                 recorrido resalta y centra la estación actual. Se queda visible aunque
+                 panel_resultado_detalle (el detalle vertical, más largo) esté contraído, por eso NO
+                 vive adentro de ese LinearLayout. -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_estaciones_ruta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:clipToPadding="false"
+                android:paddingHorizontal="2dp"
+                android:overScrollMode="ifContentScrolls"
+                tools:listitem="@layout/item_estacion_ruta" />
+
             <LinearLayout
                 android:id="@+id/panel_resultado_detalle"
                 android:layout_width="match_parent"
@@ -621,16 +636,43 @@
                     tools:text="⚠ Ruta alterna por afectaciones en el servicio (toca para ver detalle)" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/res_estado"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:visibility="gone"
-                tools:text="Vas en Deportivo 18 de Marzo · Siguiente: La Raza" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/res_estado"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="Vas en Deportivo 18 de Marzo · Siguiente: La Raza" />
+
+                <!-- Velocímetro: solo visible durante un recorrido activo (ver MapFragment.
+                     refrescarRecorridoUI/detenerRecorrido). Cambia a rojo arriba del umbral de
+                     RecorridoService.UMBRAL_VELOCIDAD_KMH, mismo momento en que se manda el aviso
+                     de exceso de velocidad. -->
+                <TextView
+                    android:id="@+id/txt_velocidad"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_conteo"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="42 km/h"
+                    tools:visibility="visible" />
+            </LinearLayout>
 
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/sw_express"
