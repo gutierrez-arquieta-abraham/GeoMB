@@ -175,7 +175,8 @@ public final class CartaUnidad {
             // problema" no incluye el log técnico, y el log se sincroniza al backend, que está
             // caído). Quitar este sufijo una vez cerrado el diagnóstico.
             String rid = (u.ruta != null && !u.ruta.isEmpty()) ? u.ruta : "?";
-            return "Sin línea asignada (id " + rid + ")";
+            String tid = (u.tripId != null && !u.tripId.isEmpty()) ? u.tripId : "?";
+            return "Sin línea asignada (route_id " + rid + ", trip_id " + tid + ")";
         }
         Linea l = GtfsRepository.porNumero(ctx, u.linea);
         String nombre = l != null ? l.nombre : "";

@@ -58,8 +58,8 @@ final class UnidadRtWire {
             // Igual que RealtimeRepository.parsear(): el feed manda la velocidad en km/h.
             float velMs = c.speed / 3.6f;
 
-            lista.add(new UnidadReal(numero, linea, destino, origen, c.routeId, ficha.empresa,
-                    ficha.marca, ficha.modelo, c.placa != null ? c.placa : "",
+            lista.add(new UnidadReal(numero, linea, destino, origen, c.routeId, c.tripId,
+                    ficha.empresa, ficha.marca, ficha.modelo, c.placa != null ? c.placa : "",
                     c.lat, c.lon, c.bearing, velMs, c.timestamp));
         }
         return lista;
