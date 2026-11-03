@@ -110,6 +110,13 @@ public final class RutasRepository {
                 // así que a diferencia del respaldo de abajo sí refleja cambios de ruta del día.
                 return RutasEstaticoDirecto.obtener();
             } catch (Exception e2) {
+                // Se registra EL MOTIVO exacto (sin credenciales, pausa, HTTP de Sonda, zip sin
+                // routes.txt, etc.) -- a diferencia de los pólleos de unidades, init() corre UNA
+                // sola vez por sesión de la app, así que este log no se repite ni ensucia el
+                // reporte técnico. Sin esto, una falla silenciosa de este nivel era indistinguible
+                // de que ni siquiera se hubiera intentado.
+                Telemetria.registrarError(GeoMBApplication.get(), Telemetria.ERR_EXCEPCION,
+                        "RutasRepository.descargar:sonda_directo", String.valueOf(e2));
                 // Ni el backend ni Sonda directo respondieron (o no hay credenciales locales):
                 // cae al mismo archivo YA EMPAQUETADO en la app (assets/routes.json, copia de
                 // metrobus_app/data/routes.json) -- igual que lineas.json/estaciones.json/
