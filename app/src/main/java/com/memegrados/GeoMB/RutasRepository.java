@@ -99,29 +99,61 @@ public final class RutasRepository {
     // ---- carga ----
 
     private static List<Ruta> descargar() {
-        List<Ruta> lista = new ArrayList<>();
         try {
-            JSONArray arr = new JSONArray(Backend.descargar(Config.PATH_ROUTES));   // con failover
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject o = arr.getJSONObject(i);
-                Integer linea = null;
-                String ls = o.isNull("line") ? null : o.optString("line", null);
-                if (ls != null && !ls.isEmpty()) {
-                    try { linea = Integer.parseInt(ls.trim()); } catch (NumberFormatException ignore) {}
-                }
-                String origen = o.isNull("origen") ? "" : o.optString("origen", "");
-                String destino = o.isNull("destino") ? "" : o.optString("destino", "");
-                // Antes se DESCARTABAN las rutas sin 'line'; ahora se conservan con linea=0 para que su
-                // route_id siga resolviendo su recorrido (origen→destino) en el filtro y demás, aunque NO
-                // entren en las consultas por línea (deLinea usa 1..7). Solo se omiten las que no traen ni
-                // línea ni recorrido (inútiles).
-                int ln = linea != null ? linea : 0;
-                if (ln == 0 && origen.trim().isEmpty() && destino.trim().isEmpty()) continue;
-                lista.add(new Ruta(o.optString("route_id", ""), ln, origen, destino,
-                        o.optString("color", "#D40D0D")));
-            }
+            // Con failover (EC2 principal + Railway de respaldo, ver Backend) -- es la copia más
+            // fresca posible, así que se intenta primero.
+            return parsearRutas(Backend.descargar(Config.PATH_ROUTES));
         } catch (Exception e) {
-            e.printStackTrace();
+            // Ni el EC2 ni Railway respondieron: cae al mismo archivo YA EMPAQUETADO en la app
+            // (assets/routes.json, copia de metrobus_app/data/routes.json) -- igual que
+            // lineas.json/estaciones.json/mexibus.json, datos de referencia que casi no cambian,
+            // así que una copia local un poco vieja sigue siendo útil mientras el backend está
+            // abajo (p. ej. por un corte de pago del EC2). Sin esto, CUALQUIER caída del backend
+            // dejaba sin línea/origen/destino a TODAS las unidades del mapa, no solo las que de
+            // verdad tienen un route_id fuera de catálogo.
+            try {
+                GeoMBApplication app = GeoMBApplication.get();
+                if (app == null) return new ArrayList<>();
+                String json = leerAsset(app, "routes.json");
+                return parsearRutas(json);
+            } catch (Exception e2) {
+                Telemetria.registrarError(GeoMBApplication.get(), Telemetria.ERR_EXCEPCION,
+                        "RutasRepository.descargar:asset", String.valueOf(e2));
+                return new ArrayList<>();
+            }
+        }
+    }
+
+    private static String leerAsset(android.content.Context ctx, String nombre) throws java.io.IOException {
+        try (java.io.InputStream in = ctx.getAssets().open(nombre);
+             java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) bos.write(buf, 0, n);
+            return bos.toString("UTF-8");
+        }
+    }
+
+    static List<Ruta> parsearRutas(String json) throws org.json.JSONException {
+        List<Ruta> lista = new ArrayList<>();
+        JSONArray arr = new JSONArray(json);
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject o = arr.getJSONObject(i);
+            Integer linea = null;
+            String ls = o.isNull("line") ? null : o.optString("line", null);
+            if (ls != null && !ls.isEmpty()) {
+                try { linea = Integer.parseInt(ls.trim()); } catch (NumberFormatException ignore) {}
+            }
+            String origen = o.isNull("origen") ? "" : o.optString("origen", "");
+            String destino = o.isNull("destino") ? "" : o.optString("destino", "");
+            // Antes se DESCARTABAN las rutas sin 'line'; ahora se conservan con linea=0 para que su
+            // route_id siga resolviendo su recorrido (origen→destino) en el filtro y demás, aunque NO
+            // entren en las consultas por línea (deLinea usa 1..7). Solo se omiten las que no traen ni
+            // línea ni recorrido (inútiles).
+            int ln = linea != null ? linea : 0;
+            if (ln == 0 && origen.trim().isEmpty() && destino.trim().isEmpty()) continue;
+            lista.add(new Ruta(o.optString("route_id", ""), ln, origen, destino,
+                    o.optString("color", "#D40D0D")));
         }
         return lista;
     }

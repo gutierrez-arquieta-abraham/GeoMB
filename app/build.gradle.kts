@@ -87,6 +87,9 @@ dependencies {
     annotationProcessor("androidx.room:room-compiler:2.6.1")
 
     testImplementation(libs.junit)
+    // org.json real (no el stub de android.jar, que lanza "not mocked" en unitTest puro) -- solo
+    // para que RutasRepositoryParsearRutasTest pueda ejercitar JSONArray/JSONObject de verdad.
+    testImplementation("org.json:json:20231013")
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 }

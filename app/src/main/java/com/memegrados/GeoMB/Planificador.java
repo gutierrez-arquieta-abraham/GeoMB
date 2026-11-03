@@ -2208,15 +2208,24 @@ public final class Planificador {
             // corregir la coordenada de IV_L1_SALE (ver su constante, arriba), no cambiar de andén.
             return sale ? IV_L1_SALE : IV_L1_LLEGA;
         }
-        // Mexibús L4: Indios Verdes es estación de PASO; la plataforma depende del SENTIDO de viaje
-        // (hacia el norte / UMB Tecámac = andén norte SALE; hacia el sur / La Raza = andén sur LLEGA).
-        // El sentido se determina con la estación VECINA de la MISMA línea (L4), nunca con la del
-        // TRANSBORDO (Metrobús L1): su coordenada GTFS de "Indios Verdes" es una representativa propia de
-        // esa agencia y no tiene por qué reflejar hacia dónde caminabas en L4. Bosques→IPN es el caso real:
-        // la coordenada de Metrobús L1 (19.49678) cae ~190 m al NORTE de la de Mexibús L4 (19.495027) pese
-        // a que ibas hacia el SUR — al preferir siempre 'nextPos' (aquí, el nodo de L1) se leía 'norte=true'
-        // y se asignaba el andén de ascenso NORTE (a solo 40 m del de abordaje de L1) en vez del de llegada
-        // SUR (a 275 m real): el aviso de cambio de línea quedaba disparando casi de inmediato al llegar.
+        // mexibus.json (104/124) ya trae los 2 andenes como estaciones DISTINTAS y consecutivas (no un
+        // solo punto promedio): si 'pos' ya es exactamente uno de los 2 andenes reales, se respeta tal
+        // cual, sin heurística. Hace falta ANTES de la heurística de abajo: con 2 estaciones "Indios
+        // Verdes" seguidas en la misma línea, cada una tiene a la OTRA como vecina inmediata -- la
+        // heurística compararía Indios-Verdes contra Indios-Verdes (no contra La Raza/Periférico de
+        // verdad) y las 2 colapsarían al mismo andén (confirmado con datos reales de la secuencia:
+        // La Raza→LLEGA→SALE→Periférico, en ambos sentidos).
+        if (pos.equals(IV_L4_LLEGA) || pos.equals(IV_L4_SALE)) return pos;
+        // Mexibús L4 (otros casos, p. ej. si algún día vuelve a haber un solo punto promedio): la
+        // plataforma depende del SENTIDO de viaje (hacia el norte / UMB Tecámac = andén norte SALE;
+        // hacia el sur / La Raza = andén sur LLEGA). El sentido se determina con la estación VECINA de
+        // la MISMA línea (L4), nunca con la del TRANSBORDO (Metrobús L1): su coordenada GTFS de "Indios
+        // Verdes" es una representativa propia de esa agencia y no tiene por qué reflejar hacia dónde
+        // caminabas en L4. Bosques→IPN es el caso real: la coordenada de Metrobús L1 (19.49678) cae
+        // ~190 m al NORTE de la de Mexibús L4 (19.495027) pese a que ibas hacia el SUR — al preferir
+        // siempre 'nextPos' (aquí, el nodo de L1) se leía 'norte=true' y se asignaba el andén de ascenso
+        // NORTE (a solo 40 m del de abordaje de L1) en vez del de llegada SUR (a 275 m real): el aviso
+        // de cambio de línea quedaba disparando casi de inmediato al llegar.
         boolean prevMismaLinea = prevPos != null && prevLin >= 0 && baseLinea(prevLin) == baseLinea(linea);
         boolean nextMismaLinea = nextPos != null && nextLin >= 0 && baseLinea(nextLin) == baseLinea(linea);
         boolean norte;
