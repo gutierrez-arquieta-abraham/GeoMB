@@ -157,4 +157,27 @@ public final class Backend {
             conn.disconnect();
         }
     }
+
+    /** GET binario a una URL ABSOLUTA de un tercero (p. ej. la URL firmada de S3 que entrega
+     *  {@link Config#PATH_SYNC}) -- sin el prefijo de {@link Config#BASE_URL} ni failover: ese
+     *  concepto no aplica aquí, el destino YA viene resuelto completo y es de otro proveedor. */
+    public static byte[] descargarBinario(String urlAbsoluta) throws java.io.IOException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlAbsoluta).openConnection();
+        try {
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+            conn.connect();
+            int status = conn.getResponseCode();
+            if (status / 100 != 2) throw new java.io.IOException("HTTP " + status);
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            try (java.io.InputStream in = conn.getInputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) != -1) bos.write(buf, 0, n);
+            }
+            return bos.toByteArray();
+        } finally {
+            conn.disconnect();
+        }
+    }
 }

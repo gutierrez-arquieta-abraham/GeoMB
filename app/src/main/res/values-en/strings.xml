@@ -44,6 +44,7 @@
     <string name="mapa_tipo_normal">Normal map</string>
     <string name="mapa_tipo_satelite">Satellite</string>
     <string name="mapa_tipo_hibrido">Hybrid</string>
+    <string name="mapa_servidor_sin_respuesta">Server not responding — showing saved data</string>
     <string name="mapa_acercar">Zoom in</string>
     <string name="mapa_alejar">Zoom out</string>
     <string name="mapa_norte">Orient to north</string>

@@ -42,6 +42,7 @@
     <string name="mapa_tipo_normal">Mapa normal</string>
     <string name="mapa_tipo_satelite">Satélite</string>
     <string name="mapa_tipo_hibrido">Híbrido</string>
+    <string name="mapa_servidor_sin_respuesta">Servidor sin respuesta — mostrando datos guardados</string>
     <string name="mapa_acercar">Acercar</string>
     <string name="mapa_alejar">Alejar</string>
     <string name="mapa_norte">Orientar al norte</string>

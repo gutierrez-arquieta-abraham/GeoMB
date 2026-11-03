@@ -155,6 +155,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private boolean avisoError = false;
+    private View bannerServidor;
     private long ultimaManifestMapa = -1;   // último Manifestaciones.actualizado() ya pintado en el mapa
 
     /** Ciclo de actualización: pide el feed, actualiza marcadores y se reprograma. */
@@ -165,13 +166,20 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 @Override
                 public void onData(List<UnidadReal> unidades) {
                     avisoError = false;   // servidor OK de nuevo: permite reactivar el respaldo si vuelve a fallar
+                    if (bannerServidor != null) bannerServidor.setVisibility(View.GONE);
                     if (mapa != null) actualizarUnidades(unidades);
                     if (mapa != null) actualizarEstadoEstaciones();
                 }
 
                 @Override
                 public void onError(String mensaje) {
-                    if (!avisoError && isAdded()) {
+                    if (!isAdded()) return;
+                    // Banner PERSISTENTE (no solo el Toast de antes, que se esfuma en segundos):
+                    // pensado para una caída larga del servidor (p. ej. por falta de pago del EC2),
+                    // no solo un bache de red pasajero -- se queda visible hasta que vuelva a
+                    // responder (onData lo oculta arriba).
+                    if (bannerServidor != null) bannerServidor.setVisibility(View.VISIBLE);
+                    if (!avisoError) {
                         avisoError = true;
                         Toast.makeText(requireContext(),
                                 "Sin conexión con el servidor de unidades", Toast.LENGTH_SHORT).show();
@@ -268,6 +276,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
         cartaContainer = view.findViewById(R.id.map_carta_container);
         panelZoom = view.findViewById(R.id.panel_zoom);
+        bannerServidor = view.findViewById(R.id.banner_servidor);
 
         // Buscador inline: busca el económico y centra el mapa en la unidad.
         EditText inputMapa = view.findViewById(R.id.input_mapa);

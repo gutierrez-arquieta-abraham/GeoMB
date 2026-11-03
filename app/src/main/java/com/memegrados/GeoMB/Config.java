@@ -39,6 +39,9 @@ public final class Config {
     /** Rutas relativas que sirve el backend (se usan con failover, ver Backend). */
     public static final String PATH_VEHICLES = "/data/vehicles.json";
     public static final String PATH_ROUTES = "/data/routes.json";
+    /** Entrega la URL firmada (S3) del feed en vivo para que la app lo baje directo -- ver
+     *  UnidadRtEdge. Nombre de ruta a propósito neutro (edge_rt_backend.py, metrobus_app). */
+    public static final String PATH_SYNC = "/api/sync";
     /** Estado actual de afectaciones de Mexibús (lo escribe el módulo mexibus_afectaciones.py). */
     public static final String PATH_AFECT_MXB = "/data/afectaciones_mexibus.json";
 

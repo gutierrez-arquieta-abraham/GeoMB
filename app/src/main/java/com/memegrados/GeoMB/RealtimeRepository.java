@@ -118,8 +118,19 @@ public final class RealtimeRepository {
     public void fetch(Callback cb) {
         executor.execute(() -> {
             try {
-                String json = Backend.descargar(Config.PATH_VEHICLES);
-                List<UnidadReal> lista = parsear(json);
+                List<UnidadReal> listaObtenida;
+                try {
+                    // Camino nuevo (ver UnidadRtEdge): la app baja y decodifica el feed directo
+                    // del proveedor, el servidor solo reparte la URL firmada. Si algo falla por
+                    // lo que sea (red, catálogo de rutas aún sin cargar, feed caduco), cae al
+                    // camino de siempre SIN que el usuario note nada -- nunca se propaga este
+                    // error como si fuera un fallo real de la descarga.
+                    listaObtenida = UnidadRtEdge.obtener();
+                } catch (Exception edgeErr) {
+                    String json = Backend.descargar(Config.PATH_VEHICLES);
+                    listaObtenida = parsear(json);
+                }
+                final List<UnidadReal> lista = listaObtenida;
                 ultimo = lista;
                 ultimoFetchExitoTs = System.currentTimeMillis();
                 ultimoFetchError = false;

@@ -16,6 +16,28 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Aviso persistente de "servidor sin respuesta" (ver MapFragment.poll/avisoError): a
+         diferencia del Toast de antes (se esfuma a los pocos segundos), esta franja se queda
+         visible mientras el feed siga fallando, pensada para una caída larga del EC2 (p. ej.
+         por falta de pago), no solo un bache de red pasajero. GONE colapsa su alto en la cadena,
+         así que search_bar sube de vuelta a su lugar normal cuando no hace falta mostrarla. -->
+    <TextView
+        android:id="@+id/banner_servidor"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/mb_red"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="@string/mapa_servidor_sin_respuesta"
+        android:textColor="@color/white"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:visibility="visible" />
+
     <!-- Barra de búsqueda flotante + acceso al asistente (Gemini): antes eran dos barras
          completas apiladas (52dp cada una); el ícono de chat al final de ESTA MISMA barra abre
          ChatAsistenteActivity (igual que antes, misma Activity/lógica) sin ocupar una segunda
@@ -27,7 +49,7 @@
         android:layout_margin="16dp"
         app:cardCornerRadius="26dp"
         app:cardElevation="4dp"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/banner_servidor"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
