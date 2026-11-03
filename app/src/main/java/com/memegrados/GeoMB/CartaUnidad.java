@@ -94,6 +94,14 @@ public final class CartaUnidad {
         v.badgeEstado.setVisibility(View.VISIBLE);
         if (u != null) {
             v.badgeEstado.setText(R.string.estado_en_ruta);
+            if (u.linea == null) {
+                // El route_id crudo NUNCA se muestra en la UI -- se registra aquí para que el
+                // reporte técnico (Configuración > Reportar un problema) lo traiga cuando el
+                // usuario mira justo esta unidad, sin tener que exponerlo en pantalla. Acotado por
+                // interacción del usuario (ver una ficha), no por el pólleo -- no ensucia el reporte.
+                Telemetria.registrarError(ctx, Telemetria.ERR_EXCEPCION, "CartaUnidad.bind:sin_linea",
+                        "numero=" + numero + " route_id=" + u.ruta);
+            }
             String linea = descripcionLinea(ctx, u);
             v.txtLinea.setText(linea);
             Ruta r = RutasRepository.porRouteId(u.ruta);
