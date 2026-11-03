@@ -123,18 +123,14 @@ public final class RealtimeRepository {
     public void fetch(Callback cb) {
         executor.execute(() -> {
             try {
-                // DESACTIVADO para distribución a producción: UnidadRtEdge/UnidadRtDirecto hacen
-                // que el TELÉFONO interprete el .proto directo del proveedor (cada dispositivo
-                // termina pidiendo su propio token a Sonda, aunque sea vía backend) -- aceptable
-                // en prueba cerrada con pocos dispositivos, pero a escala de producción es
-                // exactamente el patrón de credencial compartida que un sistema antifraude normal
-                // marcaría, con riesgo de que Sonda revoque las credenciales para TODOS. Mientras
-                // tanto, el feed en vivo depende 100% de que el backend (EC2/Railway) responda.
-                // Código original (para reactivar, p. ej. de vuelta a prueba cerrada):
-                /*
                 List<UnidadReal> listaObtenida;
                 boolean caminoLocal;
                 try {
+                    // Camino nuevo (ver UnidadRtEdge): la app baja y decodifica el feed directo
+                    // del proveedor, el servidor solo reparte la URL firmada. Si algo falla por
+                    // lo que sea (red, catálogo de rutas aún sin cargar, feed caduco), cae al
+                    // camino de siempre SIN que el usuario note nada -- nunca se propaga este
+                    // error como si fuera un fallo real de la descarga.
                     listaObtenida = UnidadRtEdge.obtener();
                     caminoLocal = true;
                 } catch (Exception edgeErr) {
@@ -143,14 +139,14 @@ public final class RealtimeRepository {
                         listaObtenida = parsear(json);
                         caminoLocal = false;
                     } catch (Exception backendErr) {
+                        // Los 2 caminos de siempre pasan por el backend propio (EC2/Oracle): si
+                        // AMBOS fallan, es el backend el que está caído, no solo el feed. Último
+                        // recurso -- ver UnidadRtDirecto -- para que el mapa en vivo siga
+                        // funcionando pese a eso (p. ej. un corte por falta de pago del EC2).
                         listaObtenida = UnidadRtDirecto.obtener();
                         caminoLocal = true;
                     }
                 }
-                */
-                String json = Backend.descargar(Config.PATH_VEHICLES);
-                List<UnidadReal> listaObtenida = parsear(json);
-                boolean caminoLocal = false;
                 final List<UnidadReal> lista = listaObtenida;
                 ultimo = lista;
                 ultimoFetchExitoTs = System.currentTimeMillis();

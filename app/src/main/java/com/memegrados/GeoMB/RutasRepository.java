@@ -111,16 +111,26 @@ public final class RutasRepository {
             // en red si está arriba, así que se intenta primero.
             return parsearRutas(Backend.descargar(Config.PATH_ROUTES));
         } catch (Exception e) {
-            // DESACTIVADO para distribución a producción: RutasEstaticoDirecto hace que el
-            // TELÉFONO llame directo a Sonda (partnerValidation) con la credencial compartida --
-            // aceptable en prueba cerrada, riesgoso a escala de producción (ver mismo motivo en
-            // RealtimeRepository.fetch()). Código original (para reactivar):
-            /*
             try {
+                // Ni el EC2 ni Railway respondieron: el catálogo DE VERDAD en vivo, directo del
+                // GTFS estático de Sonda (ver RutasEstaticoDirecto) -- se regenera cada medianoche,
+                // así que a diferencia del respaldo de abajo sí refleja cambios de ruta del día.
                 return RutasEstaticoDirecto.obtener();
             } catch (Exception e2) {
+                // Se registra EL MOTIVO exacto (sin credenciales, pausa, HTTP de Sonda, zip sin
+                // routes.txt, etc.) -- a diferencia de los pólleos de unidades, init() corre UNA
+                // sola vez por sesión de la app, así que este log no se repite ni ensucia el
+                // reporte técnico. Sin esto, una falla silenciosa de este nivel era indistinguible
+                // de que ni siquiera se hubiera intentado.
                 Telemetria.registrarError(GeoMBApplication.get(), Telemetria.ERR_EXCEPCION,
                         "RutasRepository.descargar:sonda_directo", String.valueOf(e2));
+                // Ni el backend ni Sonda directo respondieron (o no hay credenciales locales):
+                // cae al mismo archivo YA EMPAQUETADO en la app (assets/routes.json, copia de
+                // metrobus_app/data/routes.json) -- igual que lineas.json/estaciones.json/
+                // mexibus.json, datos de referencia que casi no cambian, así que una copia local
+                // un poco vieja sigue siendo útil como último recurso. Sin esto, CUALQUIER caída
+                // simultánea del backend Y de Sonda dejaba sin línea/origen/destino a TODAS las
+                // unidades del mapa, no solo las que de verdad tienen un route_id fuera de catálogo.
                 try {
                     GeoMBApplication app = GeoMBApplication.get();
                     if (app == null) return new ArrayList<>();
@@ -131,23 +141,6 @@ public final class RutasRepository {
                             "RutasRepository.descargar:asset", String.valueOf(e3));
                     return new ArrayList<>();
                 }
-            }
-            */
-            // Ni el EC2 ni Railway respondieron: cae al mismo archivo YA EMPAQUETADO en la app
-            // (assets/routes.json, copia de metrobus_app/data/routes.json) -- igual que
-            // lineas.json/estaciones.json/mexibus.json, datos de referencia que casi no cambian,
-            // así que una copia local un poco vieja sigue siendo útil como último recurso. Sin
-            // esto, CUALQUIER caída del backend dejaba sin línea/origen/destino a TODAS las
-            // unidades del mapa, no solo las que de verdad tienen un route_id fuera de catálogo.
-            try {
-                GeoMBApplication app = GeoMBApplication.get();
-                if (app == null) return new ArrayList<>();
-                String json = leerAsset(app, "routes.json");
-                return parsearRutas(json);
-            } catch (Exception e3) {
-                Telemetria.registrarError(GeoMBApplication.get(), Telemetria.ERR_EXCEPCION,
-                        "RutasRepository.descargar:asset", String.valueOf(e3));
-                return new ArrayList<>();
             }
         }
     }

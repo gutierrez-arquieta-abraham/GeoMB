@@ -322,6 +322,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         view.findViewById(R.id.btn_chat_mapa).setOnClickListener(v ->
                 new AsistenteOverlayFragment().show(getChildFragmentManager(), "asistente"));
 
+        configurarPanelPlanificador(view);
+
         chipFiltros = view.findViewById(R.id.chip_filtros);
         txtConteo = view.findViewById(R.id.txt_conteo);
         view.findViewById(R.id.fab_filtros).setOnClickListener(v ->
@@ -2039,6 +2041,49 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     @SuppressLint("MissingPermission")
+    /**
+     * FASE 1 de la fusión del planificador con el mapa general (ver PlanificadorFragment): solo
+     * la cáscara visual -- abre/cierra {@code panel_origen_destino} desde {@code btn_planificar},
+     * intercambia origen/destino, y colapsa a la viñeta mini con {@code btn_contraer_od}/tocar la
+     * viñeta. Calcular y dibujar la ruta en el mapa general todavía NO está aquí (fase 2); por
+     * ahora btn_trazar solo avisa que está en camino, para no dejar un botón que parezca roto.
+     */
+    private void configurarPanelPlanificador(View view) {
+        View panelOd = view.findViewById(R.id.panel_origen_destino);
+        View expandido = view.findViewById(R.id.panel_od_expandido);
+        View colapsado = view.findViewById(R.id.panel_od_colapsado);
+        EditText inOrigen = view.findViewById(R.id.input_origen);
+        EditText inDestino = view.findViewById(R.id.input_destino);
+
+        view.findViewById(R.id.btn_planificar).setOnClickListener(v -> {
+            boolean mostrar = panelOd.getVisibility() != View.VISIBLE;
+            panelOd.setVisibility(mostrar ? View.VISIBLE : View.GONE);
+            if (mostrar) { expandido.setVisibility(View.VISIBLE); colapsado.setVisibility(View.GONE); }
+        });
+
+        view.findViewById(R.id.btn_contraer_od).setOnClickListener(v -> {
+            expandido.setVisibility(View.GONE);
+            colapsado.setVisibility(View.VISIBLE);
+            TextView txtColapsado = view.findViewById(R.id.txt_od_colapsado);
+            String o = inOrigen.getText().toString().trim();
+            String d = inDestino.getText().toString().trim();
+            txtColapsado.setText((o.isEmpty() ? "?" : o) + " → " + (d.isEmpty() ? "?" : d));
+        });
+        colapsado.setOnClickListener(v -> {
+            colapsado.setVisibility(View.GONE);
+            expandido.setVisibility(View.VISIBLE);
+        });
+
+        view.findViewById(R.id.btn_intercambiar).setOnClickListener(v -> {
+            String o = inOrigen.getText().toString();
+            inOrigen.setText(inDestino.getText().toString());
+            inDestino.setText(o);
+        });
+
+        view.findViewById(R.id.btn_trazar).setOnClickListener(v ->
+                Toast.makeText(requireContext(), R.string.planificador_fusion_proximamente, Toast.LENGTH_SHORT).show());
+    }
+
     private void irAMiUbicacion() {
         if (!tienePermisoUbicacion()) {
             permisoUbicacion.launch(Manifest.permission.ACCESS_FINE_LOCATION);

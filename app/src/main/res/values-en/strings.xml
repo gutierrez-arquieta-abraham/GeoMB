@@ -274,6 +274,7 @@
     <string name="planificador_origen">From (origin station)</string>
     <string name="planificador_destino">To (destination station)</string>
     <string name="planificador_trazar">Plan route</string>
+    <string name="planificador_fusion_proximamente">Coming soon: plan your route right from here</string>
     <string name="intercambiar">Swap origin and destination</string>
     <string name="planificador_contraer">Collapse the route search</string>
     <string name="planificador_expandir">Tap to show the route search again</string>

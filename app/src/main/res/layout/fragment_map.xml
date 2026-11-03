@@ -87,6 +87,19 @@
                 android:textColorHint="@color/mb_gray"
                 android:textSize="16sp" />
 
+            <!-- Entrada al planificador de ruta: abre/cierra panel_origen_destino (fusión del
+                 mapa general con PlanificadorFragment, en curso). -->
+            <ImageButton
+                android:id="@+id/btn_planificar"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:padding="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/planificador_titulo"
+                android:src="@drawable/ic_route"
+                app:tint="?attr/colorPrimary" />
+
             <ImageButton
                 android:id="@+id/btn_chat_mapa"
                 android:layout_width="40dp"
@@ -96,6 +109,200 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/asistente_titulo"
                 android:src="@drawable/ic_chat"
+                app:tint="?attr/colorPrimary" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Panel de origen/destino del planificador (FASE 1 de la fusión con el mapa general: solo
+         la cáscara visual que abre/cierra btn_planificar, la lógica de trazar/desambiguar
+         sigue en PlanificadorFragment hasta la fase 2). Mismo layout que
+         fragment_planificador.xml#panel_origen_destino, para reusar MapFragment.configurarPanelPlanificador(). -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/panel_origen_destino"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="5dp"
+        app:layout_constraintTop_toBottomOf="@id/search_bar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/panel_od_expandido"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:text="@string/planificador_titulo"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <ImageButton
+                    android:id="@+id/btn_contraer_od"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/planificador_contraer"
+                    android:padding="5dp"
+                    android:rotation="-90"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="?attr/colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/btn_location"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/mi_ubicacion"
+                            android:padding="8dp"
+                            android:src="@drawable/ic_my_location"
+                            app:tint="@color/mb_gray" />
+
+                        <EditText
+                            android:id="@+id/input_origen"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:autofillHints=""
+                            android:hint="@string/planificador_origen"
+                            android:imeOptions="actionNext"
+                            android:inputType="text"
+                            android:maxLines="1" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:contentDescription="@string/planificador_destino"
+                            android:padding="8dp"
+                            android:src="@drawable/ic_estaciones"
+                            app:tint="@color/mb_red" />
+
+                        <EditText
+                            android:id="@+id/input_destino"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:autofillHints=""
+                            android:hint="@string/planificador_destino"
+                            android:imeOptions="actionGo"
+                            android:inputType="text"
+                            android:maxLines="1" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btn_intercambiar"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/intercambiar"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_swap"
+                    app:tint="?attr/colorPrimary" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_trazar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/planificador_trazar" />
+
+            <ProgressBar
+                android:id="@+id/progress_trazando"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/panel_od_colapsado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:contentDescription="@string/planificador_expandir"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="12dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_estaciones"
+                app:tint="?attr/colorPrimary" />
+
+            <TextView
+                android:id="@+id/txt_od_colapsado"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold"
+                tools:text="Bosques del Valle → París" />
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@null"
+                android:rotation="90"
+                android:src="@drawable/ic_chevron_right"
                 app:tint="?attr/colorPrimary" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
