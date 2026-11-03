@@ -158,6 +158,25 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private TextView bannerServidor;
     private long ultimaManifestMapa = -1;   // último Manifestaciones.actualizado() ya pintado en el mapa
 
+    // ---- Planificador (fusión con el mapa general, FASE 2: calcular y dibujar la ruta) ----
+    // Todavía NO incluye (fases aparte): preferencia Ordinario/Exprés por troncal Mexibús,
+    // re-enganche automático de un recorrido activo, unidades animadas sobre el trazo (el mapa
+    // general ya las muestra en todos lados) ni el seguimiento GPS en vivo ("Iniciar recorrido").
+    private EditText inOrigen, inDestino;
+    private View panelResultado, panelResultadoDetalle, filaResultadoResumen, progressTrazando;
+    private android.widget.ImageView icContraerResultado;
+    private TextView resResumen, resAviso, resEstado;
+    private android.widget.LinearLayout resPasosList;
+    private android.widget.ScrollView resPasosScroll;
+    private String origenCanon, destinoCanon;
+    private int origenLinea, destinoLinea;
+    private LatLng origenSeleccionPos;
+    private Planificador.Ruta rutaActiva;
+    private final List<Polyline> trazoRuta = new ArrayList<>();
+    private final List<Marker> marcadoresRuta = new ArrayList<>();
+    private LatLngBounds ultimosLimitesRuta;
+    private final java.util.concurrent.ExecutorService calcExec = java.util.concurrent.Executors.newSingleThreadExecutor();
+
     /** Ciclo de actualización: pide el feed, actualiza marcadores y se reprograma. */
     private final Runnable poll = new Runnable() {
         @Override
@@ -2040,20 +2059,20 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
     }
 
-    @SuppressLint("MissingPermission")
     /**
-     * FASE 1 de la fusión del planificador con el mapa general (ver PlanificadorFragment): solo
-     * la cáscara visual -- abre/cierra {@code panel_origen_destino} desde {@code btn_planificar},
-     * intercambia origen/destino, y colapsa a la viñeta mini con {@code btn_contraer_od}/tocar la
-     * viñeta. Calcular y dibujar la ruta en el mapa general todavía NO está aquí (fase 2); por
-     * ahora btn_trazar solo avisa que está en camino, para no dejar un botón que parezca roto.
+     * FASE 2 de la fusión del planificador con el mapa general (ver PlanificadorFragment): ya
+     * calcula y dibuja la ruta sobre el mapa único (mismo Planificador.calcular(), sin tocarlo).
+     * A propósito NO incluye todavía (fases aparte, ver el comentario de los campos arriba):
+     * preferencia Ordinario/Exprés por troncal Mexibús, re-enganche de un recorrido activo,
+     * unidades animadas sobre el trazo, ni "Iniciar recorrido" (seguimiento GPS en vivo).
      */
     private void configurarPanelPlanificador(View view) {
         View panelOd = view.findViewById(R.id.panel_origen_destino);
         View expandido = view.findViewById(R.id.panel_od_expandido);
         View colapsado = view.findViewById(R.id.panel_od_colapsado);
-        EditText inOrigen = view.findViewById(R.id.input_origen);
-        EditText inDestino = view.findViewById(R.id.input_destino);
+        inOrigen = view.findViewById(R.id.input_origen);
+        inDestino = view.findViewById(R.id.input_destino);
+        progressTrazando = view.findViewById(R.id.progress_trazando);
 
         view.findViewById(R.id.btn_planificar).setOnClickListener(v -> {
             boolean mostrar = panelOd.getVisibility() != View.VISIBLE;
@@ -2075,13 +2094,482 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         });
 
         view.findViewById(R.id.btn_intercambiar).setOnClickListener(v -> {
-            String o = inOrigen.getText().toString();
-            inOrigen.setText(inDestino.getText().toString());
-            inDestino.setText(o);
+            String oc = origenCanon, dc = destinoCanon;
+            CharSequence o = inOrigen.getText(), d = inDestino.getText();
+            if (dc != null) setOrigenRuta(dc); else inOrigen.setText(d);
+            if (oc != null) setDestinoRuta(oc); else inDestino.setText(o);
+            if (o.length() > 0 && d.length() > 0) trazar();
         });
 
-        view.findViewById(R.id.btn_trazar).setOnClickListener(v ->
-                Toast.makeText(requireContext(), R.string.planificador_fusion_proximamente, Toast.LENGTH_SHORT).show());
+        view.findViewById(R.id.btn_trazar).setOnClickListener(v -> trazar());
+        inOrigen.setOnEditorActionListener((v, id, e) -> { inDestino.requestFocus(); return true; });
+        inDestino.setOnEditorActionListener((v, id, e) -> {
+            InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+            trazar();
+            return true;
+        });
+
+        panelResultado = view.findViewById(R.id.panel_resultado);
+        panelResultadoDetalle = view.findViewById(R.id.panel_resultado_detalle);
+        filaResultadoResumen = view.findViewById(R.id.fila_resultado_resumen);
+        icContraerResultado = view.findViewById(R.id.ic_contraer_resultado);
+        resResumen = view.findViewById(R.id.res_resumen);
+        resPasosList = view.findViewById(R.id.res_pasos_list);
+        resPasosScroll = view.findViewById(R.id.res_pasos_scroll);
+        resAviso = view.findViewById(R.id.res_aviso);
+        resEstado = view.findViewById(R.id.res_estado);
+        filaResultadoResumen.setOnClickListener(v -> alternarResultado());
+        resAviso.setOnClickListener(v -> mostrarCartaAfectacionesRuta());
+    }
+
+    // ---- Planificador: calcular y dibujar la ruta (fase 2) --------------------------------
+
+    private void setOrigenRuta(String canon) {
+        origenCanon = canon; origenLinea = 0; origenSeleccionPos = null;
+        inOrigen.setText(Planificador.sinMxb(canon));
+    }
+
+    private void setDestinoRuta(String canon) {
+        destinoCanon = canon; destinoLinea = 0;
+        inDestino.setText(Planificador.sinMxb(canon));
+    }
+
+    private String resolverRuta(EditText campo, String canon) {
+        String txt = campo.getText().toString().trim();
+        if (canon != null && Planificador.norm(txt).equals(
+                Planificador.norm(Planificador.sinMxb(Planificador.nombreCorto(canon)))))
+            return canon;
+        return Planificador.estacionParecida(requireContext(), txt);
+    }
+
+    private interface ResueltoRutaCb { void run(String mostrado, String ruta, int linea, LatLng pos); }
+
+    /** Ejecuta Planificador.calcular en segundo plano (puede tardar >1 s) y entrega el resultado
+     *  en el hilo principal -- igual que PlanificadorFragment.calcularAsync(), para no bloquear
+     *  el hilo principal ni disparar un ANR. */
+    private void calcularRutaAsync(java.util.concurrent.Callable<Planificador.Ruta> tarea,
+                                    androidx.core.util.Consumer<Planificador.Ruta> alTerminar) {
+        if (progressTrazando != null) progressTrazando.setVisibility(View.VISIBLE);
+        calcExec.execute(() -> {
+            Planificador.Ruta r;
+            try { r = tarea.call(); } catch (Exception e) {
+                r = null;
+                GeoMBApplication app = GeoMBApplication.get();
+                if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "MapFragment.calcularRutaAsync.tarea", String.valueOf(e.getMessage()));
+            }
+            final Planificador.Ruta res = r;
+            if (!isAdded()) return;
+            handler.post(() -> {
+                if (progressTrazando != null) progressTrazando.setVisibility(View.GONE);
+                try {
+                    if (isAdded()) alTerminar.accept(res);
+                } catch (Exception e) {
+                    GeoMBApplication app = GeoMBApplication.get();
+                    if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "MapFragment.calcularRutaAsync", String.valueOf(e.getMessage()));
+                }
+            });
+        });
+    }
+
+    private void trazar() {
+        if (mapa == null) return;
+        desambiguarRuta(inOrigen, origenCanon, origenLinea, origenSeleccionPos, (om, or, lo, posO) ->
+                desambiguarRuta(inDestino, destinoCanon, destinoLinea, null, (dm, dr, ld, posD) ->
+                        trazarResueltoRuta(om, or, lo, posO, dm, dr, ld)));
+    }
+
+    private void trazarResueltoRuta(String origenMostrado, String origen, int lineaO, LatLng posOrigen,
+                                     String destinoMostrado, String destino, int lineaD) {
+        if (destino == null) {
+            Toast.makeText(requireContext(), getString(R.string.estacion_no_encontrada), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (origen == null) { origen = destino; origenMostrado = destinoMostrado; lineaO = lineaD; posOrigen = null; }
+
+        final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
+        final String fom = origenMostrado; final String fdm = destinoMostrado; final LatLng fpos = posOrigen;
+        // Preferencia SUAVE sembrada desde el servicio con el que origen/destino ya quedaron fijados
+        // (ver PlanificadorFragment.sembrarPrefServicio): sin esto, el cálculo queda pineado a
+        // exactamente esa línea (102 u 122, p. ej.) sin poder caer al servicio hermano de la MISMA
+        // base si justo ese cerró. La pregunta explícita Ordinario/Exprés queda para una fase aparte.
+        final java.util.Map<Integer, Boolean> prefInicial = new java.util.HashMap<>();
+        sembrarPrefServicioRuta(prefInicial, flo);
+        sembrarPrefServicioRuta(prefInicial, fld);
+        calcularRutaAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, prefInicial, fpos), r -> {
+            if (r == null) {
+                Toast.makeText(requireContext(), mensajeFalloRuta(fd), Toast.LENGTH_LONG).show();
+                return;
+            }
+            origenCanon = fom; origenLinea = flo; origenSeleccionPos = fpos;
+            inOrigen.setText(flo == 0 ? Planificador.sinMxb(fom) : Planificador.nombreMostrar(requireContext(), fom, flo));
+            destinoCanon = fdm; destinoLinea = fld;
+            inDestino.setText(fld == 0 ? Planificador.sinMxb(fdm) : Planificador.nombreMostrar(requireContext(), fdm, fld));
+            dibujarRuta(r);
+        });
+    }
+
+    private static void sembrarPrefServicioRuta(java.util.Map<Integer, Boolean> pref, int linea) {
+        if (linea < 101 || linea > 124) return;
+        if (linea >= 111 && linea <= 119) return;
+        pref.put(Servicios.base(linea), linea >= 121 && linea <= 124);
+    }
+
+    private void desambiguarRuta(EditText campo, String canonRec, int lineaRec, LatLng posRec, ResueltoRutaCb cb) {
+        String canon = resolverRuta(campo, canonRec);
+        if (canon == null) { cb.run(null, null, 0, null); return; }
+        if (canon.equals(canonRec)) { cb.run(canon, Planificador.nombreRutaDeAlias(canon), lineaRec, posRec); return; }
+
+        java.util.List<Planificador.Match> cs = Planificador.candidatos(requireContext(), canon);
+        boolean mxb = Modos.mostrarMexibus(requireContext());
+        boolean mxc = Modos.mostrarMexicable(requireContext());
+        if (!mxb || !mxc) {
+            java.util.List<Planificador.Match> f = new java.util.ArrayList<>();
+            for (Planificador.Match m : cs) {
+                int sis = Sistemas.sistemaDe(m.linea);
+                if (sis == Sistemas.METROBUS
+                        || (sis == Sistemas.MEXIBUS && mxb)
+                        || (sis == Sistemas.MEXICABLE && mxc)) f.add(m);
+            }
+            cs = f;
+        }
+        if (cs.isEmpty()) { cb.run(canon, canon, 0, null); return; }
+        java.util.List<java.util.List<Planificador.Match>> grupos = Planificador.agruparPorEstacionFisica(cs);
+        if (grupos.size() == 1) { fijarRuta(campo, grupos.get(0).get(0), cb); return; }
+        CartaDesambiguacion.elegirEstacionFisica(requireContext(), getString(R.string.desamb_cual_estacion), grupos,
+                g -> fijarRuta(campo, CartaDesambiguacion.repGrupo(g), cb));
+    }
+
+    private void fijarRuta(EditText campo, Planificador.Match m, ResueltoRutaCb cb) {
+        String nombreReal = m.nombreRuta != null ? m.nombreRuta : m.nombre;
+        int pin = m.linea < 100 ? 0 : m.linea;
+        campo.setText(Planificador.nombreMostrar(requireContext(), m.nombre, m.linea));
+        cb.run(m.nombre, nombreReal, pin, m.pos);
+    }
+
+    private String mensajeFalloRuta(String destino) {
+        if (Planificador.motivoFallo == Planificador.MOTIVO_ESTACION_CERRADA) {
+            String est = Planificador.estacionCerrada != null ? Planificador.estacionCerrada : destino;
+            int cat = Manifestaciones.razonCierre(Planificador.norm(est));
+            int motivo = cat == Manifestaciones.C_MANTENIMIENTO ? R.string.ruta_motivo_mantenimiento
+                    : cat == Manifestaciones.C_ESTADO ? R.string.ruta_motivo_bloqueo
+                    : R.string.ruta_motivo_afectacion;
+            return getString(R.string.ruta_estacion_cerrada, est, getString(motivo));
+        }
+        if (Planificador.motivoFallo == Planificador.MOTIVO_HORARIO) {
+            int linea = Planificador.lineaHorarioCerrado;
+            return linea > 0
+                    ? getString(R.string.ruta_fuera_servicio_linea, etiquetaHorarioRuta(linea))
+                    : getString(R.string.ruta_fuera_servicio);
+        }
+        if (Planificador.motivoFallo == Planificador.MOTIVO_AFECTACION) {
+            return getString(R.string.ruta_corte_bloqueo);
+        }
+        return getString(R.string.ruta_sin_ruta, destino);
+    }
+
+    private static String etiquetaHorarioRuta(int n) {
+        if (n < 100) return "L" + n;
+        if (n >= 121 && n <= 124) return "MXB L" + (n - 120) + " exprés";
+        if (n < 200) return "MXB L" + (n >= 111 && n <= 113 ? (n - 110) + "A" : String.valueOf(n - 100));
+        return "MXC L" + (n - 200);
+    }
+
+    private String infoHorarioRuta(Planificador.Ruta r) {
+        java.util.LinkedHashSet<Integer> claves = new java.util.LinkedHashSet<>();
+        for (Planificador.Parada p : r.secuencia) {
+            int k = p.linea;
+            if (k >= 121 && k <= 124 && !Horarios.tieneLinea(requireContext(), k)) k -= 20;
+            claves.add(k);
+        }
+        if (claves.isEmpty()) return null;
+        java.util.Calendar ahora = java.util.Calendar.getInstance();
+        StringBuilder info = new StringBuilder(), fuera = new StringBuilder();
+        for (int k : claves) {
+            String v = Horarios.ventanaHoy(requireContext(), k, ahora);
+            if (v == null) continue;
+            String etq = etiquetaHorarioRuta(k);
+            if (info.length() > 0) info.append(" · ");
+            info.append(etq).append(" ").append(v);
+            if (!Horarios.lineaCircula(requireContext(), k, ahora)) {
+                if (fuera.length() > 0) fuera.append(", ");
+                fuera.append(etq);
+            }
+        }
+        if (info.length() == 0) return null;
+        StringBuilder msg = new StringBuilder(getString(R.string.ruta_horario_hoy, info.toString()));
+        if (fuera.length() > 0) msg.append("\n").append(getString(R.string.ruta_fuera_horario, fuera.toString()));
+        return msg.toString();
+    }
+
+    private static boolean tocaLugarRutaPlan(String lugarNorm, java.util.Set<String> nombresRuta) {
+        if (lugarNorm.isEmpty()) return false;
+        for (String n : nombresRuta) {
+            if (n.length() < 3) continue;
+            if (lugarNorm.contains(n) || n.contains(lugarNorm)) return true;
+        }
+        return false;
+    }
+
+    private static boolean rutaTieneAfectacionPlan(Planificador.Ruta r) {
+        if (r == null) return false;
+        java.util.Set<Integer> lineasRuta = new java.util.HashSet<>();
+        if (r.instrucciones != null)
+            for (Planificador.Instruccion ins : r.instrucciones) lineasRuta.add(ins.linea);
+        java.util.Set<String> nombresRuta = new java.util.HashSet<>();
+        for (Planificador.Parada p : r.secuencia) nombresRuta.add(Planificador.norm(p.nombre));
+        for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
+            if (lineasRuta.contains(a.lineaNum) || tocaLugarRutaPlan(Planificador.norm(a.lugar), nombresRuta))
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * Dibuja la ruta calculada SOBRE EL MAPA GENERAL -- a propósito NUNCA llama mapa.clear(), que
+     * borraría las unidades/estaciones que MapFragment ya tiene pintadas: lleva sus PROPIOS
+     * overlays (trazoRuta/marcadoresRuta) y solo limpia esos antes de redibujar.
+     */
+    private void dibujarRuta(Planificador.Ruta r) {
+        if (mapa == null) return;
+        for (Polyline p : trazoRuta) p.remove();
+        trazoRuta.clear();
+        for (Marker m : marcadoresRuta) m.remove();
+        marcadoresRuta.clear();
+        rutaActiva = r;
+
+        LatLngBounds.Builder bounds = new LatLngBounds.Builder();
+        for (Planificador.Paso p : r.pasos) {
+            trazoRuta.add(mapa.addPolyline(new PolylineOptions()
+                    .addAll(p.puntos).color(p.color).width(18f).zIndex(5f)));
+            for (LatLng pt : p.puntos) bounds.include(pt);
+        }
+        for (int k = 1; k < r.pasos.size(); k++) {
+            List<LatLng> ant = r.pasos.get(k - 1).puntos, act = r.pasos.get(k).puntos;
+            if (ant.isEmpty() || act.isEmpty()) continue;
+            trazoRuta.add(mapa.addPolyline(new PolylineOptions()
+                    .add(ant.get(ant.size() - 1)).add(act.get(0))
+                    .color(r.pasos.get(k).color).width(12f).zIndex(4f)));
+        }
+        for (Planificador.Parada p : r.secuencia) {
+            boolean esTroncalH72L2 = p.linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(p.nombre));
+            boolean esPropioH72 = p.linea == 2 && Iconos.ESTACIONES_PROPIAS_H72.contains(Planificador.norm(p.nombre));
+            BitmapDescriptor ic = (esTroncalH72L2 || esPropioH72)
+                    ? bitmapEstacionTransbordoRuta(p.icono, colorDeRuta(esTroncalH72L2 ? 7 : 2), colorDeRuta(esTroncalH72L2 ? 2 : 7))
+                    : bitmapEstacionRuta(p.icono, p.color);
+            if (ic == null) continue;
+            String titulo = Planificador.nombreMostrar(requireContext(), p.nombre, p.linea);
+            marcadoresRuta.add(mapa.addMarker(new MarkerOptions().position(p.pos).title(titulo)
+                    .icon(ic).anchor(0.5f, 0.5f).zIndex(6f)));
+        }
+        ultimosLimitesRuta = bounds.build();
+
+        resResumen.setText(getString(R.string.ruta_resumen, r.paradas, r.transbordos, r.minutos));
+        pintarPasosRuta(r);
+        StringBuilder aviso = new StringBuilder();
+        if (rutaTieneAfectacionPlan(r)) aviso.append(getString(R.string.ruta_alterna));
+        String hor = infoHorarioRuta(r);
+        if (hor != null) { if (aviso.length() > 0) aviso.append("\n"); aviso.append(hor); }
+        resAviso.setVisibility(aviso.length() > 0 ? View.VISIBLE : View.GONE);
+        if (aviso.length() > 0) resAviso.setText(aviso.toString());
+        resEstado.setVisibility(View.GONE);
+        panelResultado.setVisibility(View.VISIBLE);
+
+        int m = (int) (16 * getResources().getDisplayMetrics().density);
+        mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(ultimosLimitesRuta, m));
+    }
+
+    private void mostrarCartaAfectacionesRuta() {
+        if (rutaActiva == null || !isAdded()) return;
+        java.util.Set<Integer> lineasRuta = new java.util.HashSet<>();
+        if (rutaActiva.instrucciones != null)
+            for (Planificador.Instruccion ins : rutaActiva.instrucciones) lineasRuta.add(ins.linea);
+        java.util.Set<String> nombresRuta = new java.util.HashSet<>();
+        for (Planificador.Parada p : rutaActiva.secuencia) nombresRuta.add(Planificador.norm(p.nombre));
+
+        java.util.Map<String, Manifestaciones.Afectacion> porLineaCat = new java.util.LinkedHashMap<>();
+        for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
+            boolean tocaLinea = lineasRuta.contains(a.lineaNum);
+            boolean tocaLugar = tocaLugarRutaPlan(Planificador.norm(a.lugar), nombresRuta);
+            if (!tocaLinea && !tocaLugar) continue;
+            String k = a.lineaNum + "|" + a.categoria;
+            Manifestaciones.Afectacion actual = porLineaCat.get(k);
+            int largoNuevo = a.estado.length() + a.lugar.length() + a.info.length();
+            int largoActual = actual == null ? -1
+                    : actual.estado.length() + actual.lugar.length() + actual.info.length();
+            if (actual == null || largoNuevo > largoActual) porLineaCat.put(k, a);
+        }
+        List<Manifestaciones.Afectacion> relevantes = new ArrayList<>(porLineaCat.values());
+
+        androidx.appcompat.app.AlertDialog.Builder b = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.afectaciones_carta_titulo)
+                .setPositiveButton(android.R.string.ok, null);
+        if (relevantes.isEmpty()) {
+            b.setMessage(R.string.afectaciones_carta_vacio);
+        } else {
+            androidx.recyclerview.widget.RecyclerView rv = new androidx.recyclerview.widget.RecyclerView(requireContext());
+            rv.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            int pad = Math.round(8 * getResources().getDisplayMetrics().density);
+            rv.setPadding(pad, pad, pad, pad);
+            rv.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(requireContext()));
+            AfectacionesAdapter ad = new AfectacionesAdapter();
+            ad.set(relevantes);
+            rv.setAdapter(ad);
+            b.setView(rv);
+        }
+        b.show();
+    }
+
+    private void alternarResultado() {
+        if (panelResultadoDetalle == null) return;
+        if (panelResultadoDetalle.getVisibility() == View.VISIBLE) {
+            panelResultadoDetalle.setVisibility(View.GONE);
+            icContraerResultado.setRotation(90);
+        } else {
+            panelResultadoDetalle.setVisibility(View.VISIBLE);
+            icContraerResultado.setRotation(-90);
+        }
+    }
+
+    private void pintarPasosRuta(Planificador.Ruta r) {
+        resPasosList.removeAllViews();
+        java.util.List<Planificador.Paso> pasos = r.pasos;
+        java.util.List<Planificador.Instruccion> ins = r.instrucciones;
+        int n = Math.min(pasos == null ? 0 : pasos.size(), ins == null ? 0 : ins.size());
+        for (int t = 0; t < n; t++) {
+            Planificador.Paso paso = pasos.get(t);
+            if (t > 0 && (paso.pasajeExtra || !mismoTrazoRuta(pasos.get(t - 1).linea, paso.linea))) {
+                Planificador.Paso prev = pasos.get(t - 1);
+                String texto; boolean camina;
+                if (paso.pasajeExtra) {
+                    camina = true;
+                    texto = getString(R.string.ruta_pasaje_extra,
+                            Planificador.nombreMostrar(requireContext(), paso.origen, paso.linea));
+                } else {
+                    boolean mismaEstacion = prev.destino != null && paso.origen != null
+                            && (Planificador.norm(Planificador.sinMxb(prev.destino))
+                                    .equals(Planificador.norm(Planificador.sinMxb(paso.origen)))
+                                || Planificador.nucleoCoincide(prev.destino, paso.origen));
+                    camina = prev.destino != null && paso.origen != null && !mismaEstacion;
+                    if (camina) {
+                        texto = getString(R.string.ruta_camina,
+                                Planificador.nombreMostrar(requireContext(), paso.origen, paso.linea));
+                    } else {
+                        String verbo = getString(verboTransferenciaRuta(prev.linea, paso.linea));
+                        if (!verbo.isEmpty()) verbo = Character.toUpperCase(verbo.charAt(0)) + verbo.substring(1);
+                        texto = verbo + " · L" + Planificador.etiquetaLineaCortaPub(paso.linea);
+                    }
+                }
+                resPasosList.addView(filaTransferRuta(camina, texto));
+            }
+            resPasosList.addView(filaIndicacionRuta(ins.get(t)));
+        }
+        resPasosScroll.post(() -> {
+            if (resPasosScroll == null) return;
+            ViewGroup.LayoutParams lp = resPasosScroll.getLayoutParams();
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            resPasosScroll.setLayoutParams(lp);
+        });
+    }
+
+    private static boolean mismoTrazoRuta(int a, int b) {
+        int ca = (a >= 121 && a <= 124) ? a - 20 : a;
+        int cb = (b >= 121 && b <= 124) ? b - 20 : b;
+        return ca == cb;
+    }
+
+    private static int verboTransferenciaRuta(int lineaAnt, int lineaAct) {
+        boolean antMetro = lineaAnt < 100;
+        boolean actMetro = lineaAct < 100;
+        if (antMetro && actMetro) return R.string.transf_transbordo;
+        if (!antMetro && !actMetro) return R.string.transf_correspondencia;
+        return R.string.transf_conexion;
+    }
+
+    private View filaIndicacionRuta(Planificador.Instruccion ins) {
+        float d = getResources().getDisplayMetrics().density;
+        android.widget.LinearLayout fila = new android.widget.LinearLayout(requireContext());
+        fila.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        fila.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        fila.setPadding(0, Math.round(2 * d), 0, Math.round(2 * d));
+
+        View barra = new View(requireContext());
+        android.widget.LinearLayout.LayoutParams lpB =
+                new android.widget.LinearLayout.LayoutParams(Math.round(3 * d), Math.round(15 * d));
+        lpB.rightMargin = Math.round(7 * d);
+        barra.setLayoutParams(lpB);
+        barra.setBackgroundColor(ins.color);
+        fila.addView(barra);
+
+        String linea = (ins.ruta != null && !ins.ruta.isEmpty()) ? ins.ruta
+                : getString(R.string.manifest_linea_fmt, Planificador.etiquetaLineaCortaPub(ins.linea));
+        StringBuilder txt = new StringBuilder(linea);
+        if (ins.terminal != null && !ins.terminal.isEmpty()) txt.append(" → ").append(ins.terminal);
+        txt.append(" · ").append(ins.paradas).append(ins.paradas == 1 ? " estación" : " estaciones");
+
+        TextView t = new TextView(requireContext());
+        t.setText(txt.toString());
+        t.setTextSize(13f);
+        t.setMaxLines(1);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        t.setTextColor(com.google.android.material.color.MaterialColors.getColor(
+                fila, com.google.android.material.R.attr.colorOnSurface));
+        fila.addView(t);
+        return fila;
+    }
+
+    private View filaTransferRuta(boolean camina, String texto) {
+        float d = getResources().getDisplayMetrics().density;
+        android.widget.LinearLayout fila = new android.widget.LinearLayout(requireContext());
+        fila.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        fila.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        fila.setPadding(Math.round(4 * d), 0, 0, 0);
+
+        android.widget.ImageView ic = new android.widget.ImageView(requireContext());
+        int is = Math.round(15 * d);
+        android.widget.LinearLayout.LayoutParams lpI = new android.widget.LinearLayout.LayoutParams(is, is);
+        lpI.leftMargin = Math.round(2 * d);
+        lpI.rightMargin = Math.round(9 * d);
+        ic.setLayoutParams(lpI);
+        ic.setImageResource(camina ? R.drawable.ic_walk : R.drawable.ic_swap);
+        ic.setColorFilter(0xFF757575);
+        fila.addView(ic);
+
+        TextView t = new TextView(requireContext());
+        t.setText(texto);
+        t.setTextSize(12f);
+        t.setMaxLines(1);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        t.setTextColor(0xFF757575);
+        t.setTypeface(t.getTypeface(), android.graphics.Typeface.ITALIC);
+        fila.addView(t);
+        return fila;
+    }
+
+    private BitmapDescriptor bitmapEstacionRuta(String icono, int color) {
+        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        Bitmap bmp = Iconos.pictograma(requireContext(), icono, px);
+        if (bmp != null) return BitmapDescriptorFactory.fromBitmap(bmp);
+        Bitmap dot = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(dot);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(0xFFFFFFFF); c.drawCircle(px / 2f, px / 2f, px * 0.30f, p);
+        p.setColor(color);      c.drawCircle(px / 2f, px / 2f, px * 0.22f, p);
+        return BitmapDescriptorFactory.fromBitmap(dot);
+    }
+
+    private BitmapDescriptor bitmapEstacionTransbordoRuta(String icono, int colorArriba, int colorAbajo) {
+        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        Bitmap bmp = Iconos.pictograma(requireContext(), icono, px);
+        if (bmp != null)
+            return BitmapDescriptorFactory.fromBitmap(Iconos.recoloreaFondoDiagonal(bmp, colorArriba, colorAbajo));
+        return bitmapEstacionRuta(icono, colorArriba);
+    }
+
+    private int colorDeRuta(int lineaNum) {
+        Linea l = GtfsRepository.porNumero(requireContext(), lineaNum);
+        return l != null ? l.color : 0xFFFF9A03;
     }
 
     private void irAMiUbicacion() {

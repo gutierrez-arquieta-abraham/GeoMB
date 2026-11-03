@@ -510,4 +510,109 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
+    <!-- Resultado del planificador (FASE 2 de la fusión con el mapa general): resumen + pasos de la
+         ruta trazada, igual que fragment_planificador.xml#panel_resultado, SIN sw_express ni
+         btn_recorrido todavía (Ordinario/Exprés y el seguimiento en vivo son fases aparte). Mismo
+         contenedor map_carta_container de arriba por ahora: en la práctica no coinciden visibles
+         a la vez (buscar unidad/estación vs. trazar ruta), se revisará si hace falta separar. -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/panel_resultado"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="6dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <LinearLayout
+                android:id="@+id/fila_resultado_resumen"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/res_resumen"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="8 paradas · 0 transbordos · ~13 min" />
+
+                <ImageView
+                    android:id="@+id/ic_contraer_resultado"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:contentDescription="@string/planificador_contraer"
+                    android:rotation="-90"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="?attr/colorPrimary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/panel_resultado_detalle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <ScrollView
+                    android:id="@+id/res_pasos_scroll"
+                    android:tag="largo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:scrollbars="vertical"
+                    android:fadeScrollbars="false"
+                    android:overScrollMode="ifContentScrolls">
+
+                    <LinearLayout
+                        android:id="@+id/res_pasos_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </ScrollView>
+
+                <TextView
+                    android:id="@+id/res_aviso"
+                    android:tag="largo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:padding="4dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:textColor="@color/mb_red"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    tools:text="⚠ Ruta alterna por afectaciones en el servicio (toca para ver detalle)" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/res_estado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="Vas en Deportivo 18 de Marzo · Siguiente: La Raza" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
