@@ -61,6 +61,15 @@ public final class Backend {
     private static volatile long ultimoIntentoPrimario = 0L;
     private static final long REINTENTO_PRIMARIO_MS = 30_000L;   // vuelve a probar el principal cada 30 s
 
+    /** Cuarentena del PRINCIPAL cuando falla por timeout/conexión real (no un HTTP de error, que
+     *  ya es rápido) -- sin esto, con el principal de plano caído (apagado, no solo sin ese
+     *  endpoint), CADA llamada a descargar() perdía el timeout completo de conexión (10 s) antes
+     *  de caer al respaldo, en cada ciclo de refresco. Durante la cuarentena, el principal no se
+     *  intenta ni como primero ni como segundo; al expirar, se vuelve a probar normalmente (para
+     *  detectar que ya volvió). */
+    private static volatile long principalCuarentenaHasta = 0L;
+    private static final long PRINCIPAL_CUARENTENA_MS = 5 * 60_000L;   // 5 min
+
     // Metadatos de la última petición HTTP real (cualquier endpoint), para el diagnóstico técnico
     // de ReporteApp/DiagnosticoReporte -- no afectan el failover, solo se leen para reportes.
     public static volatile String ultimoEndpoint;
@@ -100,14 +109,38 @@ public final class Backend {
         String primero = tocaReintentarPrimario ? Config.BASE_URL : activo;
         String otro = primero.equals(Config.BASE_URL) ? Config.FALLBACK_URL : Config.BASE_URL;
         if (primero.equals(Config.BASE_URL)) ultimoIntentoPrimario = System.currentTimeMillis();
+
+        // El principal en cuarentena NUNCA va primero -- si le tocaba serlo, se intercambia el
+        // orden para no perder su timeout completo antes de llegar al respaldo.
+        boolean enCuarentena = System.currentTimeMillis() < principalCuarentenaHasta;
+        if (primero.equals(Config.BASE_URL) && enCuarentena) {
+            String t = primero; primero = otro; otro = t;
+        }
+
         try {
             String r = get(primero + path);
             activo = primero;
+            if (primero.equals(Config.BASE_URL)) principalCuarentenaHasta = 0L;   // respondió: ya no está caído
             return r;
         } catch (Exception e1) {
-            String r = get(otro + path);   // el activo falló: usa el otro y recuérdalo
-            activo = otro;
-            return r;
+            if (primero.equals(Config.BASE_URL) && ultimoHttpStatus == 0) {
+                principalCuarentenaHasta = System.currentTimeMillis() + PRINCIPAL_CUARENTENA_MS;
+            }
+            // El principal en cuarentena tampoco se intenta como segundo -- ya se sabe caído.
+            if (otro.equals(Config.BASE_URL) && System.currentTimeMillis() < principalCuarentenaHasta) {
+                throw e1;
+            }
+            try {
+                String r = get(otro + path);   // el activo falló: usa el otro y recuérdalo
+                activo = otro;
+                if (otro.equals(Config.BASE_URL)) principalCuarentenaHasta = 0L;
+                return r;
+            } catch (Exception e2) {
+                if (otro.equals(Config.BASE_URL) && ultimoHttpStatus == 0) {
+                    principalCuarentenaHasta = System.currentTimeMillis() + PRINCIPAL_CUARENTENA_MS;
+                }
+                throw e2;
+            }
         }
     }
 
