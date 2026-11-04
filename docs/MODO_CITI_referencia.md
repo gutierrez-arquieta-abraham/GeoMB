@@ -87,8 +87,17 @@ de Indra; El Universal (abr-2019).
 
 ## Paso 2: menú de estación
 - Toque de estación → zoom 16 + globo + capa `citi_menu_estacion` con botones `CitiBotonMenu` (= `button_menu`).
-- **Ver tiempos** abre por ahora la tarjeta de estación de GeoMB (la pantalla "Estimaciones de llegadas" estilo CITI queda pendiente).
+- **Ver tiempos** abre "Estimaciones de llegadas" (paso 3).
 - **Ver rutas** lista como botones las rutas que paran ahí (mismo nombre en otra línea = transbordo); elegir una la filtra.
 - **Añadir a favoritos** guarda "línea|nombre" en SharedPreferences `estilo_citi` (GeoMB no tenía estaciones favoritas).
   Todavía no hay pantalla de Favoritos que las muestre.
 - Tocar fuera de los botones = Cancelar.
+
+## Paso 3: Estimaciones de llegadas (`fragment_tiempos.xml` / `item_tiempo.xml`)
+- Capa `tiempos_citi.xml` bajo la barra (cuyo título cambia a "Estimaciones de llegadas"): fila con pictograma 32dp +
+  nombre 16sp negrita (padding 10dp); lista en `citi_caja_lista` (blanco, borde 1dp `#AAAAAA`, radio 2dp, padding 2dp,
+  divisor 1px `#E5E5E5`); botón "Refrescar" (`CitiBotonMenu`, margen 10dp).
+- Fila: cuadro de ruta 40×32dp radio 3dp en el color de la línea + "Origen-Destino" (14sp, máx. 2 líneas) + "N min" 16sp negrita.
+- Datos: `Llegadas.proximas(..., ambosSentidos=true)` de todas las rutas de la estación (transbordos por nombre),
+  ordenadas por tiempo. Sin datos: toast "Sin estimaciones" y lista oculta, como el original.
+- "Refrescar" vuelve a pedir el feed; "atrás" o elegir ruta en "Menú" regresa al mapa.

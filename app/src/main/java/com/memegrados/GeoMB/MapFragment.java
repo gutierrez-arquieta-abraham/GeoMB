@@ -440,6 +440,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         for (int id : ocultar) view.findViewById(id).setVisibility(View.GONE);
         view.findViewById(R.id.citi_btn_menu).setOnClickListener(this::mostrarMenuCiti);
         view.findViewById(R.id.citi_modo_cerrar).setOnClickListener(v -> seleccionarRutaCiti(0));
+        atrasCiti = new androidx.activity.OnBackPressedCallback(false) {
+            @Override public void handleOnBackPressed() { cerrarTiemposCiti(); }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), atrasCiti);
     }
 
     /** "Menú": las rutas como en "Seleccione ruta" de la app original, más volver a ver todas o
@@ -461,6 +465,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Deja solo la ruta {@code linea} (trazo, estaciones y unidades), como goToRoute() de la app
      *  original; 0 = todas. */
     private void seleccionarRutaCiti(int linea) {
+        if (estTiemposCiti != null) cerrarTiemposCiti();   // elegir ruta en "Menú" regresa al mapa
         lineaCiti = linea;
         RealtimeRepository.filtro.linea = linea == 0 ? null : linea;
         for (Polyline p : lineasRed) {
@@ -505,7 +510,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         java.util.List<Object[]> botones = new java.util.ArrayList<>();
         botones.add(new Object[]{getString(R.string.citi_ver_tiempos), (Runnable) () -> {
             cerrarMenuCiti();
-            mostrarCartaEstacion(em);
+            mostrarTiemposCiti(em);
         }});
         botones.add(new Object[]{getString(R.string.citi_ver_rutas), (Runnable) () -> mostrarRutasEstacionCiti(em)});
         // Igual que el original: el botón no aparece si la estación ya es favorita.
@@ -520,15 +525,113 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         abrirMenuCiti(botones);
     }
 
-    /** "Ver rutas": las rutas que paran en esa estación (incluye las de otra línea con el mismo
-     *  nombre, p. ej. un transbordo); elegir una la deja sola en el mapa. */
-    private void mostrarRutasEstacionCiti(EstMapa em) {
+    /** Líneas que paran en la estación: la suya y las de otra línea con el mismo nombre (transbordo). */
+    private java.util.TreeSet<Integer> lineasDeEstacionCiti(EstMapa em) {
         java.util.TreeSet<Integer> lineas = new java.util.TreeSet<>();
         String n = Planificador.norm(em.e.nombre);
         for (EstMapa otra : estaciones) if (Planificador.norm(otra.e.nombre).equals(n)) lineas.add(otra.linea);
         lineas.add(em.linea);
+        return lineas;
+    }
+
+    private EstMapa estTiemposCiti;   // estación abierta en "Estimaciones de llegadas" (null = cerrada)
+
+    /** "Estimaciones de llegadas" (FragmentTiempos de la app original): pictograma y nombre de la
+     *  estación, la lista de próximas unidades de todas sus rutas y "Refrescar". */
+    private void mostrarTiemposCiti(EstMapa em) {
+        View raiz = getView();
+        if (raiz == null) return;
+        estTiemposCiti = em;
+        android.widget.ImageView ico = raiz.findViewById(R.id.citi_tiempos_icono);
+        int px = (int) (32 * getResources().getDisplayMetrics().density);
+        Bitmap picto = Iconos.pictograma(requireContext(), em.e.icono, px);
+        ico.setImageBitmap(picto);
+        ico.setVisibility(picto != null ? View.VISIBLE : View.GONE);
+        ((TextView) raiz.findViewById(R.id.citi_tiempos_estacion)).setText(em.e.nombre);
+        ((TextView) raiz.findViewById(R.id.citi_titulo)).setText(R.string.citi_estimaciones);
+        raiz.findViewById(R.id.citi_modo_mapa).setVisibility(View.GONE);
+        raiz.findViewById(R.id.citi_tiempos_refrescar).setOnClickListener(v -> refrescarTiemposCiti(true));
+        raiz.findViewById(R.id.citi_tiempos_resultado).setVisibility(View.INVISIBLE);
+        raiz.findViewById(R.id.citi_tiempos).setVisibility(View.VISIBLE);
+        if (atrasCiti != null) atrasCiti.setEnabled(true);
+        refrescarTiemposCiti(false);
+    }
+
+    /** Llena la lista con el último feed; con {@code descargar}, primero lo pide de nuevo
+     *  ("Refrescar" del original volvía a consultar el servidor). */
+    private void refrescarTiemposCiti(boolean descargar) {
+        if (!descargar) { llenarTiemposCiti(RealtimeRepository.get().getUltimo()); return; }
+        RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
+            @Override public void onData(List<UnidadReal> unidades) { llenarTiemposCiti(unidades); }
+            @Override public void onError(String mensaje) { llenarTiemposCiti(RealtimeRepository.get().getUltimo()); }
+        });
+    }
+
+    private void llenarTiemposCiti(List<UnidadReal> unidades) {
+        View raiz = getView();
+        EstMapa em = estTiemposCiti;
+        if (raiz == null || em == null || !isAdded()) return;
+        // Una fila por unidad próxima, de todas las rutas de la estación, ordenadas por tiempo.
+        final List<Object[]> filas = new ArrayList<>();   // {linea, "Origen-Destino", minutos, etaSeg}
+        for (int ln : lineasDeEstacionCiti(em)) {
+            for (Llegadas.Prox p : Llegadas.proximas(requireContext(), ln, em.pos, null,
+                    unidades != null ? unidades : new ArrayList<>(), true)) {
+                UnidadReal u = RealtimeRepository.get().buscar(p.eco);
+                String ruta = (u != null && u.origen != null && u.destino != null)
+                        ? u.origen + "-" + u.destino : (p.destino != null ? p.destino : "");
+                filas.add(new Object[]{ln, ruta, Math.round(p.etaSeg / 60f), p.etaSeg});
+            }
+        }
+        java.util.Collections.sort(filas, (a, b) -> Integer.compare((Integer) a[3], (Integer) b[3]));
+        View resultado = raiz.findViewById(R.id.citi_tiempos_resultado);
+        android.widget.ListView lista = raiz.findViewById(R.id.citi_tiempos_lista);
+        lista.setAdapter(new android.widget.BaseAdapter() {
+            @Override public int getCount() { return filas.size(); }
+            @Override public Object getItem(int i) { return filas.get(i); }
+            @Override public long getItemId(int i) { return i; }
+            @Override public View getView(int i, View v, ViewGroup parent) {
+                if (v == null) v = getLayoutInflater().inflate(R.layout.item_tiempo_citi, parent, false);
+                Object[] f = filas.get(i);
+                int ln = (Integer) f[0];
+                TextView cod = v.findViewById(R.id.citi_tiempo_linea);
+                android.graphics.drawable.GradientDrawable fondo = new android.graphics.drawable.GradientDrawable();
+                fondo.setCornerRadius(3 * getResources().getDisplayMetrics().density);   // box_route
+                fondo.setColor(EstiloCiti.color(ln, colorDeLinea(ln)));
+                cod.setBackground(fondo);
+                cod.setText(String.valueOf(ln));
+                ((TextView) v.findViewById(R.id.citi_tiempo_destino)).setText((String) f[1]);
+                ((TextView) v.findViewById(R.id.citi_tiempo_min)).setText(getString(R.string.citi_min, (Integer) f[2]));
+                return v;
+            }
+        });
+        if (filas.isEmpty()) {
+            // Como el original: aviso "Sin estimaciones" y la lista oculta.
+            resultado.setVisibility(View.INVISIBLE);
+            Toast.makeText(requireContext(), R.string.citi_sin_estimaciones, Toast.LENGTH_SHORT).show();
+        } else {
+            resultado.setVisibility(View.VISIBLE);
+            lista.setSelectionAfterHeaderView();
+        }
+    }
+
+    private void cerrarTiemposCiti() {
+        View raiz = getView();
+        estTiemposCiti = null;
+        if (atrasCiti != null) atrasCiti.setEnabled(false);
+        if (raiz == null) return;
+        raiz.findViewById(R.id.citi_tiempos).setVisibility(View.GONE);
+        ((TextView) raiz.findViewById(R.id.citi_titulo)).setText(R.string.citi_mapa);
+        raiz.findViewById(R.id.citi_modo_mapa).setVisibility(lineaCiti != 0 ? View.VISIBLE : View.GONE);
+    }
+
+    /** "Atrás" con "Estimaciones de llegadas" abierta: vuelve al mapa (solo activo mientras se ve). */
+    private androidx.activity.OnBackPressedCallback atrasCiti;
+
+    /** "Ver rutas": las rutas que paran en esa estación (incluye las de otra línea con el mismo
+     *  nombre, p. ej. un transbordo); elegir una la deja sola en el mapa. */
+    private void mostrarRutasEstacionCiti(EstMapa em) {
         java.util.List<Object[]> botones = new java.util.ArrayList<>();
-        for (int ln : lineas) {
+        for (int ln : lineasDeEstacionCiti(em)) {
             Linea l = GtfsRepository.porNumero(requireContext(), ln);
             String txt = ln + "   " + (l != null ? EstiloCiti.nombreRuta(l.nombre) : "");
             botones.add(new Object[]{txt.trim(), (Runnable) () -> {
@@ -3461,6 +3564,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     public void onDestroyView() {
         if (citi && lineaCiti != 0) RealtimeRepository.filtro.linea = null;
         lineaCiti = 0;
+        estTiemposCiti = null;
+        atrasCiti = null;
         handler.removeCallbacks(poll);
         handler.removeCallbacks(tickRecorrido);
         marcadoresEstacion.clear();

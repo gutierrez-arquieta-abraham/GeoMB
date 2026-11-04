@@ -23,6 +23,8 @@
     <color name="citi_texto">#FF222222</color>
     <color name="citi_boton">#FFB31C3F</color>
     <color name="citi_boton_presionado">#FF8E1632</color>
+    <color name="citi_texto_lista">#DE000000</color>
+    <color name="citi_lista_divisor">#FFE5E5E5</color>
 
     <!-- Colores oficiales de líneas (del GTFS Metrobús) -->
     <color name="linea_1">#D40D0D</color>
