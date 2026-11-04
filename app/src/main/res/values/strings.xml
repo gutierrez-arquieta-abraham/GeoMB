@@ -634,4 +634,8 @@
     <string name="pausa_titulo">Servicio en pausa</string>
     <string name="pausa_mensaje">El servidor de GeoMB está en pausa. Mientras tanto no hay unidades en tiempo real, voz Mia, asistente ni alertas de unidades.\n\nEl mapa, las estaciones, el planificador y las afectaciones de Metrobús siguen funcionando.</string>
     <string name="pausa_entendido">Entendido</string>
+    <!-- Actualización obligatoria (ActualizacionObligatoria): pantalla fija, sin botón de cerrar. -->
+    <string name="actualizacion_oblig_titulo">Actualización necesaria</string>
+    <string name="actualizacion_oblig_mensaje">Hay una versión nueva de GeoMB con cambios importantes. Actualiza para seguir usando la app.</string>
+    <string name="actualizacion_oblig_boton">Actualizar ahora</string>
 </resources>

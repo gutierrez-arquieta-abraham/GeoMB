@@ -62,7 +62,12 @@ public final class GtfsRepository {
     private static volatile List<Linea> ruteables;          // Metrobús (+ Mexibús/Mexicable según sus capas)
     private static volatile boolean ruteablesConMxb;
     private static volatile boolean ruteablesConMxc;
+    private static volatile Map<Integer, Linea> ruteablesParches;   // snapshot de 'parches' usado al armar 'ruteables'
     private static volatile Map<String, List<LatLng>> sublineas;
+    // Desvíos/servicios de apoyo TEMPORALES (admin /admin/trazos del backend, vía RutasTemporales):
+    // numero -> Linea completa que lo reemplaza mientras esté vigente. El backend ya manda solo los
+    // vigentes, así que cada refresco de RutasTemporales REEMPLAZA este mapa entero (no se acumula).
+    private static volatile Map<Integer, Linea> parches = Collections.emptyMap();
 
     // Un único candado SOLO para la construcción (no para las lecturas ya publicadas).
     private static final Object lock = new Object();
@@ -115,23 +120,41 @@ public final class GtfsRepository {
     public static List<Linea> getRuteables(Context c) {
         boolean mxb = Modos.mostrarMexibus(c);
         boolean mxc = Modos.mostrarMexicable(c);
+        Map<Integer, Linea> p = parches;
         List<Linea> r = ruteables;
-        if (r != null && ruteablesConMxb == mxb && ruteablesConMxc == mxc) return r;
+        if (r != null && ruteablesConMxb == mxb && ruteablesConMxc == mxc && ruteablesParches == p) return r;
         List<Linea> base = getLineas(c);
-        if (!mxb && !mxc) { ruteables = base; ruteablesConMxb = false; ruteablesConMxc = false; return base; }
         List<Linea> t = new ArrayList<>(base);
-        for (Linea l : getMexibus(c)) {
-            int sis = Sistemas.sistemaDe(l.numero);
-            if ((sis == Sistemas.MEXIBUS && mxb) || (sis == Sistemas.MEXICABLE && mxc)) t.add(l);
+        if (mxb || mxc) {
+            for (Linea l : getMexibus(c)) {
+                int sis = Sistemas.sistemaDe(l.numero);
+                if ((sis == Sistemas.MEXIBUS && mxb) || (sis == Sistemas.MEXICABLE && mxc)) t.add(l);
+            }
+        }
+        if (!p.isEmpty()) {
+            // Un parche reemplaza POR COMPLETO la línea/ramal 'numero' (exista ya o sea nueva),
+            // SIEMPRE -- sin importar "Mostrar Mexibús/Mexicable": es un aviso de servicio real
+            // vigente, no una capa de mapa que el usuario pueda apagar. Único punto donde se arma
+            // el grafo ruteable, así que Planificador ve "más/otras líneas" y ya, sin tocarlo.
+            java.util.Iterator<Linea> it = t.iterator();
+            while (it.hasNext()) if (p.containsKey(it.next().numero)) it.remove();
+            t.addAll(p.values());
         }
         List<Linea> ro = Collections.unmodifiableList(t);
-        ruteables = ro; ruteablesConMxb = mxb; ruteablesConMxc = mxc;
+        ruteables = ro; ruteablesConMxb = mxb; ruteablesConMxc = mxc; ruteablesParches = p;
         return ro;
     }
 
     public static Linea porNumero(Context c, int numero) {
         for (Linea l : getRuteables(c)) if (l.numero == numero) return l;
         return null;
+    }
+
+    /** Reemplaza por completo el conjunto de parches de ruta temporales vigentes (ver {@link
+     *  #parches}). Lo llama {@code RutasTemporales.refrescar()} tras descargar /data/rutas_temporales.json. */
+    public static void aplicarParches(Map<Integer, Linea> nuevos) {
+        parches = (nuevos == null || nuevos.isEmpty())
+                ? Collections.emptyMap() : Collections.unmodifiableMap(new HashMap<>(nuevos));
     }
 
     public static List<LatLng> sublinea(Context c, String clave) {

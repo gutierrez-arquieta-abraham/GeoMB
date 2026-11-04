@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
     private ConsentInformation consentInfo;
     private final AtomicBoolean adsInicializado = new AtomicBoolean(false);
     private static boolean avisoPausaMostrado = false;
+    private androidx.appcompat.app.AlertDialog dialogActualizacion;   // ver mostrarBloqueoActualizacion()
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,6 +95,14 @@ public class MainActivity extends AppCompatActivity {
                 SincronizacionService.detener(this);
             }
         });
+        // Actualización obligatoria (versión mínima fijada en /admin/version del backend): mismo
+        // patrón que EstadoServicio/"pausa" de arriba, pero esta pantalla NO se puede cerrar.
+        // Backend.alRequerirActualizacion cubre además el caso de que CUALQUIER llamada reciba
+        // 426 entre un refrescar() y el siguiente (ver Backend.get()).
+        ActualizacionObligatoria.cargar(this);
+        if (ActualizacionObligatoria.requerida()) mostrarBloqueoActualizacion();
+        ActualizacionObligatoria.refrescar(this, this::mostrarBloqueoActualizacion);
+        Backend.alRequerirActualizacion = this::mostrarBloqueoActualizacion;
         AvisoDonativo.mostrarSiToca(this);
 
         // Carga el catálogo de marca/modelo (assets/modelos.csv + Sheet) una vez.
@@ -196,6 +205,40 @@ public class MainActivity extends AppCompatActivity {
                     .setPositiveButton(R.string.pausa_entendido, null)
                     .show();
         } catch (Exception ignore) {}
+    }
+
+    /** Pantalla de "actualización obligatoria": a diferencia de mostrarAvisoPausa(), ESTA no se
+     *  cierra sola. No cancelable (ni tocando fuera ni con el botón atrás del sistema) y su único
+     *  botón NO cierra el diálogo -- solo abre la ficha en la tienda; si el usuario se regresa sin
+     *  actualizar, sigue viendo este bloqueo. Se re-muestra en onResume() por si el diálogo se
+     *  perdió al volver de la tienda (la Activity se recreó/el proceso se liberó en segundo plano). */
+    private void mostrarBloqueoActualizacion() {
+        if (isFinishing() || isDestroyed() || !ActualizacionObligatoria.requerida()) return;
+        if (dialogActualizacion != null && dialogActualizacion.isShowing()) return;
+        try {
+            dialogActualizacion = new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.actualizacion_oblig_titulo)
+                    .setMessage(R.string.actualizacion_oblig_mensaje)
+                    .setCancelable(false)
+                    .setPositiveButton(R.string.actualizacion_oblig_boton, null)
+                    .show();
+            // null arriba a propósito: el listener normal de setPositiveButton SIEMPRE cierra el
+            // diálogo al volver; sobreescribiendo el botón YA mostrado se evita ese cierre.
+            dialogActualizacion.getButton(android.content.DialogInterface.BUTTON_POSITIVE)
+                    .setOnClickListener(v -> abrirFichaTienda());
+        } catch (Exception ignore) {}
+    }
+
+    /** Abre la ficha de GeoMB en Play Store (market://, con respaldo a la URL web si no hay
+     *  tienda instalada) -- mismo intent que MensajesService.notificarActualizacion(). */
+    private void abrirFichaTienda() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    android.net.Uri.parse("market://details?id=" + getPackageName())));
+        } catch (android.content.ActivityNotFoundException e) {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://play.google.com/store/apps/details?id=" + getPackageName())));
+        }
     }
 
     /**
@@ -379,8 +422,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Por si el usuario se regresó de la tienda sin actualizar y el diálogo se perdió (la
+        // Activity se recreó, o Android liberó el proceso en segundo plano): se vuelve a mostrar.
+        if (ActualizacionObligatoria.requerida()) mostrarBloqueoActualizacion();
+    }
+
+    @Override
     protected void onDestroy() {
         if (banner != null) banner.destroy();   // libera los recursos del SDK de AdMob
+        Backend.alRequerirActualizacion = null;   // no dejar colgada esta referencia a la Activity
         super.onDestroy();
     }
 }

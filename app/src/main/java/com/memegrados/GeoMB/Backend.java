@@ -76,7 +76,21 @@ public final class Backend {
     public static volatile int ultimoHttpStatus;
     public static volatile long ultimaLatenciaMs = -1;
 
+    /** Si no es null, se llama (en el hilo principal) la primera vez que una petición recibe 426
+     *  "versión mínima no cumplida" (ver gate_version_minima en el backend). Lo registra
+     *  MainActivity para mostrar la pantalla de actualización obligatoria al instante, sin
+     *  esperar al próximo ActualizacionObligatoria.refrescar(). */
+    public static volatile Runnable alRequerirActualizacion;
+
     private Backend() {}
+
+    /** HTTP 426 "Upgrade Required": el backend rechazó la petición porque BuildConfig.VERSION_CODE
+     *  quedó por debajo del mínimo vigente (ver ActualizacionObligatoria). Nunca tiene sentido
+     *  reintentar con el OTRO servidor -- el problema es la versión del cliente, no cuál backend
+     *  responda -- así que descargar() la deja pasar sin failover. */
+    static final class ActualizacionRequeridaException extends java.io.IOException {
+        ActualizacionRequeridaException() { super("HTTP 426"); }
+    }
 
     // ========================================================
     // MÉTODO: descargar(path)   [público]
@@ -122,6 +136,8 @@ public final class Backend {
             activo = primero;
             if (primero.equals(Config.BASE_URL)) principalCuarentenaHasta = 0L;   // respondió: ya no está caído
             return r;
+        } catch (ActualizacionRequeridaException e) {
+            throw e;   // el cliente está desactualizado: cambiar de servidor no sirve de nada
         } catch (Exception e1) {
             if (primero.equals(Config.BASE_URL) && ultimoHttpStatus == 0) {
                 principalCuarentenaHasta = System.currentTimeMillis() + PRINCIPAL_CUARENTENA_MS;
@@ -171,11 +187,16 @@ public final class Backend {
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(15000);
             conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("X-App-Version", String.valueOf(BuildConfig.VERSION_CODE));
             conn.connect();
             int status = conn.getResponseCode();
             ultimoEndpoint = urlStr;
             ultimoHttpStatus = status;
             ultimaLatenciaMs = System.currentTimeMillis() - inicio;
+            if (status == 426) {
+                avisarActualizacionRequerida(conn);
+                throw new ActualizacionRequeridaException();
+            }
             if (status / 100 != 2) throw new java.io.IOException("HTTP " + status);
             StringBuilder sb = new StringBuilder();
             try (BufferedReader r = new BufferedReader(
@@ -191,6 +212,25 @@ public final class Backend {
         } finally {
             conn.disconnect();
         }
+    }
+
+    /** El backend respondió 426: lee el 'minima' del cuerpo (best-effort) y avisa a
+     *  ActualizacionObligatoria + alRequerirActualizacion SIN bloquear ni lanzar -- cualquier
+     *  falla aquí se ignora, el que SÍ importa es el ActualizacionRequeridaException de get(). */
+    private static void avisarActualizacionRequerida(HttpURLConnection conn) {
+        try {
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader r = new BufferedReader(
+                    new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+                String l;
+                while ((l = r.readLine()) != null) sb.append(l);
+            }
+            int minima = new org.json.JSONObject(sb.toString()).optInt("minima", 0);
+            if (ActualizacionObligatoria.forzarEnMemoria(minima)) {
+                Runnable cb = alRequerirActualizacion;
+                if (cb != null) new android.os.Handler(android.os.Looper.getMainLooper()).post(cb);
+            }
+        } catch (Exception ignore) {}
     }
 
     /** GET binario a una URL ABSOLUTA de un tercero (p. ej. la URL firmada de S3 que entrega
