@@ -15,6 +15,15 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
+    <!-- Estilo CITI (app Metrobús de Indra, 2018): colores de su colors.xml -->
+    <color name="citi_header">#FFFFFFFF</color>
+    <color name="citi_gris_claro">#FFA09D9E</color>
+    <color name="citi_menu_fondo">#FFDDDDDD</color>
+    <color name="citi_menu_borde">#FFCCCCCC</color>
+    <color name="citi_texto">#FF222222</color>
+    <color name="citi_boton">#FFB31C3F</color>
+    <color name="citi_boton_presionado">#FF8E1632</color>
+
     <!-- Colores oficiales de líneas (del GTFS Metrobús) -->
     <color name="linea_1">#D40D0D</color>
     <color name="linea_2">#8D1A96</color>

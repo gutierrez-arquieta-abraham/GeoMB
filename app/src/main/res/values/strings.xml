@@ -24,6 +24,15 @@
     <string name="modo_desbloqueado">Modo personalizado desbloqueado</string>
     <string name="modo_sw_cachondo">Notificaciones coquetas (búsqueda)</string>
     <string name="modo_sw_pbs">Claves de operación (PBS)</string>
+    <string name="modo_sw_estilo_citi">Estilo CITI (app Metrobús 2018)</string>
+    <!-- Estilo CITI: textos tal cual de la app de Indra -->
+    <string name="citi_mapa">Mapa</string>
+    <string name="citi_menu">Menú</string>
+    <string name="citi_autobus">Autobús %s</string>
+    <string name="citi_linea_ruta">Línea %1$d %2$s</string>
+    <string name="citi_quitar_ruta">Quitar ruta</string>
+    <string name="citi_ver_todas">Ver todas las rutas</string>
+    <string name="citi_salir">Salir del estilo CITI</string>
     <string name="modo_sw_voz_ximena_metrobus">Ximena en Metrobús (de pago, EC2 asume el costo)</string>
     <string name="modo_sw_voz_ximena_mexibus">Ximena en Mexibús (de pago, EC2 asume el costo)</string>
     <string name="modo_sw_voz_ximena_mexicable">Ximena en Mexicable (de pago, EC2 asume el costo)</string>

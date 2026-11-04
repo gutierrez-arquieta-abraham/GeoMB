@@ -61,7 +61,7 @@ import java.io.InputStream;
 public class ConfiguracionFragment extends Fragment {
 
     private View panel;
-    private SwitchMaterial swCachondo, swPbs;
+    private SwitchMaterial swCachondo, swPbs, swEstiloCiti;
     private SwitchMaterial swVozXimenaMetrobus, swVozXimenaMexibus, swVozXimenaMexicable;
     private View btnVerClaves;
     private AlertDialog dlgDescargaAudios;   // se cierra en onDestroyView para no dejar la ventana "colgada"
@@ -135,6 +135,7 @@ public class ConfiguracionFragment extends Fragment {
         panel = view.findViewById(R.id.panel_personalizado);
         swCachondo = view.findViewById(R.id.sw_cachondo);
         swPbs = view.findViewById(R.id.sw_pbs);
+        swEstiloCiti = view.findViewById(R.id.sw_estilo_citi);
         swVozXimenaMetrobus = view.findViewById(R.id.sw_voz_ximena_metrobus);
         swVozXimenaMexibus = view.findViewById(R.id.sw_voz_ximena_mexibus);
         swVozXimenaMexicable = view.findViewById(R.id.sw_voz_ximena_mexicable);
@@ -222,6 +223,8 @@ public class ConfiguracionFragment extends Fragment {
             Modos.setCachondo(requireContext(), swCachondo.isChecked());
             refrescar();
         });
+        swEstiloCiti.setOnClickListener(v2 ->
+                Modos.setEstiloCiti(requireContext(), swEstiloCiti.isChecked()));
         swPbs.setOnClickListener(v2 -> {
             Modos.setPbs(requireContext(), swPbs.isChecked());
             refrescar();
@@ -495,6 +498,9 @@ public class ConfiguracionFragment extends Fragment {
         } else if (Modos.FRASE_PBS.equals(f)) {
             Modos.setPbs(requireContext(), true);
             Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
+        } else if (Modos.FRASE_ESTILO_CITI.equals(f)) {
+            Modos.setEstiloCitiDisponible(requireContext(), true);
+            Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
         } else if (Modos.FRASE_VOZ_XIMENA.equals(f)) {
             Modos.setVozXimenaDisponible(requireContext(), true);
             Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
@@ -515,6 +521,9 @@ public class ConfiguracionFragment extends Fragment {
         swCachondo.setChecked(cach);
         swPbs.setVisibility(pbs ? View.VISIBLE : View.GONE);
         swPbs.setChecked(pbs);
+        boolean citiDisp = Modos.estiloCitiDisponible(requireContext());
+        swEstiloCiti.setVisibility(citiDisp ? View.VISIBLE : View.GONE);
+        swEstiloCiti.setChecked(Modos.estiloCiti(requireContext()));
         int visXimena = vozXimenaDisp ? View.VISIBLE : View.GONE;
         swVozXimenaMetrobus.setVisibility(visXimena);
         swVozXimenaMetrobus.setChecked(Modos.vozXimenaMetrobus(requireContext()));

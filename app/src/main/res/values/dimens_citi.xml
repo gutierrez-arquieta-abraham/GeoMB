@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Estilo CITI: medidas de la app de Indra (header_image / map_*_width) -->
+    <dimen name="citi_logo_alto">50dp</dimen>
+    <dimen name="citi_trazo">3dp</dimen>
+    <dimen name="citi_estacion">20dp</dimen>
+    <dimen name="citi_bus">32dp</dimen>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Botón rojo del estilo CITI (box_button / box_button_pressed de la app de Indra). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="6dp" />
+            <solid android:color="@color/citi_boton_presionado" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="6dp" />
+            <solid android:color="@color/citi_boton" />
+        </shape>
+    </item>
+</selector>

@@ -57,3 +57,28 @@ Colores medidos: L1 `#983223`, L2 `#7C109A`, L3 `#739500`, L4 `#F8901F`, L5 `#22
 
 Fuentes: ficha de APKPure de `com.indra.apps.mb`; notas de iWorld (jul-2016) e Indicador Automotriz (ago-2016) sobre el SAE
 de Indra; El Universal (abr-2019).
+
+## Medidas exactas (de la APK 1.1 descompilada)
+- `header.xml`: fondo blanco, logo de 50dp de alto con margen 5dp, línea inferior 1dp `#A09D9E`.
+- `bar_menu.xml`: fondo `#DDDDDD`, padding 12dp izq / 6dp resto, título 16sp negrita `#222222`, botón "Menú" 12sp
+  negrita blanco sobre `#B31C3F` (radio 6dp, padding 14×10dp, mín. 60×30dp), línea inferior 1dp `#CCCCCC`.
+- Mapa (`fragment_mapa.xml` + `FragmentMapa`): mapa normal, sin brújula/rotación/inclinación, **+/− nativos** de Google.
+  Trazo `map_iti_width` = **3dp**; estación `map_stop_width` = **20dp**; autobús `map_bus_width` = **32dp** (`icon_bus`).
+- **Flechas de sentido**: no son un patrón sobre la línea. Cada estación lleva detrás `app_icon_course56` (56dp) girada
+  hacia el siguiente punto del itinerario (`Project.rumboLinea = true`). Dos andenes ⇒ dos flechas (↕).
+- Caja de "modo mapa" (`vModoMapa`): fondo `#CCEEEEEE`, borde 0.5dp `#44222222`, radio 2dp, margen 10dp; dentro, cuadro
+  de ruta (14sp negrita, 32dp de alto, radio 3dp) y X roja de 28dp.
+- Globo (`map_popup.xml`): fondo blanco, padding 3dp, título negrita negro, subtítulo cursiva `#666666` (máx. 260dp).
+  Autobús: "Autobús %s"; estación: su nombre.
+- Al tocar estación (`fragment_menu_parada_mapa.xml`): botones `button_menu` (16sp negrita, mín. 260×40dp, margen inferior
+  7dp): Ver tiempos · Ver líneas · Ver destinos · Añadir a favoritos · Cancelar. **(pendiente en GeoMB)**
+
+## Implementación en GeoMB (paso 1: mapa + barra superior)
+- Activación: modo personalizado → frase **`App Android Metrobús v1.0`** → switch "Estilo CITI" (`Modos.estiloCiti`).
+- `layout/barra_citi.xml` (logos + barra "Mapa/Menú" + caja de ruta), `layout/map_info_window_citi.xml`, `EstiloCiti.java`
+  (colores, trazo, estación con flechas de rumbo, autobús) y ramas `citi` en `MapFragment`.
+- "Menú": lista de rutas (filtra trazo, estaciones y unidades, como `goToRoute()`), "Ver todas las rutas" y "Salir".
+- Logos: Metrobús **actual** (`logo_mb.png`) + CITI recortado del `logo.png` original (`citi_logo_citi.png`).
+- Imágenes originales copiadas tal cual (nostalgia): `citi_rumbo.png` (`app_icon_course56`), `citi_bus.png` (`icon_bus`),
+  `citi_cerrar.png` (`app_icon_close32`). Son propiedad de Indra/Metrobús.
+- En estilo CITI no se dibujan Mexibús/Mexicable, rutas mixtas ni los corredores de Indios Verdes (la app original no los tenía).

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo CITI (app Metrobús de Indra, 2018): franja de logos + barra de menú. Medidas tomadas de
+     su header.xml / bar_menu.xml (logo 50dp con margen 5dp, barra #DDDDDD con padding 12/6dp,
+     botón "Menú" 12sp en #B31C3F). Ver docs/MODO_CITI_referencia.md. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/barra_citi"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- Franja de logos (header.xml) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/citi_header"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/citi_logo_alto"
+            android:layout_margin="5dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/logo_mb" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="6dp"
+            android:background="@color/citi_gris_claro" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/citi_logo_alto"
+            android:layout_margin="5dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/citi_logo_citi" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/citi_gris_claro" />
+
+    <!-- Barra de menú (bar_menu.xml) -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/citi_menu_fondo"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:id="@+id/citi_titulo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:singleLine="true"
+            android:text="@string/citi_mapa"
+            android:textColor="@color/citi_texto"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/citi_btn_menu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/citi_boton"
+            android:minWidth="60dp"
+            android:minHeight="30dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:singleLine="true"
+            android:stateListAnimator="@null"
+            android:text="@string/citi_menu"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <View
+        android:id="@+id/citi_barra_fin"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/citi_menu_borde" />
+
+    <!-- Caja de "modo mapa" (fragment_mapa.xml vModoMapa): ruta filtrada + X para quitarla. -->
+    <LinearLayout
+        android:id="@+id/citi_modo_mapa"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:background="@drawable/citi_caja_mapa"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="6dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/citi_modo_linea"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:lines="1"
+            android:minWidth="40dp"
+            android:paddingHorizontal="8dp"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/citi_modo_cerrar"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="6dp"
+            android:contentDescription="@string/citi_quitar_ruta"
+            android:scaleType="fitXY"
+            android:src="@drawable/citi_cerrar" />
+    </LinearLayout>
+</LinearLayout>

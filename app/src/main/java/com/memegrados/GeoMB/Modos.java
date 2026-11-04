@@ -43,6 +43,8 @@ public final class Modos {
     private static final String K_VOZ_XIMENA_MEXIBUS = "voz_ximena_mexibus";
     private static final String K_VOZ_XIMENA_MEXICABLE = "voz_ximena_mexicable";
     private static final String K_SINCRO = "sincro_fondo";
+    private static final String K_CITI_DISP = "estilo_citi_disp";   // gate (frase secreta)
+    private static final String K_CITI = "estilo_citi";
 
     /** Frases secretas EXACTAS (se comparan tal cual, con mayúsculas y acentos). */
     public static final String FRASE_CACHONDO = "CUMsultando a la patrona";
@@ -54,6 +56,10 @@ public final class Modos {
     // desbloquear "personalizado"), para que nadie la active sin querer ni la descubra por
     // accidente -- solo quien ya sabe esta frase específica.
     public static final String FRASE_VOZ_XIMENA = "Voz CITI Indra";
+    // Estilo CITI: el mapa con el aspecto de la app oficial de Indra (2018, ver
+    // docs/MODO_CITI_referencia.md). La frase es la leyenda de su pantalla "Acerca de".
+    // Pensado como función de suscripción; mientras no haya cobros vive tras esta frase.
+    public static final String FRASE_ESTILO_CITI = "App Android Metrobús v1.0";
 
     private Modos() {}
 
@@ -114,7 +120,7 @@ public final class Modos {
     public static void setPersonalizado(Context c, boolean v) {
         p(c).edit().putBoolean(K_PERSON, v).apply();
         // apagar todo con él
-        if (!v) { setCachondo(c, false); setPbs(c, false); setVozXimenaDisponible(c, false); }
+        if (!v) { setCachondo(c, false); setPbs(c, false); setVozXimenaDisponible(c, false); setEstiloCitiDisponible(c, false); }
     }
 
     public static void setCachondo(Context c, boolean v) {
@@ -132,6 +138,26 @@ public final class Modos {
             setVozXimenaMexibus(c, false);
             setVozXimenaMexicable(c, false);
         }
+    }
+
+    // --- Estilo CITI (app Metrobús/Indra 2018): gate por frase + switch propio. ---
+
+    public static boolean estiloCitiDisponible(Context c) {
+        return personalizado(c) && p(c).getBoolean(K_CITI_DISP, false);
+    }
+
+    /** ¿El mapa se dibuja con el estilo CITI? Solo si el gate sigue activo. */
+    public static boolean estiloCiti(Context c) {
+        return estiloCitiDisponible(c) && p(c).getBoolean(K_CITI, false);
+    }
+
+    public static void setEstiloCitiDisponible(Context c, boolean v) {
+        p(c).edit().putBoolean(K_CITI_DISP, v).apply();
+        if (!v) setEstiloCiti(c, false);
+    }
+
+    public static void setEstiloCiti(Context c, boolean v) {
+        p(c).edit().putBoolean(K_CITI, v).apply();
     }
 
     public static void setVozXimenaMetrobus(Context c, boolean v) {

@@ -38,6 +38,17 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible" />
 
+    <!-- Estilo CITI (Modos.estiloCiti): barra de logos + "Mapa / Menú" de la app de Indra, en
+         lugar del buscador y los paneles de GeoMB. Ver MapFragment.configurarCiti(). -->
+    <include
+        layout="@layout/barra_citi"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/banner_servidor"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Barra de búsqueda flotante + acceso al asistente (Gemini): antes eran dos barras
          completas apiladas (52dp cada una); el ícono de chat al final de ESTA MISMA barra abre
          ChatAsistenteActivity (igual que antes, misma Activity/lógica) sin ocupar una segunda

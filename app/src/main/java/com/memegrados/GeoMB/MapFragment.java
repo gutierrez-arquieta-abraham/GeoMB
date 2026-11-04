@@ -303,6 +303,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private View panelZoom;   // controles de zoom/brújula/ubicación (ver ajustarPanelZoom())
     private View panelOrigenDestino;   // panel origen/destino del planificador (también lo usa ajustarPanelZoom())
     private View searchBar;   // barra de búsqueda; btn_planificar la reemplaza por panelOrigenDestino en su lugar
+
+    // Estilo CITI (Modos.estiloCiti): se decide al crear la vista -- cambiar de pestaña la recrea.
+    private boolean citi;
+    private int lineaCiti = 0;   // ruta elegida en "Menú" (0 = todas)
+    private View barraCiti;
     // Deshabilitado salvo mientras panelOrigenDestino está visible (lo habilita btn_planificar):
     // consume el botón atrás del sistema SOLO en ese momento, para cerrar el planificador y
     // devolver la barra de búsqueda en vez de la acción atrás normal (salir de la pantalla/app).
@@ -417,6 +422,78 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         view.findViewById(R.id.btn_unidades).setOnClickListener(v -> alternarUnidades());
         view.findViewById(R.id.btn_iconos).setOnClickListener(v -> alternarIconos());
         actualizarLogoIconos(Modos.iconosNuevos(requireContext()));   // logo inicial del botón según el modo guardado
+        configurarCiti(view);
+    }
+
+    /** Estilo CITI: muestra la barra de la app de Indra y esconde el buscador y los paneles de
+     *  GeoMB (esa app solo tenía el mapa, el +/- y "mi ubicación" nativos de Google Maps). */
+    private void configurarCiti(View view) {
+        citi = Modos.estiloCiti(requireContext());
+        barraCiti = view.findViewById(R.id.barra_citi);
+        if (!citi) return;
+        barraCiti.setVisibility(View.VISIBLE);
+        int[] ocultar = {R.id.search_bar, R.id.panel_zoom, R.id.panel_mapa, R.id.fab_filtros,
+                R.id.txt_conteo, R.id.chip_filtros};
+        for (int id : ocultar) view.findViewById(id).setVisibility(View.GONE);
+        view.findViewById(R.id.citi_btn_menu).setOnClickListener(this::mostrarMenuCiti);
+        view.findViewById(R.id.citi_modo_cerrar).setOnClickListener(v -> seleccionarRutaCiti(0));
+    }
+
+    /** "Menú": las rutas como en "Seleccione ruta" de la app original, más volver a ver todas o
+     *  salir del estilo. */
+    private void mostrarMenuCiti(View ancla) {
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(requireContext(), ancla);
+        for (Linea l : GtfsRepository.getLineas(requireContext()))
+            menu.getMenu().add(0, l.numero, l.numero, l.numero + "   " + EstiloCiti.nombreRuta(l.nombre));
+        menu.getMenu().add(1, 0, 100, R.string.citi_ver_todas);
+        menu.getMenu().add(1, -1, 101, R.string.citi_salir);
+        menu.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == -1) salirCiti();
+            else seleccionarRutaCiti(item.getItemId());
+            return true;
+        });
+        menu.show();
+    }
+
+    /** Deja solo la ruta {@code linea} (trazo, estaciones y unidades), como goToRoute() de la app
+     *  original; 0 = todas. */
+    private void seleccionarRutaCiti(int linea) {
+        lineaCiti = linea;
+        RealtimeRepository.filtro.linea = linea == 0 ? null : linea;
+        for (Polyline p : lineasRed) {
+            Object t = p.getTag();
+            p.setVisible(linea == 0 || (t instanceof Integer && (Integer) t == linea));
+        }
+        aplicarVisibilidadEstaciones();
+        onFiltrosCambiados();
+        View caja = barraCiti != null ? barraCiti.findViewById(R.id.citi_modo_mapa) : null;
+        if (caja != null) {
+            caja.setVisibility(linea == 0 ? View.GONE : View.VISIBLE);
+            if (linea != 0) {
+                TextView t = caja.findViewById(R.id.citi_modo_linea);
+                t.setText(String.valueOf(linea));
+                android.graphics.drawable.GradientDrawable fondo = new android.graphics.drawable.GradientDrawable();
+                fondo.setCornerRadius(3 * getResources().getDisplayMetrics().density);   // box_route
+                fondo.setColor(EstiloCiti.color(linea, colorDeLinea(linea)));
+                t.setBackground(fondo);
+            }
+        }
+        Linea l = linea != 0 ? GtfsRepository.porNumero(requireContext(), linea) : null;
+        if (l != null && mapa != null) mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(l.limites(),
+                (int) getResources().getDimension(R.dimen.citi_estacion)));
+    }
+
+    /** Apaga el estilo y vuelve a crear la vista del mapa con el de GeoMB. */
+    private void salirCiti() {
+        Modos.setEstiloCiti(requireContext(), false);
+        if (lineaCiti != 0) RealtimeRepository.filtro.linea = null;
+        getParentFragmentManager().beginTransaction().detach(this).commitNow();
+        getParentFragmentManager().beginTransaction().attach(this).commitNow();
+    }
+
+    /** ¿La línea se ve con la ruta elegida en estilo CITI? Fuera de ese estilo, siempre. */
+    private boolean visibleCiti(int linea) {
+        return !citi || lineaCiti == 0 || linea == lineaCiti;
     }
 
     /** Menú "Capas": tráfico / tipo de mapa / vista 3D -- cada ítem llama al mismo método
@@ -478,7 +555,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (mapa == null) return;
         boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;
         boolean visibles = mostrarEstaciones && porZoom;
-        for (Marker m : marcadoresEstacion) m.setVisible(visibles);
+        if (citi) {
+            for (EstMapa em : estaciones) if (em.marker != null) em.marker.setVisible(visibles && visibleCiti(em.linea));
+        } else {
+            for (Marker m : marcadoresEstacion) m.setVisible(visibles);
+        }
         aplicarMexibus();   // el botón "estaciones" (y el zoom) también gobiernan la capa Mexibús
     }
 
@@ -562,6 +643,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     private void actualizarChip() {
         if (chipFiltros == null) return;
+        if (citi) { chipFiltros.setVisibility(View.GONE); return; }
         int n = RealtimeRepository.filtro.activos();
         if (n > 0) {
             chipFiltros.setText(getString(R.string.filtros_activos_n, n));
@@ -591,7 +673,17 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.moveCamera(CameraUpdateFactory.newLatLngZoom(CDMX, ZOOM_CERCANO));
         mapa.setTrafficEnabled(trafico);
         mapa.setMapType(tipoMapa);
-        if (esNoche()) {   // sigue el tema del dispositivo automáticamente
+        if (citi) {
+            // Igual que el fragment_mapa.xml de la app de Indra: sin brújula, rotación ni
+            // inclinación; con el +/- y "mi ubicación" nativos de Google, debajo de la barra.
+            mapa.getUiSettings().setZoomControlsEnabled(true);
+            mapa.getUiSettings().setRotateGesturesEnabled(false);
+            mapa.getUiSettings().setTiltGesturesEnabled(false);
+            if (barraCiti != null) barraCiti.post(() -> {
+                View fin = barraCiti.findViewById(R.id.citi_barra_fin);
+                if (mapa != null && fin != null) mapa.setPadding(0, barraCiti.getTop() + fin.getBottom(), 0, 0);
+            });
+        } else if (esNoche()) {   // sigue el tema del dispositivo automáticamente
             mapa.setMapStyle(MapStyleOptions.loadRawResourceStyle(requireContext(), R.raw.map_style_dark));
         }
         activarCapaUbicacion();
@@ -600,6 +692,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
             @Override public View getInfoWindow(com.google.android.gms.maps.model.Marker m) { return null; }
             @Override public View getInfoContents(com.google.android.gms.maps.model.Marker m) {
+                if (citi) {   // map_popup.xml de la app de Indra: sin la tipografía de GeoMB
+                    View v = getLayoutInflater().inflate(R.layout.map_info_window_citi, null, false);
+                    ((TextView) v.findViewById(R.id.citi_info_titulo)).setText(m.getTitle());
+                    TextView s = v.findViewById(R.id.citi_info_sub);
+                    String snip = m.getSnippet();
+                    if (snip != null && !snip.isEmpty()) s.setText(snip); else s.setVisibility(View.GONE);
+                    return v;
+                }
                 View v = getLayoutInflater().inflate(R.layout.map_info_window, null, false);
                 TextView t = v.findViewById(R.id.info_titulo);
                 t.setText(m.getTitle());
@@ -618,6 +718,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.setOnMarkerClickListener(m -> {
             // Listener nativo del SDK de Maps, se dispara en cada toque de marcador: una excepción no
             // atrapada aquí tumba la app en la interacción más frecuente de esta pantalla.
+            if (citi) return false;   // la app original solo abría el globo del marcador
             try {
                 String eco = numeroDeMarcador(m);
                 if (eco != null) {
@@ -703,22 +804,28 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private void dibujarRed() {
         for (Linea linea : GtfsRepository.getLineas(requireContext())) {
             coloresLinea.put(linea.numero, linea.color);
+            int colorTrazo = citi ? EstiloCiti.color(linea.numero, linea.color) : linea.color;
+            float anchoTrazo = citi ? EstiloCiti.anchoTrazo(requireContext()) : 9f;
 
             if (linea.segmentos != null && !linea.segmentos.isEmpty()) {
                 // Trazado oficial por tramos (ida/vuelta y ramales): sin huecos.
                 for (java.util.List<LatLng> tramo : linea.segmentos) {
-                    lineasRed.add(mapa.addPolyline(new PolylineOptions()
+                    Polyline pl = mapa.addPolyline(new PolylineOptions()
                             .addAll(tramo)
-                            .color(linea.color)
-                            .width(9f)
-                            .geodesic(false)));
+                            .color(colorTrazo)
+                            .width(anchoTrazo)
+                            .geodesic(false));
+                    pl.setTag(linea.numero);   // para filtrar por ruta en estilo CITI
+                    lineasRed.add(pl);
                 }
             } else {
-                lineasRed.add(mapa.addPolyline(new PolylineOptions()
+                Polyline pl = mapa.addPolyline(new PolylineOptions()
                         .addAll(linea.ruta)
-                        .color(linea.color)
-                        .width(9f)
-                        .geodesic(false)));
+                        .color(colorTrazo)
+                        .width(anchoTrazo)
+                        .geodesic(false));
+                pl.setTag(linea.numero);   // para filtrar por ruta en estilo CITI
+                lineasRed.add(pl);
             }
 
             for (Estacion e : linea.estaciones) {
@@ -746,6 +853,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 estaciones.add(em);
             }
         }
+        if (citi) return;   // la app original no tenía rutas mixtas ni corredores de calibración
         dibujarMixtas();
         dibujarZonasIndiosVerdes();
     }
@@ -794,7 +902,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     .snippet("Línea " + em.linea)
                     .icon(iconoEstacionOTransbordo(em, fueraDeServicio(em)))
                     .anchor(0.5f, 0.5f)
-                    .visible(visibles));
+                    .visible(visibles && visibleCiti(em.linea)));
             if (m != null) { em.marker = m; marcadoresEstacion.add(m); }
         }
     }
@@ -1100,8 +1208,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  oculta aunque el otro sistema esté encendido. */
     private void aplicarMexibus() {
         if (mapa == null) return;
-        boolean visMxb = Modos.mostrarMexibus(requireContext());
-        boolean visMxc = Modos.mostrarMexicable(requireContext());
+        // En estilo CITI no hay Mexibús/Mexicable: la app de Indra era solo del Metrobús.
+        boolean visMxb = !citi && Modos.mostrarMexibus(requireContext());
+        boolean visMxc = !citi && Modos.mostrarMexicable(requireContext());
         boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;   // igual que el Metrobús
         for (Polyline p : mexibusLineas) {
             Object tag = p.getTag();
@@ -1190,7 +1299,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (m == null) {
                 m = mapa.addMarker(new MarkerOptions()
                         .position(animUnidades.inicial(u))
-                        .title("Unidad " + u.numero)
+                        .title(citi ? getString(R.string.citi_autobus, u.numero) : "Unidad " + u.numero)
                         .snippet(snippet(u))
                         .icon(iconoParaUnidad(u))   // ya refleja siguiendoAhora
                         .anchor(0.5f, 0.5f)
@@ -1249,6 +1358,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     private String snippet(UnidadReal u) {
+        if (citi && u.linea != null) {   // "Línea 1 El Caminero-Indios Verdes", como la app original
+            String ruta = (u.origen != null && u.destino != null) ? u.origen + "-" + u.destino
+                    : (u.destino != null ? u.destino : "");
+            return getString(R.string.citi_linea_ruta, u.linea, ruta).trim();
+        }
         String linea = u.linea != null ? "Línea " + u.linea : "Sin línea";
         return u.destino != null && !u.destino.isEmpty() ? linea + " · " + u.destino : linea;
     }
@@ -1804,6 +1918,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  otro grupo (a pedido explícito), para poder distinguirlos aunque ambos sean diagonales:
      *  troncal L2 = línea 7 arriba-izq / línea 2 abajo-der; puntos propios de H72 = al revés. */
     private BitmapDescriptor iconoEstacionOTransbordo(EstMapa em, boolean fueraDeServicio) {
+        if (citi) {
+            Linea l = GtfsRepository.porNumero(requireContext(), em.linea);
+            java.util.List<Float> rumbos = l != null ? EstiloCiti.rumbos(l, em.pos) : new java.util.ArrayList<>();
+            return EstiloCiti.iconoEstacion(requireContext(), em.e.icono,
+                    EstiloCiti.color(em.linea, em.color), rumbos, fueraDeServicio);
+        }
         if (em.transbordo) {
             boolean esTroncalL2 = Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(em.e.nombre));
             int arriba = esTroncalL2 ? colorDeLinea(7) : colorDeLinea(2);
@@ -1910,6 +2030,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  combinación de (número, color[es], siguiendo); las llamadas repetidas (p. ej. al volver a
      *  evaluar en cada poll si hace falta repintar) reusan el BitmapDescriptor ya construido. */
     private BitmapDescriptor iconoParaUnidad(UnidadReal u) {
+        if (citi) return EstiloCiti.iconoBus(requireContext());
         boolean siguiendo = SeguimientoService.sigue(u.numero);
         RutasMixtas.Tramo t = RutasMixtas.tramo(u.origen, u.destino);
         if (t != null) {
@@ -3250,6 +3371,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     @Override
     public void onDestroyView() {
+        if (citi && lineaCiti != 0) RealtimeRepository.filtro.linea = null;
+        lineaCiti = 0;
         handler.removeCallbacks(poll);
         handler.removeCallbacks(tickRecorrido);
         marcadoresEstacion.clear();
