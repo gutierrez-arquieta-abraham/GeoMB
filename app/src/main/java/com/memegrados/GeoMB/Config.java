@@ -52,6 +52,12 @@ public final class Config {
     public static final String PATH_SYNC = "/api/sync";
     /** Estado actual de afectaciones de Mexibús (lo escribe el módulo mexibus_afectaciones.py). */
     public static final String PATH_AFECT_MXB = "/data/afectaciones_mexibus.json";
+    /** Parches de ruta TEMPORALES vigentes (desvíos/servicios de apoyo cargados a mano desde el
+     *  panel /admin/trazos del backend) -- ver RutasTemporales. */
+    public static final String PATH_RUTAS_TEMP = "/data/rutas_temporales.json";
+    /** versionCode mínimo vigente (fijado a mano en /admin/version del backend) -- ver
+     *  ActualizacionObligatoria. Exento del gate de versión: siempre responde 200. */
+    public static final String PATH_VERSION = "/data/version.json";
 
     /**
      * Asistente conversacional (Gemini + Function Calling): backend Python aparte

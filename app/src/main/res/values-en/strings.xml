@@ -602,4 +602,7 @@
     <string name="pausa_titulo">Service paused</string>
     <string name="pausa_mensaje">The GeoMB server is paused. In the meantime there are no real-time buses, Mia voice, assistant or bus alerts.\n\nThe map, stations, trip planner and Metrobús service alerts still work.</string>
     <string name="pausa_entendido">Got it</string>
+    <string name="actualizacion_oblig_titulo">Update required</string>
+    <string name="actualizacion_oblig_mensaje">There is a new version of GeoMB with important changes. Update to keep using the app.</string>
+    <string name="actualizacion_oblig_boton">Update now</string>
 </resources>

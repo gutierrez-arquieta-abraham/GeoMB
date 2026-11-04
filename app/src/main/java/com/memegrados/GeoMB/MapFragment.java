@@ -279,6 +279,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (isAdded()) {
                 AfectacionesMexibus.refrescar(requireContext(),
                         () -> { if (isAdded() && mapa != null) actualizarEstadoEstaciones(); });
+                // Desvíos/servicios de apoyo temporales (/admin/trazos del backend): se instalan en
+                // GtfsRepository para que el siguiente "Trazar" ya los vea, sin recompilar la app.
+                RutasTemporales.refrescar(requireContext(), null);
             }
             handler.postDelayed(this, Red.intervalo(getContext(), Modos.mapaRefrescoMs(getContext())));
         }
