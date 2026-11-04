@@ -179,6 +179,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private int origenLinea, destinoLinea;
     private LatLng origenSeleccionPos;
     private Planificador.Ruta rutaActiva;
+    // Última ruta trazada (origen/destino/preferencia): ESTÁTICOS a propósito, para sobrevivir a que
+    // se destruya y recree el fragmento (p. ej. al cambiar de pestaña y volver) -- permiten
+    // retrazarSiRecorridoRuta() si el recorrido sigue activo, aunque rutaActiva (instancia) ya se
+    // haya perdido.
+    private static String ultOrigenRuta, ultDestinoRuta;
+    private static int ultLineaORuta, ultLineaDRuta;
+    private static java.util.Map<Integer, Boolean> ultPrefRuta;
+    private static LatLng ultOrigenPosRuta;
     private final List<Polyline> trazoRuta = new ArrayList<>();
     private final List<Marker> marcadoresRuta = new ArrayList<>();
     private LatLngBounds ultimosLimitesRuta;
@@ -679,6 +687,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.setOnCameraMoveStartedListener(reason -> {
             if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) seguirCamara = false;
         });
+
+        retrazarSiRecorridoRuta();   // si el recorrido sigue activo, vuelve a trazar la ruta guardada
     }
 
     /** Dibuja polylines y estaciones de las 7 líneas y guarda sus colores. */
@@ -1295,29 +1305,38 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 int[] posPanel = new int[2];
                 panelZoom.getLocationOnScreen(posPanel);
                 int panelSuperior = posPanel[1];
-                int panelInferior = posPanel[1] + panelZoom.getHeight();
-                float desplazamiento = 0f;
+                int altura = panelZoom.getHeight();
 
-                View limiteAbajo = null;
-                if (cartaContainer != null && cartaContainer.getVisibility() == View.VISIBLE && cartaContainer.getHeight() > 0) {
-                    limiteAbajo = cartaContainer;
-                } else if (panelResultado != null && panelResultado.getVisibility() == View.VISIBLE && panelResultado.getHeight() > 0) {
-                    limiteAbajo = panelResultado;
-                }
-                if (limiteAbajo != null) {
-                    int[] posLim = new int[2];
-                    limiteAbajo.getLocationOnScreen(posLim);
-                    if (panelInferior > posLim[1]) desplazamiento = -(panelInferior - posLim[1]) - aire;
-                }
-
+                // Banda vertical permitida: no antes de limiteArriba (abajo del panel de origen/
+                // destino, si está visible) ni después de limiteAbajo (arriba de la carta o el
+                // resultado del planificador, lo que esté visible; no coinciden a la vez).
+                int limiteArriba = Integer.MIN_VALUE;
                 if (panelOrigenDestino != null && panelOrigenDestino.getVisibility() == View.VISIBLE
                         && panelOrigenDestino.getHeight() > 0) {
                     int[] posOd = new int[2];
                     panelOrigenDestino.getLocationOnScreen(posOd);
-                    int odInferior = posOd[1] + panelOrigenDestino.getHeight();
-                    if (panelSuperior + desplazamiento < odInferior) desplazamiento = (odInferior - panelSuperior) + aire;
+                    limiteArriba = posOd[1] + panelOrigenDestino.getHeight() + (int) aire;
                 }
-                panelZoom.animate().translationY(desplazamiento).setDuration(150).start();
+
+                View limiteAbajoVista = null;
+                if (cartaContainer != null && cartaContainer.getVisibility() == View.VISIBLE && cartaContainer.getHeight() > 0) {
+                    limiteAbajoVista = cartaContainer;
+                } else if (panelResultado != null && panelResultado.getVisibility() == View.VISIBLE && panelResultado.getHeight() > 0) {
+                    limiteAbajoVista = panelResultado;
+                }
+                int limiteAbajo = Integer.MAX_VALUE;
+                if (limiteAbajoVista != null) {
+                    int[] posLim = new int[2];
+                    limiteAbajoVista.getLocationOnScreen(posLim);
+                    limiteAbajo = posLim[1] - (int) aire;
+                }
+
+                // Top deseado: lo más cerca posible de su posición natural, pero sin salirse de la
+                // banda permitida -- si la banda es más angosta que el propio panel (pantalla chica,
+                // ambos paneles expandidos a la vez), prioriza no treparse sobre el de abajo (el
+                // activo/en primer plano) aunque eso implique quedar detrás del de arriba.
+                int deseado = Math.max(limiteArriba, Math.min(panelSuperior, limiteAbajo - altura));
+                panelZoom.animate().translationY(deseado - panelSuperior).setDuration(150).start();
             } catch (Exception ignore) {}
         });
     }
@@ -2287,6 +2306,24 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         usarUbicacionOrigen();
     }
 
+    /** Si hay un recorrido activo y el fragmento se recreó sin ninguna ruta dibujada todavía (p. ej.
+     *  cambiaste a otra pestaña y volviste al mapa), re-traza la MISMA ruta (con su preferencia
+     *  Ordinario/Exprés) sin volver a preguntar, para poder verla y reengancharse al seguimiento --
+     *  dibujarRuta() ya se encarga de retomar recorrido/seguirCamara al ver RecorridoService.activo. */
+    private void retrazarSiRecorridoRuta() {
+        if (mapa == null || rutaActiva != null || ultDestinoRuta == null || !RecorridoService.activo) return;
+        final String o = ultOrigenRuta, d = ultDestinoRuta;
+        final int lo = ultLineaORuta, ld = ultLineaDRuta;
+        final LatLng pos = ultOrigenPosRuta;
+        final java.util.Map<Integer, Boolean> pref = ultPrefRuta != null ? ultPrefRuta : new java.util.HashMap<>();
+        if (o != null) setOrigenRuta(o);
+        setDestinoRuta(d);
+        origenSeleccionPos = pos;
+        calcularRutaAsync(() -> Planificador.calcular(requireContext(), o, d, lo, ld, pref, pos), r -> {
+            if (r != null) dibujarRuta(r);
+        });
+    }
+
     private void trazar() {
         if (mapa == null) return;
         desambiguarRuta(inOrigen, origenCanon, origenLinea, origenSeleccionPos, (om, or, lo, posO) ->
@@ -2320,6 +2357,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             inOrigen.setText(flo == 0 ? Planificador.sinMxb(fom) : Planificador.nombreMostrar(requireContext(), fom, flo));
             destinoCanon = fdm; destinoLinea = fld;
             inDestino.setText(fld == 0 ? Planificador.sinMxb(fdm) : Planificador.nombreMostrar(requireContext(), fdm, fld));
+            ultOrigenRuta = fo; ultDestinoRuta = fd; ultLineaORuta = flo; ultLineaDRuta = fld;
+            ultPrefRuta = new java.util.HashMap<>(); ultOrigenPosRuta = fpos;
             // Preferencia de servicio por CADA línea troncal Mexibús (10X) con exprés que use la
             // ruta: si no hay ninguna, se dibuja directo (caso de siempre, Metrobús puro o sin
             // troncales con exprés); si hay, se pregunta Ordinario/Exprés por cada una antes de
@@ -2350,6 +2389,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             final String fo = origen; final int flo = lineaO; final String fd = destino; final int fld = lineaD;
             final LatLng fpos = posOrigen;
             final java.util.Map<Integer, Boolean> fpref = pref;
+            ultLineaORuta = flo; ultLineaDRuta = fld; ultPrefRuta = new java.util.HashMap<>(fpref);
+            ultOrigenPosRuta = fpos;
             calcularRutaAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, fpref, fpos), r -> {
                 if (r == null) {
                     Toast.makeText(requireContext(), mensajeFalloRuta(fd), Toast.LENGTH_LONG).show();
