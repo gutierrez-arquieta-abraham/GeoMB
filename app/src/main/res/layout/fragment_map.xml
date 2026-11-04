@@ -113,16 +113,19 @@
     </com.google.android.material.card.MaterialCardView>
 
     <!-- Panel de origen/destino del planificador, fusionado en el mapa general (ver
-         MapFragment.configurarPanelPlanificador()). -->
+         MapFragment.configurarPanelPlanificador()). Mismo anclaje que search_bar (no debajo de
+         ella): btn_planificar oculta la barra de búsqueda y muestra este panel EN SU LUGAR, como si
+         se transformara en la "pastilla de ruta"; btn_cerrar_od (o el botón atrás del sistema)
+         revierte, ocultando este panel y devolviendo la barra de búsqueda. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/panel_origen_destino"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
+        android:layout_margin="16dp"
         android:visibility="gone"
         app:cardCornerRadius="18dp"
         app:cardElevation="5dp"
-        app:layout_constraintTop_toBottomOf="@id/search_bar"
+        app:layout_constraintTop_toBottomOf="@id/banner_servidor"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -159,6 +162,17 @@
                     android:padding="5dp"
                     android:rotation="-90"
                     android:src="@drawable/ic_chevron_right"
+                    app:tint="?attr/colorPrimary" />
+
+                <ImageButton
+                    android:id="@+id/btn_cerrar_od"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="2dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/planificador_cerrar"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_close_small"
                     app:tint="?attr/colorPrimary" />
             </LinearLayout>
 
@@ -548,7 +562,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="10dp">
 
             <LinearLayout
                 android:id="@+id/fila_resultado_resumen"
@@ -639,7 +653,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -678,7 +692,7 @@
                 android:id="@+id/sw_express"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:text="@string/servicio_express_switch"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp"
@@ -688,7 +702,9 @@
                 android:id="@+id/btn_recorrido"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 android:text="@string/recorrido_iniciar"
                 app:icon="@drawable/ic_my_location" />
         </LinearLayout>

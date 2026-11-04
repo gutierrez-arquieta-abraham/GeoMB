@@ -320,6 +320,7 @@
     <string name="intercambiar">Intercambiar origen y destino</string>
     <string name="planificador_contraer">Contraer el buscador de ruta</string>
     <string name="planificador_expandir">Toca para volver a mostrar el buscador de ruta</string>
+    <string name="planificador_cerrar">Cerrar planificador y volver al buscador</string>
     <string name="recorrido_iniciar">Iniciar recorrido</string>
     <string name="recorrido_detener">Detener recorrido</string>
     <string name="recorrido_vas">Vas en %1$s · Siguiente: %2$s</string>

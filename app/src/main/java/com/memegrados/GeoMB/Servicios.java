@@ -81,7 +81,7 @@ public final class Servicios {
         if (base < 100 || base >= 200) return res;   // solo Mexibús
         boolean hayOrd = sirve(ctx, base, origen, destino);
         int ex = expresDe(base);
-        boolean hayExp = ex != 0 && sirve(ctx, ex, origen, destino);
+        boolean hayExp = ex != 0 && sirve(ctx, ex, origen, destino) && !Manifestaciones.expresBloqueado(base);
         if (hayOrd) res.add(new Servicio("Ordinario", base, false));
         if (hayExp) res.add(new Servicio("Express", ex, false));
         if (incluirRosa) {

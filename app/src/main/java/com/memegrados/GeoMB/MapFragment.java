@@ -302,6 +302,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private boolean cartaExpandida;  // false = píldora compacta, true = carta completa (misma vista)
     private View panelZoom;   // controles de zoom/brújula/ubicación (ver ajustarPanelZoom())
     private View panelOrigenDestino;   // panel origen/destino del planificador (también lo usa ajustarPanelZoom())
+    private View searchBar;   // barra de búsqueda; btn_planificar la reemplaza por panelOrigenDestino en su lugar
+    // Deshabilitado salvo mientras panelOrigenDestino está visible (lo habilita btn_planificar):
+    // consume el botón atrás del sistema SOLO en ese momento, para cerrar el planificador y
+    // devolver la barra de búsqueda en vez de la acción atrás normal (salir de la pantalla/app).
+    private final androidx.activity.OnBackPressedCallback callbackCerrarPlanificador =
+            new androidx.activity.OnBackPressedCallback(false) {
+                @Override public void handleOnBackPressed() { cerrarPlanificador(); }
+            };
 
     private final ActivityResultLauncher<String> permisoUbicacionCarta =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> {
@@ -2136,10 +2144,26 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
     }
 
+    /** Cierra el panel de origen/destino (en cualquiera de sus 2 estados, expandido o colapsado a
+     *  pastilla) y devuelve la barra de búsqueda a su lugar -- vía btn_cerrar_od o el botón atrás
+     *  del sistema mientras el panel está abierto (ver callbackCerrarPlanificador). No toca
+     *  panelResultado: si hay una ruta trazada, se sigue viendo normal. */
+    private void cerrarPlanificador() {
+        if (panelOrigenDestino == null || searchBar == null) return;
+        panelOrigenDestino.setVisibility(View.GONE);
+        searchBar.setVisibility(View.VISIBLE);
+        callbackCerrarPlanificador.setEnabled(false);
+        recentrarTrasPanel();
+        ajustarPanelZoom();
+    }
+
     /** Panel de origen/destino: abre/cierra, intercambia y traza sobre el mapa único (mismo
      *  Planificador.calcular(), sin tocarlo), incluida la pregunta Ordinario/Exprés por cada
-     *  troncal Mexibús con ambos servicios. */
+     *  troncal Mexibús con ambos servicios. btn_planificar reemplaza la barra de búsqueda por este
+     *  panel (misma posición, como si se transformara en la "pastilla de ruta") en vez de apilarlo
+     *  debajo -- btn_cerrar_od o el botón atrás del sistema revierte. */
     private void configurarPanelPlanificador(View view) {
+        searchBar = view.findViewById(R.id.search_bar);
         View panelOd = panelOrigenDestino = view.findViewById(R.id.panel_origen_destino);
         View expandido = view.findViewById(R.id.panel_od_expandido);
         View colapsado = view.findViewById(R.id.panel_od_colapsado);
@@ -2147,13 +2171,18 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         inDestino = view.findViewById(R.id.input_destino);
         progressTrazando = view.findViewById(R.id.progress_trazando);
 
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), callbackCerrarPlanificador);
+
         view.findViewById(R.id.btn_planificar).setOnClickListener(v -> {
-            boolean mostrar = panelOd.getVisibility() != View.VISIBLE;
-            panelOd.setVisibility(mostrar ? View.VISIBLE : View.GONE);
-            if (mostrar) { expandido.setVisibility(View.VISIBLE); colapsado.setVisibility(View.GONE); }
+            searchBar.setVisibility(View.GONE);
+            panelOd.setVisibility(View.VISIBLE);
+            expandido.setVisibility(View.VISIBLE);
+            colapsado.setVisibility(View.GONE);
+            callbackCerrarPlanificador.setEnabled(true);
             recentrarTrasPanel();
             ajustarPanelZoom();
         });
+        view.findViewById(R.id.btn_cerrar_od).setOnClickListener(v -> cerrarPlanificador());
 
         view.findViewById(R.id.btn_location).setOnClickListener(v -> usarUbicacionOrigen());
 
@@ -2297,10 +2326,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  mapa general. Rellena el origen por GPS y traza sola, igual que antes. */
     private void abrirPlanificadorConDestino(String destino, int linea) {
         View root = getView();
-        if (root == null) return;
+        if (root == null || searchBar == null) return;
+        searchBar.setVisibility(View.GONE);
         root.findViewById(R.id.panel_origen_destino).setVisibility(View.VISIBLE);
         root.findViewById(R.id.panel_od_expandido).setVisibility(View.VISIBLE);
         root.findViewById(R.id.panel_od_colapsado).setVisibility(View.GONE);
+        callbackCerrarPlanificador.setEnabled(true);
         setDestinoRuta(destino);
         if (linea != 0) destinoLinea = linea;
         usarUbicacionOrigen();
@@ -2348,6 +2379,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         final java.util.Map<Integer, Boolean> prefInicial = new java.util.HashMap<>();
         sembrarPrefServicioRuta(prefInicial, flo);
         sembrarPrefServicioRuta(prefInicial, fld);
+        forzarOrdinarioSiExpresBloqueadoRuta(prefInicial);
         calcularRutaAsync(() -> Planificador.calcular(requireContext(), fo, fd, flo, fld, prefInicial, fpos), r -> {
             if (r == null) {
                 Toast.makeText(requireContext(), mensajeFalloRuta(fd), Toast.LENGTH_LONG).show();
@@ -2364,20 +2396,32 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // troncales con exprés); si hay, se pregunta Ordinario/Exprés por cada una antes de
             // dibujar la versión final (ver preguntarServicioPorLineaRuta más abajo).
             java.util.List<Integer> bases = basesTroncalesConExpressRuta(r);
+            final java.util.Map<Integer, Boolean> prefForzado = new java.util.HashMap<>();
+            forzarOrdinarioSiExpresBloqueadoRuta(prefForzado);
             if (bases.isEmpty()) { dibujarRuta(r); return; }
-            preguntarServicioPorLineaRuta(fo, flo, fd, fld, fpos, bases, new java.util.HashMap<>(), 0);
+            preguntarServicioPorLineaRuta(fo, flo, fd, fld, fpos, bases, prefForzado, 0);
         });
     }
 
-    /** Bases troncales Mexibús (101..104) con servicio exprés que aparecen en la ruta, en orden. */
+    /** Bases troncales Mexibús (101..104) con servicio exprés que aparecen en la ruta, EXCLUYENDO las
+     *  que no tienen exprés disponible ahora mismo (Manifestaciones.expresBloqueado): no tiene caso
+     *  preguntar Ordinario/Exprés si no hay una elección real -- ver forzarOrdinarioSiExpresBloqueadoRuta. */
     private java.util.List<Integer> basesTroncalesConExpressRuta(Planificador.Ruta r) {
         java.util.LinkedHashSet<Integer> bases = new java.util.LinkedHashSet<>();
         for (Planificador.Parada p : r.secuencia) {
             if (p.linea >= 111 && p.linea <= 119) continue;
             int base = Servicios.base(p.linea);
-            if (base >= 101 && base <= 104) bases.add(base);
+            if (base >= 101 && base <= 104 && !Manifestaciones.expresBloqueado(base)) bases.add(base);
         }
         return new java.util.ArrayList<>(bases);
+    }
+
+    /** Fuerza preferencia Ordinario (soft, cae de todos modos si no hubiera otra vía) para cualquier
+     *  base troncal cuyo exprés esté fuera de servicio ahora mismo, según el feed de afectaciones
+     *  Mexibús (ver AfectMexibusFeed/Manifestaciones.setMexibusExpresBloqueado). */
+    private static void forzarOrdinarioSiExpresBloqueadoRuta(java.util.Map<Integer, Boolean> pref) {
+        for (int base = 101; base <= 104; base++)
+            if (Manifestaciones.expresBloqueado(base)) pref.put(base, false);
     }
 
     /** Pregunta el servicio (Ordinario/Exprés) por cada base troncal, en secuencia; al terminar,
@@ -2605,6 +2649,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             btnRecorrido.setText(R.string.recorrido_detener);
             resEstado.setVisibility(View.VISIBLE);
             resEstado.setText(R.string.recorrido_ubicando);
+            rvEstacionesRuta.setVisibility(View.GONE);
         }
 
         // Espera al siguiente layout: panel_resultado recién se hizo VISIBLE (arriba) y su alto real
@@ -2729,7 +2774,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         swExpress.setOnCheckedChangeListener((btn, isChecked) -> {
             int linea = isChecked ? svcBase + 20 : svcBase;
             final String o = origenCanon, d = destinoCanon;
-            calcularRutaAsync(() -> Planificador.calcular(requireContext(), o, d, linea, linea), nr -> {
+            // El pin de línea (lineaO/lineaD) por sí solo NO sesga los tramos intermedios -- solo
+            // fija qué andén es el origen/destino. Sin el mapa de preferencia, un corredor directo
+            // sin transbordos podía recalcular con el mismo resultado (mismas paradas/minutos) pase
+            // lo que pase el switch, porque no había nada que realmente empujara el A* hacia el otro
+            // servicio. El mapa de preferencia es el mecanismo real (penalServicio/penalTramo).
+            final java.util.Map<Integer, Boolean> pref = new java.util.HashMap<>();
+            pref.put(svcBase, isChecked);
+            calcularRutaAsync(() -> Planificador.calcular(requireContext(), o, d, linea, linea, pref), nr -> {
                 if (nr != null && !nr.secuencia.isEmpty()) dibujarRuta(nr);
             });
         });
@@ -2768,6 +2820,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         btnRecorrido.setText(R.string.recorrido_detener);
         resEstado.setVisibility(View.VISIBLE);
         resEstado.setText(R.string.recorrido_ubicando);
+        // El carrusel completo ya cumplió su función al planear; durante el recorrido, el estado
+        // en vivo (este mismo texto) dice lo mismo con menos espacio -- en pantallas chicas la
+        // tarjeta quedaba demasiado alta mostrando ambos a la vez.
+        rvEstacionesRuta.setVisibility(View.GONE);
         String destinoFinal = rutaActiva.secuencia.get(rutaActiva.secuencia.size() - 1).nombre;
         RecorridoService.servicioTexto = null;
         java.util.List<String> terms = new ArrayList<>();
@@ -2783,6 +2839,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         btnRecorrido.setText(R.string.recorrido_iniciar);
         resEstado.setVisibility(View.GONE);
         txtVelocidad.setVisibility(View.GONE);
+        rvEstacionesRuta.setVisibility(View.VISIBLE);
         sliderAdapterRuta.setActual(-1);
         RecorridoService.detener(requireContext());
     }

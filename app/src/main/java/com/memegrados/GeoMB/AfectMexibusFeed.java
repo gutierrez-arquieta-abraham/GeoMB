@@ -180,15 +180,21 @@ public final class AfectMexibusFeed {
         }
         List<Manifestaciones.Afectacion> lista = new ArrayList<>();
         Set<String> bloq = new HashSet<>();
+        Set<Integer> expresBloq = new HashSet<>();
         for (Afect a : reciente.values()) {
             if (a.estado.toLowerCase(Locale.ROOT).contains("restablec")) continue;   // ya reanudada
             lista.add(new Manifestaciones.Afectacion("", a.linea, a.lugar, a.estado, "", a.info,
                     false, Manifestaciones.C_ESTADO));
             Linea l = GtfsRepository.porNumero(app, a.linea);
             if (l != null) AfectacionesMexibus.bloqueoLineaLocal(l, a.estado, a.circuito, a.lugar, bloq);
+            // "Exprés no disponible" (ver E_SIN_EXPRES): no bloquea estaciones (ordinario sigue
+            // corriendo), pero el planificador no debe ofrecer/usar el exprés de esa base mientras
+            // siga vigente -- ver Servicios.disponibles() y MapFragment.trazarResueltoRuta().
+            if ("Exprés no disponible".equals(a.estado) && a.linea >= 101 && a.linea <= 104) expresBloq.add(a.linea);
         }
         Manifestaciones.setMexibus(lista);
         Manifestaciones.setMexibusBloqueadas(bloq);
+        Manifestaciones.setMexibusExpresBloqueado(expresBloq);
     }
 
     // ------------------------------------------------------------------ dedup persistente
@@ -273,12 +279,27 @@ public final class AfectMexibusFeed {
     }
 
     private static final Pattern E_REST = Pattern.compile("restablec|reanud|normaliz|opera con normalidad");
-    private static final Pattern E_CIRC = Pattern.compile("realiza circuito|se realiza circuito|\\bcircuitos?\\b");
+    // "circuito" suelto SÍ es la frase operativa real ("la línea realiza un circuito [recorrido
+    // parcial]"), pero también aparece como parte del nombre de una vialidad ("Circuito Exterior
+    // Mexiquense") en avisos que no reportan ningún problema con la línea -- caso real confirmado:
+    // un post de apoyo gratuito por incendio del Metro mencionaba esa vialidad y se clasificaba como
+    // "Servicio parcial" sin que hubiera afectación alguna. Se excluye esa frase específica.
+    private static final Pattern E_CIRC = Pattern.compile(
+            "realiza circuito|se realiza circuito|\\bcircuitos?\\b(?!\\s+exterior\\s+mexiquense)");
     // "dejando sin servicio a la estación X" SÍ contiene "sin servicio", pero es un cierre puntual de
     // esa estación (p. ej. contraflujo por manifestación), no de la línea entera -- caso real
     // confirmado: Mexibús L3, contraflujo en Palacio Municipal, bloqueaba toda la troncal en vez de
     // solo esa estación. Se revisa ANTES de E_SUSP para que la frase puntual gane.
     private static final Pattern E_CERR_PUNTUAL = Pattern.compile("sin servicio a (la|las) estacion");
+    // Solo se suspende el EXPRÉS de esa base (ordinario sigue) -- caso real confirmado: Mexibús L4,
+    // "debido a la demanda de usuarios, solo se brinda servicio ordinario". Esta frase NO contiene
+    // "sin servicio"/"suspend" como tales, pero "sin servicio exprés" sí los contendría -- se revisa
+    // ANTES de E_SUSP para que esta frase puntual (solo el exprés) gane y no bloquee la línea entera.
+    private static final Pattern E_SIN_EXPRES = Pattern.compile(
+            "solo\\s+se\\s+(brinda|presta|da|ofrece|opera)\\s+(el\\s+)?servicio\\s+ordinario"
+            + "|solo\\s+servicio\\s+ordinario"
+            + "|sin\\s+servicio\\s+expr[ée]s"
+            + "|expr[ée]s\\s+(no\\s+disponible|suspendid\\w*)");
     private static final Pattern E_SUSP = Pattern.compile("suspend|sin servicio|cierre total|se cierra");
     private static final Pattern E_RETR = Pattern.compile("retras|avance lento|servicio lento|marcha lenta|demora|\\blento\\b");
     private static final Pattern E_PASO = Pattern.compile("omite acople|pasa de largo|sin parada|no se detiene");
@@ -288,6 +309,7 @@ public final class AfectMexibusFeed {
         if (E_REST.matcher(tn).find()) return "Servicio restablecido";
         if (E_CIRC.matcher(tn).find()) return "Servicio parcial";
         if (E_CERR_PUNTUAL.matcher(tn).find()) return "Estación cerrada";
+        if (E_SIN_EXPRES.matcher(tn).find()) return "Exprés no disponible";
         if (E_SUSP.matcher(tn).find()) return "Sin servicio";
         if (E_RETR.matcher(tn).find()) return "Retraso en el servicio";
         if (E_PASO.matcher(tn).find()) return "Paso de largo";

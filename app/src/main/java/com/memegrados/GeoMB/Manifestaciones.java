@@ -120,6 +120,11 @@ public final class Manifestaciones {
     // Estaciones (norm, con prefijo tal cual las indexa el planificador) bloqueadas por Mexibús
     // "Sin servicio": toda la línea queda inutilizable para el ruteo. Set aparte (no lo pisa Metrobús).
     private static final Set<String> mexibusBloq = ConcurrentHashMap.newKeySet();
+    // Bases troncales Mexibús (101-104) cuyo EXPRÉS no está disponible ahora mismo (p. ej. "solo se
+    // brinda servicio ordinario"): el ordinario sigue corriendo, solo se le quita el exprés como
+    // opción -- distinto de mexibusBloq, que bloquea estaciones enteras. Ver AfectMexibusFeed
+    // (E_SIN_EXPRES) y Servicios.disponibles().
+    private static final Set<Integer> mexibusExpresBloq = ConcurrentHashMap.newKeySet();
     private static volatile String resumen = "";       // nombres/lugares legibles, separados por coma
     private static volatile long actualizado = 0L;
 
@@ -357,6 +362,20 @@ public final class Manifestaciones {
         mexibusBloq.clear();
         mexibusBloq.addAll(nuevas);
         if (cambio) actualizado = System.currentTimeMillis();
+    }
+
+    /** Bases troncales (101-104) cuyo exprés está fuera de servicio ahora mismo (el ordinario sigue). */
+    public static void setMexibusExpresBloqueado(Set<Integer> nuevas) {
+        if (nuevas == null) nuevas = new HashSet<>();
+        boolean cambio = !mexibusExpresBloq.equals(nuevas);
+        mexibusExpresBloq.clear();
+        mexibusExpresBloq.addAll(nuevas);
+        if (cambio) actualizado = System.currentTimeMillis();
+    }
+
+    /** ¿El exprés de esta base troncal (101-104) está fuera de servicio ahora mismo? */
+    public static boolean expresBloqueado(int base) {
+        return mexibusExpresBloq.contains(base);
     }
 
     /**
