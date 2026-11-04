@@ -63,11 +63,22 @@ public final class AfectMexibusFeed {
 
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();
 
+    /** Un feed RSS.app con la línea Mexibús que asume por defecto (0 = ninguna, hay que detectarla
+     *  del texto como siempre). El feed de "Mexibús L1 (avisos)" es una cuenta DEDICADA a esa línea:
+     *  sus posts puntuales de estación (bloqueos, tránsito lento, circuitos, "tránsito cordial",
+     *  "reanudamos servicio") casi nunca dicen "Mexibús"/"L1" en el texto porque el contexto ya lo da
+     *  la cuenta misma -- confirmado comparando contra el feed real: sin este default, parsePost()
+     *  descartaba la MAYORÍA de sus posts por no encontrar ninguna línea mencionada. */
+    private static final class Feed {
+        final String url; final int lineaDefecto;
+        Feed(String url, int lineaDefecto) { this.url = url; this.lineaDefecto = lineaDefecto; }
+    }
+
     /** Mismos feeds RSS.app que consume el backend (RSS_URL). */
-    private static final String[] FEEDS = {
-            "https://rss.app/feeds/iUt5KovKRZWOtnS2.xml",   // Mexibús Informa (X)
-            "https://rss.app/feeds/E8j2JvAwn87r9bfG.xml",   // Mexicable (X)
-            "https://rss.app/feeds/NWYsjr0gZzQMjU38.xml",   // Mexibús L1 (avisos)
+    private static final Feed[] FEEDS = {
+            new Feed("https://rss.app/feeds/iUt5KovKRZWOtnS2.xml", 0),     // Dirección del Sistema Transporte Masivo y Teleférico (Facebook, "Mexibús Informa")
+            new Feed("https://rss.app/feeds/E8j2JvAwn87r9bfG.xml", 0),     // Mexicable (X)
+            new Feed("https://rss.app/feeds/NWYsjr0gZzQMjU38.xml", 101),   // Mexibús L1 (avisos)
     };
 
     private static final long MAX_POST_AGE_MS = 90L * 60 * 1000;    // MAX_POST_AGE_MIN = 90
@@ -104,7 +115,7 @@ public final class AfectMexibusFeed {
         posts.sort((a, b) -> Long.compare(a.timeMs, b.timeMs));
         for (Post post : posts) {
             if (ahora - post.timeMs > MAX_POST_AGE_MS) continue;
-            for (Afect a : parsePost(post.message)) {
+            for (Afect a : parsePost(post.message, post.lineaDefecto)) {
                 String k = post.id + "|" + a.linea;
                 if (vistos.contains(k)) continue;      // este post ya se procesó
                 vistos.add(k);
@@ -175,7 +186,7 @@ public final class AfectMexibusFeed {
         LinkedHashMap<Integer, Afect> reciente = new LinkedHashMap<>();
         for (Post post : posts) {
             if (ahora - post.timeMs > ESTADO_TTL_MS) continue;
-            for (Afect a : parsePost(post.message))
+            for (Afect a : parsePost(post.message, post.lineaDefecto))
                 if (!reciente.containsKey(a.linea)) reciente.put(a.linea, a);
         }
         List<Manifestaciones.Afectacion> lista = new ArrayList<>();
@@ -278,7 +289,16 @@ public final class AfectMexibusFeed {
         return enc;
     }
 
-    private static final Pattern E_REST = Pattern.compile("restablec|reanud|normaliz|opera con normalidad");
+    // "se libera el paso de nuestras unidades" (feed de L1, avisos puntuales de estación): mismo
+    // significado que "restablec"/"reanud" pero sin ninguna de esas raíces.
+    private static final Pattern E_REST = Pattern.compile(
+            "restablec|reanud|normaliz|opera con normalidad|libera\\s+el\\s+paso");
+    // "tránsito cordial"/"tráfico cordial" (feed de L1): la estación avisa que NO hay ningún problema
+    // -- caso real confirmado: ese feed, al ser una cuenta dedicada a L1, reporta el estado de CADA
+    // estación aunque esté normal; sin este filtro se clasificaba como "Afectación en el servicio"
+    // genérica no habiendo afectación alguna. Se revisa ANTES que todo lo demás (no hay nada que avisar).
+    private static final Pattern E_NORMAL = Pattern.compile(
+            "transito cordial|trafico cordial|sin incidentes|circulacion normal");
     // "circuito" suelto SÍ es la frase operativa real ("la línea realiza un circuito [recorrido
     // parcial]"), pero también aparece como parte del nombre de una vialidad ("Circuito Exterior
     // Mexiquense") en avisos que no reportan ningún problema con la línea -- caso real confirmado:
@@ -372,13 +392,21 @@ public final class AfectMexibusFeed {
     }
 
     /** Interpreta un post → afectaciones (una por línea detectada). */
-    static List<Afect> parsePost(String texto) {
+    static List<Afect> parsePost(String texto, int lineaDefecto) {
         List<Afect> out = new ArrayList<>();
         if (texto == null) return out;
         String tn = norm(texto);
-        if (!P_GUARD.matcher(tn).find()) return out;
+        if (E_NORMAL.matcher(tn).find()) return out;   // "tránsito cordial": nada que avisar
+        // Feeds de una sola línea (lineaDefecto != 0, ver Feed): sus posts puntuales casi nunca dicen
+        // "Mexibús"/el número de línea -- el contexto ya lo da la cuenta misma. Sin lineaDefecto, un
+        // post así se descartaría por completo (ni P_GUARD ni lineasEnTexto encontrarían nada).
+        if (!P_GUARD.matcher(tn).find() && lineaDefecto == 0) return out;
         Map<Integer, Boolean> lineas = lineasEnTexto(tn);
-        if (lineas.isEmpty()) return out;
+        if (lineas.isEmpty()) {
+            if (lineaDefecto == 0) return out;
+            lineas = new LinkedHashMap<>();
+            lineas.put(lineaDefecto, Boolean.TRUE);
+        }
         String estado = estadoDe(tn);
         String lugar = lugarDe(texto);
         String info = infoDe(texto);
@@ -406,8 +434,10 @@ public final class AfectMexibusFeed {
 
     // ==================================================================== FETCH RSS
     static final class Post {
-        final String id, message; final long timeMs;
-        Post(String id, String message, long timeMs) { this.id = id; this.message = message; this.timeMs = timeMs; }
+        final String id, message; final long timeMs; final int lineaDefecto;
+        Post(String id, String message, long timeMs, int lineaDefecto) {
+            this.id = id; this.message = message; this.timeMs = timeMs; this.lineaDefecto = lineaDefecto;
+        }
     }
 
     private static final Pattern BR = Pattern.compile("(?i)<br\\s*/?>");
@@ -416,9 +446,9 @@ public final class AfectMexibusFeed {
 
     private static List<Post> fetchFeeds() {
         List<Post> out = new ArrayList<>();
-        for (String url : FEEDS) {
+        for (Feed feed : FEEDS) {
             try {
-                byte[] data = httpGet(url);
+                byte[] data = httpGet(feed.url);
                 if (data == null) continue;
                 XmlPullParser xp = android.util.Xml.newPullParser();
                 xp.setInput(new ByteArrayInputStream(data), null);
@@ -445,7 +475,7 @@ public final class AfectMexibusFeed {
                         String texto = d.trim().isEmpty() ? title.trim() : d.trim();
                         if (!texto.isEmpty()) {
                             String id = !guid.isEmpty() ? guid : (!link.isEmpty() ? link : title);
-                            out.add(new Post(id, texto, parseFecha(pub)));
+                            out.add(new Post(id, texto, parseFecha(pub), feed.lineaDefecto));
                         }
                     }
                     ev = xp.next();
