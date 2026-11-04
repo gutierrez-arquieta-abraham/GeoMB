@@ -494,6 +494,85 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         getParentFragmentManager().beginTransaction().attach(this).commitNow();
     }
 
+    /** Toque de estación en estilo CITI (selectStopMarker() de la app original): acerca la cámara a
+     *  zoom 16, abre el globo y sube el menú de la estación. */
+    private void tocarEstacionCiti(EstMapa em, Marker m) {
+        if (mapa != null) {
+            if (mapa.getCameraPosition().zoom >= 16f) mapa.animateCamera(CameraUpdateFactory.newLatLng(m.getPosition()));
+            else mapa.animateCamera(CameraUpdateFactory.newLatLngZoom(m.getPosition(), 16f));
+        }
+        m.showInfoWindow();
+        java.util.List<Object[]> botones = new java.util.ArrayList<>();
+        botones.add(new Object[]{getString(R.string.citi_ver_tiempos), (Runnable) () -> {
+            cerrarMenuCiti();
+            mostrarCartaEstacion(em);
+        }});
+        botones.add(new Object[]{getString(R.string.citi_ver_rutas), (Runnable) () -> mostrarRutasEstacionCiti(em)});
+        // Igual que el original: el botón no aparece si la estación ya es favorita.
+        if (!EstiloCiti.esFavorita(requireContext(), em.linea, em.e.nombre)) {
+            botones.add(new Object[]{getString(R.string.citi_anadir_favoritos), (Runnable) () -> {
+                EstiloCiti.agregarFavorita(requireContext(), em.linea, em.e.nombre);
+                Toast.makeText(requireContext(), getString(R.string.citi_favorito_agregado, em.e.nombre),
+                        Toast.LENGTH_SHORT).show();
+                cerrarMenuCiti();
+            }});
+        }
+        abrirMenuCiti(botones);
+    }
+
+    /** "Ver rutas": las rutas que paran en esa estación (incluye las de otra línea con el mismo
+     *  nombre, p. ej. un transbordo); elegir una la deja sola en el mapa. */
+    private void mostrarRutasEstacionCiti(EstMapa em) {
+        java.util.TreeSet<Integer> lineas = new java.util.TreeSet<>();
+        String n = Planificador.norm(em.e.nombre);
+        for (EstMapa otra : estaciones) if (Planificador.norm(otra.e.nombre).equals(n)) lineas.add(otra.linea);
+        lineas.add(em.linea);
+        java.util.List<Object[]> botones = new java.util.ArrayList<>();
+        for (int ln : lineas) {
+            Linea l = GtfsRepository.porNumero(requireContext(), ln);
+            String txt = ln + "   " + (l != null ? EstiloCiti.nombreRuta(l.nombre) : "");
+            botones.add(new Object[]{txt.trim(), (Runnable) () -> {
+                cerrarMenuCiti();
+                seleccionarRutaCiti(ln);
+            }});
+        }
+        abrirMenuCiti(botones);
+    }
+
+    /** Llena la capa del menú con {@code botones} (texto, acción) + "Cancelar" y la sube desde abajo
+     *  (slide_in_bottom de la app original: medio alto de pantalla en config_mediumAnimTime). */
+    private void abrirMenuCiti(java.util.List<Object[]> botones) {
+        android.widget.LinearLayout capa = getView() != null ? getView().findViewById(R.id.citi_menu_estacion) : null;
+        if (capa == null) return;
+        capa.removeAllViews();
+        botones.add(new Object[]{getString(R.string.citi_cancelar), (Runnable) this::cerrarMenuCiti});
+        LayoutInflater inf = getLayoutInflater();
+        for (Object[] b : botones) {
+            TextView btn = (TextView) inf.inflate(R.layout.boton_citi_menu, capa, false);
+            btn.setText((String) b[0]);
+            Runnable accion = (Runnable) b[1];
+            btn.setOnClickListener(v -> accion.run());
+            capa.addView(btn);
+        }
+        capa.setOnClickListener(v -> cerrarMenuCiti());   // tocar fuera de los botones = Cancelar
+        int dur = getResources().getInteger(android.R.integer.config_mediumAnimTime);
+        capa.setVisibility(View.VISIBLE);
+        capa.post(() -> {
+            View raiz = getView();
+            capa.setTranslationY(raiz != null ? raiz.getHeight() * 0.5f : 0f);
+            capa.animate().translationY(0f).setDuration(dur).start();
+        });
+    }
+
+    private void cerrarMenuCiti() {
+        View raiz = getView();
+        View capa = raiz != null ? raiz.findViewById(R.id.citi_menu_estacion) : null;
+        if (capa == null || capa.getVisibility() != View.VISIBLE) return;
+        int dur = getResources().getInteger(android.R.integer.config_mediumAnimTime);
+        capa.animate().translationY(raiz.getHeight() * 0.5f).setDuration(dur)
+                .withEndAction(() -> { capa.setVisibility(View.GONE); capa.setTranslationY(0f); }).start();
+    }
+
     /** ¿La línea se ve con la ruta elegida en estilo CITI? Fuera de ese estilo, siempre. */
     private boolean visibleCiti(int linea) {
         return !citi || lineaCiti == 0 || linea == lineaCiti;
@@ -721,7 +800,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.setOnMarkerClickListener(m -> {
             // Listener nativo del SDK de Maps, se dispara en cada toque de marcador: una excepción no
             // atrapada aquí tumba la app en la interacción más frecuente de esta pantalla.
-            if (citi) return false;   // la app original solo abría el globo del marcador
+            if (citi) {
+                // Como la app original: la estación abre su menú; la unidad, solo su globo.
+                EstMapa em = estacionDeMarcador(m);
+                if (em == null) return false;
+                tocarEstacionCiti(em, m);
+                return true;
+            }
             try {
                 String eco = numeroDeMarcador(m);
                 if (eco != null) {

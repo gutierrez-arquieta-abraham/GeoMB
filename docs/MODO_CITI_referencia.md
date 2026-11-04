@@ -71,7 +71,9 @@ de Indra; El Universal (abr-2019).
 - Globo (`map_popup.xml`): fondo blanco, padding 3dp, título negrita negro, subtítulo cursiva `#666666` (máx. 260dp).
   Autobús: "Autobús %s"; estación: su nombre.
 - Al tocar estación (`fragment_menu_parada_mapa.xml`): botones `button_menu` (16sp negrita, mín. 260×40dp, margen inferior
-  7dp): Ver tiempos · Ver líneas · Ver destinos · Añadir a favoritos · Cancelar. **(pendiente en GeoMB)**
+  7dp): Ver tiempos · Ver rutas · (Ver destinos, oculto fuera de "Alavabus") · Añadir a favoritos (oculto si ya es
+  favorita) · Cancelar. Antes de abrirlo la cámara va a zoom 16 y se abre el globo; el menú sube desde la mitad de la
+  pantalla (`slide_in_bottom`, `config_mediumAnimTime`). Al añadir: toast "Estación %s agregada a favoritos".
 
 ## Implementación en GeoMB (paso 1: mapa + barra superior)
 - Activación: modo personalizado → frase **`App Android Metrobús v1.0`** → switch "Estilo CITI" (`Modos.estiloCiti`).
@@ -82,3 +84,11 @@ de Indra; El Universal (abr-2019).
 - Imágenes originales copiadas tal cual (nostalgia): `citi_rumbo.png` (`app_icon_course56`), `citi_bus.png` (`icon_bus`),
   `citi_cerrar.png` (`app_icon_close32`). Son propiedad de Indra/Metrobús.
 - En estilo CITI no se dibujan Mexibús/Mexicable, rutas mixtas ni los corredores de Indios Verdes (la app original no los tenía).
+
+## Paso 2: menú de estación
+- Toque de estación → zoom 16 + globo + capa `citi_menu_estacion` con botones `CitiBotonMenu` (= `button_menu`).
+- **Ver tiempos** abre por ahora la tarjeta de estación de GeoMB (la pantalla "Estimaciones de llegadas" estilo CITI queda pendiente).
+- **Ver rutas** lista como botones las rutas que paran ahí (mismo nombre en otra línea = transbordo); elegir una la filtra.
+- **Añadir a favoritos** guarda "línea|nombre" en SharedPreferences `estilo_citi` (GeoMB no tenía estaciones favoritas).
+  Todavía no hay pantalla de Favoritos que las muestre.
+- Tocar fuera de los botones = Cancelar.

@@ -34,6 +34,11 @@
     <string name="citi_quitar_ruta">Remove route</string>
     <string name="citi_ver_todas">Show all routes</string>
     <string name="citi_salir">Exit CITI style</string>
+    <string name="citi_ver_tiempos">View times</string>
+    <string name="citi_ver_rutas">View routes</string>
+    <string name="citi_anadir_favoritos">Add to favorites</string>
+    <string name="citi_cancelar">Cancel</string>
+    <string name="citi_favorito_agregado">Station %s added to favorites</string>
     <string name="modo_sw_voz_ximena_metrobus">Ximena on Metrobús (paid, EC2 covers the cost)</string>
     <string name="modo_sw_voz_ximena_mexibus">Ximena on Mexibús (paid, EC2 covers the cost)</string>
     <string name="modo_sw_voz_ximena_mexicable">Ximena on Mexicable (paid, EC2 covers the cost)</string>

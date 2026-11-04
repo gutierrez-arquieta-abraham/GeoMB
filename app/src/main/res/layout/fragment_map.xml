@@ -721,4 +721,21 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+
+    <!-- Estilo CITI: menú de estación (fragment_menu_parada_mapa.xml de la app de Indra). Capa
+         transparente sobre el mapa con los botones abajo al centro; tocar fuera cancela. Los botones
+         se agregan desde MapFragment (Ver tiempos / Ver rutas / Añadir a favoritos / Cancelar). -->
+    <LinearLayout
+        android:id="@+id/citi_menu_estacion"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="bottom|center_horizontal"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/barra_citi"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

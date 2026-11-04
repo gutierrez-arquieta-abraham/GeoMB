@@ -159,6 +159,28 @@ public final class EstiloCiti {
         return bd;
     }
 
+    // --- Estaciones favoritas ("Añadir a favoritos" del menú de estación). GeoMB solo guardaba
+    // unidades, así que se guardan aparte como "línea|nombre" en SharedPreferences. ---
+
+    private static final String PREFS_FAV = "estilo_citi";
+    private static final String K_FAVORITAS = "estaciones_favoritas";
+
+    public static boolean esFavorita(Context c, int linea, String nombre) {
+        return favoritas(c).contains(linea + "|" + nombre);
+    }
+
+    public static void agregarFavorita(Context c, int linea, String nombre) {
+        java.util.Set<String> s = new java.util.HashSet<>(favoritas(c));
+        s.add(linea + "|" + nombre);
+        c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
+                .edit().putStringSet(K_FAVORITAS, s).apply();
+    }
+
+    private static java.util.Set<String> favoritas(Context c) {
+        return c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
+                .getStringSet(K_FAVORITAS, java.util.Collections.emptySet());
+    }
+
     /** Rumbo inicial de a→b en grados (0 = norte, sentido horario), como Pos.rumboA() de Indra. */
     static float rumbo(LatLng a, LatLng b) {
         double f1 = Math.toRadians(a.latitude), f2 = Math.toRadians(b.latitude);
