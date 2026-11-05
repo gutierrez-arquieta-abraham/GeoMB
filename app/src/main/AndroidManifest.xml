@@ -66,6 +66,13 @@
             android:name=".MainActivity"
             android:exported="false" />
 
+        <!-- Estilo CITI: réplica de la app Metrobús de Indra (2018) con las funciones de GeoMB. Se
+             activa desde el modo personalizado; MainActivity redirige aquí mientras esté activo. -->
+        <activity
+            android:name=".CitiActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GeoMB.Citi" />
+
         <!-- Panel admin de afectaciones (aviso manual, mTLS): solo alcanzable desde el modo
              personalizado (ReporteFragment), nunca desde un intent externo. -->
         <activity

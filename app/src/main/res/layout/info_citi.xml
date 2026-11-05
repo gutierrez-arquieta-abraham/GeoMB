@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo CITI: Información (fragment_info.xml de la app de Indra, con los datos de GeoMB). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <include layout="@layout/bar_menu_citi" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingLeft="20dp"
+            android:paddingTop="10dp"
+            android:paddingRight="20dp"
+            android:paddingBottom="10dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@null"
+                    android:src="@drawable/logo_mb" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="36dp"
+                    android:layout_marginHorizontal="12dp"
+                    android:background="@color/citi_separador_logos" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="50dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@null"
+                    android:src="@drawable/citi_logo_citi" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15dp"
+                android:gravity="center"
+                android:text="@string/citi_info_texto"
+                android:textColor="@color/citi_texto_lista"
+                android:textSize="16sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15dp"
+                android:autoLink="web"
+                android:gravity="center"
+                android:text="@string/citi_info_url"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/citi_info_privacidad"
+                style="@style/CitiBoton"
+                android:layout_marginTop="16dp"
+                android:minWidth="150dp"
+                android:text="@string/citi_politica" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/citi_info_salir"
+                style="@style/CitiBoton"
+                android:layout_marginTop="8dp"
+                android:minWidth="150dp"
+                android:text="@string/citi_volver_geomb" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

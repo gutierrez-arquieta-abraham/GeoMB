@@ -122,3 +122,25 @@ de Indra; El Universal (abr-2019).
   cada unidad una sola vez (las mixtas contaban en 2 líneas). Nombre de los puntos H72 sin "· dirección…".
 **Pendiente / no replicado**: menú principal de 8 botones ("Menú" sigue siendo una lista emergente), "Horario", avisos
 de servicio en tiempos, íconos pixelados del original (se dejan suavizados).
+
+## Paso 5: CitiActivity — la app completa, heredando GeoMB
+- **Activación**: el switch "Estilo CITI" abre `CitiActivity` (tarea nueva). Mientras el modo esté activo, `MainActivity`
+  hace toda su inicialización (catálogos, servicios, FCM, estado de servicio) y luego redirige a `CitiActivity`.
+  Para salir: Información → "Volver a GeoMB" (apaga el modo y abre `MainActivity`).
+- **Estructura** (`activity_citi.xml`, = `activity_main.xml` de Indra): franja de logos fija (`header_citi.xml`) + pila de
+  pantallas (fragments) + capa de menús. "Menú" en cualquier pantalla vuelve al inicio; "atrás" cierra menú / pantalla y
+  en el inicio sale de la app.
+- **Inicio** (`CitiInicioFragment`, `fragment_menu.xml`): 8 botones con los íconos originales (`citi_inicio_*`):
+  - Próximo autobús → `CitiBuscarFragment` (buscar estación; sin QR) con Ver tiempos / Ver rutas / Ver en mapa / Favoritos.
+  - Rutas → "Seleccione ruta" → menú centrado "Ver en mapa".
+  - Mapa → `MapFragment` en estilo CITI.
+  - Mi trayecto → diálogo del número económico → mapa siguiendo esa unidad (caja con ícono de autobús).
+  - Estaciones cercanas → lista por distancia ("A N metros") con la ubicación del teléfono.
+  - Puntos de recarga → mapa + aviso (GeoMB no tiene el catálogo de puntos de recarga de Indra).
+  - Favoritos → lista con "Editar" para borrar (sin reordenar).
+  - Información → logos, texto, sitio del Metrobús, política de privacidad y "Volver a GeoMB".
+- **Datos** (`CitiDatos`): de `GtfsRepository.getRuteables` → Metrobús + Mexibús/Mexicable según "Mostrar Mexibús/Mexicable"
+  + parches de ruta. Tiempos con `Llegadas`, cada línea del transbordo con su andén.
+- **Mapa CITI ahora como el de GeoMB**: todos los trazos (Metrobús, Mexibús, Mexicable, rutas mixtas, corredores de
+  Indios Verdes) y todas las unidades, con el dibujo del original (trazo 3dp, pictogramas, bus CITI). Elegir ruta filtra;
+  la X lo quita. Las flechas de sentido salen con ruta elegida.

@@ -88,9 +88,10 @@ public class MainActivity extends AppCompatActivity {
         // Interruptor remoto de "Servicio en pausa": primero el último estado guardado (para que
         // lo de abajo ya no arranque el sondeo si el servidor está apagado) y luego la consulta real.
         EstadoServicio.cargar(this);
-        if (EstadoServicio.enPausa()) mostrarAvisoPausa();
+        // Con el estilo CITI activo esta actividad cede la pantalla enseguida: el aviso lo da CitiActivity.
+        if (EstadoServicio.enPausa() && !Modos.estiloCiti(this)) mostrarAvisoPausa();
         EstadoServicio.refrescar(this, () -> {
-            if (EstadoServicio.enPausa()) {
+            if (EstadoServicio.enPausa() && !isFinishing()) {
                 mostrarAvisoPausa();
                 SincronizacionService.detener(this);
             }
@@ -129,6 +130,13 @@ public class MainActivity extends AppCompatActivity {
             if (Perfil.movilidadReducida(this)) fm.subscribeToTopic("elevadores");
             else fm.unsubscribeFromTopic("elevadores");
         } catch (Exception ignore) {}
+        // Estilo CITI activo: lo de arriba (catálogos, servicios, avisos push) ya quedó listo, así que
+        // CitiActivity hereda todo y aquí solo se le cede la pantalla.
+        if (Modos.estiloCiti(this)) {
+            startActivity(new Intent(this, CitiActivity.class));
+            finish();
+            return;
+        }
         // NUNCA intentar ajustar el layout de esta Activity cuando aparece el teclado (ni con
         // android:windowSoftInputMode="adjustResize" ni con padding manual del inset ime()): se
         // probaron AMBAS variantes por separado y las DOS rompen el redibujado del SurfaceView de

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fila de estación (item_parada.xml de la app de Indra): ícono 28dp, nombre y dato en cursiva. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/white"
+    android:gravity="center_vertical"
+    android:padding="8dp">
+
+    <ImageView
+        android:id="@+id/citi_parada_icono"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginEnd="8dp"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/citi_parada_nombre"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/citi_texto_lista"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/citi_parada_dato"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:textColor="#FF666666"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+    </LinearLayout>
+</LinearLayout>

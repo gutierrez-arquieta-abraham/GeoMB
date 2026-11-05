@@ -22,6 +22,13 @@
 
     <style name="Theme.GeoMB" parent="Base.Theme.GeoMB" />
 
+    <!-- Estilo CITI (CitiActivity): siempre claro, como la app de Indra (Theme.Holo.Light). -->
+    <style name="Theme.GeoMB.Citi" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/citi_boton</item>
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+    </style>
+
     <!-- Etiqueta de campo en el formulario de reporte -->
     <style name="ReporteLabel">
         <item name="android:layout_width">match_parent</item>

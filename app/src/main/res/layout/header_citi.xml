@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo CITI: franja de logos (header.xml de la app de Indra), fija arriba de CitiActivity.
+     Logo de Metrobús actual + logo CITI original. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- Franja de logos (header.xml) -->
+    <LinearLayout
+        android:id="@+id/citi_logos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/citi_header"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <!-- El logo de Metrobús del original medía ~40dp de alto dentro de la franja de 60dp. -->
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginHorizontal="5dp"
+            android:layout_marginVertical="10dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/logo_mb" />
+
+        <!-- Separador medido en el logo.png original: ~24dp tras el logo MB y ~12dp antes de CITI. -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="19dp"
+            android:layout_marginEnd="5dp"
+            android:background="@color/citi_separador_logos" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/citi_logo_alto"
+            android:layout_margin="5dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/citi_logo_citi" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/citi_gris_claro" />
+
+</LinearLayout>

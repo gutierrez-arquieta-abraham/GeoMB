@@ -204,6 +204,13 @@ public final class EstiloCiti {
                 .edit().putStringSet(K_FAVORITAS, s).apply();
     }
 
+    public static void quitarFavorita(Context c, int linea, String nombre, LatLng pos) {
+        java.util.Set<String> s = new java.util.HashSet<>(favoritas(c));
+        s.remove(claveFavorita(linea, nombre, pos));
+        c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
+                .edit().putStringSet(K_FAVORITAS, s).apply();
+    }
+
     private static java.util.Set<String> favoritas(Context c) {
         return c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
                 .getStringSet(K_FAVORITAS, java.util.Collections.emptySet());

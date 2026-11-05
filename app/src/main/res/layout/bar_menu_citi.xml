@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo CITI: barra "título / Menú" (bar_menu.xml de la app de Indra), arriba de cada pantalla. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- Barra de menú (bar_menu.xml) -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/citi_menu_fondo"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:id="@+id/citi_titulo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:singleLine="true"
+            android:text="@string/citi_mapa"
+            android:textColor="@color/citi_texto"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- "Editar" de Favoritos (fragment_favoritos.xml), oculto en las demás pantallas. -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/citi_btn_editar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:layout_toStartOf="@id/citi_btn_menu"
+            android:background="@drawable/citi_boton"
+            android:minWidth="60dp"
+            android:minHeight="30dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:singleLine="true"
+            android:stateListAnimator="@null"
+            android:text="@string/citi_editar"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/citi_btn_menu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/citi_boton"
+            android:minWidth="60dp"
+            android:minHeight="30dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:singleLine="true"
+            android:stateListAnimator="@null"
+            android:text="@string/citi_menu"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <View
+        android:id="@+id/citi_barra_fin"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/citi_menu_borde" />
+
+</LinearLayout>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo CITI: menú de inicio (fragment_menu.xml de la app de Indra). Las filas de botones
+     (3 · 3 · 2) las arma CitiInicioFragment con boton_inicio_citi.xml. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:id="@+id/citi_inicio_filas"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical" />
+</ScrollView>

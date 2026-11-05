@@ -45,6 +45,28 @@
     <string name="citi_aceptar">Aceptar</string>
     <string name="citi_seleccione_ruta">Seleccione ruta</string>
     <string name="citi_ver_en_mapa">Ver en mapa</string>
+    <string name="citi_seleccionar_bus">Indique el código del autobús (sin nombre)</string>
+    <string name="citi_bus_no_encontrado">El autobús no está en servicio</string>
+    <!-- Inicio (fragment_menu.xml) -->
+    <string name="citi_proximo_autobus">Próximo autobús</string>
+    <string name="citi_rutas">Rutas</string>
+    <string name="citi_mi_trayecto">Mi trayecto</string>
+    <string name="citi_cercanas">Estaciones cercanas</string>
+    <string name="citi_puntos_recarga">Puntos de recarga</string>
+    <string name="citi_favoritos">Favoritos</string>
+    <string name="citi_informacion">Información</string>
+    <!-- Pantallas -->
+    <string name="citi_buscar_estacion">Buscar estación</string>
+    <string name="citi_seleccionar_estacion">Indique el nombre de estación</string>
+    <string name="citi_a_metros">A %.0f metros</string>
+    <string name="citi_editar">Editar</string>
+    <string name="citi_sin_favoritos">No tiene estaciones favoritas</string>
+    <string name="citi_sin_ubicacion">No se pudo obtener su ubicación</string>
+    <string name="citi_recarga_aviso">Puede recargar su tarjeta en las máquinas de cualquier estación del Metrobús.</string>
+    <string name="citi_info_texto">GeoMB · estilo CITI\nHomenaje a la app Android Metrobús (Indra, 2017–2018)</string>
+    <string name="citi_info_url">https://www.metrobus.cdmx.gob.mx</string>
+    <string name="citi_politica">Política de privacidad</string>
+    <string name="citi_volver_geomb">Volver a GeoMB</string>
     <string name="citi_favorito_agregado">Estación %s agregada a favoritos</string>
     <string name="modo_sw_voz_ximena_metrobus">Ximena en Metrobús (de pago, EC2 asume el costo)</string>
     <string name="modo_sw_voz_ximena_mexibus">Ximena en Mexibús (de pago, EC2 asume el costo)</string>

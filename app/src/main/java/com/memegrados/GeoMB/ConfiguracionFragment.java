@@ -223,8 +223,15 @@ public class ConfiguracionFragment extends Fragment {
             Modos.setCachondo(requireContext(), swCachondo.isChecked());
             refrescar();
         });
-        swEstiloCiti.setOnClickListener(v2 ->
-                Modos.setEstiloCiti(requireContext(), swEstiloCiti.isChecked()));
+        swEstiloCiti.setOnClickListener(v2 -> {
+            Modos.setEstiloCiti(requireContext(), swEstiloCiti.isChecked());
+            // El estilo CITI es otra actividad (réplica de la app de Indra): se entra de inmediato.
+            if (swEstiloCiti.isChecked()) {
+                android.content.Intent i = new android.content.Intent(requireContext(), CitiActivity.class);
+                i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(i);
+            }
+        });
         swPbs.setOnClickListener(v2 -> {
             Modos.setPbs(requireContext(), swPbs.isChecked());
             refrescar();

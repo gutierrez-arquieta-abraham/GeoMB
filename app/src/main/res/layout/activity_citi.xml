@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo CITI (activity_main.xml de la app de Indra): franja de logos fija y, debajo, las
+     pantallas (fragments) más la capa de menús/diálogos encima de ellas. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/citi_raiz"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <include layout="@layout/header_citi" />
+
+    <FrameLayout
+        android:id="@+id/citi_contenido"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <FrameLayout
+            android:id="@+id/citi_pantallas"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Menús de estación/ruta (fragment_menu_parada*.xml, fragment_menu_linea.xml). -->
+        <LinearLayout
+            android:id="@+id/citi_capa"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Mi trayecto" del estilo CITI (dialog_selec_bus.xml de la app de Indra). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_margin="10dp"
+    android:background="@drawable/citi_caja_dialogo"
+    android:gravity="center_horizontal"
+    android:minWidth="260dp"
+    android:orientation="vertical"
+    android:paddingLeft="16dp"
+    android:paddingTop="10dp"
+    android:paddingRight="16dp"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:maxWidth="220dp"
+        android:text="@string/citi_seleccionar_bus"
+        android:textColor="@color/citi_texto"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/citi_bus_codigo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:importantForAutofill="no"
+        android:inputType="number"
+        android:maxLength="6"
+        android:minWidth="80dp"
+        android:textColor="@android:color/black"
+        android:textSize="18sp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/citi_bus_cancelar"
+            style="@style/CitiBoton"
+            android:text="@string/citi_cancelar" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/citi_bus_aceptar"
+            style="@style/CitiBoton"
+            android:layout_marginStart="7dp"
+            android:text="@string/citi_aceptar" />
+    </LinearLayout>
+</LinearLayout>
