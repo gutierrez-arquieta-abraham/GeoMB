@@ -34,7 +34,7 @@
                     android:layout_height="40dp"
                     android:adjustViewBounds="true"
                     android:contentDescription="@null"
-                    android:src="@drawable/logo_mb" />
+                    android:src="@drawable/logo_mb_blanco" />
 
                 <View
                     android:layout_width="1dp"

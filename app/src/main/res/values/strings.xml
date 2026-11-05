@@ -68,6 +68,15 @@
     <string name="citi_politica">Política de privacidad</string>
     <string name="citi_volver_geomb">Volver a GeoMB</string>
     <string name="citi_aviso">Aviso</string>
+    <string name="citi_origen">Origen</string>
+    <string name="citi_destino">Destino</string>
+    <string name="citi_mi_ubicacion">Mi ubicación</string>
+    <string name="citi_trazar">Trazar trayecto</string>
+    <string name="citi_seguir_bus">Seguir mi autobús</string>
+    <string name="citi_como_llegar">Cómo llegar aquí</string>
+    <string name="citi_elige_estaciones">Indique la estación de origen y la de destino</string>
+    <string name="citi_tramo">%1$s → %2$s\n%3$d estaciones · dirección %4$s</string>
+    <string name="citi_tramo_sin_dir">%1$s → %2$s\n%3$d estaciones</string>
     <string name="citi_favorito_agregado">Estación %s agregada a favoritos</string>
     <string name="modo_sw_voz_ximena_metrobus">Ximena en Metrobús (de pago, EC2 asume el costo)</string>
     <string name="modo_sw_voz_ximena_mexibus">Ximena en Mexibús (de pago, EC2 asume el costo)</string>

@@ -24,7 +24,7 @@
             android:adjustViewBounds="true"
             android:contentDescription="@null"
             android:scaleType="fitCenter"
-            android:src="@drawable/logo_mb" />
+            android:src="@drawable/logo_mb_blanco" />
 
         <!-- Separador medido en el logo.png original: ~24dp tras el logo MB y ~12dp antes de CITI. -->
         <View

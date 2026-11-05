@@ -103,6 +103,8 @@ public final class Modos {
      *  compartido por {@link #vozActual} (avisos en vivo) y la pre-descarga masiva (DescargaVoz vía
      *  ConfiguracionFragment), para que ambos resuelvan "puede esta línea usar Ximena" igual. */
     public static boolean vozXimenaPermitida(Context c, int linea) {
+        // Estilo CITI: Ximena (clon del anuncio real del CITI) es la voz por defecto en todos los sistemas.
+        if (estiloCiti(c)) return true;
         switch (Sistemas.sistemaDe(linea)) {
             case Sistemas.MEXIBUS:   return vozXimenaMexibus(c);
             case Sistemas.MEXICABLE: return vozXimenaMexicable(c);

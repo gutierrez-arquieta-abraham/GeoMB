@@ -154,3 +154,18 @@ de servicio en tiempos, íconos pixelados del original (se dejan suavizados).
   del catálogo no traen terminales). Las exprés 121–124 no se listan aparte (son servicio de su línea).
 - "Aviso" (Project.avisos del original): al llegar los tiempos, una vez por pantalla, un diálogo "Aviso" con "- Línea N:
   estado (lugar). info" de las afectaciones de GeoMB para las rutas de esa estación.
+
+## Paso 7: trayectos del usuario, voz Ximena y logo sobre blanco
+- **"Mi trayecto" = planificador de GeoMB** (`CitiTrayectoFragment`, `trayecto_citi.xml`): origen (o "Mi ubicación" →
+  estación más cercana) y destino con autocompletar, "Trazar trayecto" (`Planificador.calcular`, en 2º plano), resumen
+  "N paradas · N correspondencias · N min aprox.", aviso de ruta alterna, un renglón `item_linea` por tramo
+  ("Origen → Destino / N estaciones · dirección Terminal"), "Ver en mapa" e "Iniciar/Detener recorrido" (RecorridoService,
+  mismo arranque que `MapFragment.arrancarRecorrido`). Abajo sigue el "Mi trayecto" original: "Seguir mi autobús".
+- El trayecto (`CitiActivity.trayecto`) sobrevive al cambiar de pantalla; el mapa CITI lo dibuja al pedir "Ver en mapa"
+  o si hay recorrido en curso (sigue al usuario), con el margen debajo de la barra CITI.
+- **"Cómo llegar aquí"** en el menú de estación del mapa, en el de listas y en Próximo autobús: abre "Mi trayecto" con
+  ese destino.
+- **Voz Ximena por defecto** en estilo CITI (`Modos.vozXimenaPermitida` = true con el estilo activo), en los 3 sistemas.
+  Ojo: Ximena es de pago por uso en el backend.
+- **Logo**: la franja usa `logo_mb_blanco` (Metrobús horizontal sobre blanco: MI + MB + "METROBÚS" en gris), recortado
+  de la integración iconográfica oficial que mandó el usuario.

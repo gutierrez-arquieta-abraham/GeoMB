@@ -454,8 +454,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (!citi || mapa == null) return;
         String bus = CitiActivity.busPendiente;
         int ruta = CitiActivity.rutaPendiente;
+        boolean trayecto = CitiActivity.trayectoPendiente;
         CitiActivity.busPendiente = null;
         CitiActivity.rutaPendiente = 0;
+        CitiActivity.trayectoPendiente = false;
+        // "Mi trayecto": se dibuja el trayecto del planificador (y, con recorrido en curso, el mapa
+        // sigue al usuario) aunque no se haya pedido explícitamente, al volver al mapa.
+        if (CitiActivity.trayecto != null && (trayecto || RecorridoService.activo)) {
+            dibujarRuta(CitiActivity.trayecto);
+            if (panelResultado != null) panelResultado.setVisibility(View.GONE);   // la lista vive en "Mi trayecto"
+        }
         if (bus != null) {
             seguirBusCiti(bus);
         } else if (ruta != 0) {
@@ -532,7 +540,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
         m.showInfoWindow();
         ((CitiActivity) requireActivity()).menuEstacionMapa(new CitiDatos.Est(
-                CitiDatos.nombreDe(requireContext(), em.e, em.linea), em.e.icono, em.linea, em.color,
+                CitiDatos.nombreDe(requireContext(), em.e, em.linea),
+                em.nombreRuta != null ? em.nombreRuta : em.e.nombre, em.e.icono, em.linea, em.color,
                 em.pos.latitude, em.pos.longitude));
     }
 
@@ -558,6 +567,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             try { if (mapa != null) mapa.moveCamera(CameraUpdateFactory.newLatLngBounds(b.build(), margen)); }
             catch (Exception ignore) {}   // mapa aún sin medir: se queda en la vista inicial
         });
+    }
+
+    /** Alto de la barra CITI sobre el mapa (0 fuera de ese estilo), para los encuadres del trayecto. */
+    private int arribaCiti() {
+        View fin = citi && barraCiti != null ? barraCiti.findViewById(R.id.citi_barra_fin) : null;
+        return fin != null ? barraCiti.getTop() + fin.getBottom() : 0;
     }
 
     private void aplicarPaddingCiti() {
@@ -864,7 +879,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         } else {
             // Estilo CITI: como el original, toda la red a la vista (salvo que se abra con una ruta o
             // un autobús, ver aplicarPendientesCiti()).
-            if (citi) { if (CitiActivity.rutaPendiente == 0 && CitiActivity.busPendiente == null) encuadrarEstacionesCiti(); }
+            if (citi) {
+                boolean conTrayecto = CitiActivity.trayecto != null && (CitiActivity.trayectoPendiente || RecorridoService.activo);
+                if (CitiActivity.rutaPendiente == 0 && CitiActivity.busPendiente == null && !conTrayecto) encuadrarEstacionesCiti();
+            }
             else centrarEnCercana();   // centra en la estación más cercana y carga solo ese radio
         }
 
@@ -2796,7 +2814,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return false;
     }
 
-    private static boolean rutaTieneAfectacionPlan(Planificador.Ruta r) {
+    static boolean rutaTieneAfectacionPlan(Planificador.Ruta r) {
         if (r == null) return false;
         java.util.Set<Integer> lineasRuta = new java.util.HashSet<>();
         if (r.instrucciones != null)
@@ -2906,7 +2924,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         int m = (int) (16 * getResources().getDisplayMetrics().density);
         int abajo = panelResultado.getVisibility() == View.VISIBLE
                 ? Math.max(0, root.getHeight() - panelResultado.getTop()) : 0;
-        mapa.setPadding(m, m, m, abajo + m);
+        mapa.setPadding(m, m + arribaCiti(), m, abajo + m);   // en estilo CITI, debajo de su barra
         mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(ultimosLimitesRuta, 0));
     }
 
@@ -2960,7 +2978,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         int abajoReal = panelResultado.getVisibility() == View.VISIBLE
                 ? root.getHeight() - panelResultado.getTop() : 0;
         int abajo = Math.min(abajoReal, Math.round(root.getHeight() * 0.18f));
-        mapa.setPadding(m, m, m, abajo + m);
+        mapa.setPadding(m, m + arribaCiti(), m, abajo + m);   // en estilo CITI, debajo de su barra
         LatLng centro = mapa.getCameraPosition().target;
         if (!forzar && centro != null && Linea.distancia(centro, pos) < 25) return;   // ya está centrado
         float z = Math.max(16f, mapa.getCameraPosition().zoom);

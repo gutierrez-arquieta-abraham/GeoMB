@@ -38,18 +38,24 @@ public final class CitiDatos {
     /** Un andén de una línea. */
     public static final class Est {
         public final String nombre;   // nombre a mostrar
+        public final String canon;    // nombre del catálogo, el que entiende Planificador.calcular()
         public final String icono;    // pictograma (ic_est_*) o "" si no hay
         public final int linea;
         public final int color;       // color de línea en estilo CITI
         public final LatLng pos;
 
-        Est(String nombre, String icono, int linea, int color, LatLng pos) {
-            this.nombre = nombre; this.icono = icono == null ? "" : icono;
+        Est(String nombre, String canon, String icono, int linea, int color, LatLng pos) {
+            this.nombre = nombre; this.canon = canon != null ? canon : nombre;
+            this.icono = icono == null ? "" : icono;
             this.linea = linea; this.color = color; this.pos = pos;
         }
 
         public Est(String nombre, String icono, int linea, int colorLinea, double lat, double lon) {
-            this(nombre, icono, linea, EstiloCiti.color(linea, colorLinea), new LatLng(lat, lon));
+            this(nombre, null, icono, linea, colorLinea, lat, lon);
+        }
+
+        public Est(String nombre, String canon, String icono, int linea, int colorLinea, double lat, double lon) {
+            this(nombre, canon, icono, linea, EstiloCiti.color(linea, colorLinea), new LatLng(lat, lon));
         }
     }
 
@@ -62,7 +68,7 @@ public final class CitiDatos {
                 String nombre = nombreDe(c, e, l.numero);
                 String k = l.numero + "|" + e.posicion.latitude + "," + e.posicion.longitude;
                 if (!vistas.add(k)) continue;   // el catálogo repite algunos andenes (p. ej. Indios Verdes L1)
-                res.add(new Est(nombre, e.icono, l.numero, EstiloCiti.color(l.numero, l.color), e.posicion));
+                res.add(new Est(nombre, e.nombre, e.icono, l.numero, EstiloCiti.color(l.numero, l.color), e.posicion));
             }
         }
         return res;

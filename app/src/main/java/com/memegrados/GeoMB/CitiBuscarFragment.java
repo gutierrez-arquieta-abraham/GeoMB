@@ -62,6 +62,7 @@ public class CitiBuscarFragment extends CitiPantalla {
         agregar(botones, R.string.citi_ver_tiempos, () -> citi().abrir(CitiTiemposFragment.de(e)));
         agregar(botones, R.string.citi_ver_rutas, () -> citi().abrirRutasDe(e));
         agregar(botones, R.string.citi_ver_en_mapa, () -> citi().verEstacionEnMapa(e));
+        agregar(botones, R.string.citi_como_llegar, () -> citi().abrir(CitiTrayectoFragment.hacia(e)));
         if (!EstiloCiti.esFavorita(requireContext(), e.linea, e.nombre, e.pos))
             agregar(botones, R.string.citi_anadir_favoritos, () -> { citi().agregarFavorita(e); seleccionar(e); });
         raiz.findViewById(R.id.citi_buscar_resultado).setVisibility(View.VISIBLE);

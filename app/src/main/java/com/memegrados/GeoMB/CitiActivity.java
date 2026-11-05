@@ -56,7 +56,10 @@ public class CitiActivity extends AppCompatActivity {
 
     // Lo que el mapa debe hacer al abrirse desde otra pantalla (lo consume MapFragment una vez).
     static int rutaPendiente = 0;          // "Ver en mapa" de una ruta
-    static String busPendiente = null;     // "Mi trayecto": económico a seguir
+    static String busPendiente = null;     // "Seguir mi autobús": económico a seguir
+    static boolean trayectoPendiente = false;   // "Mi trayecto" → "Ver en mapa"
+    /** Último trayecto trazado en "Mi trayecto" (planificador de GeoMB); sobrevive al cambiar de pantalla. */
+    static Planificador.Ruta trayecto = null;
 
     private LinearLayout capa;
     private boolean capaCentrada, cerrandoCapa;
@@ -118,6 +121,13 @@ public class CitiActivity extends AppCompatActivity {
         abrir(new MapFragment());
     }
 
+    /** Muestra en el mapa el trayecto trazado en "Mi trayecto" (y lo sigue si hay recorrido). */
+    public void verTrayectoEnMapa() {
+        if (trayecto == null) return;
+        trayectoPendiente = true;
+        abrirMapa();
+    }
+
     public void verRutaEnMapa(int linea) {
         rutaPendiente = linea;
         abrirMapa();
@@ -146,6 +156,8 @@ public class CitiActivity extends AppCompatActivity {
         List<Opcion> op = new ArrayList<>();
         op.add(new Opcion(getString(R.string.citi_ver_tiempos), () -> { cerrarMenuSinAnimar(); abrir(CitiTiemposFragment.de(e)); }));
         op.add(new Opcion(getString(R.string.citi_ver_rutas), () -> { cerrarMenuSinAnimar(); abrirRutasDe(e); }));
+        // Planificador de GeoMB: trayecto del usuario hasta esta estación.
+        op.add(new Opcion(getString(R.string.citi_como_llegar), () -> { cerrarMenuSinAnimar(); abrir(CitiTrayectoFragment.hacia(e)); }));
         if (!EstiloCiti.esFavorita(this, e.linea, e.nombre, e.pos))
             op.add(new Opcion(getString(R.string.citi_anadir_favoritos), () -> { agregarFavorita(e); cerrarMenu(); }));
         abrirMenu(op, false);
@@ -157,6 +169,7 @@ public class CitiActivity extends AppCompatActivity {
         op.add(new Opcion(getString(R.string.citi_ver_tiempos), () -> { cerrarMenuSinAnimar(); abrir(CitiTiemposFragment.de(e)); }));
         op.add(new Opcion(getString(R.string.citi_ver_rutas), () -> { cerrarMenuSinAnimar(); abrirRutasDe(e); }));
         op.add(new Opcion(getString(R.string.citi_ver_en_mapa), () -> { cerrarMenuSinAnimar(); verEstacionEnMapa(e); }));
+        op.add(new Opcion(getString(R.string.citi_como_llegar), () -> { cerrarMenuSinAnimar(); abrir(CitiTrayectoFragment.hacia(e)); }));
         abrirMenu(op, true);
     }
 

@@ -27,7 +27,7 @@ public class CitiInicioFragment extends CitiPantalla {
                 {R.drawable.citi_inicio_stops, R.string.citi_proximo_autobus, (Runnable) () -> citi().abrir(new CitiBuscarFragment())},
                 {R.drawable.citi_inicio_routes, R.string.citi_rutas, (Runnable) () -> citi().abrir(CitiListaFragment.rutas(null))},
                 {R.drawable.citi_inicio_map, R.string.citi_mapa, (Runnable) () -> citi().abrirMapa()},
-                {R.drawable.citi_inicio_mitrayecto, R.string.citi_mi_trayecto, (Runnable) () -> citi().dialogoMiTrayecto()},
+                {R.drawable.citi_inicio_mitrayecto, R.string.citi_mi_trayecto, (Runnable) () -> citi().abrir(CitiTrayectoFragment.hacia(null))},
                 {R.drawable.citi_inicio_nearstations, R.string.citi_cercanas, (Runnable) () -> citi().abrir(CitiListaFragment.cercanas())},
                 {R.drawable.citi_inicio_recpoints, R.string.citi_puntos_recarga, (Runnable) () -> {
                     citi().abrirMapa();
