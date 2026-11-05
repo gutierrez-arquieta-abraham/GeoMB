@@ -42,11 +42,6 @@ public abstract class CitiPantalla extends Fragment {
 
     /** "Línea 1" / "Mexibús 1" / "Mexicable 1", para el dato bajo el nombre de una estación. */
     protected String sistemaDe(int linea) {
-        String n = CitiDatos.etiqueta(linea);
-        switch (Sistemas.sistemaDe(linea)) {
-            case Sistemas.MEXIBUS:   return "Mexibús " + n;
-            case Sistemas.MEXICABLE: return "Mexicable " + n;
-            default:                 return getString(R.string.linea_formato_txt, n);
-        }
+        return CitiDatos.etiquetaSistema(linea);
     }
 }

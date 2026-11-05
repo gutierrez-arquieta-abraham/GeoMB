@@ -66,6 +66,7 @@
     <string name="citi_info_url">https://www.metrobus.cdmx.gob.mx</string>
     <string name="citi_politica">Privacy policy</string>
     <string name="citi_volver_geomb">Back to GeoMB</string>
+    <string name="citi_aviso">Notice</string>
     <string name="citi_favorito_agregado">Station %s added to favorites</string>
     <string name="modo_sw_voz_ximena_metrobus">Ximena on Metrobús (paid, EC2 covers the cost)</string>
     <string name="modo_sw_voz_ximena_mexibus">Ximena on Mexibús (paid, EC2 covers the cost)</string>

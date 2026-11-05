@@ -120,6 +120,35 @@ public final class CitiDatos {
         return res;
     }
 
+    /** Nombre de la ruta como en "Seleccione ruta": Metrobús "Indios Verdes-El Caminero" (su nombre);
+     *  Mexibús/Mexicable no traen terminales en el nombre ("Mexibús L1"), así que se arma con las
+     *  terminales oficiales: "Mexibús Ciudad Azteca-Ojo de Agua". */
+    public static String nombreRuta(Context c, int linea) {
+        Linea l = GtfsRepository.porNumero(c, linea);
+        String nombre = l != null ? l.nombre : "";
+        if (linea < 100) return EstiloCiti.nombreRuta(nombre);
+        String par = Planificador.terminalesMexibusPar(linea);
+        if (par == null) return nombre;
+        String sistema = Sistemas.sistemaDe(linea) == Sistemas.MEXICABLE ? "Mexicable" : "Mexibús";
+        return sistema + " " + EstiloCiti.nombreRuta(par);
+    }
+
+    /** ¿La línea va en "Seleccione ruta"? Las exprés de Mexibús (121–124) son un servicio de su línea
+     *  base, no otra ruta: no se listan aparte. */
+    public static boolean esRutaListable(int linea) {
+        return linea < 121 || linea > 124;
+    }
+
+    /** "Línea 1" / "Mexibús 1" / "Mexicable 1". */
+    public static String etiquetaSistema(int linea) {
+        String n = etiqueta(linea);
+        switch (Sistemas.sistemaDe(linea)) {
+            case Sistemas.MEXIBUS:   return "Mexibús " + n;
+            case Sistemas.MEXICABLE: return "Mexicable " + n;
+            default:                 return "Línea " + n;
+        }
+    }
+
     /** Número de línea como se ve en el cuadro de ruta: Metrobús "1".."7"; Mexibús "1".."4", "1A"…;
      *  Mexicable "1"/"2". */
     public static String etiqueta(int linea) {

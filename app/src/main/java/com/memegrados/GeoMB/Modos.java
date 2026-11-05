@@ -237,7 +237,8 @@ public final class Modos {
     // ambos a la vez, porque mexibus.json los trae juntos). ---
 
     public static boolean mostrarMexibus(Context c) {
-        return p(c).getBoolean("mostrar_mexibus", false);
+        // El estilo CITI completa la app original (solo Metrobús) con Mexibús y Mexicable siempre.
+        return estiloCiti(c) || p(c).getBoolean("mostrar_mexibus", false);
     }
 
     public static void setMostrarMexibus(Context c, boolean v) {
@@ -260,7 +261,7 @@ public final class Modos {
 
     public static boolean mostrarMexicable(Context c) {
         migrarMexicableSiHaceFalta(c);
-        return p(c).getBoolean("mostrar_mexicable", false);
+        return estiloCiti(c) || p(c).getBoolean("mostrar_mexicable", false);
     }
 
     public static void setMostrarMexicable(Context c, boolean v) {

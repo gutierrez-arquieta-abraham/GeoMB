@@ -549,7 +549,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (mapa == null) return;
         LatLngBounds.Builder b = new LatLngBounds.Builder();
         boolean hay = false;
-        for (Linea l : GtfsRepository.getLineas(requireContext()))
+        for (Linea l : GtfsRepository.getRuteables(requireContext()))   // con Mexibús/Mexicable
             for (Estacion e : l.estaciones) { b.include(e.posicion); hay = true; }
         if (!hay) return;
         int margen = (int) getResources().getDimension(R.dimen.citi_estacion);
@@ -1165,12 +1165,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  del sistema que siga apagado. */
     private void crearMexibusVisibles() {
         if (mapa == null || (!Modos.mostrarMexibus(requireContext()) && !Modos.mostrarMexicable(requireContext()))) return;
-        if (mapa.getCameraPosition().zoom < ZOOM_ESTACIONES) return;
+        // Estilo CITI: a cualquier zoom, igual que sus estaciones del Metrobús (creaParadas del original).
+        if (!citi && mapa.getCameraPosition().zoom < ZOOM_ESTACIONES) return;
         LatLngBounds vista = rangoVisible();
         for (EstMapa em : mexibusEst) {
-            if (em.marker != null || !vista.contains(em.pos)) continue;
+            if (em.marker != null || (!citi && !vista.contains(em.pos))) continue;
             Marker m = mapa.addMarker(new MarkerOptions()
-                    .position(em.pos).title(em.titulo).snippet("Mexibús")
+                    .position(em.pos).title(em.titulo).snippet(citi ? null : "Mexibús")
                     .icon(iconoMexibus(em)).anchor(0.5f, 0.5f).zIndex(4f));
             if (m != null) em.marker = m;
         }
@@ -1317,7 +1318,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (mapa == null) return;
         boolean visMxb = Modos.mostrarMexibus(requireContext());
         boolean visMxc = Modos.mostrarMexicable(requireContext());
-        boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;   // igual que el Metrobús
+        boolean porZoom = citi || mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;   // igual que el Metrobús
         for (Polyline p : mexibusLineas) {
             Object tag = p.getTag();
             boolean esMxc = tag instanceof Integer && Sistemas.sistemaDe((Integer) tag) == Sistemas.MEXICABLE;

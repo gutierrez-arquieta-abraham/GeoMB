@@ -98,7 +98,8 @@ public class CitiListaFragment extends CitiPantalla {
         List<Integer> lineas = requireArguments().getIntegerArrayList(A_LINEAS);
         if (lineas == null) {
             lineas = new ArrayList<>();
-            for (Linea l : GtfsRepository.getRuteables(requireContext())) lineas.add(l.numero);
+            for (Linea l : GtfsRepository.getRuteables(requireContext()))
+                if (CitiDatos.esRutaListable(l.numero) && !lineas.contains(l.numero)) lineas.add(l.numero);
         }
         final List<Integer> ls = lineas;
         lista.setAdapter(new BaseAdapter() {
@@ -108,11 +109,10 @@ public class CitiListaFragment extends CitiPantalla {
             @Override public View getView(int i, View v, ViewGroup parent) {
                 if (v == null) v = getLayoutInflater().inflate(R.layout.item_linea_citi, parent, false);
                 int ln = ls.get(i);
-                Linea l = GtfsRepository.porNumero(requireContext(), ln);
                 TextView cod = v.findViewById(R.id.citi_linea_codigo);
                 cod.setBackground(cuadroRuta(ln));
                 cod.setText(CitiDatos.etiqueta(ln));
-                ((TextView) v.findViewById(R.id.citi_linea_nombre)).setText(l != null ? EstiloCiti.nombreRuta(l.nombre) : "");
+                ((TextView) v.findViewById(R.id.citi_linea_nombre)).setText(CitiDatos.nombreRuta(requireContext(), ln));
                 return v;
             }
         });

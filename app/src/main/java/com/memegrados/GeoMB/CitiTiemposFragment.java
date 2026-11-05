@@ -31,6 +31,7 @@ public class CitiTiemposFragment extends CitiPantalla {
             A_COLOR = "color", A_LAT = "lat", A_LON = "lon";
 
     private CitiDatos.Est est;
+    private boolean avisoMostrado;   // el original daba el "Aviso" solo la primera vez
     private View resultado;
     private ListView lista;
 
@@ -130,6 +131,26 @@ public class CitiTiemposFragment extends CitiPantalla {
         } else {
             resultado.setVisibility(View.VISIBLE);
             lista.setSelectionAfterHeaderView();
+            mostrarAvisos();
         }
+    }
+
+    /** Project.avisos de la app original: con los tiempos llegaban los avisos de servicio y se
+     *  mostraban una vez en un diálogo "Aviso" con "- …" por línea. Aquí salen de las afectaciones
+     *  que ya junta GeoMB (Metrobús, Mexibús y avisos manuales) para las rutas de esta estación. */
+    private void mostrarAvisos() {
+        if (avisoMostrado) return;
+        Set<Integer> lineas = CitiDatos.lineasDe(requireContext(), est).keySet();
+        StringBuilder sb = new StringBuilder();
+        for (Manifestaciones.Afectacion a : Manifestaciones.lista()) {
+            if (a.categoria != Manifestaciones.C_ESTADO || !lineas.contains(a.lineaNum)) continue;
+            if (sb.length() > 0) sb.append('\n');
+            sb.append("- ").append(CitiDatos.etiquetaSistema(a.lineaNum)).append(": ").append(a.estado);
+            if (a.lugar != null && !a.lugar.isEmpty()) sb.append(" (").append(a.lugar).append(')');
+            if (a.info != null && !a.info.isEmpty()) sb.append(". ").append(a.info);
+        }
+        if (sb.length() == 0) return;
+        avisoMostrado = true;
+        citi().aviso(getString(R.string.citi_aviso), sb.toString());
     }
 }

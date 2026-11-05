@@ -144,3 +144,13 @@ de servicio en tiempos, íconos pixelados del original (se dejan suavizados).
 - **Mapa CITI ahora como el de GeoMB**: todos los trazos (Metrobús, Mexibús, Mexicable, rutas mixtas, corredores de
   Indios Verdes) y todas las unidades, con el dibujo del original (trazo 3dp, pictogramas, bus CITI). Elegir ruta filtra;
   la X lo quita. Las flechas de sentido salen con ruta elegida.
+
+## Paso 6: completar con Mexibús y Mexicable sin perder la esencia
+- Objetivo: la interfaz de la APK de Indra sobre lo que ya hace GeoMB, sumando Mexibús/Mexicable donde se pueda.
+- En estilo CITI, Mexibús y Mexicable van **siempre** (`Modos.mostrarMexibus/mostrarMexicable` devuelven true con el
+  estilo activo): mapa, Seleccione ruta, Próximo autobús, cercanas, favoritos y tiempos. Sus estaciones se ven a
+  cualquier zoom, como las del Metrobús, y el encuadre inicial abarca toda la red.
+- "Seleccione ruta": Metrobús con su "Origen-Destino"; Mexibús/Mexicable como "Mexibús Terminal-Terminal" (sus nombres
+  del catálogo no traen terminales). Las exprés 121–124 no se listan aparte (son servicio de su línea).
+- "Aviso" (Project.avisos del original): al llegar los tiempos, una vez por pantalla, un diálogo "Aviso" con "- Línea N:
+  estado (lugar). info" de las afectaciones de GeoMB para las rutas de esa estación.

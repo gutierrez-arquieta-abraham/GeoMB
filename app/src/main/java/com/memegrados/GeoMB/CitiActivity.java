@@ -241,9 +241,19 @@ public class CitiActivity extends AppCompatActivity {
 
     /** DialogInfo (showError): texto 16sp y "Aceptar" sobre caja blanca. */
     public void aviso(String texto) {
+        aviso(null, texto);
+    }
+
+    /** Con {@code titulo} (p. ej. "Aviso" para las afectaciones), en negrita arriba del texto. */
+    public void aviso(String titulo, String texto) {
         if (isFinishing()) return;
         Dialog d = nuevoDialogo();
         View v = getLayoutInflater().inflate(R.layout.dialogo_citi, null, false);
+        if (titulo != null) {
+            TextView t = v.findViewById(R.id.citi_dialogo_titulo);
+            t.setText(titulo);
+            t.setVisibility(View.VISIBLE);
+        }
         ((TextView) v.findViewById(R.id.citi_dialogo_texto)).setText(texto);
         v.findViewById(R.id.citi_dialogo_aceptar).setOnClickListener(x -> d.dismiss());
         d.setContentView(v);
