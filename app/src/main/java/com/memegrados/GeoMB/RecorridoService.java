@@ -2019,7 +2019,8 @@ public class RecorridoService extends Service {
                 .putExtra(MainActivity.EXTRA_REPORTAR_VELOCIDAD, true)
                 .putExtra(MainActivity.EXTRA_VEL_LINEA, linea)
                 .putExtra(MainActivity.EXTRA_VEL_TERMINAL, terminal)
-                .putExtra(MainActivity.EXTRA_VEL_KMH, kmh);
+                .putExtra(MainActivity.EXTRA_VEL_KMH, kmh)
+                .putExtra(MainActivity.EXTRA_VEL_MOMENTO, System.currentTimeMillis());   // hora del hecho, no del envío
         if (pos != null) {
             i.putExtra(MainActivity.EXTRA_VEL_LAT, pos.latitude);
             i.putExtra(MainActivity.EXTRA_VEL_LON, pos.longitude);

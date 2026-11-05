@@ -692,4 +692,5 @@
     <string name="actualizacion_oblig_titulo">Actualización necesaria</string>
     <string name="actualizacion_oblig_mensaje">Hay una versión nueva de GeoMB con cambios importantes. Actualiza para seguir usando la app.</string>
     <string name="actualizacion_oblig_boton">Actualizar ahora</string>
+    <string name="reporte_preparando_mapa">Preparando el reporte con la vista satelital…</string>
 </resources>

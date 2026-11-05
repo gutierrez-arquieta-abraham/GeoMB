@@ -69,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_VEL_TERMINAL = "vel_terminal";
     public static final String EXTRA_VEL_LAT = "vel_lat";
     public static final String EXTRA_VEL_LON = "vel_lon";
+    /** Hora (ms) en que RecorridoService detectó el exceso de velocidad. */
+    public static final String EXTRA_VEL_MOMENTO = "vel_momento";
     public static final String EXTRA_VEL_KMH = "vel_kmh";
 
     private int seleccionadoId = -1;
@@ -133,7 +135,11 @@ public class MainActivity extends AppCompatActivity {
         // Estilo CITI activo: lo de arriba (catálogos, servicios, avisos push) ya quedó listo, así que
         // CitiActivity hereda todo y aquí solo se le cede la pantalla.
         if (Modos.estiloCiti(this)) {
-            startActivity(new Intent(this, CitiActivity.class));
+            // Con los extras (p. ej. el aviso de exceso de velocidad) para que CitiActivity los atienda.
+            Intent citi = new Intent(this, CitiActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            if (getIntent() != null && getIntent().getExtras() != null) citi.putExtras(getIntent().getExtras());
+            startActivity(citi);
             finish();
             return;
         }
@@ -357,18 +363,7 @@ public class MainActivity extends AppCompatActivity {
      *  avisarExcesoVelocidad), abre el cliente de correo prellenado con ReporteIrregularidad -- el
      *  usuario revisa y decide si lo manda, igual que cualquier otro reporte de la app. */
     private void manejarReporteVelocidad(Intent intent) {
-        if (intent == null || !intent.getBooleanExtra(EXTRA_REPORTAR_VELOCIDAD, false)) return;
-        int linea = intent.getIntExtra(EXTRA_VEL_LINEA, 0);
-        String terminal = intent.getStringExtra(EXTRA_VEL_TERMINAL);
-        float kmh = intent.getFloatExtra(EXTRA_VEL_KMH, 0f);
-        com.google.android.gms.maps.model.LatLng pos = intent.hasExtra(EXTRA_VEL_LAT)
-                ? new com.google.android.gms.maps.model.LatLng(
-                        intent.getDoubleExtra(EXTRA_VEL_LAT, 0), intent.getDoubleExtra(EXTRA_VEL_LON, 0))
-                : null;
-        ReporteIrregularidad.enviar(this, 0L, linea, null, pos, null, terminal,
-                getString(R.string.velocidad_tipo_reporte),
-                getString(R.string.velocidad_descripcion_reporte, Math.round(kmh)),
-                null, null, null, null, null, null);
+        ReporteIrregularidad.desdeAvisoVelocidad(this, intent);
     }
 
     private Fragment fragmentDe(int id) {

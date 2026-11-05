@@ -75,13 +75,38 @@ public final class ReporteIrregularidad {
                               String unidadEco, String sentido, String tipo, String descripcion,
                               String personalNombre, String personalCargo,
                               String nombreContacto, String telContacto, String correoUsuario, Uri foto) {
+        // Firma: si quien llama no la trae (p. ej. el aviso de velocidad), la cuenta con la que se
+        // inició sesión -- antes el PDF quedaba con "Atentamente," y nada abajo.
+        if (vacio(nombreContacto)) nombreContacto = nombreSesion();
+        if (vacio(correoUsuario)) correoUsuario = correoSesion();
+        final String nombreFirma = nombreContacto, correoFirma = correoUsuario;
+        final String tramo = tramoEntre(ctx, linea, pos);
+        final Linea l = lineaPorNumero(ctx, linea);
+        if (ctx instanceof android.app.Activity && pos != null) {
+            android.widget.Toast.makeText(ctx, R.string.reporte_preparando_mapa, android.widget.Toast.LENGTH_SHORT).show();
+            MapaSatelital.capturar((android.app.Activity) ctx, pos, l != null ? l.ruta : null,
+                    l != null ? l.color : 0xFFCF102D,
+                    img -> enviarCon(ctx, momentoMs, linea, estacion, pos, unidadEco, sentido, tipo, descripcion,
+                            personalNombre, personalCargo, nombreFirma, telContacto, correoFirma, foto, tramo, img));
+        } else {
+            enviarCon(ctx, momentoMs, linea, estacion, pos, unidadEco, sentido, tipo, descripcion,
+                    personalNombre, personalCargo, nombreFirma, telContacto, correoFirma, foto, tramo, null);
+        }
+    }
+
+    private static void enviarCon(Context ctx, long momentoMs, int linea, String estacion, LatLng pos,
+                              String unidadEco, String sentido, String tipo, String descripcion,
+                              String personalNombre, String personalCargo,
+                              String nombreContacto, String telContacto, String correoUsuario, Uri foto,
+                              String tramo, android.graphics.Bitmap mapa) {
         // La hora del hecho es la de apertura del módulo (no la del envío).
         Date cuando = momentoMs > 0 ? new Date(momentoMs) : new Date();
         String fecha = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(cuando);
         boolean hayUnidad = unidadEco != null && !unidadEco.trim().isEmpty();
 
+        String nomLinea = linea > 0 ? nombreLinea(ctx, linea) : null;
         String asunto = "Reporte de irregularidad"
-                + (linea > 0 ? " · Línea " + linea : "")
+                + (linea > 0 ? " · " + nombreLineaCorto(ctx, linea) : "")
                 + (hayUnidad ? " · unidad " + unidadEco : "")
                 + " · " + fecha;
 
@@ -92,9 +117,10 @@ public final class ReporteIrregularidad {
         b.append("• Fecha y hora: ").append(fecha).append('\n');
         if (tipo != null && !tipo.trim().isEmpty())
             b.append("• Tipo de irregularidad: ").append(tipo).append('\n');
-        if (linea > 0) b.append("• Línea: ").append(linea).append('\n');
+        if (nomLinea != null) b.append("• Línea: ").append(nomLinea).append('\n');
         if (sentido != null && !sentido.trim().isEmpty())
             b.append("• Sentido / dirección: hacia ").append(sentido).append('\n');
+        if (tramo != null) b.append("• Tramo: ").append(tramo).append('\n');
         if (hayUnidad) b.append("• Unidad (económico): ").append(unidadEco).append('\n');
         boolean hayCargo = personalCargo != null && !personalCargo.trim().isEmpty();
         boolean hayPersNom = personalNombre != null && !personalNombre.trim().isEmpty();
@@ -104,10 +130,10 @@ public final class ReporteIrregularidad {
             if (hayPersNom) b.append(hayCargo ? " · " : "").append("nombre: ").append(personalNombre.trim());
             b.append('\n');
         }
-        if (estacion != null && !estacion.trim().isEmpty()) {
-            b.append("• Estación / ubicación: ").append(estacion);
-            if (pos != null) b.append(String.format(Locale.US, " (%.5f, %.5f)", pos.latitude, pos.longitude));
-            b.append('\n');
+        if (estacion != null && !estacion.trim().isEmpty()) b.append("• Estación: ").append(estacion).append('\n');
+        if (pos != null) {   // siempre, aunque no haya estación (antes se perdían en el aviso de velocidad)
+            b.append(String.format(Locale.US, "• Ubicación GPS: %.5f, %.5f\n", pos.latitude, pos.longitude));
+            b.append("• Vista satelital: ").append(enlaceSatelital(pos)).append('\n');
         }
         b.append("• Descripción: ")
                 .append(descripcion != null && !descripcion.trim().isEmpty()
@@ -123,8 +149,8 @@ public final class ReporteIrregularidad {
         if (correoUsuario != null && !correoUsuario.trim().isEmpty()) b.append(correoUsuario.trim());
 
         // Hoja membretada (PDF "Enviado mediante GeoMB") + evidencia como adjuntos.
-        Uri pdf = ReportePdf.generar(ctx, momentoMs, linea, estacion, pos, unidadEco, tipo, descripcion,
-                personalNombre, personalCargo, nombreContacto, correoUsuario);
+        Uri pdf = ReportePdf.generar(ctx, momentoMs, linea, nomLinea, sentido, tramo, estacion, pos, unidadEco,
+                tipo, descripcion, personalNombre, personalCargo, nombreContacto, correoUsuario, mapa);
         java.util.ArrayList<Uri> adjuntos = new java.util.ArrayList<>();
         if (pdf != null) adjuntos.add(pdf);
         if (foto != null) adjuntos.add(foto);
@@ -168,5 +194,98 @@ public final class ReporteIrregularidad {
         } catch (android.content.ActivityNotFoundException ignore) {
             // Sin cliente de correo instalado: no truena.
         }
+    }
+
+    // --------------------------------------------------------
+    // Datos que completan el reporte (línea, tramo, ubicación, firma)
+    // --------------------------------------------------------
+
+    /** Línea por su código interno, aunque Mexibús/Mexicable estén ocultos en el mapa. */
+    static Linea lineaPorNumero(Context c, int linea) {
+        if (linea <= 0) return null;
+        for (Linea l : GtfsRepository.getLineas(c)) if (l.numero == linea) return l;
+        for (Linea l : GtfsRepository.getMexibus(c)) if (l.numero == linea) return l;
+        return null;
+    }
+
+    /** Nombre legible de la línea, nunca el código interno: "Línea 1 · Indios Verdes – El Caminero",
+     *  "Mexibús Línea 4 Exprés · Indios Verdes – UMB Tecámac" (antes salía "Línea 124"). */
+    static String nombreLinea(Context c, int linea) {
+        Linea l = lineaPorNumero(c, linea);
+        if (linea < 100) return "Línea " + linea + (l != null ? " · " + l.nombre : "");
+        String par = Planificador.terminalesMexibusPar(linea);
+        return nombreLineaCorto(c, linea) + (par != null ? " · " + par : "");
+    }
+
+    /** "Línea 1", "Mexibús Línea 4 Exprés", "Mexicable Línea 2" (para el asunto). */
+    static String nombreLineaCorto(Context c, int linea) {
+        if (linea < 100) return "Línea " + linea;
+        Linea l = lineaPorNumero(c, linea);
+        String n = l != null ? l.nombre : "";
+        // "Mexibús L4 Exprés" → "Mexibús Línea 4 Exprés"
+        return n.isEmpty() ? "Línea " + Planificador.etiquetaLineaCortaPub(linea) : n.replaceFirst("\\bL(\\d)", "Línea $1");
+    }
+
+    /** "Entre Euzkaro y Potrero": las 2 estaciones de la línea entre las que cae {@code pos} sobre
+     *  su trazo; en una punta, "Cerca de X". Null si no se puede ubicar. */
+    static String tramoEntre(Context c, int linea, LatLng pos) {
+        Linea l = lineaPorNumero(c, linea);
+        if (l == null || pos == null || l.estaciones.isEmpty()) return null;
+        double d = l.distanciaEn(pos);
+        Estacion antes = null, despues = null;
+        double dA = -Double.MAX_VALUE, dD = Double.MAX_VALUE;
+        for (Estacion e : l.estaciones) {
+            double de = l.distanciaEn(e.posicion);
+            if (de <= d && de > dA) { dA = de; antes = e; }
+            if (de >= d && de < dD) { dD = de; despues = e; }
+        }
+        String a = antes != null ? Planificador.nombreMostrar(c, antes.nombre, linea) : null;
+        String b = despues != null ? Planificador.nombreMostrar(c, despues.nombre, linea) : null;
+        if (a != null && b != null && !a.equals(b)) return "Entre " + a + " y " + b;
+        String una = a != null ? a : b;
+        return una != null ? "Cerca de " + una : null;
+    }
+
+    /** Enlace a Google Maps en vista satelital centrado en el punto. */
+    static String enlaceSatelital(LatLng pos) {
+        return String.format(Locale.US,
+                "https://www.google.com/maps/@?api=1&map_action=map&center=%.6f,%.6f&zoom=18&basemap=satellite",
+                pos.latitude, pos.longitude);
+    }
+
+    private static String nombreSesion() {
+        try {
+            com.google.firebase.auth.FirebaseUser u = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+            return u != null ? u.getDisplayName() : null;
+        } catch (Throwable t) { return null; }
+    }
+
+    private static String correoSesion() {
+        try {
+            com.google.firebase.auth.FirebaseUser u = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+            return u != null ? u.getEmail() : null;
+        } catch (Throwable t) { return null; }
+    }
+
+    private static boolean vacio(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    /** Aviso de exceso de velocidad de RecorridoService (notificación → MainActivity o CitiActivity):
+     *  arma el reporte con la línea, el sentido, el punto y la hora en que se detectó. */
+    public static void desdeAvisoVelocidad(android.app.Activity a, Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(MainActivity.EXTRA_REPORTAR_VELOCIDAD, false)) return;
+        intent.removeExtra(MainActivity.EXTRA_REPORTAR_VELOCIDAD);   // que no se repita al recrear la pantalla
+        int linea = intent.getIntExtra(MainActivity.EXTRA_VEL_LINEA, 0);
+        String terminal = intent.getStringExtra(MainActivity.EXTRA_VEL_TERMINAL);
+        float kmh = intent.getFloatExtra(MainActivity.EXTRA_VEL_KMH, 0f);
+        long momento = intent.getLongExtra(MainActivity.EXTRA_VEL_MOMENTO, 0L);
+        LatLng pos = intent.hasExtra(MainActivity.EXTRA_VEL_LAT)
+                ? new LatLng(intent.getDoubleExtra(MainActivity.EXTRA_VEL_LAT, 0), intent.getDoubleExtra(MainActivity.EXTRA_VEL_LON, 0))
+                : null;
+        enviar(a, momento, linea, null, pos, null, terminal,
+                a.getString(R.string.velocidad_tipo_reporte),
+                a.getString(R.string.velocidad_descripcion_reporte, Math.round(kmh)),
+                null, null, null, null, null, null);
     }
 }

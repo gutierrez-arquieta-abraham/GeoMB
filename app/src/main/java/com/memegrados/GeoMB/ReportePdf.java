@@ -46,10 +46,11 @@ public final class ReportePdf {
     private ReportePdf() {}
 
     /** Crea el PDF y devuelve su Uri de FileProvider (o null si falla). */
-    public static Uri generar(Context ctx, long momentoMs, int linea, String estacion, LatLng pos,
+    public static Uri generar(Context ctx, long momentoMs, int linea, String nombreLinea, String sentido,
+                              String tramo, String estacion, LatLng pos,
                               String unidadEco, String tipo, String descripcion,
                               String personalNombre, String personalCargo,
-                              String reportanteNombre, String reportanteCorreo) {
+                              String reportanteNombre, String reportanteCorreo, Bitmap mapa) {
         Date cuando = momentoMs > 0 ? new Date(momentoMs) : new Date();
         String fecha = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(cuando);
 
@@ -104,20 +105,23 @@ public final class ReportePdf {
             y += 28;
 
             // ---- Datos (etiqueta + valor) ----
-            y = campo(cv, p, y, "Fecha y hora", fecha);
+            y = campo(cv, p, y, "Fecha y hora del hecho", fecha);
             y = campo(cv, p, y, "Tipo", tipo);
-            if (linea > 0) y = campo(cv, p, y, "Línea", "Línea " + linea);
+            // Nombre real de la línea (antes salía el código interno, p. ej. "Línea 124").
+            if (linea > 0) y = campo(cv, p, y, "Línea", noVacio(nombreLinea) ? nombreLinea : "Línea " + linea);
+            if (noVacio(sentido)) y = campo(cv, p, y, "Sentido", "Hacia " + sentido);
+            if (noVacio(tramo)) y = campo(cv, p, y, "Tramo", tramo);
             if (noVacio(unidadEco)) y = campo(cv, p, y, "Unidad (económico)", unidadEco);
             if (noVacio(personalCargo) || noVacio(personalNombre)) {
                 String v = (noVacio(personalCargo) ? personalCargo : "")
                         + (noVacio(personalNombre) ? (noVacio(personalCargo) ? " · " : "") + personalNombre : "");
                 y = campo(cv, p, y, "Personal reportado", v);
             }
-            if (noVacio(estacion)) {
-                String v = estacion + (pos != null
-                        ? String.format(Locale.US, "  (%.5f, %.5f)", pos.latitude, pos.longitude) : "");
-                y = campo(cv, p, y, "Estación / ubicación", v);
-            }
+            if (noVacio(estacion)) y = campo(cv, p, y, "Estación", estacion);
+            if (pos != null)   // siempre que haya GPS, aunque no haya estación
+                y = campo(cv, p, y, "Ubicación GPS", String.format(Locale.US, "%.5f, %.5f", pos.latitude, pos.longitude));
+            y = campo(cv, p, y, "Reporte generado",
+                    new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(new Date()));
             y += 8;
 
             // ---- Descripción (multilínea) ----
@@ -133,7 +137,28 @@ public final class ReportePdf {
             y += 12;
 
             cv.drawText("Se adjunta evidencia (foto, video o audio) que describe la irregularidad.", MARGEN, y, p);
-            y += 30;
+            y += 22;
+
+            // ---- Vista satelital del punto (MapaSatelital) ----
+            if (mapa != null) {
+                int ancho = A4_W - 2 * MARGEN;
+                int alto = Math.min(200, Math.round(ancho * mapa.getHeight() / (float) mapa.getWidth()));
+                int anchoReal = Math.round(alto * mapa.getWidth() / (float) mapa.getHeight());
+                cv.drawBitmap(mapa, null, new android.graphics.RectF(MARGEN, y, MARGEN + anchoReal, y + alto), null);
+                p.setColor(0xFFDDDDDD);
+                p.setStyle(Paint.Style.STROKE);
+                cv.drawRect(MARGEN, y, MARGEN + anchoReal, y + alto, p);
+                p.setStyle(Paint.Style.FILL);
+                y += alto + 12;
+                p.setColor(0xFF666666);
+                p.setTextSize(9);
+                cv.drawText("Vista satelital del punto del reporte (marcador rojo) · Imágenes © Google", MARGEN, y, p);
+                p.setTextSize(12);
+                p.setColor(Color.BLACK);
+                y += 18;
+            } else {
+                y += 8;
+            }
 
             // ---- Firma / reportante ----
             p.setColor(0xFFDDDDDD);
@@ -179,7 +204,20 @@ public final class ReportePdf {
         p.setTypeface(Typeface.SANS_SERIF);
         p.setColor(Color.BLACK);
         p.setTextSize(12);
-        cv.drawText(valor != null ? valor : "—", MARGEN + 150, y, p);
+        // Ajuste por ancho: el nombre de una línea con sus terminales no cabe en un renglón.
+        int x = MARGEN + 150, ancho = A4_W - MARGEN - x;
+        StringBuilder renglon = new StringBuilder();
+        for (String w : (valor != null ? valor : "—").split(" ")) {
+            String prueba = renglon.length() == 0 ? w : renglon + " " + w;
+            if (p.measureText(prueba) > ancho && renglon.length() > 0) {
+                cv.drawText(renglon.toString(), x, y, p);
+                y += 15;
+                renglon = new StringBuilder(w);
+            } else {
+                renglon = new StringBuilder(prueba);
+            }
+        }
+        cv.drawText(renglon.toString(), x, y, p);
         return y + 20;
     }
 

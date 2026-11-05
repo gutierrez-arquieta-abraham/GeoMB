@@ -78,6 +78,8 @@ public class CitiActivity extends AppCompatActivity {
                     .replace(R.id.citi_pantallas, new CitiInicioFragment())
                     .commit();
         }
+        // Aviso de exceso de velocidad del recorrido (llega reenviado desde MainActivity).
+        ReporteIrregularidad.desdeAvisoVelocidad(this, getIntent());
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
                 if (capaVisible()) { cerrarMenu(); return; }
@@ -86,6 +88,13 @@ public class CitiActivity extends AppCompatActivity {
                 else finish();   // en el inicio, "atrás" sale de la app como en el original
             }
         });
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        ReporteIrregularidad.desdeAvisoVelocidad(this, intent);
     }
 
     @Override
