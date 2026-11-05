@@ -47,7 +47,8 @@
             android:layout_height="wrap_content"
             android:background="@drawable/citi_caja_lista"
             android:divider="@color/citi_lista_divisor"
-            android:dividerHeight="1px"
+            android:dividerHeight="0.67dp"
+            android:listSelector="@android:color/transparent"
             android:padding="2dp" />
     </LinearLayout>
 

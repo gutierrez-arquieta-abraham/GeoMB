@@ -41,6 +41,10 @@
     <string name="citi_refrescar">Refrescar</string>
     <string name="citi_min">%d min</string>
     <string name="citi_sin_estimaciones">Sin estimaciones</string>
+    <string name="citi_error_conexion">Error de conexión</string>
+    <string name="citi_aceptar">Aceptar</string>
+    <string name="citi_seleccione_ruta">Seleccione ruta</string>
+    <string name="citi_ver_en_mapa">Ver en mapa</string>
     <string name="citi_favorito_agregado">Estación %s agregada a favoritos</string>
     <string name="modo_sw_voz_ximena_metrobus">Ximena en Metrobús (de pago, EC2 asume el costo)</string>
     <string name="modo_sw_voz_ximena_mexibus">Ximena en Mexibús (de pago, EC2 asume el costo)</string>

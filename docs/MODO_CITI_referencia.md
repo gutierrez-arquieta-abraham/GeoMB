@@ -99,5 +99,26 @@ de Indra; El Universal (abr-2019).
   divisor 1px `#E5E5E5`); botón "Refrescar" (`CitiBotonMenu`, margen 10dp).
 - Fila: cuadro de ruta 40×32dp radio 3dp en el color de la línea + "Origen-Destino" (14sp, máx. 2 líneas) + "N min" 16sp negrita.
 - Datos: `Llegadas.proximas(..., ambosSentidos=true)` de todas las rutas de la estación (transbordos por nombre),
-  ordenadas por tiempo. Sin datos: toast "Sin estimaciones" y lista oculta, como el original.
+  ordenadas por tiempo. Sin datos: aviso "Sin estimaciones" y lista oculta (ver paso 4).
 - "Refrescar" vuelve a pedir el feed; "atrás" o elegir ruta en "Menú" regresa al mapa.
+
+## Paso 4: correcciones tras la revisión por vista (3 revisores contra la APK)
+**Mapa y barra**
+- Sin ruta elegida: solo pictogramas de todas las estaciones (a cualquier zoom), sin trazos, flechas ni autobuses, y la
+  cámara inicial encuadra toda la red (`centraEnParadas`, margen 20dp). Con ruta: trazo, flechas y autobuses de esa ruta.
+- Flechas ↕: rumbo de ida + vuelta (geometría de `segmentosVuelta`/`rutaVuelta` si existe, si no el rumbo contrario).
+- Botón "Mi ubicación" nativo; padding del mapa que sigue a la barra; sin ruta del planificador ni halos de seguimiento.
+- Encuadre de ruta con todos los tramos y margen de 120px (`goToRoute`). Globo de estación solo con el nombre; texto 16sp.
+- Franja: logo MB a 40dp con 10dp arriba/abajo, separador `#C6C6C7` con 19dp/5dp. Botón presionado `#CCCCCC`.
+- Indios Verdes L1: el catálogo la trae 2 veces; ya no se apilan 4 marcadores y cada uno usa su andén real.
+**Menú de estación**
+- "Atrás" lo cierra; "Menú" o elegir ruta también. Sin parpadeo al abrir ni cierres repetidos. Cámara sin animar a zoom 16.
+- "Ver rutas" abre la pantalla "Seleccione ruta" (`fragment_lista` + `item_linea`) y, al tocar una ruta, el menú centrado
+  sobre `#88000000` con "Ver en mapa / Cancelar" (`fragment_menu_linea`, sin "Horario"). Favoritas por andén; toast largo.
+**Estimaciones de llegadas**
+- Descarga al abrir y al "Refrescar" con el círculo de progreso del original; "Sin estimaciones" / "Error de conexión"
+  en el diálogo blanco con "Aceptar" (`dialog_info`), no en toast.
+- Destino 16sp negro; divisor de ~2px; sin resaltado al tocar. Cada línea del transbordo con su propio andén y
+  cada unidad una sola vez (las mixtas contaban en 2 líneas). Nombre de los puntos H72 sin "· dirección…".
+**Pendiente / no replicado**: menú principal de 8 botones ("Menú" sigue siendo una lista emergente), "Horario", avisos
+de servicio en tiempos, íconos pixelados del original (se dejan suavizados).

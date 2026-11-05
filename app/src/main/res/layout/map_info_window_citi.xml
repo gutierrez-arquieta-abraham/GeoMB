@@ -14,6 +14,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:textColor="@android:color/black"
+        android:textSize="16sp"
         android:textStyle="bold" />
 
     <TextView
@@ -24,5 +25,6 @@
         android:gravity="center"
         android:maxWidth="260dp"
         android:textColor="#FF666666"
+        android:textSize="16sp"
         android:textStyle="italic" />
 </LinearLayout>

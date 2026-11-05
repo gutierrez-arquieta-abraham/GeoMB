@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo CITI: "Seleccione ruta" (fragment_lista.xml de la app de Indra). La barra "título /
+     Menú" es la de barra_citi.xml (MapFragment le cambia el título). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/citi_lista_rutas"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <ListView
+        android:id="@+id/citi_lista_rutas_lista"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:divider="@color/citi_lista_divisor"
+        android:dividerHeight="0.67dp" />
+</LinearLayout>

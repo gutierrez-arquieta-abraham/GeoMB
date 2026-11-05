@@ -22,8 +22,11 @@
     <color name="citi_menu_borde">#FFCCCCCC</color>
     <color name="citi_texto">#FF222222</color>
     <color name="citi_boton">#FFB31C3F</color>
-    <color name="citi_boton_presionado">#FF8E1632</color>
-    <color name="citi_texto_lista">#DE000000</color>
+    <color name="citi_boton_presionado">#FFCCCCCC</color>
+    <color name="citi_texto_lista">#FF000000</color>
+    <color name="citi_texto_ruta">#FF111111</color>
+    <color name="citi_separador_logos">#FFC6C6C7</color>
+    <color name="citi_capa_oscura">#88000000</color>
     <color name="citi_lista_divisor">#FFE5E5E5</color>
 
     <!-- Colores oficiales de líneas (del GTFS Metrobús) -->

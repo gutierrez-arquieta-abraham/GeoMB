@@ -87,31 +87,50 @@ public final class EstiloCiti {
         return bus;
     }
 
-    /** Rumbos (grados, 0 = norte) del recorrido al pasar por {@code pos}: uno por cada tramo de la
-     *  línea que pasa a menos de {@link #RADIO_RUMBO_M}, sin repetir rumbos casi iguales. */
+    /** Rumbos (grados, 0 = norte) del recorrido al pasar por {@code pos}, uno por sentido: el de
+     *  cada tramo de ida que pasa a menos de {@link #RADIO_RUMBO_M} y el de su vuelta (con la
+     *  geometría propia de la vuelta si la línea la trae, o el rumbo contrario si ambos sentidos van
+     *  por la misma calle). Así una estación de doble sentido lleva ↕, como los 2 andenes del original. */
     public static List<Float> rumbos(Linea l, LatLng pos) {
-        List<List<LatLng>> tramos = new ArrayList<>();
-        if (l.segmentos != null && !l.segmentos.isEmpty()) tramos.addAll(l.segmentos);
-        else if (l.ruta != null) tramos.add(l.ruta);
-        if (l.rutaVuelta != null) tramos.add(l.rutaVuelta);   // sentido contrario por otra calle
         List<Float> res = new ArrayList<>();
-        for (List<LatLng> t : tramos) {
-            if (t == null || t.size() < 2) continue;
-            int mejor = -1;
-            double dMin = Double.MAX_VALUE;
-            for (int i = 0; i < t.size(); i++) {
-                double d = Linea.distancia(t.get(i), pos);
-                if (d < dMin) { dMin = d; mejor = i; }
-            }
-            if (mejor < 0 || dMin > RADIO_RUMBO_M) continue;
-            LatLng a = mejor < t.size() - 1 ? t.get(mejor) : t.get(mejor - 1);
-            LatLng b = mejor < t.size() - 1 ? t.get(mejor + 1) : t.get(mejor);
-            float r = rumbo(a, b);
-            boolean repetido = false;
-            for (float x : res) if (Math.abs(((r - x + 540) % 360) - 180) < 20) { repetido = true; break; }
-            if (!repetido) res.add(r);
+        List<List<LatLng>> ida = new ArrayList<>();
+        if (l.segmentos != null && !l.segmentos.isEmpty()) ida.addAll(l.segmentos);
+        else if (l.ruta != null) ida.add(l.ruta);
+        for (int i = 0; i < ida.size(); i++) {
+            Float r = rumboCerca(ida.get(i), pos);
+            if (r == null) continue;
+            agregarRumbo(res, r);
+            List<LatLng> vuelta = l.segmentosVuelta != null ? l.segmentosVuelta.get(i) : null;
+            Float rv = vuelta != null ? rumboCerca(vuelta, pos) : null;
+            if (vuelta == null) agregarRumbo(res, (r + 180f) % 360f);   // mismo trazo en ambos sentidos
+            else if (rv != null) agregarRumbo(res, rv);                  // la vuelta va por otra calle
+        }
+        if (l.rutaVuelta != null) {   // sentido contrario por otra calle (toda la línea)
+            Float rv = rumboCerca(l.rutaVuelta, pos);
+            if (rv != null) agregarRumbo(res, rv);
         }
         return res;
+    }
+
+    /** Rumbo del tramo {@code t} en su punto más cercano a {@code pos}; null si pasa lejos. */
+    private static Float rumboCerca(List<LatLng> t, LatLng pos) {
+        if (t == null || t.size() < 2) return null;
+        int mejor = -1;
+        double dMin = Double.MAX_VALUE;
+        for (int i = 0; i < t.size(); i++) {
+            double d = Linea.distancia(t.get(i), pos);
+            if (d < dMin) { dMin = d; mejor = i; }
+        }
+        if (mejor < 0 || dMin > RADIO_RUMBO_M) return null;
+        LatLng a = mejor < t.size() - 1 ? t.get(mejor) : t.get(mejor - 1);
+        LatLng b = mejor < t.size() - 1 ? t.get(mejor + 1) : t.get(mejor);
+        return rumbo(a, b);
+    }
+
+    /** Agrega {@code r} si no hay ya un rumbo casi igual (menos de 20°). */
+    private static void agregarRumbo(List<Float> res, float r) {
+        for (float x : res) if (Math.abs(((r - x + 540) % 360) - 180) < 20) return;
+        res.add(r);
     }
 
     /** Estación: la flecha de rumbo girada por cada sentido y el pictograma encima (como
@@ -125,8 +144,12 @@ public final class EstiloCiti {
         if (cacheado != null) return cacheado;
 
         int px = (int) c.getResources().getDimension(R.dimen.citi_estacion);
-        Bitmap flecha = BitmapFactory.decodeResource(c.getResources(), R.drawable.citi_rumbo);
-        int w = Math.max(flecha.getWidth(), px), h = Math.max(flecha.getHeight(), px);
+        // Sin flechas el lienzo es solo el del pictograma: el estilo CITI dibuja las ~280 estaciones
+        // a la vez y con el lienzo de la flecha (56dp) serían decenas de MB de bitmaps.
+        Bitmap flecha = rumbos.isEmpty() ? null : BitmapFactory.decodeResource(c.getResources(), R.drawable.citi_rumbo);
+        int w = flecha != null ? Math.max(flecha.getWidth(), px) : px;
+        int h = flecha != null ? Math.max(flecha.getHeight(), px) : px;
+        if (CACHE.size() > 400) CACHE.clear();   // al cambiar mucho de ruta no crece sin límite
         Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(out);
         Paint suave = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
@@ -165,13 +188,18 @@ public final class EstiloCiti {
     private static final String PREFS_FAV = "estilo_citi";
     private static final String K_FAVORITAS = "estaciones_favoritas";
 
-    public static boolean esFavorita(Context c, int linea, String nombre) {
-        return favoritas(c).contains(linea + "|" + nombre);
+    /** Una favorita es un andén (el original guardaba parada.cod): línea, nombre y posición. */
+    private static String claveFavorita(int linea, String nombre, LatLng pos) {
+        return linea + "|" + nombre + "|" + String.format(java.util.Locale.US, "%.5f,%.5f", pos.latitude, pos.longitude);
     }
 
-    public static void agregarFavorita(Context c, int linea, String nombre) {
+    public static boolean esFavorita(Context c, int linea, String nombre, LatLng pos) {
+        return favoritas(c).contains(claveFavorita(linea, nombre, pos));
+    }
+
+    public static void agregarFavorita(Context c, int linea, String nombre, LatLng pos) {
         java.util.Set<String> s = new java.util.HashSet<>(favoritas(c));
-        s.add(linea + "|" + nombre);
+        s.add(claveFavorita(linea, nombre, pos));
         c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
                 .edit().putStringSet(K_FAVORITAS, s).apply();
     }

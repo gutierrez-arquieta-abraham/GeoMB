@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Aviso del estilo CITI (dialog_info.xml de la app de Indra, style "dialog"). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_margin="10dp"
+    android:background="@drawable/citi_caja_dialogo"
+    android:gravity="center_horizontal"
+    android:minWidth="260dp"
+    android:orientation="vertical"
+    android:paddingLeft="16dp"
+    android:paddingTop="10dp"
+    android:paddingRight="16dp"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:id="@+id/citi_dialogo_texto"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center"
+        android:textColor="@color/citi_texto"
+        android:textSize="16sp" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/citi_dialogo_aceptar"
+        style="@style/CitiBoton"
+        android:layout_marginTop="16dp"
+        android:text="@string/citi_aceptar" />
+</LinearLayout>

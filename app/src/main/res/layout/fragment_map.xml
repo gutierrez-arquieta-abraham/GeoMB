@@ -733,6 +733,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Estilo CITI: "Seleccione ruta" (ver MapFragment.mostrarListaRutasCiti). -->
+    <include
+        layout="@layout/lista_rutas_citi"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/barra_citi"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Estilo CITI: menú de estación (fragment_menu_parada_mapa.xml de la app de Indra). Capa
          transparente sobre el mapa con los botones abajo al centro; tocar fuera cancela. Los botones
          se agregan desde MapFragment (Ver tiempos / Ver rutas / Añadir a favoritos / Cancelar). -->
