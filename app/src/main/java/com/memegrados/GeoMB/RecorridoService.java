@@ -815,7 +815,15 @@ public class RecorridoService extends Service {
                 // el aviso de "próxima" (Metrobús) y el de "llegando" (Mexibús, cierre del lado viejo)
                 // terminaban disparando juntos, en vez de espaciados -- ver el comentario donde vivía
                 // esa zona en Planificador.java para el defecto original que intentaba resolver).
-                boolean enNuevaAhora = imposibleLlegarAnterior && d <= umbral;
+                // Defecto real (simulación Bosques del Valle → IPN): sin la zona central, en Indios Verdes la
+                // unidad L4 hacia el sur pasa a ~50 m de IV_L1_SALE ANTES de llegar a su propio andén
+                // (IV_L4_LLEGA), y esta correspondencia corta disparaba a bordo "Llegando… camina hasta la
+                // conexión" ~340 m antes. Solo vale si ya rozaste el andén VIEJO y ahora te ALEJAS de él
+                // (caminando el cruce): distMin = lo más cerca que llegaste a 'best'; bd = distancia actual.
+                boolean anteriorRozada = estSeguida == best
+                        && distMin <= radioCerca(seq.get(best)) + COBERTURA_EXTRA_M
+                        && bd > distMin + 15f;
+                boolean enNuevaAhora = imposibleLlegarAnterior && anteriorRozada && d <= umbral;
                 // Defecto real confirmado (viaje real, Indios Verdes): 2 ciclos seguidos no bastaban --
                 // consistente con ruido/multipath del GPS cerca de estructuras elevadas, que puede
                 // durar más de 1 ciclo. Se sube a CORRESP_CORTA_CICLOS_MIN=3 ciclos seguidos.
