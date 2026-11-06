@@ -89,8 +89,31 @@ public class CitiActivity extends AppCompatActivity {
                     .replace(R.id.citi_pantallas, new CitiInicioFragment())
                     .commit();
         }
-        // Aviso de exceso de velocidad del recorrido (llega reenviado desde MainActivity).
+        // Tras muerte del proceso Android recrea esta actividad sin pasar por MainActivity: se
+        // vuelven a cargar los catálogos y el vigilante de afectaciones que ella inicializa.
+        if (savedInstanceState != null) {
+            Modelos.init(getApplicationContext());
+            RutasRepository.init();
+            ManifestacionesService.iniciar(this);
+        }
+        // Los filtros de unidades de GeoMB no tienen control en el estilo CITI: se empieza sin ellos.
+        if (savedInstanceState == null) RealtimeRepository.filtro.limpiar();
+        // Avisos que antes solo daba MainActivity (con el estilo activo se perdían).
+        ActualizacionObligatoria.cargar(this);
+        if (ActualizacionObligatoria.requerida()) bloqueoActualizacion();
+        ActualizacionObligatoria.refrescar(this, this::bloqueoActualizacion);
+        Backend.alRequerirActualizacion = () -> runOnUiThread(this::bloqueoActualizacion);
+        AvisoDonativo.mostrarSiToca(this);
+        EstadoServicio.refrescar(this, () -> {
+            if (EstadoServicio.enPausa() && !isFinishing()) {
+                aviso(EstadoServicio.mensaje(this));
+                SincronizacionService.detener(this);
+            }
+        });
+        // Aviso de exceso de velocidad del recorrido (llega reenviado desde MainActivity) y
+        // notificación "unidad cerca" (abre el mapa siguiendo esa unidad).
         ReporteIrregularidad.desdeAvisoVelocidad(this, getIntent());
+        focoDeUnidad(getIntent());
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
                 if (capaVisible()) { cerrarMenu(); return; }
@@ -106,11 +129,58 @@ public class CitiActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         ReporteIrregularidad.desdeAvisoVelocidad(this, intent);
+        focoDeUnidad(intent);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (ActualizacionObligatoria.requerida()) bloqueoActualizacion();   // por si se perdió al volver de la tienda
+    }
+
+    /** EXTRA_ECONOMICO_FOCO (notificación de unidad cerca): el mapa siguiendo esa unidad. */
+    private void focoDeUnidad(Intent intent) {
+        String eco = intent != null ? intent.getStringExtra(MainActivity.EXTRA_ECONOMICO_FOCO) : null;
+        if (eco == null || eco.isEmpty()) return;
+        intent.removeExtra(MainActivity.EXTRA_ECONOMICO_FOCO);
+        busPendiente = eco;
+        getSupportFragmentManager().executePendingTransactions();
+        abrirMapa();
+    }
+
+    private Dialog dialogoActualizacion;
+
+    /** Actualización obligatoria (como MainActivity.mostrarBloqueoActualizacion), con el diálogo
+     *  CITI: no se puede cerrar; "Actualizar" abre la ficha de la tienda. */
+    private void bloqueoActualizacion() {
+        if (isFinishing() || isDestroyed() || !ActualizacionObligatoria.requerida()) return;
+        if (dialogoActualizacion != null && dialogoActualizacion.isShowing()) return;
+        Dialog d = nuevoDialogo();
+        View v = getLayoutInflater().inflate(R.layout.dialogo_citi, null, false);
+        TextView t = v.findViewById(R.id.citi_dialogo_titulo);
+        t.setText(R.string.actualizacion_oblig_titulo);
+        t.setVisibility(View.VISIBLE);
+        ((TextView) v.findViewById(R.id.citi_dialogo_texto)).setText(R.string.actualizacion_oblig_mensaje);
+        TextView b = v.findViewById(R.id.citi_dialogo_aceptar);
+        b.setText(R.string.actualizacion_oblig_boton);
+        b.setOnClickListener(x -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=" + getPackageName())));
+            } catch (android.content.ActivityNotFoundException e) {
+                startActivity(new Intent(Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://play.google.com/store/apps/details?id=" + getPackageName())));
+            }
+        });
+        d.setContentView(v);
+        d.setCancelable(false);
+        dialogoActualizacion = d;
+        try { d.show(); } catch (Exception ignore) {}
     }
 
     @Override
     protected void onDestroy() {
         mostrarDescargando(false);
+        Backend.alRequerirActualizacion = null;   // no dejar colgada la referencia a esta actividad
         super.onDestroy();
     }
 
@@ -245,6 +315,17 @@ public class CitiActivity extends AppCompatActivity {
         }));
     }
 
+    /** Pide la ubicación (precisa o aproximada) si falta y luego corre {@code accion}. */
+    public void conUbicacion(Runnable accion) {
+        boolean ok = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        if (ok) { accion.run(); return; }
+        trasPermiso = accion;
+        permiso.launch(android.Manifest.permission.ACCESS_FINE_LOCATION);
+    }
+
     /** Ubicación (y en Android 13+ notificaciones) antes de seguir una unidad o activar su alerta. */
     private void conPermisos(Runnable accion) {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
@@ -372,7 +453,8 @@ public class CitiActivity extends AppCompatActivity {
         Dialog d = nuevoDialogo();
         int px = (int) (60 * getResources().getDisplayMetrics().density);
         d.setContentView(new ProgressBar(this), new ViewGroup.LayoutParams(px, px));
-        d.setCancelable(false);
+        d.setCancelable(true);   // el feed y su respaldo pueden tardar: "atrás" lo quita
+        d.setOnCancelListener(x -> descargando = null);
         descargando = d;
         try { d.show(); } catch (Exception ignore) { descargando = null; }
     }
@@ -399,6 +481,7 @@ public class CitiActivity extends AppCompatActivity {
         RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
             @Override public void onData(List<UnidadReal> unidades) {
                 mostrarDescargando(false);
+                if (isFinishing() || isDestroyed() || getSupportFragmentManager().isStateSaved()) return;
                 UnidadReal u = RealtimeRepository.get().buscar(eco);
                 if (u == null) { aviso(getString(R.string.citi_bus_no_encontrado)); return; }
                 busPendiente = u.numero;
@@ -406,6 +489,7 @@ public class CitiActivity extends AppCompatActivity {
             }
             @Override public void onError(String mensaje) {
                 mostrarDescargando(false);
+                if (isFinishing() || isDestroyed()) return;
                 aviso(getString(R.string.citi_error_conexion));
             }
         });

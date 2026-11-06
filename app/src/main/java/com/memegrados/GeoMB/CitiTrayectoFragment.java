@@ -118,11 +118,11 @@ public class CitiTrayectoFragment extends CitiPantalla {
     /** "Mi ubicación": la estación más cercana como origen. */
     @SuppressLint("MissingPermission")
     private void usarUbicacion(AutoCompleteTextView campo) {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            citi().aviso(getString(R.string.citi_sin_ubicacion));
-            return;
-        }
+        boolean ok = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+        if (!ok) { citi().conUbicacion(() -> { if (isAdded()) usarUbicacion(campo); }); return; }
         citi().mostrarDescargando(true);
         LocationServices.getFusedLocationProviderClient(requireActivity()).getLastLocation()
                 .addOnCompleteListener(t -> {

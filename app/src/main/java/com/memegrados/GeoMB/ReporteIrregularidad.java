@@ -86,8 +86,12 @@ public final class ReporteIrregularidad {
             android.widget.Toast.makeText(ctx, R.string.reporte_preparando_mapa, android.widget.Toast.LENGTH_SHORT).show();
             MapaSatelital.capturar((android.app.Activity) ctx, pos, l != null ? l.ruta : null,
                     l != null ? l.color : 0xFFCF102D,
-                    img -> enviarCon(ctx, momentoMs, linea, estacion, pos, unidadEco, sentido, tipo, descripcion,
-                            personalNombre, personalCargo, nombreFirma, telContacto, correoFirma, foto, tramo, img));
+                    img -> {
+                        android.app.Activity act = (android.app.Activity) ctx;
+                        Context destino = act.isFinishing() || act.isDestroyed() ? ctx.getApplicationContext() : ctx;
+                        enviarCon(destino, momentoMs, linea, estacion, pos, unidadEco, sentido, tipo, descripcion,
+                                personalNombre, personalCargo, nombreFirma, telContacto, correoFirma, foto, tramo, img);
+                    });
         } else {
             enviarCon(ctx, momentoMs, linea, estacion, pos, unidadEco, sentido, tipo, descripcion,
                     personalNombre, personalCargo, nombreFirma, telContacto, correoFirma, foto, tramo, null);

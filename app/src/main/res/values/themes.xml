@@ -27,6 +27,8 @@
         <item name="colorPrimary">@color/citi_boton</item>
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:statusBarColor">@android:color/black</item>
+        <!-- íconos claros sobre la barra negra (el tema base los pone oscuros) -->
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <!-- Etiqueta de campo en el formulario de reporte -->

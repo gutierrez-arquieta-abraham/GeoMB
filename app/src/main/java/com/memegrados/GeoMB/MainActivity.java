@@ -92,7 +92,8 @@ public class MainActivity extends AppCompatActivity {
         EstadoServicio.cargar(this);
         // Con el estilo CITI activo esta actividad cede la pantalla enseguida: el aviso lo da CitiActivity.
         if (EstadoServicio.enPausa() && !Modos.estiloCiti(this)) mostrarAvisoPausa();
-        EstadoServicio.refrescar(this, () -> {
+        boolean citiActivo = Modos.estiloCiti(this);
+        if (!citiActivo) EstadoServicio.refrescar(this, () -> {
             if (EstadoServicio.enPausa() && !isFinishing()) {
                 mostrarAvisoPausa();
                 SincronizacionService.detener(this);
@@ -102,11 +103,15 @@ public class MainActivity extends AppCompatActivity {
         // patrón que EstadoServicio/"pausa" de arriba, pero esta pantalla NO se puede cerrar.
         // Backend.alRequerirActualizacion cubre además el caso de que CUALQUIER llamada reciba
         // 426 entre un refrescar() y el siguiente (ver Backend.get()).
-        ActualizacionObligatoria.cargar(this);
-        if (ActualizacionObligatoria.requerida()) mostrarBloqueoActualizacion();
-        ActualizacionObligatoria.refrescar(this, this::mostrarBloqueoActualizacion);
-        Backend.alRequerirActualizacion = this::mostrarBloqueoActualizacion;
-        AvisoDonativo.mostrarSiToca(this);
+        // Con el estilo CITI activo esta actividad se cierra enseguida: estos tres avisos se perdían
+        // (el bloqueo de actualización nunca se veía). Los da CitiActivity.
+        if (!citiActivo) {
+            ActualizacionObligatoria.cargar(this);
+            if (ActualizacionObligatoria.requerida()) mostrarBloqueoActualizacion();
+            ActualizacionObligatoria.refrescar(this, this::mostrarBloqueoActualizacion);
+            Backend.alRequerirActualizacion = this::mostrarBloqueoActualizacion;
+            AvisoDonativo.mostrarSiToca(this);
+        }
 
         // Carga el catálogo de marca/modelo (assets/modelos.csv + Sheet) una vez.
         Modelos.init(getApplicationContext());
@@ -134,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception ignore) {}
         // Estilo CITI activo: lo de arriba (catálogos, servicios, avisos push) ya quedó listo, así que
         // CitiActivity hereda todo y aquí solo se le cede la pantalla.
-        if (Modos.estiloCiti(this)) {
+        if (citiActivo) {
             // Con los extras (p. ej. el aviso de exceso de velocidad) para que CitiActivity los atienda.
             Intent citi = new Intent(this, CitiActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -323,7 +328,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (intent == null) return;
+        if (intent == null || bottomNav == null) return;   // bottomNav null = esta instancia cedió la pantalla a CitiActivity
         if (intent.getBooleanExtra(EXTRA_REPORTAR_VELOCIDAD, false)) {
             manejarReporteVelocidad(intent);
             bottomNav.setSelectedItemId(R.id.nav_mapa);

@@ -3526,6 +3526,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         estaciones.clear();
         mexibusEst.clear();
         mexibusLineas.clear();
+        // En el estilo CITI el fragment vuelve del back stack con la MISMA instancia: sin esto se
+        // acumulaban polylines/marcadores del GoogleMap ya destruido.
+        lineasRed.clear();
+        trazoRuta.clear();
+        marcadoresRuta.clear();
         centroCarga = null;
         coloresLinea.clear();
         mapa = null;

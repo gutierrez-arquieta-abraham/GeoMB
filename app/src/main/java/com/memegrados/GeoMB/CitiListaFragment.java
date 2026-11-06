@@ -162,7 +162,7 @@ public class CitiListaFragment extends CitiPantalla {
                 android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(requireContext(),
                 android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-        if (!permiso) { citi().aviso(getString(R.string.citi_sin_ubicacion)); return; }
+        if (!permiso) { citi().conUbicacion(() -> { if (isAdded()) cargarCercanas(); }); return; }
         citi().mostrarDescargando(true);
         LocationServices.getFusedLocationProviderClient(requireActivity()).getLastLocation()
                 .addOnCompleteListener(t -> {
