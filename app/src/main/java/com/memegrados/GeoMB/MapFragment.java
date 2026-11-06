@@ -447,6 +447,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     private String busCiti;   // "Mi trayecto": económico seguido (null = ninguno)
+    // Servicio elegido en "Seleccione ruta" (p. ej. Indios Verdes-Insurgentes): se dibuja SOLO su tramo,
+    // con sus estaciones y sus unidades, en vez de la línea completa. null = ninguno.
+    private Horarios.Ruta servicioCiti;
+    private final List<Polyline> trazoServicioCiti = new ArrayList<>();
+    private java.util.Set<String> estServicioCiti;   // "línea|nombre normalizado" de las estaciones del tramo
 
     /** Ruta, autobús o estación pedidos desde otra pantalla de CitiActivity ("Ver en mapa",
      *  "Mi trayecto"). Se consumen una sola vez. */
@@ -470,6 +475,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
         if (bus != null) {
             seguirBusCiti(bus);
+        } else if (CitiActivity.servicioPendiente != null) {
+            Object[] sp = CitiActivity.servicioPendiente;
+            CitiActivity.servicioPendiente = null;
+            Horarios.Ruta r = Horarios.buscar(requireContext(), (Integer) sp[0], (String) sp[1], (String) sp[2]);
+            if (r != null) seleccionarServicioCiti(r); else seleccionarRutaCiti((Integer) sp[0]);
         } else if (ruta != 0) {
             busCiti = null;
             seleccionarRutaCiti(ruta);
@@ -495,8 +505,75 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Deja solo la ruta {@code linea} (trazo, estaciones y unidades), como goToRoute() de la app
      *  original; 0 = todas. */
     private void seleccionarRutaCiti(int linea) {
+        limpiarServicioCiti();
+        aplicarFiltroCiti(linea, true);
+    }
+
+    /** Solo el tramo del servicio {@code r}: su trazo recortado entre sus estaciones extremas en cada
+     *  línea que toca (Horarios.tramoEnLinea; en mixtas, desde el cruce real), sus estaciones y sus
+     *  unidades (las del feed con ese origen/destino; en Mexibús/Mexicable, que no lo traen, las de su
+     *  línea). */
+    private void seleccionarServicioCiti(Horarios.Ruta r) {
+        busCiti = null;
+        limpiarServicioCiti();
+        servicioCiti = r;
+        estServicioCiti = new java.util.HashSet<>();
+        LatLngBounds.Builder caja = new LatLngBounds.Builder();
+        boolean hay = false;
+        int[] lineas = r.lineas != null && r.lineas.length > 0 ? r.lineas : new int[]{r.linea};
+        for (int ln : lineas) {
+            Linea l = GtfsRepository.porNumero(requireContext(), ln);
+            int[] rg = Horarios.tramoEnLinea(requireContext(), ln, r);
+            if (l == null || rg == null || l.estaciones.isEmpty()) continue;
+            for (int k = rg[0]; k <= rg[1] && k < l.estaciones.size(); k++)
+                estServicioCiti.add(ln + "|" + Planificador.norm(l.estaciones.get(k).nombre));
+            List<LatLng> pts = Planificador.subRuta(l.ruta,
+                    l.estaciones.get(rg[0]).posicion, l.estaciones.get(Math.min(rg[1], l.estaciones.size() - 1)).posicion);
+            if (mapa != null && pts.size() > 1) {
+                trazoServicioCiti.add(mapa.addPolyline(new PolylineOptions().addAll(pts)
+                        .color(EstiloCiti.color(ln, l.color)).width(EstiloCiti.anchoTrazo(requireContext()))
+                        .geodesic(false).zIndex(3f)));
+                for (LatLng p : pts) { caja.include(p); hay = true; }
+            }
+        }
+        aplicarFiltroCiti(r.linea, false);
+        if (hay && mapa != null) {
+            try { mapa.animateCamera(CameraUpdateFactory.newLatLngBounds(caja.build(), 120)); } catch (Exception ignore) {}
+        }
+    }
+
+    private void limpiarServicioCiti() {
+        for (Polyline p : trazoServicioCiti) p.remove();
+        trazoServicioCiti.clear();
+        servicioCiti = null;
+        estServicioCiti = null;
+    }
+
+    /** ¿La estación se ve? Con servicio elegido, solo las de su tramo; si no, según la línea elegida. */
+    private boolean estacionVisibleCiti(EstMapa em) {
+        if (servicioCiti == null) return visibleCiti(em.linea);
+        return estServicioCiti != null && estServicioCiti.contains(em.linea + "|" + Planificador.norm(em.e.nombre));
+    }
+
+    /** ¿La unidad recorre el servicio elegido? Sin servicio, siempre. */
+    private boolean unidadVisibleCiti(UnidadReal u) {
+        Horarios.Ruta r = servicioCiti;
+        if (!citi || r == null) return true;
+        if (r.linea >= 100) {   // Mexibús/Mexicable: el feed no trae origen/destino → las de su línea
+            if (u.linea == null) return false;
+            for (int ln : (r.lineas != null && r.lineas.length > 0 ? r.lineas : new int[]{r.linea}))
+                if (u.linea == ln) return true;
+            return false;
+        }
+        return Horarios.unidadEsDeRuta(r, u.origen, u.destino);
+    }
+
+    /** Aplica la línea elegida (0 = todas) a trazos, estaciones, flechas, unidades y la caja de ruta;
+     *  {@code camaraLinea}: encuadra la línea completa (goToRoute del original). */
+    private void aplicarFiltroCiti(int linea, boolean camaraLinea) {
         lineaCiti = linea;
-        RealtimeRepository.filtro.linea = linea == 0 ? null : linea;
+        // Con servicio, las unidades se filtran por su recorrido (unidadVisibleCiti), no por la línea.
+        RealtimeRepository.filtro.linea = (linea == 0 || servicioCiti != null) ? null : linea;
         for (Polyline p : lineasRed) {
             Object t = p.getTag();
             p.setVisible(!(t instanceof Integer) ? linea == 0 : trazoVisibleCiti((Integer) t));
@@ -506,10 +583,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         for (EstMapa em : mexibusEst) if (em.marker != null) em.marker.setIcon(iconoMexibus(em));
         if (linea != 0) crearEstacionesVisibles();
         aplicarVisibilidadEstaciones();
+        aplicarMexibus();
         onFiltrosCambiados();
         actualizarCajaCiti();
         // goToRoute() del original: todos los puntos de sus itinerarios, con margen de 120px.
-        Linea l = linea != 0 ? GtfsRepository.porNumero(requireContext(), linea) : null;
+        Linea l = linea != 0 && camaraLinea ? GtfsRepository.porNumero(requireContext(), linea) : null;
         if (l != null && mapa != null && busCiti == null) {
             LatLngBounds.Builder b = new LatLngBounds.Builder();
             if (l.segmentos != null && !l.segmentos.isEmpty()) {
@@ -587,7 +665,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Trazo de la línea: en estilo CITI, todos (como el mapa de GeoMB) salvo que haya una ruta
      *  elegida, que deja solo el suyo. */
     private boolean trazoVisibleCiti(int linea) {
-        return visibleCiti(linea);
+        return servicioCiti == null && visibleCiti(linea);   // con servicio, solo su tramo (trazoServicioCiti)
     }
 
     /** ¿La línea se ve con la ruta elegida en estilo CITI? Fuera de ese estilo, siempre. */
@@ -655,7 +733,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         boolean porZoom = mapa.getCameraPosition().zoom >= ZOOM_ESTACIONES;
         boolean visibles = mostrarEstaciones && (porZoom || citi);
         if (citi) {
-            for (EstMapa em : estaciones) if (em.marker != null) em.marker.setVisible(visibles && visibleCiti(em.linea));
+            for (EstMapa em : estaciones) if (em.marker != null) em.marker.setVisible(visibles && estacionVisibleCiti(em));
         } else {
             for (Marker m : marcadoresEstacion) m.setVisible(visibles);
         }
@@ -891,7 +969,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // un autobús, ver aplicarPendientesCiti()).
             if (citi) {
                 boolean conTrayecto = CitiActivity.trayecto != null && (CitiActivity.trayectoPendiente || RecorridoService.activo);
-                if (CitiActivity.rutaPendiente == 0 && CitiActivity.busPendiente == null && !conTrayecto) encuadrarEstacionesCiti();
+                if (CitiActivity.rutaPendiente == 0 && CitiActivity.busPendiente == null
+                        && CitiActivity.servicioPendiente == null && !conTrayecto) encuadrarEstacionesCiti();
             }
             else centrarEnCercana();   // centra en la estación más cercana y carga solo ese radio
         }
@@ -1030,7 +1109,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     .snippet(citi ? null : "Línea " + em.linea)   // el globo original solo decía el nombre
                     .icon(iconoEstacionOTransbordo(em, fueraDeServicio(em)))
                     .anchor(0.5f, 0.5f)
-                    .visible(visibles && visibleCiti(em.linea)));
+                    .visible(visibles && estacionVisibleCiti(em)));
             if (m != null) { em.marker = m; marcadoresEstacion.add(m); }
         }
     }
@@ -1236,7 +1315,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         boolean fuera = fueraDeServicio(em, bloqueadas);
         if (citi) {   // mismo dibujo que las estaciones del Metrobús en estilo CITI
             Linea l = GtfsRepository.porNumero(requireContext(), em.linea);
-            java.util.List<Float> rumbos = (l != null && lineaCiti == em.linea)
+            java.util.List<Float> rumbos = (l != null && (servicioCiti != null ? estacionVisibleCiti(em) : lineaCiti == em.linea))
                     ? EstiloCiti.rumbos(l, em.pos) : new java.util.ArrayList<>();
             return EstiloCiti.iconoEstacion(requireContext(), em.e.icono, em.color, rumbos, fuera);
         }
@@ -1352,11 +1431,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             boolean esMxc = tag instanceof Integer && Sistemas.sistemaDe((Integer) tag) == Sistemas.MEXICABLE;
             // Las líneas siempre (si el toggle de SU sistema está on); en estilo CITI, también según
             // la ruta elegida.
-            p.setVisible((esMxc ? visMxc : visMxb) && (!(tag instanceof Integer) || visibleCiti((Integer) tag)));
+            p.setVisible((esMxc ? visMxc : visMxb) && (!(tag instanceof Integer) || trazoVisibleCiti((Integer) tag)));
         }
         for (EstMapa em : mexibusEst) if (em.marker != null) {
             boolean esMxc = Sistemas.sistemaDe(em.linea) == Sistemas.MEXICABLE;
-            boolean vis = (esMxc ? visMxc : visMxb) && visibleCiti(em.linea);
+            boolean vis = (esMxc ? visMxc : visMxb) && estacionVisibleCiti(em);
             boolean mostrar = vis && porZoom && mostrarEstaciones;   // el botón "estaciones" del mapa también aplica aquí
             if (mostrar && !em.marker.isVisible()) em.marker.setIcon(iconoMexibus(em));  // refresca al reaparecer (modo actual)
             em.marker.setVisible(mostrar);   // estaciones por zoom
@@ -1425,6 +1504,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
         for (UnidadReal u : unidades) {
             if (!RealtimeRepository.filtro.cumple(u)) continue;   // oculta las que no pasan el filtro
+            if (!unidadVisibleCiti(u)) continue;                   // estilo CITI: solo las del servicio elegido
             total++;   // total en servicio (para el contador), aunque no todas se dibujen
             boolean enRango = vista != null ? vista.contains(u.posicion)
                     : (centroForzado == null || Linea.distancia(u.posicion, centroForzado) <= RADIO_MAPA_M);
@@ -2058,7 +2138,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private BitmapDescriptor iconoEstacionOTransbordo(EstMapa em, boolean fueraDeServicio) {
         if (citi) {
             Linea l = GtfsRepository.porNumero(requireContext(), em.linea);
-            java.util.List<Float> rumbos = (l != null && lineaCiti == em.linea)
+            java.util.List<Float> rumbos = (l != null && (servicioCiti != null ? estacionVisibleCiti(em) : lineaCiti == em.linea))
                     ? EstiloCiti.rumbos(l, em.pos) : new java.util.ArrayList<>();
             return EstiloCiti.iconoEstacion(requireContext(), em.e.icono,
                     EstiloCiti.color(em.linea, em.color), rumbos, fueraDeServicio);
@@ -3515,6 +3595,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (citi && lineaCiti != 0) RealtimeRepository.filtro.linea = null;
         lineaCiti = 0;
         busCiti = null;
+        servicioCiti = null;
+        estServicioCiti = null;
+        trazoServicioCiti.clear();
         handler.removeCallbacks(poll);
         handler.removeCallbacks(tickRecorrido);
         marcadoresEstacion.clear();

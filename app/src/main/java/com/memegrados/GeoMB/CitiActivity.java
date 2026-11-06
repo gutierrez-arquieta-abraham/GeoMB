@@ -56,6 +56,7 @@ public class CitiActivity extends AppCompatActivity {
 
     // Lo que el mapa debe hacer al abrirse desde otra pantalla (lo consume MapFragment una vez).
     static int rutaPendiente = 0;          // "Ver en mapa" de una ruta
+    static Object[] servicioPendiente = null;   // "Ver en mapa" de un servicio: {linea, origen, destino}
     static String busPendiente = null;     // "Seguir mi autobús": económico a seguir
     static boolean trayectoPendiente = false;   // "Mi trayecto" → "Ver en mapa"
     /** Último trayecto trazado en "Mi trayecto" (planificador de GeoMB); sobrevive al cambiar de pantalla. */
@@ -218,6 +219,12 @@ public class CitiActivity extends AppCompatActivity {
         abrirMapa();
     }
 
+    /** Solo el tramo del servicio (p. ej. Indios Verdes-Insurgentes) en el mapa. */
+    public void verServicioEnMapa(int linea, Horarios.Ruta r) {
+        servicioPendiente = new Object[]{linea, r.origen, r.destino};
+        abrirMapa();
+    }
+
     public void verRutaEnMapa(int linea) {
         rutaPendiente = linea;
         abrirMapa();
@@ -367,7 +374,7 @@ public class CitiActivity extends AppCompatActivity {
         List<Opcion> op = new ArrayList<>();
         op.add(new Opcion(getString(R.string.citi_horario), () -> { cerrarMenuSinAnimar(); abrir(CitiHorarioFragment.de(linea, r.origen, r.destino)); }));
         op.add(new Opcion(getString(R.string.citi_ver_estaciones), () -> { cerrarMenuSinAnimar(); abrir(CitiListaFragment.estaciones(linea, r.origen, r.destino)); }));
-        op.add(new Opcion(getString(R.string.citi_ver_en_mapa), () -> { cerrarMenuSinAnimar(); verRutaEnMapa(linea); }));
+        op.add(new Opcion(getString(R.string.citi_ver_en_mapa), () -> { cerrarMenuSinAnimar(); verServicioEnMapa(linea, r); }));
         abrirMenu(op, true);
     }
 

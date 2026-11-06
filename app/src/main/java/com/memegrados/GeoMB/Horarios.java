@@ -228,6 +228,27 @@ public final class Horarios {
         return mejor;
     }
 
+    /** ¿Una unidad con este origen/destino (del feed en vivo) recorre el servicio {@code r}? En
+     *  cualquier sentido. El feed abrevia ("Col. Del Valle", "San Lázaro Ote", "Alameda Ote") y a
+     *  veces agrega la línea ("Etiopía L3"): se comparan nombres normalizados con esas abreviaturas
+     *  expandidas, admitiendo que uno contenga al otro. */
+    public static boolean unidadEsDeRuta(Ruta r, String origen, String destino) {
+        if (r == null || origen == null || destino == null) return false;
+        String o = nombreRuta(origen), d = nombreRuta(destino), a = nombreRuta(r.origen), b = nombreRuta(r.destino);
+        return (parecido(o, a) && parecido(d, b)) || (parecido(o, b) && parecido(d, a));
+    }
+
+    private static String nombreRuta(String s) {
+        String n = " " + Planificador.norm(s) + " ";
+        n = n.replace(" col ", " colonia ").replace(" ote ", " oriente ").replace(" pte ", " poniente ")
+                .replace(" sta ", " santa ").replace(" gral ", " general ").replaceAll(" l\\d+ ", " ");
+        return n.trim();
+    }
+
+    private static boolean parecido(String x, String y) {
+        return !x.isEmpty() && !y.isEmpty() && (x.equals(y) || x.contains(y) || y.contains(x));
+    }
+
     /** El servicio de {@code linea} con ese origen y destino, o null. */
     public static Ruta buscar(Context ctx, int linea, String origen, String destino) {
         for (Ruta r : deLinea(ctx, linea))
