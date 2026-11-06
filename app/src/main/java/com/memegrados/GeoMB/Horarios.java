@@ -176,6 +176,65 @@ public final class Horarios {
         return false;
     }
 
+    /** Servicios (rutas de horarios.json) de {@code linea} que paran en {@code nombreEstacion}: los
+     *  que tocan la línea y cuyo tramo [origen, destino] sobre ella incluye la estación. Si la
+     *  estación no se ubica en la línea, todos los de la línea (permisivo, como el resto de la clase). */
+    public static List<Ruta> quePasanPor(Context ctx, int linea, String nombreEstacion) {
+        List<Ruta> res = new ArrayList<>();
+        Linea l = GtfsRepository.porNumero(ctx, linea);
+        if (l == null || l.estaciones.isEmpty()) return res;
+        int k = idxEnLinea(l, nombreEstacion);
+        for (Ruta r : deLinea(ctx, linea)) {
+            int[] rg = k < 0 ? null : tramoEnLinea(ctx, linea, r);
+            if (k < 0 || rg == null || (k >= rg[0] && k <= rg[1])) res.add(r);
+        }
+        return res;
+    }
+
+    /** Índices [desde, hasta] de las estaciones de {@code linea} que recorre el servicio {@code r}
+     *  (null si no se puede ubicar). */
+    public static int[] tramoEnLinea(Context ctx, int linea, Ruta r) {
+        Linea l = GtfsRepository.porNumero(ctx, linea);
+        if (l == null || l.estaciones.isEmpty()) return null;
+        int oi = idxEnLinea(l, r.origen), di = idxEnLinea(l, r.destino);
+        if (r.mixta && (oi < 0) != (di < 0)) {
+            // Mixta: el extremo que está en la OTRA línea entra a esta por el cruce entre ambas, no
+            // por la punta contraria (lo que supone rangoDe para el planificador). P. ej. Tepalcates-
+            // Colonia del Valle solo recorre la L1 desde el cruce con la L2, no desde Indios Verdes.
+            int cruce = cruceCon(ctx, l, r);
+            if (cruce >= 0) {
+                int dentro = oi >= 0 ? oi : di;
+                return new int[]{Math.min(dentro, cruce), Math.max(dentro, cruce)};
+            }
+        }
+        return rangoDe(l, r, l.estaciones.size() - 1);
+    }
+
+    /** Índice de la estación de {@code l} más cercana a alguna estación de las OTRAS líneas que
+     *  toca la mixta {@code r} (su punto de cruce), o -1. */
+    private static int cruceCon(Context ctx, Linea l, Ruta r) {
+        int mejor = -1;
+        double dMin = Double.MAX_VALUE;
+        for (int otra : r.lineas) {
+            if (otra == l.numero) continue;
+            Linea o = GtfsRepository.porNumero(ctx, otra);
+            if (o == null) continue;
+            for (int i = 0; i < l.estaciones.size(); i++)
+                for (Estacion e : o.estaciones) {
+                    double d = Linea.distancia(l.estaciones.get(i).posicion, e.posicion);
+                    if (d < dMin) { dMin = d; mejor = i; }
+                }
+        }
+        return mejor;
+    }
+
+    /** El servicio de {@code linea} con ese origen y destino, o null. */
+    public static Ruta buscar(Context ctx, int linea, String origen, String destino) {
+        for (Ruta r : deLinea(ctx, linea))
+            if (r.origen.equals(origen) && r.destino.equals(destino)) return r;
+        return null;
+    }
+
     /** Horario de HOY de una ruta, por sentido: "Ida 05:00–00:30 · Regreso 05:15–23:30" (con sus
      *  terminales en {@link Ruta#origen}/{@link Ruta#destino}). Null si no circula ese día. */
     public static String textoHoy(Ruta r, Calendar dia) {

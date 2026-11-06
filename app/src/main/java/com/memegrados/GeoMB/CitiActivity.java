@@ -352,7 +352,23 @@ public class CitiActivity extends AppCompatActivity {
 
     /** "Ver rutas" de una estación: la lista "Seleccione ruta" con las rutas que paran ahí. */
     public void abrirRutasDe(CitiDatos.Est e) {
-        abrir(CitiListaFragment.rutas(new ArrayList<>(CitiDatos.lineasDe(this, e).keySet())));
+        ArrayList<Integer> lineas = new ArrayList<>();
+        ArrayList<String> andenes = new ArrayList<>();
+        for (java.util.Map.Entry<Integer, CitiDatos.Est> x : CitiDatos.lineasDe(this, e).entrySet()) {
+            lineas.add(x.getKey());
+            andenes.add(x.getValue().canon);
+        }
+        abrir(CitiListaFragment.rutasDe(lineas, andenes));
+    }
+
+    /** Menú de un servicio (p. ej. Indios Verdes-Insurgentes): su horario, sus estaciones y la
+     *  línea en el mapa. */
+    public void menuServicio(int linea, Horarios.Ruta r) {
+        List<Opcion> op = new ArrayList<>();
+        op.add(new Opcion(getString(R.string.citi_horario), () -> { cerrarMenuSinAnimar(); abrir(CitiHorarioFragment.de(linea, r.origen, r.destino)); }));
+        op.add(new Opcion(getString(R.string.citi_ver_estaciones), () -> { cerrarMenuSinAnimar(); abrir(CitiListaFragment.estaciones(linea, r.origen, r.destino)); }));
+        op.add(new Opcion(getString(R.string.citi_ver_en_mapa), () -> { cerrarMenuSinAnimar(); verRutaEnMapa(linea); }));
+        abrirMenu(op, true);
     }
 
     public void agregarFavorita(CitiDatos.Est e) {

@@ -22,11 +22,17 @@ import java.util.List;
  */
 public class CitiHorarioFragment extends CitiPantalla {
 
-    private static final String A_LINEA = "linea";
+    private static final String A_LINEA = "linea", A_ORIGEN = "origen", A_DESTINO = "destino";
 
     public static CitiHorarioFragment de(int linea) {
+        return de(linea, null, null);
+    }
+
+    /** Solo el servicio {@code origen}-{@code destino} (null = todos los de la línea). */
+    public static CitiHorarioFragment de(int linea, @Nullable String origen, @Nullable String destino) {
         Bundle b = new Bundle();
         b.putInt(A_LINEA, linea);
+        if (origen != null) { b.putString(A_ORIGEN, origen); b.putString(A_DESTINO, destino); }
         CitiHorarioFragment f = new CitiHorarioFragment();
         f.setArguments(b);
         return f;
@@ -41,7 +47,9 @@ public class CitiHorarioFragment extends CitiPantalla {
         int linea = requireArguments().getInt(A_LINEA);
         Calendar hoy = Calendar.getInstance();
         final List<String[]> filas = new ArrayList<>();   // {"Origen-Destino (variante)", "Ida … · Regreso …"}
+        String soloO = requireArguments().getString(A_ORIGEN), soloD = requireArguments().getString(A_DESTINO);
         for (Horarios.Ruta r : Horarios.deLinea(requireContext(), linea)) {
+            if (soloO != null && !(r.origen.equals(soloO) && r.destino.equals(soloD))) continue;
             String t = Horarios.textoHoy(r, hoy);
             String nombre = r.origen + "-" + r.destino + (r.variante != null ? " (" + r.variante + ")" : "");
             filas.add(new String[]{nombre, t != null ? t : getString(R.string.citi_no_circula_hoy)});
