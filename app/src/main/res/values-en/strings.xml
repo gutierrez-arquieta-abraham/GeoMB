@@ -32,8 +32,6 @@
     <string name="citi_autobus">Bus %s</string>
     <string name="citi_linea_ruta">Line %1$d %2$s</string>
     <string name="citi_quitar_ruta">Remove route</string>
-    <string name="citi_ver_todas">Show all routes</string>
-    <string name="citi_salir">Exit CITI style</string>
     <string name="citi_ver_tiempos">View times</string>
     <string name="citi_ver_rutas">View routes</string>
     <string name="citi_anadir_favoritos">Add to favorites</string>
