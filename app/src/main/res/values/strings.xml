@@ -691,4 +691,20 @@
     <string name="actualizacion_oblig_mensaje">Hay una versión nueva de GeoMB con cambios importantes. Actualiza para seguir usando la app.</string>
     <string name="actualizacion_oblig_boton">Actualizar ahora</string>
     <string name="reporte_preparando_mapa">Preparando el reporte con la vista satelital…</string>
+    <string name="citi_horario">Horario</string>
+    <string name="citi_ver_estaciones">Ver estaciones</string>
+    <string name="citi_seleccione_estacion">Seleccione estación</string>
+    <string name="citi_no_circula_hoy">No circula hoy</string>
+    <string name="citi_sin_horario">Sin horario disponible para esta ruta</string>
+    <string name="citi_seguir_unidad">Seguir unidad</string>
+    <string name="citi_dejar_seguir">Dejar de seguir</string>
+    <string name="citi_poner_alerta">Avisarme cuando se acerque</string>
+    <string name="citi_quitar_alerta">Quitar aviso de cercanía</string>
+    <string name="citi_guardar_unidad">Guardar unidad</string>
+    <string name="citi_quitar_guardada">Quitar de mis unidades</string>
+    <string name="citi_estado_servicio">Estado del servicio</string>
+    <string name="citi_reportar">Reportar irregularidad</string>
+    <string name="citi_mis_unidades">Mis unidades</string>
+    <string name="citi_asistente">Asistente</string>
+    <string name="citi_configuracion">Configuración</string>
 </resources>

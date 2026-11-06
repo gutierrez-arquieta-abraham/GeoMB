@@ -126,8 +126,11 @@ public class ConfiguracionFragment extends Fragment {
         view.findViewById(R.id.btn_reportar_app).setOnClickListener(x -> mostrarReporteApp());
         view.findViewById(R.id.btn_asistente).setOnClickListener(x ->
                 startActivity(new android.content.Intent(requireContext(), ChatAsistenteActivity.class)));
-        view.findViewById(R.id.btn_mis_unidades).setOnClickListener(x ->
-                ((MainActivity) requireActivity()).mostrarUnidadesGuardadas());
+        view.findViewById(R.id.btn_mis_unidades).setOnClickListener(x -> {
+            if (requireActivity() instanceof MainActivity) ((MainActivity) requireActivity()).mostrarUnidadesGuardadas();
+            else if (requireActivity() instanceof CitiActivity)   // configuración abierta desde el estilo CITI
+                ((CitiActivity) requireActivity()).abrirGeoMB(CitiContenedorFragment.MIS_UNIDADES);
+        });
         configurarOpcionesPrivacidad(view);
         configurarPrivacidadPublicaYEliminarCuenta(view);
         configurarSimulador(view);
@@ -226,7 +229,12 @@ public class ConfiguracionFragment extends Fragment {
         swEstiloCiti.setOnClickListener(v2 -> {
             Modos.setEstiloCiti(requireContext(), swEstiloCiti.isChecked());
             // El estilo CITI es otra actividad (réplica de la app de Indra): se entra de inmediato.
-            if (swEstiloCiti.isChecked()) {
+            // Apagado desde la configuración abierta DENTRO del estilo CITI: se sale a GeoMB.
+            if (!swEstiloCiti.isChecked() && requireActivity() instanceof CitiActivity) {
+                ((CitiActivity) requireActivity()).salirDelEstilo();
+                return;
+            }
+            if (swEstiloCiti.isChecked() && !(requireActivity() instanceof CitiActivity)) {
                 android.content.Intent i = new android.content.Intent(requireContext(), CitiActivity.class);
                 i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(i);

@@ -176,6 +176,20 @@ public final class Horarios {
         return false;
     }
 
+    /** Horario de HOY de una ruta, por sentido: "Ida 05:00–00:30 · Regreso 05:15–23:30" (con sus
+     *  terminales en {@link Ruta#origen}/{@link Ruta#destino}). Null si no circula ese día. */
+    public static String textoHoy(Ruta r, Calendar dia) {
+        Ventana[] v = ventanasHoy(r, dia);
+        if (v == null) return null;
+        StringBuilder sb = new StringBuilder();
+        if (v[0] != null) sb.append("Ida ").append(hhmm(v[0].prim)).append("–").append(hhmm(v[0].ult));
+        if (v.length > 1 && v[1] != null) {
+            if (sb.length() > 0) sb.append(" · ");
+            sb.append("Regreso ").append(hhmm(v[1].prim)).append("–").append(hhmm(v[1].ult));
+        }
+        return sb.length() > 0 ? sb.toString() : null;
+    }
+
     /** ¿La línea tiene ALGÚN horario para hoy (aunque ya haya cerrado)? */
     public static boolean lineaOperaHoy(Context ctx, int linea, Calendar dia) {
         for (Ruta r : deLinea(ctx, linea)) if (ventanasHoy(r, dia) != null) return true;

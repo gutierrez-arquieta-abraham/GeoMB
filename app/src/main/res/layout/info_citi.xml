@@ -69,10 +69,46 @@
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
+            <!-- Funciones de GeoMB que la app de Indra no tenía, con los botones de esta pantalla. -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/citi_info_servicio"
+                style="@style/CitiBoton"
+                android:layout_marginTop="16dp"
+                android:minWidth="150dp"
+                android:text="@string/citi_estado_servicio" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/citi_info_reportar"
+                style="@style/CitiBoton"
+                android:layout_marginTop="8dp"
+                android:minWidth="150dp"
+                android:text="@string/citi_reportar" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/citi_info_unidades"
+                style="@style/CitiBoton"
+                android:layout_marginTop="8dp"
+                android:minWidth="150dp"
+                android:text="@string/citi_mis_unidades" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/citi_info_asistente"
+                style="@style/CitiBoton"
+                android:layout_marginTop="8dp"
+                android:minWidth="150dp"
+                android:text="@string/citi_asistente" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/citi_info_config"
+                style="@style/CitiBoton"
+                android:layout_marginTop="8dp"
+                android:minWidth="150dp"
+                android:text="@string/citi_configuracion" />
+
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/citi_info_privacidad"
                 style="@style/CitiBoton"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="8dp"
                 android:minWidth="150dp"
                 android:text="@string/citi_politica" />
 

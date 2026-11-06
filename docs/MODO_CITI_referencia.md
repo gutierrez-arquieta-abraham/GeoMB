@@ -169,3 +169,15 @@ de servicio en tiempos, íconos pixelados del original (se dejan suavizados).
   Ojo: Ximena es de pago por uso en el backend.
 - **Logo**: la franja usa `logo_mb_blanco` (Metrobús horizontal sobre blanco: MI + MB + "METROBÚS" en gris), recortado
   de la integración iconográfica oficial que mandó el usuario.
+
+## Paso 8: ninguna función de GeoMB fuera del estilo CITI
+- **Autobús tocado en el mapa**: globo + menú inferior CITI con Seguir unidad / Dejar de seguir (SeguimientoService),
+  Avisarme cuando se acerque / Quitar aviso (alertas de proximidad) y Guardar unidad / Quitar (Mis unidades). Pide
+  ubicación y notificaciones cuando hacen falta.
+- **Menú de ruta**: "Horario" (el butHorario del original, con `Horarios.textoHoy`: primera/última salida de hoy por
+  servicio y sentido; solo si la línea tiene horarios), "Ver estaciones" ("Seleccione estación") y "Ver en mapa".
+- **Información**: botones para Estado del servicio, Reportar irregularidad, Mis unidades, Asistente y Configuración.
+  Las pantallas de GeoMB se abren dentro de la barra CITI (`CitiContenedorFragment`); desde Configuración, apagar el
+  switch "Estilo CITI" regresa a GeoMB. `ConfiguracionFragment` y `UnidadesGuardadasFragment` ya no asumen MainActivity.
+- El tema de `CitiActivity` hereda el de GeoMB (`Base.Theme.GeoMB`) forzado a claro, para que esas pantallas se vean bien.
+- Fuera a propósito: filtros por empresa/destino del mapa de GeoMB (el original no tenía nada equivalente).

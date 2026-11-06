@@ -27,8 +27,8 @@ import java.util.List;
  */
 public class CitiListaFragment extends CitiPantalla {
 
-    private static final String A_MODO = "modo", A_LINEAS = "lineas";
-    private static final int RUTAS = 0, CERCANAS = 1, FAVORITOS = 2;
+    private static final String A_MODO = "modo", A_LINEAS = "lineas", A_LINEA = "linea";
+    private static final int RUTAS = 0, CERCANAS = 1, FAVORITOS = 2, ESTACIONES = 3;
     /** Cuántas estaciones cercanas se listan. */
     private static final int N_CERCANAS = 20;
 
@@ -40,6 +40,14 @@ public class CitiListaFragment extends CitiPantalla {
         Bundle b = new Bundle();
         b.putInt(A_MODO, RUTAS);
         if (lineas != null) b.putIntegerArrayList(A_LINEAS, lineas);
+        return conArgs(b);
+    }
+
+    /** "Seleccione estación" (title_paradas): las estaciones de una ruta, en su orden. */
+    public static CitiListaFragment estaciones(int linea) {
+        Bundle b = new Bundle();
+        b.putInt(A_MODO, ESTACIONES);
+        b.putInt(A_LINEA, linea);
         return conArgs(b);
     }
 
@@ -71,6 +79,10 @@ public class CitiListaFragment extends CitiPantalla {
             case CERCANAS:
                 barra(v, R.string.citi_cercanas);
                 cargarCercanas();
+                break;
+            case ESTACIONES:
+                barra(v, R.string.citi_seleccione_estacion);
+                mostrarEstaciones(requireArguments().getInt(A_LINEA));
                 break;
             case FAVORITOS:
                 barra(v, R.string.citi_favoritos);
@@ -117,6 +129,29 @@ public class CitiListaFragment extends CitiPantalla {
             }
         });
         lista.setOnItemClickListener((p, v, i, id) -> citi().menuRuta(ls.get(i)));
+    }
+
+    // --- Estaciones de una ruta (item_parada.xml) ---
+
+    private void mostrarEstaciones(int linea) {
+        final List<CitiDatos.Est> ests = new ArrayList<>();
+        java.util.Set<String> vistas = new java.util.HashSet<>();
+        for (CitiDatos.Est e : CitiDatos.todas(requireContext()))   // ya vienen en el orden de la línea
+            if (e.linea == linea && vistas.add(Planificador.norm(e.nombre))) ests.add(e);
+        lista.setAdapter(new BaseAdapter() {
+            @Override public int getCount() { return ests.size(); }
+            @Override public Object getItem(int i) { return ests.get(i); }
+            @Override public long getItemId(int i) { return i; }
+            @Override public View getView(int i, View v, ViewGroup parent) {
+                if (v == null) v = getLayoutInflater().inflate(R.layout.item_parada_citi, parent, false);
+                CitiDatos.Est e = ests.get(i);
+                iconoEstacion(v.findViewById(R.id.citi_parada_icono), e, 28);
+                ((TextView) v.findViewById(R.id.citi_parada_nombre)).setText(e.nombre);
+                ((TextView) v.findViewById(R.id.citi_parada_dato)).setText(sistemaDe(e.linea));
+                return v;
+            }
+        });
+        lista.setOnItemClickListener((p, v, i, id) -> citi().menuEstacionLista(ests.get(i)));
     }
 
     // --- Estaciones cercanas (item_parada.xml con "A N metros") ---

@@ -647,4 +647,20 @@
     <string name="actualizacion_oblig_mensaje">There is a new version of GeoMB with important changes. Update to keep using the app.</string>
     <string name="actualizacion_oblig_boton">Update now</string>
     <string name="reporte_preparando_mapa">Preparing the report with the satellite view…</string>
+    <string name="citi_horario">Schedule</string>
+    <string name="citi_ver_estaciones">View stations</string>
+    <string name="citi_seleccione_estacion">Select station</string>
+    <string name="citi_no_circula_hoy">Not running today</string>
+    <string name="citi_sin_horario">No schedule available for this route</string>
+    <string name="citi_seguir_unidad">Follow bus</string>
+    <string name="citi_dejar_seguir">Stop following</string>
+    <string name="citi_poner_alerta">Notify me when it is near</string>
+    <string name="citi_quitar_alerta">Turn off proximity alert</string>
+    <string name="citi_guardar_unidad">Save bus</string>
+    <string name="citi_quitar_guardada">Remove from my buses</string>
+    <string name="citi_estado_servicio">Service status</string>
+    <string name="citi_reportar">Report an incident</string>
+    <string name="citi_mis_unidades">My buses</string>
+    <string name="citi_asistente">Assistant</string>
+    <string name="citi_configuracion">Settings</string>
 </resources>

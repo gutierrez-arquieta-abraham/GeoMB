@@ -817,6 +817,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             if (citi) {
                 // Como la app original: la estación abre su menú; la unidad, solo su globo.
                 try {
+                    String ecoCiti = numeroDeMarcador(m);
+                    if (ecoCiti != null) {   // autobús: su globo + menú de funciones de GeoMB
+                        m.showInfoWindow();
+                        ((CitiActivity) requireActivity()).menuUnidadMapa(ecoCiti);
+                        return true;
+                    }
                     EstMapa em = estacionDeMarcador(m);
                     if (em == null) return false;
                     tocarEstacionCiti(em, m);

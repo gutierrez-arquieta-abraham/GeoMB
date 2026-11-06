@@ -62,11 +62,22 @@ public class CitiActivity extends AppCompatActivity {
     static Planificador.Ruta trayecto = null;
 
     private LinearLayout capa;
+    // Permisos que piden las acciones sobre una unidad (seguir / alerta de cercanía).
+    private Runnable trasPermiso;
+    private final androidx.activity.result.ActivityResultLauncher<String> permiso =
+            registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.RequestPermission(), ok -> {
+                Runnable r = trasPermiso;
+                trasPermiso = null;
+                if (ok && r != null) r.run();
+                else if (!ok) aviso(getString(R.string.seguir_permiso_ubicacion));
+            });
     private boolean capaCentrada, cerrandoCapa;
     private Dialog descargando;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Siempre claro, como la app de Indra (el tema hereda el de GeoMB, que es DayNight).
+        getDelegate().setLocalNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_citi);
         capa = findViewById(R.id.citi_capa);
@@ -182,11 +193,80 @@ public class CitiActivity extends AppCompatActivity {
         abrirMenu(op, true);
     }
 
-    /** Menú de ruta (fragment_menu_linea.xml, sin "Horario"): centrado y oscurecido. */
+    /** Menú de ruta (fragment_menu_linea.xml): "Horario" (si hay horarios de esa línea), las
+     *  estaciones de la ruta y "Ver en mapa"; centrado y oscurecido. */
     public void menuRuta(int linea) {
         List<Opcion> op = new ArrayList<>();
+        if (Horarios.tieneLinea(this, linea))
+            op.add(new Opcion(getString(R.string.citi_horario), () -> { cerrarMenuSinAnimar(); abrir(CitiHorarioFragment.de(linea)); }));
+        op.add(new Opcion(getString(R.string.citi_ver_estaciones), () -> { cerrarMenuSinAnimar(); abrir(CitiListaFragment.estaciones(linea)); }));
         op.add(new Opcion(getString(R.string.citi_ver_en_mapa), () -> { cerrarMenuSinAnimar(); verRutaEnMapa(linea); }));
         abrirMenu(op, true);
+    }
+
+    /** Autobús tocado en el mapa: el original solo abría su globo; aquí además el menú de abajo con
+     *  las funciones de GeoMB sobre esa unidad (seguirla, alerta de cercanía, guardarla). */
+    public void menuUnidadMapa(String eco) {
+        Telemetria.obtenerFavorito(this, eco, fav -> runOnUiThread(() -> {
+            if (isFinishing()) return;
+            boolean guardada = fav != null;
+            boolean alerta = fav != null && fav.alertaActiva;
+            int radio = fav != null ? fav.radioAlertaM : 500;
+            UnidadReal u = RealtimeRepository.get().buscar(eco);
+            int linea = u != null && u.linea != null ? u.linea : 0;
+            List<Opcion> op = new ArrayList<>();
+            if (SeguimientoService.sigue(eco)) {
+                op.add(new Opcion(getString(R.string.citi_dejar_seguir), () -> { SeguimientoService.detener(this, eco); cerrarMenu(); }));
+            } else {
+                op.add(new Opcion(getString(R.string.citi_seguir_unidad), () -> {
+                    cerrarMenu();
+                    conPermisos(() -> {
+                        SeguimientoService.iniciar(this, eco);
+                        android.widget.Toast.makeText(this, getString(R.string.seguir_activado, eco), android.widget.Toast.LENGTH_LONG).show();
+                    });
+                }));
+            }
+            op.add(new Opcion(getString(alerta ? R.string.citi_quitar_alerta : R.string.citi_poner_alerta), () -> {
+                cerrarMenu();
+                Runnable cambiar = () -> Telemetria.actualizarAlertaUnidad(this, eco, linea, !alerta, () ->
+                        android.widget.Toast.makeText(this, alerta
+                                ? getString(R.string.alerta_desactivada_toast, eco)
+                                : getString(R.string.alerta_activada_toast, eco, radio >= 1000 ? (radio / 1000) + " km" : radio + " m"),
+                                android.widget.Toast.LENGTH_LONG).show());
+                if (alerta) cambiar.run(); else conPermisos(cambiar);
+            }));
+            op.add(new Opcion(getString(guardada ? R.string.citi_quitar_guardada : R.string.citi_guardar_unidad), () -> {
+                cerrarMenu();
+                if (guardada) Telemetria.quitarFavorito(this, eco); else Telemetria.guardarFavorito(this, eco, linea);
+                android.widget.Toast.makeText(this, getString(guardada ? R.string.favorito_quitado : R.string.favorito_guardado, eco),
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }));
+            abrirMenu(op, false);
+        }));
+    }
+
+    /** Ubicación (y en Android 13+ notificaciones) antes de seguir una unidad o activar su alerta. */
+    private void conPermisos(Runnable accion) {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            trasPermiso = () -> conPermisos(accion);
+            permiso.launch(android.Manifest.permission.ACCESS_FINE_LOCATION);
+            return;
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            trasPermiso = accion;
+            permiso.launch(android.Manifest.permission.POST_NOTIFICATIONS);
+            return;
+        }
+        accion.run();
+    }
+
+    /** Pantallas de GeoMB (estado del servicio, reporte, configuración, mis unidades) dentro de la
+     *  barra CITI. */
+    public void abrirGeoMB(int tipo) {
+        abrir(CitiContenedorFragment.de(tipo));
     }
 
     /** "Ver rutas" de una estación: la lista "Seleccione ruta" con las rutas que paran ahí. */

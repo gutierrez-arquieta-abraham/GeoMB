@@ -75,7 +75,7 @@ public class UnidadesGuardadasFragment extends Fragment {
         adapter = new UnidadGuardadaAdapter(new UnidadGuardadaAdapter.Acciones() {
             @Override public void abrir(EconomicoFavoritoEntity f) {
                 RealtimeRepository.unidadSeleccionada = f.economico;
-                ((MainActivity) requireActivity()).navegarA(R.id.nav_mapa);
+                irAlMapa(f.economico);
             }
             @Override public void opciones(EconomicoFavoritoEntity f, View ancla) {
                 mostrarMenuFila(f, ancla);
@@ -123,7 +123,7 @@ public class UnidadesGuardadasFragment extends Fragment {
             int id = item.getItemId();
             if (id == R.id.menu_abrir_en_mapa) {
                 RealtimeRepository.unidadSeleccionada = f.economico;
-                ((MainActivity) requireActivity()).navegarA(R.id.nav_mapa);
+                irAlMapa(f.economico);
             } else if (id == R.id.menu_quitar_guardada) {
                 Telemetria.quitarFavorito(requireContext(), f.economico);
                 Toast.makeText(requireContext(), getString(R.string.favorito_quitado, f.economico), Toast.LENGTH_SHORT).show();
@@ -169,5 +169,16 @@ public class UnidadesGuardadasFragment extends Fragment {
 
     private static String etiquetaRadio(int metros) {
         return metros >= 1000 ? (metros / 1000) + " km" : metros + " m";
+    }
+
+    /** Abre el mapa centrado en la unidad: en GeoMB cambia de pestaña; en el estilo CITI la sigue
+     *  como "Seguir mi autobús". */
+    private void irAlMapa(String eco) {
+        if (requireActivity() instanceof MainActivity) {
+            ((MainActivity) requireActivity()).navegarA(R.id.nav_mapa);
+        } else if (requireActivity() instanceof CitiActivity) {
+            CitiActivity.busPendiente = eco;
+            ((CitiActivity) requireActivity()).abrirMapa();
+        }
     }
 }
