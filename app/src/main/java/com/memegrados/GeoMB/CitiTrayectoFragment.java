@@ -91,7 +91,10 @@ public class CitiTrayectoFragment extends CitiPantalla {
         raiz.findViewById(R.id.citi_trayecto_recorrido).setOnClickListener(v -> alternarRecorrido());
 
         // Al volver a esta pantalla con un trayecto ya trazado, se muestra de nuevo.
-        if (CitiActivity.trayecto != null) mostrar(CitiActivity.trayecto);
+        if (CitiActivity.trayecto != null) {
+            try { mostrar(CitiActivity.trayecto); }
+            catch (Throwable e) { CitiActivity.trayecto = null; }
+        }
         return raiz;
     }
 
@@ -129,8 +132,16 @@ public class CitiTrayectoFragment extends CitiPantalla {
                     List<Object[]> c = loc == null ? null : CitiDatos.cercanas(requireContext(),
                             new LatLng(loc.getLatitude(), loc.getLongitude()), 1);
                     if (c == null || c.isEmpty()) { citi().aviso(getString(R.string.citi_sin_ubicacion)); return; }
-                    origen = (CitiDatos.Est) c.get(0)[0];
-                    campo.setText(textos.get(estaciones.indexOf(origen)), false);
+                    // cercanas() arma sus propias instancias: se busca la equivalente en la lista del
+                    // autocompletar (antes indexOf daba -1 y la app se cerraba).
+                    CitiDatos.Est cerca = (CitiDatos.Est) c.get(0)[0];
+                    int k = -1;
+                    for (int i = 0; i < estaciones.size(); i++) {
+                        CitiDatos.Est e = estaciones.get(i);
+                        if (e.linea == cerca.linea && e.canon.equals(cerca.canon)) { k = i; break; }
+                    }
+                    origen = k >= 0 ? estaciones.get(k) : cerca;
+                    campo.setText(k >= 0 ? textos.get(k) : cerca.nombre, false);
                 });
     }
 
@@ -146,7 +157,10 @@ public class CitiTrayectoFragment extends CitiPantalla {
         EXEC.execute(() -> {
             Planificador.Ruta r;
             try { r = Planificador.calcular(app, o.canon, d.canon, o.linea, d.linea); }
-            catch (Exception e) { r = null; }
+            catch (Throwable e) {
+                r = null;
+                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "CitiTrayecto.calcular", String.valueOf(e));
+            }
             final Planificador.Ruta ruta = r;
             main.post(() -> {
                 if (!isAdded()) return;
@@ -155,8 +169,15 @@ public class CitiTrayectoFragment extends CitiPantalla {
                     citi().aviso(getString(R.string.ruta_sin_ruta, d.nombre));
                     return;
                 }
-                CitiActivity.trayecto = ruta;
-                mostrar(ruta);
+                // Igual que MapFragment.calcularRutaAsync: un fallo al pintar el resultado no debe
+                // cerrar la app; se avisa y se registra.
+                try {
+                    CitiActivity.trayecto = ruta;
+                    mostrar(ruta);
+                } catch (Throwable e) {
+                    Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "CitiTrayecto.mostrar", String.valueOf(e));
+                    citi().aviso(getString(R.string.ruta_sin_ruta, d.nombre));
+                }
             });
         });
     }
@@ -182,9 +203,10 @@ public class CitiTrayectoFragment extends CitiPantalla {
             cod.setText(CitiDatos.etiqueta(p.linea));
             String de = Planificador.nombreMostrar(requireContext(), p.origen, p.linea);
             String a = Planificador.nombreMostrar(requireContext(), p.destino, p.linea);
-            String txt = conDireccion
+            String terminal = conDireccion ? r.instrucciones.get(i).terminal : null;
+            String txt = terminal != null
                     ? getString(R.string.citi_tramo, de, a, p.paradas,
-                        Planificador.nombreMostrar(requireContext(), r.instrucciones.get(i).terminal, p.linea))
+                        Planificador.nombreMostrar(requireContext(), terminal, p.linea))
                     : getString(R.string.citi_tramo_sin_dir, de, a, p.paradas);
             ((TextView) fila.findViewById(R.id.citi_linea_nombre)).setText(txt);
             if (i > 0) {   // divisor entre tramos, como el de las listas

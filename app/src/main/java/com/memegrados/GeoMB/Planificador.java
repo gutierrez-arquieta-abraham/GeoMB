@@ -165,6 +165,7 @@ public final class Planificador {
      *  coincidir y el campo volvería a preguntar el desambiguador en cada "Trazar ruta". Ningún
      *  nombre REAL de estación usa "·", así que cortar ahí es seguro. */
     public static String nombreCorto(String nombre) {
+        if (nombre == null) return null;   // p. ej. un tramo sin terminal identificada
         int punto = nombre.indexOf(" · ");
         return punto >= 0 ? nombre.substring(0, punto) : nombre;
     }

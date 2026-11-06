@@ -461,8 +461,12 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // "Mi trayecto": se dibuja el trayecto del planificador (y, con recorrido en curso, el mapa
         // sigue al usuario) aunque no se haya pedido explícitamente, al volver al mapa.
         if (CitiActivity.trayecto != null && (trayecto || RecorridoService.activo)) {
-            dibujarRuta(CitiActivity.trayecto);
-            if (panelResultado != null) panelResultado.setVisibility(View.GONE);   // la lista vive en "Mi trayecto"
+            try {
+                dibujarRuta(CitiActivity.trayecto);
+                if (panelResultado != null) panelResultado.setVisibility(View.GONE);   // la lista vive en "Mi trayecto"
+            } catch (Exception e) {   // un trayecto que no se pueda pintar no debe cerrar el mapa
+                Telemetria.registrarError(requireContext(), Telemetria.ERR_EXCEPCION, "MapFragment.trayectoCiti", String.valueOf(e));
+            }
         }
         if (bus != null) {
             seguirBusCiti(bus);
