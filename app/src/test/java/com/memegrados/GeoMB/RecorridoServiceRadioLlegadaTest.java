@@ -30,16 +30,20 @@ public class RecorridoServiceRadioLlegadaTest {
         return new Planificador.Parada("Indios Verdes", linea, 0, false, pos, null);
     }
 
+    // 10 m → 20 m (simulación Bosques del Valle → IPN): con ~14 m de error de GPS el aviso de llegada al
+    // andén L4 no sonaba hasta la mitad de la caminata, y el shape oficial de L4 pasa a 11.8 m del
+    // corredor (ver nota de arriba). Sigue siendo angosto: muy por debajo de los ~50 m del defecto original.
     @Test
-    public void zonaIndiosVerdes_radioAngosto10m_noElAnchoDe70() {
+    public void zonaIndiosVerdes_radioAngosto20m_noElAnchoDe70() {
         Planificador.Parada p = parada(104, Planificador.IV_L4_LLEGA);
-        assertEquals(10f, RecorridoService.radioLlegada(p), 0.001f);
+        assertEquals(20f, RecorridoService.radioLlegada(p), 0.001f);
+        assertTrue("debe quedar por debajo de los ~50 m del defecto original", RecorridoService.radioLlegada(p) < 50f);
     }
 
     @Test
     public void zonaIndiosVerdes_L1_tambienRadioAngosto() {
         Planificador.Parada p = parada(1, Planificador.IV_L1_SALE);
-        assertEquals(10f, RecorridoService.radioLlegada(p), 0.001f);
+        assertEquals(20f, RecorridoService.radioLlegada(p), 0.001f);
     }
 
     @Test

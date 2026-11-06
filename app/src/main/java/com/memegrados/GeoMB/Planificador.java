@@ -1781,6 +1781,22 @@ public final class Planificador {
             i = j + 1;
         }
 
+        // Tramo EXPRÉS que termina en un cambio de servicio de su MISMA línea (p. ej. Mexibús L2 Exprés
+        // hasta Ecatepec, donde el plan pasa al ordinario): la unidad exprés no sigue a la terminal
+        // oficial de la línea, así que su dirección es la estación donde termina (antes la pantalla decía
+        // "dirección Las Américas" mientras la voz decía bien "Ecatepec"). Si el exprés termina en un
+        // transbordo a OTRA línea (L4 Exprés en Indios Verdes) se conserva la terminal oficial (La Raza).
+        for (int t = 0; t + 1 < instrucciones.size() && t + 1 < pasos.size(); t++) {
+            Instruccion ins = instrucciones.get(t);
+            int sig = instrucciones.get(t + 1).linea;
+            boolean expres = ins.linea >= 121 && ins.linea <= 124;
+            if (expres && sig != ins.linea && claveTerminal(sig) == claveTerminal(ins.linea)) {
+                String finExpres = sinMxb(nombreCorto(pasos.get(t).destino));
+                if (finExpres != null) instrucciones.set(t, new Instruccion(finExpres, ins.ruta, ins.linea, ins.color,
+                        ins.paradas, ins.transbordoAntes));
+            }
+        }
+
         // Correspondencias reales: cambios de BASE de línea (ordinario↔exprés de la misma línea no cuenta).
         int transbordos = 0;
         for (int t = 1; t < instrucciones.size(); t++)

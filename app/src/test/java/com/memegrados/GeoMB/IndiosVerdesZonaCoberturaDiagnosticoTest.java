@@ -127,7 +127,7 @@ public class IndiosVerdesZonaCoberturaDiagnosticoTest {
                 + " L1_SALE=" + aL1Sale + " L1_LLEGA=" + aL1Llega);
         assertTrue("debe ser la plataforma MÁS cercana de las 4",
                 aL4Sale < aL4Llega && aL4Sale < aL1Sale && aL4Sale < aL1Llega);
-        assertTrue("dentro del radio angosto de llegada (10 m)", aL4Sale <= 10.0);
+        assertTrue("dentro del radio angosto de llegada (20 m)", aL4Sale <= 20.0);
     }
 
     @Test
@@ -142,9 +142,9 @@ public class IndiosVerdesZonaCoberturaDiagnosticoTest {
 
     @Test
     public void radioLlegada_esAngostoParaLas4Plataformas() {
-        assertEquals(10f, RecorridoService.radioLlegada(L1_LLEGA), 0.001f);
-        assertEquals(10f, RecorridoService.radioLlegada(L1_SALE), 0.001f);
-        assertEquals(10f, RecorridoService.radioLlegada(L4_LLEGA), 0.001f);
-        assertEquals(10f, RecorridoService.radioLlegada(L4_SALE), 0.001f);
+        assertEquals(20f, RecorridoService.radioLlegada(L1_LLEGA), 0.001f);
+        assertEquals(20f, RecorridoService.radioLlegada(L1_SALE), 0.001f);
+        assertEquals(20f, RecorridoService.radioLlegada(L4_LLEGA), 0.001f);
+        assertEquals(20f, RecorridoService.radioLlegada(L4_SALE), 0.001f);
     }
 }

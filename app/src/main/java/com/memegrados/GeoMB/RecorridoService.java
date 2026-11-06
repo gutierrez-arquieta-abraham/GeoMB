@@ -220,7 +220,11 @@ public class RecorridoService extends Service {
     // imprecisión del GPS, no la ambigüedad entre plataformas (eso lo sigue resolviendo el radio ancho
     // en la lógica de cruce). Un poco más amplio que CEDA Ecatepec (7 m, coordenada medida con precisión)
     // porque estos 4 corredores se ubicaron a ojo sobre el mapa, no con una medición exacta.
-    private static final float RADIO_LLEGADA_ZONA_M = 10f;
+    // Se sube de 10 a 20 m (simulación Bosques del Valle → IPN): con ~14 m de error de GPS, 10 m nunca se
+    // cumplía y la llegada al andén L4 se anunciaba hasta la mitad de la caminata. 20 m cubre el error
+    // normal sin llegar al andén de Metrobús L1 sur (su corredor queda a ≥16 m y solo el viajero de esa
+    // línea usa este radio para él), y sigue muy por debajo de los ~50 m del defecto original.
+    private static final float RADIO_LLEGADA_ZONA_M = 20f;
 
     /** Ciclos de GPS SEGUIDOS exigidos para confirmar una "correspondencia corta" (ver su uso en
      *  procesarInterno): antes eran 2; defecto real confirmado (viaje real, Indios Verdes) con
@@ -869,6 +873,14 @@ public class RecorridoService extends Service {
                     // anterior YA estaba co-ubicado con este.
                     boolean yaAvisado = ultProxima == i
                             || (ultProxima >= 0 && ultProxima < seq.size() && coUbicada(seq.get(ultProxima), pi));
+                    // Cambio de servicio/ruta en la MISMA estación (ordinario↔exprés, L4 Norte↔Sur): ya
+                    // estás ahí y la llegada a 'best' ya dijo qué tomar. Antes sonaban además "Próxima
+                    // estación: Ecatepec… preparando" y "Llegando a estación: Ecatepec" (3 avisos seguidos).
+                    int tcAqui = tipoCambio(seq, i);
+                    if ((tcAqui == 2 || tcAqui == 3) && mismaEstacion(seq.get(best), pi) && ultLlegando >= best) {
+                        yaAvisado = true;
+                        ultLlegando = i;
+                    }
                     if (!yaAvisado) {
                         sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea, nom(seq.get(i)));
                     }
@@ -1372,13 +1384,16 @@ public class RecorridoService extends Service {
     private String vozLlegada(List<Planificador.Parada> seq, int best) {
         Planificador.Parada p = seq.get(best);
         boolean esFinal = best == seq.size() - 1;   // última estación del recorrido
+        // ¿Bajas aquí a cambiar? La parada siguiente arranca otro tramo (línea/conexión, unidad o ruta).
+        int tcSig = best + 1 < seq.size() ? tipoCambio(seq, best + 1) : 0;
         if (esTerminal(p) && !esAbordaje(seq, best)) {
             String vt = vozTerminal(p, true);
+            // Terminal del exprés con cambio de servicio/ruta aquí (p. ej. Ecatepec, L2 Exprés →
+            // Ordinario): antes solo decía "estación terminal" y nunca qué tomar.
+            if (tcSig == 2 || tcSig == 3) vt += ". " + instruccionBajada(seq, best, tcSig);
             if (esFinal) vt += ". " + getString(ultimaEst(p.linea));
             return vt;
         }
-        // ¿Bajas aquí a cambiar? La parada siguiente arranca otro tramo (línea/conexión, unidad o ruta).
-        int tcSig = best + 1 < seq.size() ? tipoCambio(seq, best + 1) : 0;
         boolean bajas = tcSig != 0 || (best + 1 < seq.size() && seq.get(best + 1).transbordo);
         String tf = transferenciaTexto(p.linea, basesCorresp(p));
         if (tf.isEmpty() && !bajas) {
