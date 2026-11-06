@@ -88,7 +88,10 @@ public final class DescargaVoz {
         List<TextoEstacion> t = new ArrayList<>();
         Linea l = GtfsRepository.porNumero(ctx, linea);
         if (l == null) return t;
-        String prep = ctx.getString(R.string.voz_transbordo_prep);
+        // Preparación con la palabra de cada tipo de cambio (debe coincidir con RecorridoService.prepTransferencia()).
+        java.util.Map<Integer, String> prepPor = new java.util.HashMap<>();
+        for (int pal : new int[]{R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia, R.string.voz_palabra_conexion})
+            prepPor.put(pal, ctx.getString(R.string.voz_prep_transferencia, ctx.getString(pal)));
         // Mexicable (teleférico): se viaja en CABINA, no "unidad" (debe coincidir con RecorridoService).
         String ult  = ctx.getString(linea >= 200 ? R.string.voz_ultima_est_cabina : R.string.voz_ultima_est);
         // Solo transbordo/correspondencia: su instrucción de bajada es genérica (no nombra destino),
@@ -119,13 +122,23 @@ public final class DescargaVoz {
                 String tl = Locuciones.vozTerminal(ctx, linea, e.nombre, pos, true);   // llegada
                 String tp = Locuciones.vozTerminal(ctx, linea, e.nombre, pos, false);  // próxima
                 agregar(t, vistos, nom, tl); agregar(t, vistos, nom, tp); agregar(t, vistos, nom, tl + ". " + ult);
+                // Terminal donde se cambia de línea: "Próxima estación terminal…" + preparación, y la
+                // llegada + qué hacer (como RecorridoService.vozProxima()/vozLlegada()).
+                for (int b : Locuciones.basesCorresp(ctx, linea, e.nombre, pos)) {
+                    int pal = Locuciones.palabraTransferencia(linea, b);
+                    agregar(t, vistos, nom, tp + ". " + prepPor.get(pal));
+                    agregar(t, vistos, nom, tl + ". " + (pal == R.string.voz_palabra_conexion
+                            ? ctx.getString(R.string.voz_camina_conexion, Locuciones.nombreConexion(ctx, b, e.nombre))
+                            : ctx.getString(R.string.voz_baja_realiza, ctx.getString(pal))));
+                }
             } else {
                 java.util.TreeSet<Integer> bases = Locuciones.basesCorresp(ctx, linea, e.nombre, pos);
                 String tf = Locuciones.transferenciaTexto(ctx, linea, bases);
                 if (!tf.isEmpty()) {
                     String px = ctx.getString(R.string.voz_prox_base, nom) + tf;
                     agregar(t, vistos, nom, px);
-                    agregar(t, vistos, nom, px + ". " + prep);
+                    for (int b : bases)   // una variante por cada palabra real de la estación
+                        agregar(t, vistos, nom, px + ". " + prepPor.get(Locuciones.palabraTransferencia(linea, b)));
                     String lg = ctx.getString(R.string.voz_lleg_base, nom) + tf;
                     agregar(t, vistos, nom, lg);
                     agregar(t, vistos, nom, lg + ". " + ult);

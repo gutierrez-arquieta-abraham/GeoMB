@@ -262,7 +262,6 @@
     <string name="voz_transborda">Estás llegando a %1$s. Baja y haz tu correspondencia a la Línea %2$s.</string>
     <string name="voz_llegaste">Llegaste a %1$s, última estación de tu recorrido.</string>
     <string name="voz_afectacion">Atención: hay afectaciones en el servicio. Verifica tu ruta.</string>
-    <string name="voz_transbordo_prep">Atención: estás llegando a la estación donde vas a realizar tu correspondencia. Favor de irte preparando.</string>
     <string name="ruta_inicio">Inicio</string>
     <string name="ruta_final">Destino</string>
     <string name="voz_llegando_est">Llegando a estación: %1$s</string>
@@ -707,4 +706,5 @@
     <string name="citi_mis_unidades">Mis unidades</string>
     <string name="citi_asistente">Asistente</string>
     <string name="citi_configuracion">Configuración</string>
+    <string name="voz_prep_transferencia">Atención: estás llegando a la estación donde vas a realizar tu %1$s. Favor de irte preparando.</string>
 </resources>

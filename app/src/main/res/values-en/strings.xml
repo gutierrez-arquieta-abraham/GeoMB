@@ -257,7 +257,6 @@
     <string name="voz_transborda">You are arriving at %1$s. Get off and transfer to Line %2$s.</string>
     <string name="voz_llegaste">You arrived at %1$s, the last station of your trip.</string>
     <string name="voz_afectacion">Attention: there are service disruptions. Check your route.</string>
-    <string name="voz_transbordo_prep">Attention: you are arriving at the station where you will transfer. Please get ready.</string>
     <string name="ruta_inicio">Start</string>
     <string name="ruta_final">Destination</string>
     <string name="voz_llegando_est">Arriving at station: %1$s</string>
@@ -663,4 +662,5 @@
     <string name="citi_mis_unidades">My buses</string>
     <string name="citi_asistente">Assistant</string>
     <string name="citi_configuracion">Settings</string>
+    <string name="voz_prep_transferencia">Attention: you are arriving at the station where you will make your %1$s. Please get ready.</string>
 </resources>

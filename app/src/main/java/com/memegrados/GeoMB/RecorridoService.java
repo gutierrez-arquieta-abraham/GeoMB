@@ -882,7 +882,9 @@ public class RecorridoService extends Service {
                         ultLlegando = i;
                     }
                     if (!yaAvisado) {
-                        sonarYHablar(vozProxima(seq, i, true), seq.get(best).linea, nom(seq.get(i)));
+                        // Sin "favor de irte preparando" si ya llegaste al andén anterior: ese aviso ya
+                        // dijo qué hacer y aquí vas caminando el cruce (sonaba fuera de lugar).
+                        sonarYHablar(vozProxima(seq, i, ultLlegando < best), seq.get(best).linea, nom(seq.get(i)));
                     }
                     ultProxima = i;
                     // Caso real confirmado (Indios Verdes, Mexibús→Metrobús): cuando es el camino de
@@ -1358,15 +1360,34 @@ public class RecorridoService extends Service {
      *  transbordará ahí, añade la preparación ("atención… favor de irte preparando"). */
     private String vozProxima(List<Planificador.Parada> seq, int idx, boolean prepararse) {
         Planificador.Parada prox = seq.get(idx);
-        if (esTerminal(prox) && !esAbordaje(seq, idx)) return vozTerminal(prox, false);   // terminal de línea (al llegar)
+        if (esTerminal(prox) && !esAbordaje(seq, idx)) {   // terminal de línea (al llegar)
+            // Antes se devolvía solo el aviso de terminal y se perdía la preparación (p. ej. Metrobús L1
+            // al norte llegando a Indios Verdes para la conexión con Mexibús L4).
+            String vt = vozTerminal(prox, false);
+            return prepararse ? vt + ". " + prepTransferencia(seq, idx) : vt;
+        }
         String tf = transferenciaTexto(prox.linea, basesCorresp(prox));
         StringBuilder v = tf.isEmpty()
                 ? new StringBuilder(getString(vozTxt(R.string.voz_proxima, R.string.voz_proxima_ximena, prox.linea), nom(prox)))
                 : new StringBuilder(getString(vozTxt(R.string.voz_prox_base, R.string.voz_prox_base_ximena, prox.linea), nom(prox))).append(tf);
         // "Favor de irte preparando" cuando te ACERCAS a la estación donde bajarás a hacer la
         // correspondencia (no cuando ya llegaste al andén de la otra línea).
-        if (prepararse) v.append(". ").append(getString(R.string.voz_transbordo_prep));
+        if (prepararse) v.append(". ").append(prepTransferencia(seq, idx));
         return v.toString();
+    }
+
+    /** "Atención: estás llegando a la estación donde vas a realizar tu {transbordo|correspondencia|
+     *  conexión}. Favor de irte preparando." La palabra sale de los sistemas del cambio (ver
+     *  {@link #palabraTransferencia}); antes siempre decía "correspondencia". El cambio es con la línea
+     *  ANTERIOR si idx ya es el nodo de la línea nueva (bloque de cruce), o con la SIGUIENTE si no. */
+    private String prepTransferencia(List<Planificador.Parada> seq, int idx) {
+        Planificador.Parada p = seq.get(idx);
+        int base = baseLinea(p.linea), otra = -1;
+        if (idx > 0 && baseLinea(seq.get(idx - 1).linea) != base) otra = seq.get(idx - 1).linea;
+        for (int k = idx + 1; otra < 0 && k < seq.size(); k++)
+            if (baseLinea(seq.get(k).linea) != base) otra = seq.get(k).linea;
+        int palabra = otra >= 0 ? palabraTransferencia(p.linea, otra) : R.string.voz_palabra_correspondencia;
+        return getString(R.string.voz_prep_transferencia, getString(palabra));
     }
 
     /** ¿La parada es de ABORDAJE (subes a esta línea aquí y sigues)? Es decir, cambiaste de línea en ella
@@ -1388,9 +1409,11 @@ public class RecorridoService extends Service {
         int tcSig = best + 1 < seq.size() ? tipoCambio(seq, best + 1) : 0;
         if (esTerminal(p) && !esAbordaje(seq, best)) {
             String vt = vozTerminal(p, true);
-            // Terminal del exprés con cambio de servicio/ruta aquí (p. ej. Ecatepec, L2 Exprés →
-            // Ordinario): antes solo decía "estación terminal" y nunca qué tomar.
-            if (tcSig == 2 || tcSig == 3) vt += ". " + instruccionBajada(seq, best, tcSig);
+            // Terminal donde bajas a cambiar (exprés → ordinario en Ecatepec, o Metrobús L1 al norte en
+            // Indios Verdes → conexión con Mexibús L4): antes solo decía "estación terminal" y nunca qué
+            // hacer ("Baja y toma el servicio…" / "Camina hasta llegar a la conexión con…").
+            boolean bajaAqui = tcSig != 0 || (best + 1 < seq.size() && seq.get(best + 1).transbordo);
+            if (bajaAqui) vt += ". " + instruccionBajada(seq, best, tcSig != 0 ? tcSig : 1);
             if (esFinal) vt += ". " + getString(ultimaEst(p.linea));
             return vt;
         }
