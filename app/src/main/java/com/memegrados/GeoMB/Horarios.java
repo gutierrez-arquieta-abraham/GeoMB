@@ -383,7 +383,7 @@ public final class Horarios {
 
     /**
      * Terminal(es) de dirección para tu parada, según las rutas de horarios. Recolecta las rutas que
-     * CUBREN tu parada (ia) Y siguen circulando en {@code momento} (una vuelta corta ya cerrada por hoy
+     * CUBREN tu parada (ia), LLEGAN al menos hasta donde bajas (ib) Y siguen circulando en {@code momento} (una vuelta corta ya cerrada por hoy
      * no cuenta, así de noche esto cae en la RUTA COMPLETA que siga abierta), y toma, de cada una, su
      * extremo en tu sentido de viaje (por índice; no se asume que {@code destino} sea el extremo mayor).
      * Devuelve las terminales DISTINTAS de la más cercana a la más lejana, unidas con " o " (p. ej.
@@ -397,7 +397,11 @@ public final class Horarios {
      */
     public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib, Calendar momento) {
         boolean forward = ib > ia;               // hacia el extremo de índice MAYOR de la línea
+        // Último índice REAL de la línea: el catálogo agrega al final andenes "soloMapa" (L1: Indios
+        // Verdes, Insurgentes…), que no son el extremo de la troncal. Con size()-1 una ruta mixta salía
+        // con dirección "Insurgentes" (el andén extra) en vez de su extremo real.
         int last = l.estaciones.size() - 1;
+        while (last > 0 && l.estaciones.get(last).soloMapa) last--;
         List<Integer> idxs = new ArrayList<>();
         List<String> nombres = new ArrayList<>();
         int rutasCubren = 0;
@@ -414,6 +418,10 @@ public final class Horarios {
             // "Buenavista → El Caminero" cubre [8,45] y tú abordas justo en el 8 yendo HACIA ABAJO, fuera
             // de ese rango) -- mostrar tu propia estación como "dirección" no tiene sentido. Se descarta.
             if (termIdx == ia) continue;
+            // Una vuelta corta que termina ANTES de donde bajas no te lleva: no es tu dirección.
+            // Defecto real (reporte del usuario): de sur a norte hasta Indios Verdes decía "dirección
+            // Buenavista" (la vuelta El Caminero→Buenavista era la más cercana de las que te cubren).
+            if (forward ? termIdx < ib : termIdx > ib) continue;
             if (!rutaAbierta(r, momento)) continue;          // este patrón ya cerró por hoy: no lo propongas
             rutasCubren++;
             // Nombre REAL de la estación (l.estaciones), nunca el crudo de horarios.json: origen/destino

@@ -1772,6 +1772,12 @@ public final class Planificador {
                 String tm = terminalMexibus(ctx, r.linea.numero, finStop.pos);
                 if (tm != null) terminal = tm;
             }
+            // La dirección nunca es la estación donde abordas (mismo resguardo que la voz del recorrido,
+            // RecorridoService.direccionTerminal): en el circuito L2A, subiendo en Río de los Remedios
+            // hacia Paseo Ventura, la terminal oficial más cercana era la propia Río de los Remedios.
+            if (norm(sinMxb(Horarios.nomNombre(terminal))).equals(norm(sinMxb(Horarios.nomNombre(a.nombre))))
+                    && !norm(sinMxb(finStop.nombre)).equals(norm(sinMxb(a.nombre))))
+                terminal = finStop.nombre;
             // ¿Este tramo se abordó tras una "vuelta" pagada en una estación de 2 plataformas? (mismo
             // número de línea que el tramo anterior, en una estación de la lista DOS_PLATAFORMAS).
             boolean pasajeExtra = !pasos.isEmpty() && pasos.get(pasos.size() - 1).linea == a.linea
