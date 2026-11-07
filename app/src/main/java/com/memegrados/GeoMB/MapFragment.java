@@ -138,11 +138,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     // Iconos de estación: se encogen al alejar y, al acercar, crecen como un objeto real de
-    // TAMANO_ESTACION_M (50 m, también las estaciones largas) en cuanto eso supera su tamaño base,
-    // hasta el zoom máximo del mapa (ZOOM_MAXIMO, donde la estación mide exactamente esos 50 m).
+    // TAMANO_ESTACION_M (25 m, también las estaciones largas) en cuanto eso supera su tamaño base,
+    // hasta el zoom máximo del mapa (ZOOM_MAXIMO, donde la estación mide exactamente esos 25 m).
     private float escalaEstaciones = 1f;
     static final float ZOOM_MAXIMO = 18f;
-    static final double TAMANO_ESTACION_M = 50.0;
+    static final double TAMANO_ESTACION_M = 25.0;   // era 50 m: se veían demasiado grandes
 
     /** Escala del icono de estación de tamaño base {@code baseDp} a un zoom y latitud dados. Por
      *  pasos (½ nivel de zoom) para que cada paso sea un bitmap cacheado. */
@@ -171,7 +171,16 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         java.util.Set<String> bloq = Manifestaciones.bloqueadas();
         for (EstMapa em : estaciones) if (em.marker != null) em.marker.setIcon(iconoEstacionOTransbordo(em, fueraDeServicio(em, bloq)));
         for (EstMapa em : mexibusEst) if (em.marker != null) em.marker.setIcon(iconoMexibus(em, bloq));
+        // Paradas de la ruta trazada (planificador): mismo tamaño que el resto de las estaciones.
+        Planificador.Ruta r = rutaActiva;
+        if (r != null && marcadoresRuta.size() == iconosRuta.size())
+            for (int i = 0; i < marcadoresRuta.size(); i++) {
+                BitmapDescriptor ic = iconosRuta.get(i).get();
+                if (ic != null) marcadoresRuta.get(i).setIcon(ic);
+            }
     }
+    // Cómo volver a dibujar cada marcador de marcadoresRuta (mismo orden) a la escala actual.
+    private final List<java.util.function.Supplier<BitmapDescriptor>> iconosRuta = new ArrayList<>();
 
     /** Si el zoom cambió de paso de escala, repinta los iconos de todas las unidades visibles. */
     private void ajustarEscalaUnidades() {
@@ -943,7 +952,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.getUiSettings().setZoomControlsEnabled(false);   // usamos botones propios
         mapa.getUiSettings().setCompassEnabled(false);        // reemplazada por btn_norte (brújula propia)
         mapa.getUiSettings().setMapToolbarEnabled(false);
-        mapa.setMaxZoomPreference(ZOOM_MAXIMO);                // ahí una estación mide 50 m (escalaEstacionPorZoom)
+        mapa.setMaxZoomPreference(ZOOM_MAXIMO);                // ahí una estación mide 25 m (escalaEstacionPorZoom)
         // El botón de norte actúa como brújula: rota según el bearing de la cámara.
         final View btnNorte = getView() != null ? getView().findViewById(R.id.btn_norte) : null;
         if (btnNorte != null) mapa.setOnCameraMoveListener(() ->
@@ -3041,6 +3050,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         trazoRuta.clear();
         for (Marker m : marcadoresRuta) m.remove();
         marcadoresRuta.clear();
+        iconosRuta.clear();
         if (progresoLine != null) { progresoLine.remove(); progresoLine = null; }
         rutaActiva = r;
         avisoUnidad = false;
@@ -3068,13 +3078,15 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         for (Planificador.Parada p : r.secuencia) {
             boolean esTroncalH72L2 = p.linea == 2 && Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(p.nombre));
             boolean esPropioH72 = p.linea == 2 && Iconos.ESTACIONES_PROPIAS_H72.contains(Planificador.norm(p.nombre));
-            BitmapDescriptor ic = (esTroncalH72L2 || esPropioH72)
-                    ? bitmapEstacionTransbordoRuta(p.icono, colorDeRuta(esTroncalH72L2 ? 7 : 2), colorDeRuta(esTroncalH72L2 ? 2 : 7))
-                    : bitmapEstacionRuta(p.icono, p.color);
+            java.util.function.Supplier<BitmapDescriptor> sup = (esTroncalH72L2 || esPropioH72)
+                    ? () -> bitmapEstacionTransbordoRuta(p.icono, colorDeRuta(esTroncalH72L2 ? 7 : 2), colorDeRuta(esTroncalH72L2 ? 2 : 7))
+                    : () -> bitmapEstacionRuta(p.icono, p.color);
+            BitmapDescriptor ic = sup.get();
             if (ic == null) continue;
             String titulo = Planificador.nombreMostrar(requireContext(), p.nombre, p.linea);
             marcadoresRuta.add(mapa.addMarker(new MarkerOptions().position(p.pos).title(titulo)
                     .icon(ic).anchor(0.5f, 0.5f).zIndex(6f)));
+            iconosRuta.add(sup);
         }
         ultimosLimitesRuta = bounds.build();
 
@@ -3541,7 +3553,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     private BitmapDescriptor bitmapEstacionRuta(String icono, int color) {
-        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        int px = Math.max(8, Math.round(28 * escalaEstaciones * getResources().getDisplayMetrics().density));
         Bitmap bmp = Iconos.pictograma(requireContext(), icono, px);
         if (bmp != null) return BitmapDescriptorFactory.fromBitmap(bmp);
         Bitmap dot = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
@@ -3553,7 +3565,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     }
 
     private BitmapDescriptor bitmapEstacionTransbordoRuta(String icono, int colorArriba, int colorAbajo) {
-        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        int px = Math.max(8, Math.round(28 * escalaEstaciones * getResources().getDisplayMetrics().density));
         Bitmap bmp = Iconos.pictograma(requireContext(), icono, px);
         if (bmp != null)
             return BitmapDescriptorFactory.fromBitmap(Iconos.recoloreaFondoDiagonal(bmp, colorArriba, colorAbajo));
@@ -3727,6 +3739,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         baseTrazo.clear();
         trazoRuta.clear();
         marcadoresRuta.clear();
+        iconosRuta.clear();
         centroCarga = null;
         coloresLinea.clear();
         mapa = null;
