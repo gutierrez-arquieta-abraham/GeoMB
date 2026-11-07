@@ -28,7 +28,7 @@
         android:alpha="0"
         android:gravity="center"
         android:orientation="vertical"
-        android:paddingHorizontal="32dp">
+        android:paddingHorizontal="16dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -38,22 +38,64 @@
             android:textSize="14sp"
             android:alpha="0.85" />
 
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="84dp"
-            android:layout_marginTop="14dp"
-            android:adjustViewBounds="true"
-            android:contentDescription="@string/creditos_abt"
-            android:src="@drawable/abt_logo_blanco" />
-
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/creditos_abt_nombre"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="16dp"
+            android:baselineAligned="false"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="72dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@string/creditos_abt"
+                    android:src="@drawable/abt_logo_blanco" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="@string/creditos_abt_nombre"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="72dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@string/creditos_transpoarte"
+                    android:src="@drawable/transpoarte_logo_blanco" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="@string/creditos_transpoarte_nombre"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 
     <!-- 3) Nombres en puro texto, uno tras otro (SplashActivity.CREDITOS_TEXTO) -->
