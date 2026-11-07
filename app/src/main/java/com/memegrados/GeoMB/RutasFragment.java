@@ -120,6 +120,7 @@ public class RutasFragment extends Fragment {
     private Map<String, Integer> contarPorRuta() {
         Map<String, Integer> m = new HashMap<>();
         for (UnidadReal u : RealtimeRepository.get().getUltimo()) {
+            if (!RealtimeRepository.visibleParaUsuario(u)) continue;   // guardada en patio
             Ruta r = RutasRepository.porRouteId(u.ruta);
             if (r == null) continue;
             String k = r.linea + ":" + r.codigo;

@@ -1588,6 +1588,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         }
         Set<String> vistos = new HashSet<>();
         int total = 0;
+        // Función "unidades en patio" (Modos.verUnidadesPatio): se lee UNA vez por ciclo, no por unidad.
+        final boolean ocultarPatio = !Modos.verUnidadesPatio(requireContext());
+        if (ocultarPatio) Patios.cargar(requireContext());
         // Normal: se muestran las unidades dentro de la región visible del mapa (progresivo
         // al alejar). En búsqueda (centroForzado) se usa un radio alrededor del punto.
         LatLngBounds vista = (mapa != null && centroForzado == null) ? rangoVisible() : null;
@@ -1595,6 +1598,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         for (UnidadReal u : unidades) {
             if (!RealtimeRepository.filtro.cumple(u)) continue;   // oculta las que no pasan el filtro
             if (!unidadVisibleCiti(u)) continue;                   // estilo CITI: solo las del servicio elegido
+            // Guardadas en patio/encierro (Patios): solo con la función "unidades en patio"
+            // (Modos.verUnidadesPatio, futura suscripción). Va ANTES de total++ para que el
+            // contador de unidades cuente solo las que el usuario puede ver. Aplica igual en GeoMB
+            // y en estilo CITI (mismo método).
+            if (ocultarPatio && Patios.guardada(u)) continue;
             total++;   // total en servicio (para el contador), aunque no todas se dibujen
             boolean enRango = vista != null ? vista.contains(u.posicion)
                     : (centroForzado == null || Linea.distancia(u.posicion, centroForzado) <= RADIO_MAPA_M);

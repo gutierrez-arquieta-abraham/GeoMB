@@ -35,7 +35,8 @@ import java.util.concurrent.Executors;
 // listado. La descarga corre en un executor (2º plano) y publica en el
 // 'main' Handler.
 //
-// Incluye el filtro de "fantasmas" (descarta unidades con timestamp viejo).
+// Incluye el filtro de "fantasmas" (descarta unidades con timestamp viejo)
+// y el de unidades guardadas en patio (visibleParaUsuario, ver Patios).
 // ============================================================
 public final class RealtimeRepository {
 
@@ -92,11 +93,18 @@ public final class RealtimeRepository {
         return null;
     }
 
-    /** Últimas unidades que cumplen los filtros activos. */
+    /** ¿Este usuario ve la unidad? Las GUARDADAS en patio ({@link Patios#guardada}) solo se ven con
+     *  la función "unidades en patio" ({@link Modos#verUnidadesPatio}); es el mismo criterio que
+     *  aplica el mapa (MapFragment.actualizarUnidades), para que listas y conteos cuadren con él. */
+    public static boolean visibleParaUsuario(UnidadReal u) {
+        return !Patios.ocultar(GeoMBApplication.get(), u);
+    }
+
+    /** Últimas unidades que cumplen los filtros activos (sin las guardadas en patio, salvo con la
+     *  función "unidades en patio"). */
     public List<UnidadReal> filtradas() {
-        if (!filtro.hayAlguno()) return ultimo;
         List<UnidadReal> res = new ArrayList<>();
-        for (UnidadReal u : ultimo) if (filtro.cumple(u)) res.add(u);
+        for (UnidadReal u : ultimo) if (filtro.cumple(u) && visibleParaUsuario(u)) res.add(u);
         return res;
     }
 
@@ -104,7 +112,8 @@ public final class RealtimeRepository {
     public List<UnidadReal> deLinea(int numeroLinea) {
         List<UnidadReal> res = new ArrayList<>();
         for (UnidadReal u : ultimo) {
-            if (u.linea != null && u.linea == numeroLinea && filtro.cumple(u)) res.add(u);
+            if (u.linea != null && u.linea == numeroLinea && filtro.cumple(u)
+                    && visibleParaUsuario(u)) res.add(u);
         }
         return res;
     }
@@ -112,7 +121,8 @@ public final class RealtimeRepository {
     /** Cuántas unidades en servicio hay por línea (1..7). */
     public int cuentaLinea(int numeroLinea) {
         int c = 0;
-        for (UnidadReal u : ultimo) if (u.linea != null && u.linea == numeroLinea) c++;
+        for (UnidadReal u : ultimo)
+            if (u.linea != null && u.linea == numeroLinea && visibleParaUsuario(u)) c++;
         return c;
     }
 

@@ -25,6 +25,7 @@
     <string name="modo_sw_cachondo">Notificaciones coquetas (búsqueda)</string>
     <string name="modo_sw_pbs">Claves de operación (PBS)</string>
     <string name="modo_sw_estilo_citi">Estilo CITI (app Metrobús 2018)</string>
+    <string name="modo_sw_unidades_patio">Ver unidades guardadas en patio</string>
     <!-- Estilo CITI: textos tal cual de la app de Indra -->
     <string name="citi_mapa">Mapa</string>
     <string name="citi_menu">Menú</string>

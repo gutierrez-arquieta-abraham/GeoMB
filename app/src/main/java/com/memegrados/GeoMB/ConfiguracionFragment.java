@@ -61,7 +61,7 @@ import java.io.InputStream;
 public class ConfiguracionFragment extends Fragment {
 
     private View panel;
-    private SwitchMaterial swCachondo, swPbs, swEstiloCiti;
+    private SwitchMaterial swCachondo, swPbs, swEstiloCiti, swUnidadesPatio;
     private SwitchMaterial swVozXimenaMetrobus, swVozXimenaMexibus, swVozXimenaMexicable;
     private View btnVerClaves;
     private AlertDialog dlgDescargaAudios;   // se cierra en onDestroyView para no dejar la ventana "colgada"
@@ -139,6 +139,7 @@ public class ConfiguracionFragment extends Fragment {
         swCachondo = view.findViewById(R.id.sw_cachondo);
         swPbs = view.findViewById(R.id.sw_pbs);
         swEstiloCiti = view.findViewById(R.id.sw_estilo_citi);
+        swUnidadesPatio = view.findViewById(R.id.sw_unidades_patio);
         swVozXimenaMetrobus = view.findViewById(R.id.sw_voz_ximena_metrobus);
         swVozXimenaMexibus = view.findViewById(R.id.sw_voz_ximena_mexibus);
         swVozXimenaMexicable = view.findViewById(R.id.sw_voz_ximena_mexicable);
@@ -239,6 +240,10 @@ public class ConfiguracionFragment extends Fragment {
                 i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(i);
             }
+        });
+        swUnidadesPatio.setOnClickListener(v2 -> {
+            Modos.setVerUnidadesPatio(requireContext(), swUnidadesPatio.isChecked());
+            refrescar();
         });
         swPbs.setOnClickListener(v2 -> {
             Modos.setPbs(requireContext(), swPbs.isChecked());
@@ -516,6 +521,9 @@ public class ConfiguracionFragment extends Fragment {
         } else if (Modos.FRASE_ESTILO_CITI.equals(f)) {
             Modos.setEstiloCitiDisponible(requireContext(), true);
             Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
+        } else if (Modos.FRASE_UNIDADES_PATIO.equals(f)) {
+            Modos.setVerUnidadesPatio(requireContext(), true);
+            Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
         } else if (Modos.FRASE_VOZ_XIMENA.equals(f)) {
             Modos.setVozXimenaDisponible(requireContext(), true);
             Toast.makeText(requireContext(), R.string.modo_frase_ok, Toast.LENGTH_SHORT).show();
@@ -539,6 +547,9 @@ public class ConfiguracionFragment extends Fragment {
         boolean citiDisp = Modos.estiloCitiDisponible(requireContext());
         swEstiloCiti.setVisibility(citiDisp ? View.VISIBLE : View.GONE);
         swEstiloCiti.setChecked(Modos.estiloCiti(requireContext()));
+        boolean patio = Modos.verUnidadesPatio(requireContext());
+        swUnidadesPatio.setVisibility(patio ? View.VISIBLE : View.GONE);   // tocarlo la apaga
+        swUnidadesPatio.setChecked(patio);
         int visXimena = vozXimenaDisp ? View.VISIBLE : View.GONE;
         swVozXimenaMetrobus.setVisibility(visXimena);
         swVozXimenaMetrobus.setChecked(Modos.vozXimenaMetrobus(requireContext()));

@@ -27,6 +27,7 @@
     <string name="modo_sw_cachondo">Flirty notifications (search)</string>
     <string name="modo_sw_pbs">Operation codes (PBS)</string>
     <string name="modo_sw_estilo_citi">CITI style (2018 Metrobús app)</string>
+    <string name="modo_sw_unidades_patio">Show buses parked at depots</string>
     <string name="citi_mapa">Map</string>
     <string name="citi_menu">Menu</string>
     <string name="citi_autobus">Bus %s</string>

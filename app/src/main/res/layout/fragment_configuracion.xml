@@ -609,6 +609,14 @@
                 android:visibility="gone" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/sw_unidades_patio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/modo_sw_unidades_patio"
+                android:visibility="gone" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/sw_voz_ximena_metrobus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

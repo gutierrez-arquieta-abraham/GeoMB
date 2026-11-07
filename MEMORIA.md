@@ -166,6 +166,18 @@ CA propia `/etc/nginx/certs/geomb-admin-ca.crt`); `/admin` **bloqueado (404) en 
 - **Filtro de fantasmas** (`RealtimeRepository.filtrarFantasmas`): descarta unidades cuyo `timestamp` está a >**240 s** de la unidad
   MÁS FRESCA del lote (referencia relativa, inmune a desfase de reloj). Sin timestamp → se conservan. Afecta mapa y llegadas.
 
+## Patios / unidades guardadas — `Patios.java` + `assets/patios.json`
+- Patios/encierros ubicados con el feed GTFS-RT de Sonda de madrugada (2026-11-07, 02:00–04:00 CDMX, lecturas cada 10 min):
+  grupos de ≥5 unidades detenidas a ≤150 m. Cada patio: `lat/lon/radio_m` (círculo envolvente) + `poligono` (envolvente convexa
+  + 25 m) + `excluir` (círculos donde NUNCA es patio: andenes de terminal pegados, 50 m, y el carril del trazo que lo cruza, 15 m).
+- **Guardada** = dentro de patio Y `velMs < 0.6` (`Patios.guardada`); si se mueve dentro del patio ya cuenta como en servicio.
+- Usuarios normales solo ven unidades en servicio: `Patios.ocultar(ctx,u)` en `MapFragment.actualizarUnidades` (antes de `total++`
+  → el contador cuadra; aplica igual en estilo CITI) y `RealtimeRepository.visibleParaUsuario` en `filtradas/deLinea/cuentaLinea`
+  y en `RutasFragment.contarPorRuta`. `Llegadas.proximas` omite las guardadas para TODOS (no vienen a ninguna estación).
+- Función de **suscripción** "unidades en patio": `Modos.verUnidadesPatio` (ahí se conectará el cobro). Mientras, frase secreta
+  `FRASE_UNIDADES_PATIO` = "Encierro de madrugada" + switch para apagarla (se apaga con el modo personalizado).
+- Recalibrar: repetir la captura nocturna y regenerar el JSON (los scripts quedaron fuera del repo); el feed directo no trae Mexibús.
+
 ## Favoritos en la cuenta — `FavoritosNube.java`
 - Unidades guardadas (Room `economicos_favoritos`) y estaciones favoritas CITI (`EstiloCiti`, prefs) se guardan como campos del doc `usuarios/{uid}` (`favUnidades`, `favEstaciones`, `favTs`), el único que permiten las reglas de Firestore documentadas.
 - Al abrir (MainActivity/CitiActivity, 1 vez por proceso): 1ª vez en el teléfono = unión; otra cuenta = la nube reemplaza; después, gana el `favTs` más nuevo. Cada cambio local sube todo (`update`, para que viajen las bajas).

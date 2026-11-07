@@ -83,8 +83,12 @@ public final class Llegadas {
         double dEst = l.distanciaEn(estacion);
         boolean adelante = sentidoAdelante(l, dEst, destino);
 
+        Patios.cargar(ctx);
         for (UnidadReal u : unidades) {
             if (!perteneceALinea(u, linea)) continue;
+            // Guardada en patio (detenida en un encierro): no "viene" a ninguna estación, aunque
+            // el patio quede junto al trazo -- se omite para TODOS, con o sin la función de patio.
+            if (Patios.guardada(u)) continue;
 
             double dU = l.distanciaEn(u.posicion);
             double rem;

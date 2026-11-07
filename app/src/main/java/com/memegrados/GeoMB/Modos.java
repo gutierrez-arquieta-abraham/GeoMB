@@ -27,6 +27,8 @@ import android.content.SharedPreferences;
 //   - Suscripciones de notificaciones (afectaciones, actualizaciones y
 //     por línea 1..7).
 //   - Mostrar Mexibús (capa + ruteo), estilo de iconos, ahorro de datos.
+//   - Función "unidades en patio" (ver las guardadas en encierro; frase
+//     secreta mientras no haya suscripción, ver Patios).
 //
 // PATRÓN: para cada preferencia hay un GET (leer) y un SET (guardar).
 // Clase de UTILIDAD (final + constructor privado + métodos static);
@@ -45,6 +47,7 @@ public final class Modos {
     private static final String K_SINCRO = "sincro_fondo";
     private static final String K_CITI_DISP = "estilo_citi_disp";   // gate (frase secreta)
     private static final String K_CITI = "estilo_citi";
+    private static final String K_UNIDADES_PATIO = "ver_unidades_patio";   // función "unidades en patio"
 
     /** Frases secretas EXACTAS (se comparan tal cual, con mayúsculas y acentos). */
     public static final String FRASE_CACHONDO = "CUMsultando a la patrona";
@@ -60,6 +63,10 @@ public final class Modos {
     // docs/MODO_CITI_referencia.md). La frase es la leyenda de su pantalla "Acerca de".
     // Pensado como función de suscripción; mientras no haya cobros vive tras esta frase.
     public static final String FRASE_ESTILO_CITI = "App Android Metrobús v1.0";
+    // Unidades en patio: ver también las unidades GUARDADAS en patios/encierros (Patios.java), que
+    // a los usuarios normales se les ocultan (solo ven las que están en servicio). Es una función
+    // de SUSCRIPCIÓN; mientras no haya cobros vive tras esta frase.
+    public static final String FRASE_UNIDADES_PATIO = "Encierro de madrugada";
 
     private Modos() {}
 
@@ -122,7 +129,7 @@ public final class Modos {
     public static void setPersonalizado(Context c, boolean v) {
         p(c).edit().putBoolean(K_PERSON, v).apply();
         // apagar todo con él
-        if (!v) { setCachondo(c, false); setPbs(c, false); setVozXimenaDisponible(c, false); setEstiloCitiDisponible(c, false); }
+        if (!v) { setCachondo(c, false); setPbs(c, false); setVozXimenaDisponible(c, false); setEstiloCitiDisponible(c, false); setVerUnidadesPatio(c, false); }
     }
 
     public static void setCachondo(Context c, boolean v) {
@@ -160,6 +167,20 @@ public final class Modos {
 
     public static void setEstiloCiti(Context c, boolean v) {
         p(c).edit().putBoolean(K_CITI, v).apply();
+    }
+
+    // --- Unidades en patio (función de suscripción): ver las unidades guardadas en patio. ---
+
+    /** ¿El usuario ve también las unidades GUARDADAS en patio/encierro ({@link Patios#guardada})?
+     *  Sin la función, el mapa y las listas/conteos de unidades solo muestran las que están en
+     *  servicio. AQUÍ se conectará la suscripción (p. ej. {@code || Suscripcion.activa(c, ...)})
+     *  cuando haya cobros; por ahora se activa con {@link #FRASE_UNIDADES_PATIO}. */
+    public static boolean verUnidadesPatio(Context c) {
+        return personalizado(c) && p(c).getBoolean(K_UNIDADES_PATIO, false);
+    }
+
+    public static void setVerUnidadesPatio(Context c, boolean v) {
+        p(c).edit().putBoolean(K_UNIDADES_PATIO, v).apply();
     }
 
     public static void setVozXimenaMetrobus(Context c, boolean v) {
