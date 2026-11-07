@@ -203,6 +203,13 @@ public class CitiActivity extends AppCompatActivity {
         getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
     }
 
+    /** El mapa, si es la pantalla visible; null si no. */
+    @androidx.annotation.Nullable
+    MapFragment mapaVisible() {
+        Fragment f = getSupportFragmentManager().findFragmentById(R.id.citi_pantallas);
+        return f instanceof MapFragment && f.isAdded() ? (MapFragment) f : null;
+    }
+
     /** Abre el mapa; si ya está debajo en la pila, regresa a él en lugar de crear otro. */
     public void abrirMapa() {
         FragmentManager fm = getSupportFragmentManager();
@@ -252,6 +259,12 @@ public class CitiActivity extends AppCompatActivity {
      *  deslizándose. */
     public void menuEstacionMapa(CitiDatos.Est e) {
         List<Opcion> op = new ArrayList<>();
+        // Tarjeta de GeoMB con los datos de la estación, arriba del mapa (no tapa este menú).
+        op.add(new Opcion(getString(R.string.citi_mas_info), () -> {
+            cerrarMenu();
+            MapFragment m = mapaVisible();
+            if (m != null) m.masInfoEstacionCiti(e);
+        }));
         op.add(new Opcion(getString(R.string.citi_ver_tiempos), () -> { cerrarMenuSinAnimar(); abrir(CitiTiemposFragment.de(e)); }));
         op.add(new Opcion(getString(R.string.citi_ver_rutas), () -> { cerrarMenuSinAnimar(); abrirRutasDe(e); }));
         // Planificador de GeoMB: trayecto del usuario hasta esta estación.
@@ -293,6 +306,11 @@ public class CitiActivity extends AppCompatActivity {
             UnidadReal u = RealtimeRepository.get().buscar(eco);
             int linea = u != null && u.linea != null ? u.linea : 0;
             List<Opcion> op = new ArrayList<>();
+            op.add(new Opcion(getString(R.string.citi_mas_info), () -> {
+                cerrarMenu();
+                MapFragment m = mapaVisible();
+                if (m != null) m.masInfoUnidadCiti(eco);
+            }));
             if (SeguimientoService.sigue(eco)) {
                 op.add(new Opcion(getString(R.string.citi_dejar_seguir), () -> { SeguimientoService.detener(this, eco); cerrarMenu(); }));
             } else {

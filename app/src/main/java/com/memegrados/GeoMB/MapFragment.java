@@ -2135,6 +2135,54 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (em.pos != null) destelloEstacion(em.pos, em.color);   // resalta el marcador seleccionado
     }
 
+    // ---- Estilo CITI: "Más información" (tarjeta de GeoMB arriba del mapa) ----
+
+    /** Tarjeta de la unidad {@code eco} (la de GeoMB, ya expandida), bajo la barra CITI. */
+    public void masInfoUnidadCiti(String eco) {
+        if (!citi || !isAdded()) return;
+        mostrarCartaUnidad(eco, RealtimeRepository.get().buscar(eco));
+        expandirCarta();
+        cartaArribaCiti();
+    }
+
+    /** Tarjeta de la estación {@code e} (su marcador en este mapa), bajo la barra CITI. "Cómo
+     *  llegar" abre "Mi trayecto" del estilo CITI (el planificador de GeoMB no está en esta vista). */
+    public void masInfoEstacionCiti(CitiDatos.Est e) {
+        if (!citi || !isAdded() || e == null) return;
+        EstMapa mejor = null;
+        double dMejor = 60;   // m: el andén tocado
+        List<EstMapa> todas = new ArrayList<>(estaciones);
+        todas.addAll(mexibusEst);
+        for (EstMapa em : todas) {
+            if (em.linea != e.linea || em.pos == null) continue;
+            double d = Linea.distancia(em.pos, e.pos);
+            if (d < dMejor) { dMejor = d; mejor = em; }
+        }
+        if (mejor == null) return;
+        mostrarCartaEstacion(mejor);
+        View v = cartaContainer.getChildCount() > 0 ? cartaContainer.getChildAt(0) : null;
+        View llegar = v != null ? v.findViewById(R.id.btn_como_llegar_estacion) : null;
+        if (llegar != null) llegar.setOnClickListener(b -> {
+            ocultarCarta();
+            ((CitiActivity) requireActivity()).abrir(CitiTrayectoFragment.hacia(e));
+        });
+        cartaArribaCiti();
+    }
+
+    /** En CITI la tarjeta va ARRIBA, justo bajo la barra (abajo sube el menú de la app original). */
+    private void cartaArribaCiti() {
+        if (cartaContainer == null || !(cartaContainer.getLayoutParams()
+                instanceof androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)) return;
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lp =
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) cartaContainer.getLayoutParams();
+        lp.bottomToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+        lp.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+        lp.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        lp.topMargin = arribaCiti() + Math.round(8 * getResources().getDisplayMetrics().density);
+        lp.bottomMargin = 0;
+        cartaContainer.setLayoutParams(lp);
+    }
+
     /**
      * "Destello" para ubicar una estación: un aro (Circle, coordenadas reales) del color de su
      * línea que crece y se desvanece alrededor del punto varias veces y, al terminar, en vez de

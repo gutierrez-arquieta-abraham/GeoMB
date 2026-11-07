@@ -62,6 +62,7 @@
     <string name="citi_fav_unidad">Bus %1$s</string>
     <string name="citi_fav_unidad_guardada">Saved bus</string>
     <string name="citi_fav_opciones">Bus options</string>
+    <string name="citi_mas_info">More information</string>
     <string name="citi_sin_ubicacion">Could not get your location</string>
     <string name="citi_recarga_aviso">You can top up your card at the machines in any Metrobús station.</string>
     <string name="citi_info_texto">GeoMB · CITI style\nA tribute to the Metrobús Android app (Indra, 2017–2018)</string>
