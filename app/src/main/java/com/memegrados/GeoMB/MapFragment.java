@@ -2748,7 +2748,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Bases troncales Mexibús (101..104) con servicio exprés que aparecen en la ruta, EXCLUYENDO las
      *  que no tienen exprés disponible ahora mismo (Manifestaciones.expresBloqueado): no tiene caso
      *  preguntar Ordinario/Exprés si no hay una elección real -- ver forzarOrdinarioSiExpresBloqueadoRuta. */
-    private java.util.List<Integer> basesTroncalesConExpressRuta(Planificador.Ruta r) {
+    static java.util.List<Integer> basesTroncalesConExpressRuta(Planificador.Ruta r) {
         java.util.LinkedHashSet<Integer> bases = new java.util.LinkedHashSet<>();
         for (Planificador.Parada p : r.secuencia) {
             if (p.linea >= 111 && p.linea <= 119) continue;
@@ -2761,7 +2761,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Fuerza preferencia Ordinario (soft, cae de todos modos si no hubiera otra vía) para cualquier
      *  base troncal cuyo exprés esté fuera de servicio ahora mismo, según el feed de afectaciones
      *  Mexibús (ver AfectMexibusFeed/Manifestaciones.setMexibusExpresBloqueado). */
-    private static void forzarOrdinarioSiExpresBloqueadoRuta(java.util.Map<Integer, Boolean> pref) {
+    static void forzarOrdinarioSiExpresBloqueadoRuta(java.util.Map<Integer, Boolean> pref) {
         for (int base = 101; base <= 104; base++)
             if (Manifestaciones.expresBloqueado(base)) pref.put(base, false);
     }

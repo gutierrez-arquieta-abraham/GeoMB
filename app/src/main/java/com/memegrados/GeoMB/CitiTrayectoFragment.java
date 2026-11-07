@@ -152,11 +152,29 @@ public class CitiTrayectoFragment extends CitiPantalla {
         if (imm != null && foco != null) imm.hideSoftInputFromWindow(foco.getWindowToken(), 0);
         if (origen == null || destino == null) { citi().aviso(getString(R.string.citi_elige_estaciones)); return; }
         final CitiDatos.Est o = origen, d = destino;
+        // Igual que MapFragment.trazarResueltoRuta(): primer cálculo con la preferencia sembrada por
+        // el servicio de origen/destino; si la ruta usa una troncal Mexibús con exprés, se pregunta
+        // Ordinario/Exprés por CADA una y se recalcula con esa elección.
+        java.util.Map<Integer, Boolean> pref = new java.util.HashMap<>();
+        sembrarPref(pref, o.linea);
+        sembrarPref(pref, d.linea);
+        MapFragment.forzarOrdinarioSiExpresBloqueadoRuta(pref);
+        calcular(o, d, pref, true);
+    }
+
+    private static void sembrarPref(java.util.Map<Integer, Boolean> pref, int linea) {
+        if (linea < 101 || linea > 124 || (linea >= 111 && linea <= 119)) return;
+        pref.put(Servicios.base(linea), linea >= 121);
+    }
+
+    /** {@code preguntar}: tras calcular, pregunta el servicio de cada troncal con exprés (primer
+     *  cálculo); si no, muestra el resultado (cálculo final con la preferencia ya elegida). */
+    private void calcular(CitiDatos.Est o, CitiDatos.Est d, java.util.Map<Integer, Boolean> pref, boolean preguntar) {
         final android.content.Context app = requireContext().getApplicationContext();
         citi().mostrarDescargando(true);
         EXEC.execute(() -> {
             Planificador.Ruta r;
-            try { r = Planificador.calcular(app, o.canon, d.canon, o.linea, d.linea); }
+            try { r = Planificador.calcular(app, o.canon, d.canon, o.linea, d.linea, pref); }
             catch (Throwable e) {
                 r = null;
                 Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "CitiTrayecto.calcular", String.valueOf(e));
@@ -172,6 +190,15 @@ public class CitiTrayectoFragment extends CitiPantalla {
                 // Igual que MapFragment.calcularRutaAsync: un fallo al pintar el resultado no debe
                 // cerrar la app; se avisa y se registra.
                 try {
+                    if (preguntar) {
+                        java.util.List<Integer> bases = MapFragment.basesTroncalesConExpressRuta(ruta);
+                        if (!bases.isEmpty()) {
+                            java.util.Map<Integer, Boolean> elegido = new java.util.HashMap<>();
+                            MapFragment.forzarOrdinarioSiExpresBloqueadoRuta(elegido);
+                            preguntarServicio(o, d, bases, elegido, 0);
+                            return;
+                        }
+                    }
                     CitiActivity.trayecto = ruta;
                     mostrar(ruta);
                 } catch (Throwable e) {
@@ -180,6 +207,28 @@ public class CitiTrayectoFragment extends CitiPantalla {
                 }
             });
         });
+    }
+
+    /** Pregunta Ordinario/Exprés por cada base troncal, en orden; al terminar recalcula y muestra.
+     *  "Cancelar" deja la búsqueda sin trazar. */
+    private void preguntarServicio(CitiDatos.Est o, CitiDatos.Est d, java.util.List<Integer> bases,
+                                   java.util.Map<Integer, Boolean> pref, int idx) {
+        if (!isAdded()) return;
+        if (idx >= bases.size()) { calcular(o, d, pref, false); return; }
+        int base = bases.get(idx);
+        String linea = CitiDatos.etiquetaSistema(base);
+        List<CitiActivity.Opcion> op = new ArrayList<>();
+        op.add(new CitiActivity.Opcion(linea + " " + getString(R.string.servicio_ordinario), () -> {
+            citi().cerrarMenu();
+            pref.put(base, false);
+            preguntarServicio(o, d, bases, pref, idx + 1);
+        }));
+        op.add(new CitiActivity.Opcion(linea + " " + getString(R.string.servicio_express), () -> {
+            citi().cerrarMenu();
+            pref.put(base, true);
+            preguntarServicio(o, d, bases, pref, idx + 1);
+        }));
+        citi().abrirMenu(op, true);
     }
 
     /** Resumen, aviso de ruta alterna y un renglón por tramo (item_linea: cuadro de ruta + texto). */

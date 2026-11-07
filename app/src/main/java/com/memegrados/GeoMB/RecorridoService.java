@@ -372,6 +372,19 @@ public class RecorridoService extends Service {
     // nunca retrocede). Se exige ver el MISMO índice candidato en dos ciclos consecutivos antes de
     // saltar -mismo criterio que corresPendienteIdx, arriba-. -1 = sin candidato pendiente.
     private int reanclajeCandidatoPendiente = -1;
+    // Cambio de servicio en la MISMA estación (ordinario↔exprés, L4 Norte↔Sur): reporte real del
+    // usuario -- se pasaba al servicio nuevo en cuanto sonaba la llegada, y si en ese momento pasaba
+    // otra unidad (o seguías en la misma) el recorrido ya iba en el servicio equivocado. Ahora se exige
+    // seguir EN la estación, sin salir de su radio, al menos PERMANENCIA_CAMBIO_MS desde que se anunció
+    // la llegada. Si te vas antes, el cambio solo se acepta por reanclaje al recorrer DOS estaciones
+    // seguidas del servicio nuevo (ver visitada[] y reanclarOtraLinea()).
+    static final long PERMANENCIA_CAMBIO_MS = 50_000L;
+    private int permanenciaIdx = -1;        // estación donde se mide la permanencia (-1 = ninguna)
+    private long permanenciaDesdeMs = 0;
+    private boolean permanenciaRota = false; // saliste del radio antes de cumplirla
+    // Paradas de la secuencia por las que ya pasaste (dentro de su radioCerca()), para exigir
+    // continuidad estación-a-estación antes de reanclar a otro servicio de la misma línea.
+    private boolean[] visitada = null;
     private float distMin = Float.MAX_VALUE;   // distancia mínima alcanzada a estSeguida (para medir "ya la pasé")
     private boolean afectacionAvisada = false;
     private boolean finalizado = false;    // ya se llegó al destino: se detiene el servicio
@@ -446,7 +459,7 @@ public class RecorridoService extends Service {
                         j.isNull("i") ? null : j.getString("i")));
             }
             if (seq.isEmpty()) return false;
-            paradas = seq; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
+            paradas = seq; actualIdx = -1; servicioAnunciado = false; avanceMin = 0; visitada = null;
             return true;
         } catch (org.json.JSONException e) { return false; }
     }
@@ -516,6 +529,7 @@ public class RecorridoService extends Service {
         corresPendienteIdx = -1;   // nuevo recorrido (o reinicio tras revivir): sin candidato pendiente
         corresPendienteCiclos = 0;
         reanclajeCandidatoPendiente = -1;
+        permanenciaIdx = -1; permanenciaRota = false; visitada = null;
         Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -715,9 +729,26 @@ public class RecorridoService extends Service {
             int inicio = j;
             for (int k = j; k >= 0 && seq.get(k).linea == pj.linea; k--) inicio = k;
             if (distanciaTrazo(seq, inicio, j) < SALTO_MIN_METROS) continue;
+            // Otro servicio de la MISMA línea (ordinario↔exprés, L4 Norte↔Sur): comparten andenes, así
+            // que estar cerca de una parada no prueba en cuál vas. Se exige continuidad estación a
+            // estación: haber pasado también por la parada ANTERIOR de ese servicio (no la de
+            // abordaje, que es la misma estación donde cambias).
+            if (claveServicio(pj.linea) == claveServicio(trazoBest) || baseLinea(pj.linea) == baseLinea(trazoBest)) {
+                if (j - 1 <= inicio || visitada == null || !visitada[j - 1]) continue;
+            }
             if (d < mejorDist) { mejor = j; mejorDist = d; }           // la candidata válida más cercana
         }
         return mejor;
+    }
+
+    /** ¿'best' es la estación donde cambias de servicio de la misma línea (ordinario↔exprés, L4
+     *  Norte↔Sur) y el cambio aún no se confirma? Si te vas antes de PERMANENCIA_CAMBIO_MS no se sabe
+     *  en qué unidad vas: no se anuncia "próxima" hasta que el reanclaje confirme el servicio al pasar
+     *  dos estaciones seguidas de él. */
+    private boolean cambioMismaEstacionPendiente(List<Planificador.Parada> seq, int best) {
+        if (best + 1 >= seq.size()) return false;
+        int tc = tipoCambio(seq, best + 1);
+        return (tc == 2 || tc == 3) && mismaEstacion(seq.get(best), seq.get(best + 1));
     }
 
     /** Distancia recorrida (m) sumando los tramos entre paradas consecutivas de 'inicio' a 'j'. */
@@ -769,10 +800,30 @@ public class RecorridoService extends Service {
         // co-ubicada de otra línea antes del transbordo (se queda en su línea hasta hacer la correspondencia).
         int best = avanceMin;
         double bd = distParada(l, seq.get(avanceMin));
+        if (visitada == null || visitada.length != seq.size()) visitada = new boolean[seq.size()];
+        long ahoraMs = l.getTime() > 0 ? l.getTime() : System.currentTimeMillis();
+        for (int i = avanceMin; i < seq.size(); i++)
+            if (!visitada[i] && distParada(l, seq.get(i)) <= radioCerca(seq.get(i))) visitada[i] = true;
         for (int i = avanceMin + 1; i < seq.size(); i++) {
             Planificador.Parada pi = seq.get(i);
             double d = distParada(l, pi);   // Haversine (Indios Verdes: la más cercana de sus 4 plataformas)
             if (pi.linea != seq.get(best).linea) {
+                // Cambio de servicio en la MISMA estación: solo tras PERMANENCIA_CAMBIO_MS seguidos en
+                // ella desde el aviso de llegada (ver su declaración). Mientras tanto te quedas en 'best'.
+                int tcEst = tipoCambio(seq, i);
+                if ((tcEst == 2 || tcEst == 3) && mismaEstacion(seq.get(best), pi)) {
+                    boolean dentro = bd <= radioCerca(seq.get(best)) + COBERTURA_EXTRA_M;
+                    if (ultLlegando < best) {
+                        permanenciaIdx = -1; permanenciaRota = false;
+                    } else if (permanenciaIdx != best) {
+                        permanenciaIdx = best; permanenciaDesdeMs = ahoraMs; permanenciaRota = !dentro;
+                    } else if (!dentro) {
+                        permanenciaRota = true;
+                    }
+                    boolean cumplida = permanenciaIdx == best && !permanenciaRota
+                            && ahoraMs - permanenciaDesdeMs >= PERMANENCIA_CAMBIO_MS;
+                    if (!cumplida) break;
+                }
                 // Correspondencia (cambio de línea): el aviso NO cambia a la nueva línea hasta que estás
                 // físicamente en su andén. Te aferras a la línea actual mientras caminas la correspondencia.
                 // Si es la MISMA estación física (mismo nombre exacto —p. ej. Puente de Fierro L2↔L4, u
@@ -1021,7 +1072,8 @@ public class RecorridoService extends Service {
                 handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
             }
             return;   // no se anuncian más estaciones tras el final
-        } else if (ultLlegando == best && ultProxima != proxIdx && bd > radioCerca(seq.get(best)) + COBERTURA_EXTRA_M) {
+        } else if (ultLlegando == best && ultProxima != proxIdx && bd > radioCerca(seq.get(best)) + COBERTURA_EXTRA_M
+                && !cambioMismaEstacionPendiente(seq, best)) {
             ultProxima = proxIdx;
             Telemetria.registrarEventoEstacion(this, seq.get(best).nombre, seq.get(best).linea, false);   // sales hacia "prox"
             // Te acercas a la estación de BAJADA si la parada siguiente a "prox" es un transbordo.
