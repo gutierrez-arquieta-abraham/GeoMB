@@ -128,11 +128,36 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** Escala del icono de unidad para un nivel de zoom, en pasos fijos (cada paso es un bitmap
      *  cacheado distinto, así que no se regenera en cada movimiento de cámara). */
     static float escalaPorZoom(float zoom) {
+        if (zoom >= 18f) return 1.3f;    // zoom máximo: un poco más grandes, ya no se enciman
+        if (zoom >= 17f) return 1.15f;
         if (zoom >= 16f) return 1f;
         if (zoom >= 15f) return 0.85f;
         if (zoom >= 14f) return 0.72f;
         if (zoom >= 13f) return 0.6f;
         return 0.5f;
+    }
+
+    // Igual para los iconos de estación (sin crecer de más al acercar: el pictograma ya es legible).
+    private float escalaEstaciones = 1f;
+
+    static float escalaEstacionPorZoom(float zoom) {
+        if (zoom >= 15f) return 1f;
+        if (zoom >= 14f) return 0.85f;
+        if (zoom >= 13f) return 0.72f;
+        if (zoom >= 12f) return 0.6f;
+        return 0.5f;
+    }
+
+    /** Si el zoom cambió de paso de escala, repinta los iconos de estación visibles (los ocultos se
+     *  repintan al reaparecer o en el siguiente cambio). */
+    private void ajustarEscalaEstaciones() {
+        if (mapa == null) return;
+        float e = escalaEstacionPorZoom(mapa.getCameraPosition().zoom);
+        if (e == escalaEstaciones) return;
+        escalaEstaciones = e;
+        java.util.Set<String> bloq = Manifestaciones.bloqueadas();
+        for (EstMapa em : estaciones) if (em.marker != null) em.marker.setIcon(iconoEstacionOTransbordo(em, fueraDeServicio(em, bloq)));
+        for (EstMapa em : mexibusEst) if (em.marker != null) em.marker.setIcon(iconoMexibus(em, bloq));
     }
 
     /** Si el zoom cambió de paso de escala, repinta los iconos de todas las unidades visibles. */
@@ -1042,6 +1067,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // marcadores, no debe poder tumbar la app.
             try {
                 ajustarEscalaUnidades();                   // iconos de unidad conforme al zoom
+                ajustarEscalaEstaciones();                 // y los de estación
                 resaltarTrazoRuta();                       // trazos creados después de elegir la ruta
                 crearEstacionesVisibles();                 // carga estaciones al explorar
                 aplicarVisibilidadEstaciones();
@@ -1381,7 +1407,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             Linea l = GtfsRepository.porNumero(requireContext(), em.linea);
             java.util.List<Float> rumbos = (l != null && (servicioCiti != null ? estacionVisibleCiti(em) : lineaCiti == em.linea))
                     ? EstiloCiti.rumbos(l, em.pos) : new java.util.ArrayList<>();
-            return EstiloCiti.iconoEstacion(requireContext(), em.e.icono, em.color, rumbos, fuera);
+            return EstiloCiti.iconoEstacion(requireContext(), em.e.icono, em.color, rumbos, fuera, escalaEstaciones);
         }
         return (em.e.icono != null && !em.e.icono.isEmpty())
                 ? iconoEstacion(em.e, em.color, fuera) : iconoEstacionMexibus(em.color, fuera);
@@ -1389,11 +1415,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     /** Icono de estación del Mexibús: anillo del color de la línea (los KML no traen pictogramas). */
     private BitmapDescriptor iconoEstacionMexibus(int color, boolean fueraDeServicio) {
-        String key = "MXdot|" + color + "|" + (fueraDeServicio ? 1 : 0);
+        String key = "MXdot|" + color + "|" + (fueraDeServicio ? 1 : 0) + "|" + escalaEstaciones;
         BitmapDescriptor cached = cacheIco.get(key);
         if (cached != null) return cached;
         int disco = fueraDeServicio ? GRIS_FUERA_SERVICIO : color;
-        int px = Math.round(20 * getResources().getDisplayMetrics().density);
+        int px = Math.max(6, Math.round(20 * escalaEstaciones * getResources().getDisplayMetrics().density));
         Bitmap bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -2205,7 +2231,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             java.util.List<Float> rumbos = (l != null && (servicioCiti != null ? estacionVisibleCiti(em) : lineaCiti == em.linea))
                     ? EstiloCiti.rumbos(l, em.pos) : new java.util.ArrayList<>();
             return EstiloCiti.iconoEstacion(requireContext(), em.e.icono,
-                    EstiloCiti.color(em.linea, em.color), rumbos, fueraDeServicio);
+                    EstiloCiti.color(em.linea, em.color), rumbos, fueraDeServicio, escalaEstaciones);
         }
         if (em.transbordo) {
             boolean esTroncalL2 = Iconos.ESTACIONES_TRANSBORDO_H72_L2.contains(Planificador.norm(em.e.nombre));
@@ -2222,11 +2248,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private BitmapDescriptor iconoEstacion(Estacion e, int color, boolean fueraDeServicio) {
         boolean nuevos = Modos.iconosNuevos(requireContext());
         String key = "E|" + (e.icono == null ? "" : e.icono) + "|" + color + "|" + (nuevos ? 1 : 0)
-                + "|" + (fueraDeServicio ? 1 : 0);
+                + "|" + (fueraDeServicio ? 1 : 0) + "|" + escalaEstaciones;
         BitmapDescriptor cached = cacheIco.get(key);
         if (cached != null) return cached;
 
-        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        int px = Math.max(8, Math.round(28 * escalaEstaciones * getResources().getDisplayMetrics().density));
         Bitmap bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
 
@@ -2274,11 +2300,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private BitmapDescriptor iconoEstacionTransbordo(Estacion e, int colorA, int colorB, boolean fueraDeServicio) {
         boolean nuevos = Modos.iconosNuevos(requireContext());
         String key = "ET|" + (e.icono == null ? "" : e.icono) + "|" + colorA + "," + colorB + "|" + (nuevos ? 1 : 0)
-                + "|" + (fueraDeServicio ? 1 : 0);
+                + "|" + (fueraDeServicio ? 1 : 0) + "|" + escalaEstaciones;
         BitmapDescriptor cached = cacheIco.get(key);
         if (cached != null) return cached;
 
-        int px = Math.round(28 * getResources().getDisplayMetrics().density);
+        int px = Math.max(8, Math.round(28 * escalaEstaciones * getResources().getDisplayMetrics().density));
         Bitmap bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
 
@@ -2313,7 +2339,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  combinación de (número, color[es], siguiendo); las llamadas repetidas (p. ej. al volver a
      *  evaluar en cada poll si hace falta repintar) reusan el BitmapDescriptor ya construido. */
     private BitmapDescriptor iconoParaUnidad(UnidadReal u) {
-        if (citi) return EstiloCiti.iconoBus(requireContext(), escalaUnidades);
+        if (citi) return EstiloCiti.iconoBus(requireContext(), escalaUnidades, u.numero);
         boolean siguiendo = SeguimientoService.sigue(u.numero);
         RutasMixtas.Tramo t = RutasMixtas.tramo(u.origen, u.destino);
         if (t != null) {

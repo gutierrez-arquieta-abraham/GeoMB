@@ -59,7 +59,8 @@ public final class EstiloCiti {
     }
 
     private static final Map<String, BitmapDescriptor> CACHE = new HashMap<>();
-    private static final java.util.Map<Float, BitmapDescriptor> buses = new java.util.HashMap<>();
+    private static final java.util.Map<String, BitmapDescriptor> buses = new java.util.HashMap<>();
+    private static Bitmap busBase;
 
     /** Color de la línea en estilo CITI; {@code porDefecto} si esa app no la tenía. */
     public static int color(int linea, int porDefecto) {
@@ -77,16 +78,50 @@ public final class EstiloCiti {
         return c.getResources().getDimension(R.dimen.citi_trazo);
     }
 
-    /** Ícono del autobús (icon_bus a map_bus_width = 32dp) a {@code escala} de su tamaño, para encogerlo al alejar el mapa
-     *  (MapFragment.escalaPorZoom). Un bitmap cacheado por escala. */
-    public static BitmapDescriptor iconoBus(Context c, float escala) {
-        BitmapDescriptor bd = buses.get(escala);
-        if (bd == null) {
-            int px = Math.max(8, Math.round(c.getResources().getDimension(R.dimen.citi_bus) * escala));
-            Bitmap b = BitmapFactory.decodeResource(c.getResources(), R.drawable.citi_bus);
-            bd = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(b, px, px, true));
-            buses.put(escala, bd);
+    /** Ícono del autobús (icon_bus a map_bus_width = 32dp) a {@code escala} de su tamaño (para
+     *  encogerlo al alejar el mapa, MapFragment.escalaPorZoom), con el número económico en una
+     *  etiqueta blanca debajo. El lienzo deja el mismo alto arriba que la etiqueta abajo, para que el
+     *  bus siga en el centro del marcador (anchor 0.5, 0.5). Un bitmap cacheado por escala y número. */
+    public static BitmapDescriptor iconoBus(Context c, float escala, String numero) {
+        String k = escala + "|" + (numero == null ? "" : numero);
+        BitmapDescriptor bd = buses.get(k);
+        if (bd != null) return bd;
+        if (buses.size() > 1500) buses.clear();
+        int px = Math.max(8, Math.round(c.getResources().getDimension(R.dimen.citi_bus) * escala));
+        if (busBase == null) busBase = BitmapFactory.decodeResource(c.getResources(), R.drawable.citi_bus);
+        Bitmap bus = Bitmap.createScaledBitmap(busBase, px, px, true);
+        // Con el mapa muy alejado (escala ≤ 0.6) la etiqueta ya no se lee: solo el bus.
+        if (numero == null || numero.isEmpty() || escala <= 0.6f) {
+            bd = BitmapDescriptorFactory.fromBitmap(bus);
+        } else {
+            float dens = c.getResources().getDisplayMetrics().density;
+            Paint tp = new Paint(Paint.ANTI_ALIAS_FLAG);
+            tp.setTypeface(Tipografia.metro(c));
+            tp.setFakeBoldText(true);
+            tp.setTextSize(10f * dens * Math.max(0.85f, Math.min(escala, 1.2f)));
+            tp.setColor(Color.BLACK);
+            tp.setTextAlign(Paint.Align.CENTER);
+            Paint.FontMetrics fm = tp.getFontMetrics();
+            float pad = 2f * dens;
+            int altoEt = Math.round(fm.descent - fm.ascent + 2 * pad * 0.6f);
+            int anchoEt = Math.round(tp.measureText(numero) + 2 * pad * 1.5f);
+            int w = Math.max(px, anchoEt), h = px + 2 * altoEt;
+            Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            Canvas cv = new Canvas(out);
+            cv.drawBitmap(bus, (w - px) / 2f, altoEt, null);
+            float top = altoEt + px, l = (w - anchoEt) / 2f;
+            Paint fondo = new Paint(Paint.ANTI_ALIAS_FLAG);
+            fondo.setColor(Color.WHITE);
+            android.graphics.RectF rect = new android.graphics.RectF(l, top, l + anchoEt, top + altoEt);
+            cv.drawRoundRect(rect, 3 * dens, 3 * dens, fondo);
+            fondo.setStyle(Paint.Style.STROKE);
+            fondo.setStrokeWidth(Math.max(1f, 0.8f * dens));
+            fondo.setColor(0xFF666666);
+            cv.drawRoundRect(rect, 3 * dens, 3 * dens, fondo);
+            cv.drawText(numero, w / 2f, top + altoEt / 2f - (fm.ascent + fm.descent) / 2f, tp);
+            bd = BitmapDescriptorFactory.fromBitmap(out);
         }
+        buses.put(k, bd);
         return bd;
     }
 
@@ -139,17 +174,21 @@ public final class EstiloCiti {
     /** Estación: la flecha de rumbo girada por cada sentido y el pictograma encima (como
      *  creaParadaLinea() de la app de Indra). Sin pictograma, un disco del color de la línea. */
     public static BitmapDescriptor iconoEstacion(Context c, String icono, int colorLinea, List<Float> rumbos,
-                                                 boolean fueraDeServicio) {
+                                                 boolean fueraDeServicio, float escala) {
         StringBuilder k = new StringBuilder(icono == null ? "" : icono).append('|').append(colorLinea)
-                .append('|').append(fueraDeServicio);
+                .append('|').append(fueraDeServicio).append('|').append(escala);
         for (float r : rumbos) k.append('|').append(Math.round(r / 5f) * 5);
         BitmapDescriptor cacheado = CACHE.get(k.toString());
         if (cacheado != null) return cacheado;
 
-        int px = (int) c.getResources().getDimension(R.dimen.citi_estacion);
+        // escala: tamaño conforme al zoom (MapFragment.escalaEstacionPorZoom), flecha incluida.
+        int px = Math.max(8, Math.round(c.getResources().getDimension(R.dimen.citi_estacion) * escala));
         // Sin flechas el lienzo es solo el del pictograma: el estilo CITI dibuja las ~280 estaciones
         // a la vez y con el lienzo de la flecha (56dp) serían decenas de MB de bitmaps.
         Bitmap flecha = rumbos.isEmpty() ? null : BitmapFactory.decodeResource(c.getResources(), R.drawable.citi_rumbo);
+        if (flecha != null && escala != 1f)
+            flecha = Bitmap.createScaledBitmap(flecha, Math.max(1, Math.round(flecha.getWidth() * escala)),
+                    Math.max(1, Math.round(flecha.getHeight() * escala)), true);
         int w = flecha != null ? Math.max(flecha.getWidth(), px) : px;
         int h = flecha != null ? Math.max(flecha.getHeight(), px) : px;
         if (CACHE.size() > 400) CACHE.clear();   // al cambiar mucho de ruta no crece sin límite
