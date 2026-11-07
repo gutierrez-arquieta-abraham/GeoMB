@@ -137,11 +137,23 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         return 0.5f;
     }
 
-    // Igual para los iconos de estación (sin crecer de más al acercar: el pictograma ya es legible).
+    // Iconos de estación: se encogen al alejar y, al acercar, crecen como un objeto real de
+    // TAMANO_ESTACION_M (50 m, también las estaciones largas) en cuanto eso supera su tamaño base,
+    // hasta el zoom máximo del mapa (ZOOM_MAXIMO, donde la estación mide exactamente esos 50 m).
     private float escalaEstaciones = 1f;
+    static final float ZOOM_MAXIMO = 18f;
+    static final double TAMANO_ESTACION_M = 50.0;
 
-    static float escalaEstacionPorZoom(float zoom) {
-        if (zoom >= 15f) return 1f;
+    /** Escala del icono de estación de tamaño base {@code baseDp} a un zoom y latitud dados. Por
+     *  pasos (½ nivel de zoom) para que cada paso sea un bitmap cacheado. */
+    static float escalaEstacionPorZoom(float zoom, double lat, float baseDp) {
+        if (zoom >= 15f) {
+            float zq = Math.min(ZOOM_MAXIMO, (float) (Math.floor(zoom * 2f) / 2f));
+            // Metros por dp en el mapa de Google: 156 543 m en el ecuador a zoom 0, ÷2 por nivel.
+            double mPorDp = 156543.03392 * Math.cos(Math.toRadians(lat)) / Math.pow(2, zq);
+            double dp50 = TAMANO_ESTACION_M / mPorDp;
+            return (float) Math.max(1.0, Math.round(dp50 / baseDp * 20.0) / 20.0);
+        }
         if (zoom >= 14f) return 0.85f;
         if (zoom >= 13f) return 0.72f;
         if (zoom >= 12f) return 0.6f;
@@ -152,7 +164,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  repintan al reaparecer o en el siguiente cambio). */
     private void ajustarEscalaEstaciones() {
         if (mapa == null) return;
-        float e = escalaEstacionPorZoom(mapa.getCameraPosition().zoom);
+        com.google.android.gms.maps.model.CameraPosition cam = mapa.getCameraPosition();
+        float e = escalaEstacionPorZoom(cam.zoom, cam.target.latitude, citi ? 20f : 28f);   // citi_estacion = 20dp
         if (e == escalaEstaciones) return;
         escalaEstaciones = e;
         java.util.Set<String> bloq = Manifestaciones.bloqueadas();
@@ -930,6 +943,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         mapa.getUiSettings().setZoomControlsEnabled(false);   // usamos botones propios
         mapa.getUiSettings().setCompassEnabled(false);        // reemplazada por btn_norte (brújula propia)
         mapa.getUiSettings().setMapToolbarEnabled(false);
+        mapa.setMaxZoomPreference(ZOOM_MAXIMO);                // ahí una estación mide 50 m (escalaEstacionPorZoom)
         // El botón de norte actúa como brújula: rota según el bearing de la cámara.
         final View btnNorte = getView() != null ? getView().findViewById(R.id.btn_norte) : null;
         if (btnNorte != null) mapa.setOnCameraMoveListener(() ->
