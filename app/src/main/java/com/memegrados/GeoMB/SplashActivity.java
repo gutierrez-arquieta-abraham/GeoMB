@@ -44,7 +44,7 @@ public class SplashActivity extends AppCompatActivity {
     private static final String KEY_BOOT = "ultimo_boot";
     private static final String KEY_AVISO = "aviso_aceptado";
     private static final long TOLERANCIA_MS = 4000;
-    private static final long CARGA_MIN_MS = 2500;
+    private static final long CARGA_MIN_MS = 3500;   // pantalla de créditos (tocar la salta)
 
     private SharedPreferences prefs;
 
@@ -90,7 +90,7 @@ public class SplashActivity extends AppCompatActivity {
             fallback.setVisibility(View.GONE);
             video.setVisibility(View.VISIBLE);
             video.setVideoURI(Uri.parse("android.resource://" + getPackageName() + "/" + resId));
-            video.setOnCompletionListener(mp -> continuar());
+            video.setOnCompletionListener(mp -> animacionSimple());   // tras el video, los créditos
             video.setOnErrorListener((mp, what, extra) -> { animacionSimple(); return true; });
             video.start();
         } else {
@@ -98,12 +98,14 @@ public class SplashActivity extends AppCompatActivity {
         }
     }
 
-    /** Sin video: muestra la animación de carga un momento y continúa. */
+    /** Pantalla de carga con los créditos (colaboradores y redes) un momento y continúa; tocarla
+     *  continúa antes. Va sola si no hay video, o después de él. */
     private void animacionSimple() {
         VideoView video = findViewById(R.id.video_splash);
         View fallback = findViewById(R.id.fallback_carga);
         video.setVisibility(View.GONE);
         fallback.setVisibility(View.VISIBLE);
+        fallback.setOnClickListener(x -> continuar());
         new Handler(Looper.getMainLooper()).postDelayed(this::continuar, CARGA_MIN_MS);
     }
 

@@ -35,6 +35,53 @@
             android:textSize="30sp"
             android:textStyle="bold" />
 
+        <!-- Créditos: colaboradores y redes (también en Configuración → Acerca, con sus ligas). -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/creditos_colaboradores"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:alpha="0.85" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/creditos_abt"
+            android:src="@drawable/abt_logo_blanco" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:text="@string/creditos_personas"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:paddingHorizontal="24dp"
+            android:text="@string/creditos_oficiales_corto"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:alpha="0.8" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/creditos_siguenos"
+            android:textColor="@color/white"
+            android:textSize="13sp" />
+
         <ProgressBar
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

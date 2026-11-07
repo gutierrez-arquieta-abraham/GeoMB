@@ -487,6 +487,35 @@
                 android:textSize="15sp"
                 android:lineSpacingExtra="4dp" />
 
+            <!-- Colaboradores y redes (los mismos de la pantalla de carga), con sus ligas. -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/creditos_titulo"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="56dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="12dp"
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/creditos_abt"
+                android:src="@drawable/abt_logo" />
+
+            <TextView
+                android:id="@+id/txt_creditos_links"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textColorLink="?attr/colorPrimary"
+                android:textSize="15sp"
+                android:lineSpacingExtra="4dp" />
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

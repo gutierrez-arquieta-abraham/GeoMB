@@ -119,6 +119,13 @@ public class ConfiguracionFragment extends Fragment {
             if (pi.versionName != null) v = pi.versionName;
         } catch (Exception ignore) {}
         txtVersion.setText(getString(R.string.acerca_version, v));
+        // Colaboradores y redes con sus ligas de Instagram (mismos que la pantalla de carga).
+        android.widget.TextView creditos = view.findViewById(R.id.txt_creditos_links);
+        if (creditos != null) {
+            creditos.setText(androidx.core.text.HtmlCompat.fromHtml(getString(R.string.creditos_links_html),
+                    androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY));
+            creditos.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+        }
 
         view.findViewById(R.id.btn_idioma).setOnClickListener(x -> Idiomas.mostrarSelector(requireContext()));
         view.findViewById(R.id.btn_editar_perfil).setOnClickListener(x -> editarPerfil());
