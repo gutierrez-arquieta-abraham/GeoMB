@@ -130,6 +130,32 @@ public class Linea {
         return mejorAcum;
     }
 
+    /**
+     * Distancia PERPENDICULAR (m) de {@code p} al trazo de la línea, contando solo los tramos que
+     * tienen un extremo a menos de {@code radio} m de {@code centro} (el trazo alrededor de una
+     * estación). Usa todos los trazos que tiene la línea: {@link #ruta}, {@link #rutaVuelta},
+     * {@link #segmentos} y {@link #segmentosVuelta}. {@link Double#MAX_VALUE} si ninguno pasa cerca.
+     */
+    public double distanciaAlTrazoCerca(LatLng p, LatLng centro, double radio) {
+        double mejor = Double.MAX_VALUE;
+        mejor = Math.min(mejor, distPerpCerca(ruta, p, centro, radio));
+        mejor = Math.min(mejor, distPerpCerca(rutaVuelta, p, centro, radio));
+        if (segmentos != null) for (List<LatLng> sg : segmentos) mejor = Math.min(mejor, distPerpCerca(sg, p, centro, radio));
+        if (segmentosVuelta != null) for (List<LatLng> sg : segmentosVuelta.values()) mejor = Math.min(mejor, distPerpCerca(sg, p, centro, radio));
+        return mejor;
+    }
+
+    static double distPerpCerca(List<LatLng> pts, LatLng p, LatLng centro, double radio) {
+        double mejor = Double.MAX_VALUE;
+        if (pts == null) return mejor;
+        for (int i = 1; i < pts.size(); i++) {
+            LatLng a = pts.get(i - 1), b = pts.get(i);
+            if (distancia(a, centro) > radio && distancia(b, centro) > radio) continue;
+            mejor = Math.min(mejor, proyectar(p, a, b)[1]);
+        }
+        return mejor;
+    }
+
     /** Proyecta p sobre el segmento a-b (en metros). Devuelve {t∈[0,1], distPerp}. */
     private static double[] proyectar(LatLng p, LatLng a, LatLng b) {
         // GEOMETRÍA "rebuscada": ¿cuál es el punto del segmento a-b más cercano a p?

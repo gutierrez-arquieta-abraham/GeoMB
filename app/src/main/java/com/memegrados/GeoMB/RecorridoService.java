@@ -379,6 +379,15 @@ public class RecorridoService extends Service {
     // la llegada. Si te vas antes, el cambio solo se acepta por reanclaje al recorrer DOS estaciones
     // seguidas del servicio nuevo (ver visitada[] y reanclarOtraLinea()).
     static final long PERMANENCIA_CAMBIO_MS = 50_000L;
+    // Correspondencia/conexión/transbordo: el aviso de la línea NUEVA solo sale si tu GPS está sobre su
+    // trazo (≤ TRAZO_NUEVA_M, perpendicular a la polilínea de esa línea alrededor de la estación, en
+    // RADIO_TRAZO_ESTACION_M). Estar cerca del PUNTO de la estación no basta: la unidad de la línea
+    // anterior puede pasar junto al andén nuevo (Indios Verdes: Mexibús L4 roza el andén de Metrobús
+    // L1). Si el andén mismo ya queda fuera de su trazo, la tolerancia es esa separación + 20 m. Con
+    // precisión peor que PRECISION_TRAZO_M no se decide con esa lectura.
+    static final double TRAZO_NUEVA_M = 35.0;
+    static final double RADIO_TRAZO_ESTACION_M = 600.0;
+    static final float PRECISION_TRAZO_M = 40f;
     private int permanenciaIdx = -1;        // estación donde se mide la permanencia (-1 = ninguna)
     private long permanenciaDesdeMs = 0;
     private boolean permanenciaRota = false; // saliste del radio antes de cumplirla
@@ -741,6 +750,24 @@ public class RecorridoService extends Service {
         return mejor;
     }
 
+    /** ¿La ubicación está sobre el trazo de la línea de {@code p}, alrededor de esa estación? true si la
+     *  línea no tiene trazo cargado (no se puede verificar: se deja como antes). false si la lectura
+     *  es demasiado imprecisa para decidir. */
+    private boolean sobreTrazo(android.location.Location l, Planificador.Parada p) {
+        if (l.hasAccuracy() && l.getAccuracy() > PRECISION_TRAZO_M) return false;
+        Linea ln;
+        try { ln = GtfsRepository.porNumero(this, p.linea); } catch (Exception e) { ln = null; }
+        if (ln == null || ln.ruta == null || ln.ruta.size() < 2) return true;
+        com.google.android.gms.maps.model.LatLng yo = new com.google.android.gms.maps.model.LatLng(l.getLatitude(), l.getLongitude());
+        double d = ln.distanciaAlTrazoCerca(yo, p.pos, RADIO_TRAZO_ESTACION_M);
+        if (d == Double.MAX_VALUE) return true;   // el trazo cargado no pasa por esta estación
+        // Algunos andenes quedan algo fuera de su propio trazo (Indios Verdes L1 ~34 m, Calle 6 ~45 m):
+        // la tolerancia se mide a partir de lo que ya se separa la estación misma.
+        double dEst = ln.distanciaAlTrazoCerca(p.pos, p.pos, RADIO_TRAZO_ESTACION_M);
+        double tol = dEst == Double.MAX_VALUE ? TRAZO_NUEVA_M : Math.max(TRAZO_NUEVA_M, dEst + 20.0);
+        return d <= tol;
+    }
+
     /** ¿'best' es la estación donde cambias de servicio de la misma línea (ordinario↔exprés, L4
      *  Norte↔Sur) y el cambio aún no se confirma? Si te vas antes de PERMANENCIA_CAMBIO_MS no se sabe
      *  en qué unidad vas: no se anuncia "próxima" hasta que el reanclaje confirme el servicio al pasar
@@ -904,7 +931,11 @@ public class RecorridoService extends Service {
                 // sin que su aviso de llegada/transbordo llegara a dispararse nunca: el próximo ciclo ya
                 // hablaba de la estación siguiente. Al cortar aquí, este ciclo se queda EN el nodo de
                 // correspondencia y el de llegada podrá anunciarlo; recién el siguiente ciclo avanza más.
-                if ((alcanzasteAnterior || alcanzasteNueva) && d <= umbral && cruzaZona) {
+                // Y además: estás sobre el trazo de la línea nueva (ver TRAZO_NUEVA_M). No aplica a un
+                // cambio de servicio de la MISMA línea (mismo corredor: el trazo no distingue nada).
+                boolean otraLinea = baseLinea(pi.linea) != baseLinea(seq.get(best).linea);
+                boolean enTrazo = !otraLinea || sobreTrazo(l, pi);
+                if ((alcanzasteAnterior || alcanzasteNueva) && d <= umbral && cruzaZona && enTrazo) {
                     // Defecto real confirmado (Indios Verdes): el bloque de cruce corta (break) y salta
                     // a la línea nueva ANTES de que el bloque normal de "próxima estación" (más abajo, con
                     // "favor de irte preparando") llegue a ejecutarse para 'best' -- se perdía por
