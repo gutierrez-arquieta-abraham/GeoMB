@@ -844,7 +844,7 @@ public class ConfiguracionFragment extends Fragment {
      *  pregunta qué voz descargar antes de arrancar; si NINGUNA la tiene, descarga "Mia" directo sin
      *  preguntar nada (comportamiento de siempre para quien no activó el modo experimental). Si se
      *  elige Ximena con líneas de VARIOS sistemas (p. ej. "descargar todas"), cada línea respeta su
-     *  propio switch (ver DescargaVoz.descargarUno()): la que sí lo tenga activo usa Ximena, la que
+     *  propio switch (ver DescargaVoz.vozReal()): la que sí lo tenga activo usa Ximena, la que
      *  no, cae a Mia sola -- nunca Ximena (de pago) en un sistema que no la activó. */
     private void preguntarVozYDescargar(java.util.List<Integer> lineas, String nombre) {
         boolean algunaConXimena = false;

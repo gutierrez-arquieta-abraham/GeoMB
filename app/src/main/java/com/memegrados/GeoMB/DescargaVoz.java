@@ -42,6 +42,11 @@ import java.util.concurrent.Executors;
 // estación: X" (los textos EXACTOS del recorrido). Las variantes de
 // correspondencia/conexión son Fase 2 (ver Locuciones).
 //
+// Se baja en PAQUETES .zip (POST /api/tts/paquete del EC2, hasta 300 frases
+// por petición) desde la caché permanente del servidor: cada frase se
+// sintetiza con Polly/Fish Audio una sola vez para todos los dispositivos.
+// Si el servidor no tiene ese endpoint, cae a una petición por frase.
+//
 // La interfaz Progreso reporta avance/fin para mostrar el porcentaje.
 // Descarga de a una (no satura el ancho de banda). Clase de UTILIDAD.
 // ============================================================
@@ -196,45 +201,172 @@ public final class DescargaVoz {
                 MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
                 return;
             }
-            List<TextoEstacion> pendientes = new ArrayList<>();
-            List<Integer> lineaPorPendiente = new ArrayList<>();
+            // Cada frase con su archivo destino (la voz REAL por línea, ver vozReal()); las que ya
+            // están en el teléfono cuentan como hechas desde el principio.
+            List<Item> faltan = new ArrayList<>();
+            int total = 0, ok = 0;
             for (int ln : lineas) for (TextoEstacion te : textosLinea(app, ln)) {
-                pendientes.add(te);
-                lineaPorPendiente.add(ln);
+                total++;
+                String v = vozReal(app, voz, ln);
+                File out = archivoVoz(app, te.texto, ln, v, te.estacion);
+                if (out == null) continue;
+                if (out.exists() && out.length() > 0) { ok++; continue; }
+                faltan.add(new Item(te.texto, v, out));
             }
-            int total = pendientes.size(), hechos = 0, ok = 0, fallosSeguidos = 0;
-            for (int i = 0; i < total; i++) {
+            final int totalF = total;
+            final int[] hechos = {ok};
+            MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
+
+            // 1) Paquetes .zip del EC2 (POST /api/tts/paquete): pocas peticiones en vez de una por
+            //    frase. Si el servidor aún no tiene ese endpoint, cae al modo de una por una (abajo).
+            boolean sinPaquete = false;
+            java.util.Map<String, List<Item>> porVoz = new java.util.LinkedHashMap<>();
+            for (Item it : faltan) {
+                List<Item> l = porVoz.get(it.voz);
+                if (l == null) { l = new ArrayList<>(); porVoz.put(it.voz, l); }
+                l.add(it);
+            }
+            List<Item> resto = new ArrayList<>();
+            for (java.util.Map.Entry<String, List<Item>> e : porVoz.entrySet()) {
+                List<Item> cola = new ArrayList<>(e.getValue());
+                while (!cola.isEmpty() && !cancelar && !sinPaquete) {
+                    List<Item> lote = new ArrayList<>(cola.subList(0, Math.min(LOTE_PAQUETE, cola.size())));
+                    List<Item> pendientes;
+                    try {
+                        pendientes = descargarPaquete(e.getKey(), lote, n -> {
+                            hechos[0] += n;
+                            MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
+                        });
+                    } catch (PaqueteNoDisponible x) {
+                        sinPaquete = true;
+                        break;
+                    } catch (Exception x) {
+                        MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
+                        return;
+                    }
+                    cola.subList(0, lote.size()).clear();
+                    // Las que el servidor no alcanzó a sintetizar vuelven a la cola; si ninguna del lote
+                    // avanzó (todas fallaron), se dejan para el modo de una por una.
+                    if (pendientes.size() == lote.size()) { resto.addAll(pendientes); continue; }
+                    cola.addAll(0, pendientes);
+                }
+                if (sinPaquete) resto.addAll(cola);
+            }
+            if (sinPaquete) {   // servidor sin /api/tts/paquete: todo lo que falte, de a una frase
+                resto.clear();
+                for (Item it : faltan) if (!(it.out.exists() && it.out.length() > 0)) resto.add(it);
+            }
+
+            // 2) De a una (respaldo): lo que el paquete no pudo dar.
+            int fallosSeguidos = 0;
+            for (Item it : resto) {
                 if (cancelar) break;
-                TextoEstacion te = pendientes.get(i);
-                int ln = lineaPorPendiente.get(i);
                 boolean bien = false;
-                try { bien = descargarUno(app, te.texto, ln, voz, te.estacion); } catch (Exception ignore) {}
-                if (bien) { ok++; fallosSeguidos = 0; }
-                else if (++fallosSeguidos >= FALLOS_SEGUIDOS_ABORTAR) {
+                try { bien = descargarUno(it); } catch (Exception ignore) {}
+                if (bien) {
+                    fallosSeguidos = 0;
+                    hechos[0]++;
+                    MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
+                } else if (++fallosSeguidos >= FALLOS_SEGUIDOS_ABORTAR) {
                     MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
                     return;
                 }
-                hechos++;
-                final int h = hechos;
-                MAIN.post(() -> { if (cb != null) cb.avance(h, total); });
             }
-            final int okF = ok, totF = total;
+            ok = 0;
+            for (int ln : lineas) for (TextoEstacion te : textosLinea(app, ln)) {
+                File f = archivoVoz(app, te.texto, ln, vozReal(app, voz, ln), te.estacion);
+                if (f != null && f.exists() && f.length() > 0) ok++;
+            }
+            final int okF = ok, totF = totalF;
             MAIN.post(() -> { if (cb != null) cb.fin(okF, totF); });
         });
     }
 
-    /** Baja un texto a la caché de voz (si no está ya). `vozElegida` es la PREFERENCIA del usuario
-     *  ("Mia" o "Ximena"); la voz REAL usada cae a "Mia" para cualquier línea cuyo sistema no tenga
-     *  el switch de Ximena activo (ver Modos.vozXimenaPermitida()) -- así "descargar todas" puede
-     *  pedir Ximena una sola vez y que cada línea respete su propio switch, en vez de forzar Ximena
-     *  (de pago) en un sistema que el usuario nunca activó para eso. Devuelve true si quedó el archivo. */
-    private static boolean descargarUno(Context ctx, String texto, int linea, String vozElegida, String estacion) throws java.io.IOException {
-        String voz = "Ximena".equals(vozElegida) && Modos.vozXimenaPermitida(ctx, linea) ? "Ximena" : "Mia";
-        File out = archivoVoz(ctx, texto, linea, voz, estacion);
-        if (out == null) return false;
+    /** Una frase por descargar: texto, voz REAL y archivo destino en el teléfono. */
+    private static final class Item {
+        final String texto, voz;
+        final File out;
+        Item(String texto, String voz, File out) { this.texto = texto; this.voz = voz; this.out = out; }
+    }
+
+    /** La voz REAL de una línea: `vozElegida` es la PREFERENCIA del usuario ("Mia" o "Ximena"), pero
+     *  cae a "Mia" para cualquier línea cuyo sistema no tenga el switch de Ximena activo (ver
+     *  Modos.vozXimenaPermitida()) -- así "descargar todas" puede pedir Ximena una sola vez y que
+     *  cada línea respete su propio switch, en vez de forzar Ximena (de pago) donde no se activó. */
+    private static String vozReal(Context ctx, String vozElegida, int linea) {
+        return "Ximena".equals(vozElegida) && Modos.vozXimenaPermitida(ctx, linea) ? "Ximena" : "Mia";
+    }
+
+    /** Frases por petición de paquete (el servidor acepta hasta 600). */
+    private static final int LOTE_PAQUETE = 300;
+    private static final String URL_PAQUETE = "https://geomb.duckdns.org/api/tts/paquete";
+
+    /** El servidor todavía no tiene POST /api/tts/paquete (404/405): usar el modo de una por una. */
+    private static final class PaqueteNoDisponible extends Exception {}
+
+    private interface Avance { void mas(int n); }
+
+    /**
+     * Pide al EC2 un .zip con los audios de {@code lote} (misma caché permanente que /api/tts: lo que
+     * ya existe sale sin volver a sintetizarse) y escribe cada mp3 en su archivo. El zip trae
+     * "NNNN.mp3" (NNNN = índice en el lote) y "manifest.json" con los índices pendientes (el servidor
+     * no alcanzó a sintetizarlos en esta petición). Devuelve los Items que siguen faltando.
+     */
+    private static List<Item> descargarPaquete(String voz, List<Item> lote, Avance avance) throws Exception {
+        org.json.JSONArray textos = new org.json.JSONArray();
+        for (Item it : lote) textos.put(it.texto);
+        org.json.JSONObject cuerpo = new org.json.JSONObject().put("voz", voz).put("textos", textos);
+        byte[] datos = cuerpo.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        HttpURLConnection c = (HttpURLConnection) new URL(URL_PAQUETE).openConnection();
+        c.setConnectTimeout(10000);
+        c.setReadTimeout(60000);   // el servidor puede tardar ~20 s sintetizando lo que falte
+        c.setDoOutput(true);
+        c.setRequestMethod("POST");
+        c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        c.setRequestProperty("Accept", "application/zip");
+        boolean[] escrito = new boolean[lote.size()];
+        try {
+            try (java.io.OutputStream os = c.getOutputStream()) { os.write(datos); }
+            int code = c.getResponseCode();
+            if (code == 404 || code == 405) throw new PaqueteNoDisponible();
+            if (code / 100 != 2) throw new java.io.IOException("HTTP " + code);
+            try (java.util.zip.ZipInputStream zin = new java.util.zip.ZipInputStream(
+                    new java.io.BufferedInputStream(c.getInputStream()))) {
+                java.util.zip.ZipEntry e;
+                byte[] buf = new byte[8192];
+                while ((e = zin.getNextEntry()) != null) {
+                    String n = e.getName();
+                    if (!n.matches("\\d{4,}\\.mp3")) continue;   // manifest.json u otros: no hace falta
+                    int idx = Integer.parseInt(n.substring(0, n.length() - 4));
+                    if (idx < 0 || idx >= lote.size()) continue;
+                    File out = lote.get(idx).out;
+                    File tmp = new File(out.getPath() + ".tmp");
+                    try (FileOutputStream fo = new FileOutputStream(tmp)) {
+                        int r;
+                        while ((r = zin.read(buf)) > 0) fo.write(buf, 0, r);
+                    }
+                    if (tmp.length() > 0 && tmp.renameTo(out)) {
+                        escrito[idx] = true;
+                        avance.mas(1);
+                    } else {
+                        tmp.delete();
+                    }
+                }
+            }
+        } finally {
+            c.disconnect();
+        }
+        List<Item> faltan = new ArrayList<>();
+        for (int i = 0; i < lote.size(); i++) if (!escrito[i]) faltan.add(lote.get(i));
+        return faltan;
+    }
+
+    /** Baja UNA frase con GET /api/tts (respaldo del paquete). Devuelve true si quedó el archivo. */
+    private static boolean descargarUno(Item it) throws java.io.IOException {
+        File out = it.out;
         if (out.exists() && out.length() > 0) return true;   // ya cacheado
-        URL url = new URL("https://geomb.duckdns.org/api/tts?voz=" + voz + "&texto="
-                + android.net.Uri.encode(texto));
+        URL url = new URL("https://geomb.duckdns.org/api/tts?voz=" + it.voz + "&texto="
+                + android.net.Uri.encode(it.texto));
         HttpURLConnection c = (HttpURLConnection) url.openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(15000);
