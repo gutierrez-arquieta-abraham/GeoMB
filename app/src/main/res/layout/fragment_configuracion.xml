@@ -520,6 +520,14 @@
                     android:adjustViewBounds="true"
                     android:contentDescription="@string/creditos_transpoarte"
                     android:src="@drawable/transpoarte_logo" />
+
+                <ImageView
+                    android:id="@+id/img_ringocat"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="24dp"
+                    android:contentDescription="@string/creditos_ringocat"
+                    android:src="@drawable/ringocat_logo" />
             </LinearLayout>
 
             <TextView

@@ -126,9 +126,10 @@ public class ConfiguracionFragment extends Fragment {
                     androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY));
             creditos.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
         }
-        // Los logos (ABT = Augusto Neri, TranspoArte) también llevan a su Instagram.
+        // Los logos (ABT = Augusto Neri, TranspoArte, RingoCat) también llevan a su Instagram.
         abrirAlTocar(view.findViewById(R.id.img_abt), "https://www.instagram.com/augusto_byt");
         abrirAlTocar(view.findViewById(R.id.img_transpoarte), "https://www.instagram.com/transpoarte");
+        abrirAlTocar(view.findViewById(R.id.img_ringocat), "https://www.instagram.com/ringocatgd");
 
         view.findViewById(R.id.btn_idioma).setOnClickListener(x -> Idiomas.mostrarSelector(requireContext()));
         view.findViewById(R.id.btn_editar_perfil).setOnClickListener(x -> editarPerfil());

@@ -96,6 +96,23 @@
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
+
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginTop="18dp"
+            android:contentDescription="@string/creditos_ringocat"
+            android:src="@drawable/ringocat_logo" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:text="@string/creditos_ringocat_nombre"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <!-- 3) Nombres en puro texto, uno tras otro (SplashActivity.CREDITOS_TEXTO) -->
