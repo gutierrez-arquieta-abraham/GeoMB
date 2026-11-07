@@ -126,6 +126,14 @@ public class ConfiguracionFragment extends Fragment {
                     androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY));
             creditos.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
         }
+        // El logo de ABT (Augusto Neri) también lleva a su Instagram.
+        View abt = view.findViewById(R.id.img_abt);
+        if (abt != null) abt.setOnClickListener(x -> {
+            try {
+                startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://www.instagram.com/augusto_byt")));
+            } catch (android.content.ActivityNotFoundException ignore) {}
+        });
 
         view.findViewById(R.id.btn_idioma).setOnClickListener(x -> Idiomas.mostrarSelector(requireContext()));
         view.findViewById(R.id.btn_editar_perfil).setOnClickListener(x -> editarPerfil());

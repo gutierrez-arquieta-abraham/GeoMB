@@ -717,9 +717,9 @@
     <!-- Créditos: pantalla de carga (SplashActivity) y Configuración → Acerca -->
     <string name="creditos_titulo">Colaboradores y redes</string>
     <string name="creditos_colaboradores">Con la colaboración de</string>
-    <string name="creditos_abt">Logo de ABT</string>
-    <string name="creditos_personas">@augusto_byt · @ringocatgd · @dante_sg_4</string>
+    <string name="creditos_abt">Logo de ABT (Augusto Neri)</string>
+    <string name="creditos_personas">ABT · Augusto Neri (@augusto_byt)\n@ringocatgd · @dante_sg_4</string>
     <string name="creditos_oficiales_corto">Información oficial: @semov.edomex · @semovicdmx · @metrobusdela_cdmx</string>
     <string name="creditos_siguenos">Síguenos: @geomb_oficial</string>
-    <string name="creditos_links_html">&lt;b&gt;Colaboradores&lt;/b&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/augusto_byt\"&gt;@augusto_byt&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/ringocatgd\"&gt;@ringocatgd&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/dante_sg_4\"&gt;@dante_sg_4&lt;/a&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Síguenos&lt;/b&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/geomb_oficial\"&gt;@geomb_oficial&lt;/a&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Información oficial (cuentas de las autoridades de movilidad)&lt;/b&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/semov.edomex\"&gt;@semov.edomex&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/semovicdmx\"&gt;@semovicdmx&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/metrobusdela_cdmx\"&gt;@metrobusdela_cdmx&lt;/a&gt;</string>
+    <string name="creditos_links_html">&lt;b&gt;Colaboradores&lt;/b&gt;&lt;br/&gt;ABT · Augusto Neri — &lt;a href=\"https://www.instagram.com/augusto_byt\"&gt;@augusto_byt&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/ringocatgd\"&gt;@ringocatgd&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/dante_sg_4\"&gt;@dante_sg_4&lt;/a&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Síguenos&lt;/b&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/geomb_oficial\"&gt;@geomb_oficial&lt;/a&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Información oficial (cuentas de las autoridades de movilidad)&lt;/b&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/semov.edomex\"&gt;@semov.edomex&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/semovicdmx\"&gt;@semovicdmx&lt;/a&gt;&lt;br/&gt;&lt;a href=\"https://www.instagram.com/metrobusdela_cdmx\"&gt;@metrobusdela_cdmx&lt;/a&gt;</string>
 </resources>
