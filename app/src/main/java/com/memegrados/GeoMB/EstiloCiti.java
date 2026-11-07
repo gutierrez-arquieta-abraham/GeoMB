@@ -79,9 +79,9 @@ public final class EstiloCiti {
     }
 
     /** Ícono del autobús (icon_bus a map_bus_width = 32dp) a {@code escala} de su tamaño (para
-     *  encogerlo al alejar el mapa, MapFragment.escalaPorZoom), con el número económico en una
-     *  etiqueta blanca debajo. El lienzo deja el mismo alto arriba que la etiqueta abajo, para que el
-     *  bus siga en el centro del marcador (anchor 0.5, 0.5). Un bitmap cacheado por escala y número. */
+     *  encogerlo al alejar el mapa, MapFragment.escalaPorZoom), con el número económico en el
+     *  PARABRISAS, como el bus de GeoMB (MapFragment.dibujarNumeroParabrisas): blanco con contorno
+     *  oscuro. Un bitmap cacheado por escala y número. */
     public static BitmapDescriptor iconoBus(Context c, float escala, String numero) {
         String k = escala + "|" + (numero == null ? "" : numero);
         BitmapDescriptor bd = buses.get(k);
@@ -89,38 +89,27 @@ public final class EstiloCiti {
         if (buses.size() > 1500) buses.clear();
         int px = Math.max(8, Math.round(c.getResources().getDimension(R.dimen.citi_bus) * escala));
         if (busBase == null) busBase = BitmapFactory.decodeResource(c.getResources(), R.drawable.citi_bus);
-        Bitmap bus = Bitmap.createScaledBitmap(busBase, px, px, true);
-        // Con el mapa muy alejado (escala ≤ 0.6) la etiqueta ya no se lee: solo el bus.
-        if (numero == null || numero.isEmpty() || escala <= 0.6f) {
-            bd = BitmapDescriptorFactory.fromBitmap(bus);
-        } else {
-            float dens = c.getResources().getDisplayMetrics().density;
+        Bitmap bus = Bitmap.createScaledBitmap(busBase, px, px, true).copy(Bitmap.Config.ARGB_8888, true);
+        if (numero != null && !numero.isEmpty()) {
+            // Parabrisas de icon_bus (rejilla de 32): x 7..24, y 7..15.
+            float cx = px * (16f / 32f), cy = px * (11.3f / 32f), anchoVidrio = px * (17f / 32f);
             Paint tp = new Paint(Paint.ANTI_ALIAS_FLAG);
-            tp.setTypeface(Tipografia.metro(c));
-            tp.setFakeBoldText(true);
-            tp.setTextSize(10f * dens * Math.max(0.85f, Math.min(escala, 1.2f)));
-            tp.setColor(Color.BLACK);
             tp.setTextAlign(Paint.Align.CENTER);
-            Paint.FontMetrics fm = tp.getFontMetrics();
-            float pad = 2f * dens;
-            int altoEt = Math.round(fm.descent - fm.ascent + 2 * pad * 0.6f);
-            int anchoEt = Math.round(tp.measureText(numero) + 2 * pad * 1.5f);
-            int w = Math.max(px, anchoEt), h = px + 2 * altoEt;
-            Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-            Canvas cv = new Canvas(out);
-            cv.drawBitmap(bus, (w - px) / 2f, altoEt, null);
-            float top = altoEt + px, l = (w - anchoEt) / 2f;
-            Paint fondo = new Paint(Paint.ANTI_ALIAS_FLAG);
-            fondo.setColor(Color.WHITE);
-            android.graphics.RectF rect = new android.graphics.RectF(l, top, l + anchoEt, top + altoEt);
-            cv.drawRoundRect(rect, 3 * dens, 3 * dens, fondo);
-            fondo.setStyle(Paint.Style.STROKE);
-            fondo.setStrokeWidth(Math.max(1f, 0.8f * dens));
-            fondo.setColor(0xFF666666);
-            cv.drawRoundRect(rect, 3 * dens, 3 * dens, fondo);
-            cv.drawText(numero, w / 2f, top + altoEt / 2f - (fm.ascent + fm.descent) / 2f, tp);
-            bd = BitmapDescriptorFactory.fromBitmap(out);
+            tp.setTypeface(Tipografia.metro(c));   // Tipo Metro, igual que en GeoMB
+            tp.setFakeBoldText(true);
+            float ts = Math.min(anchoVidrio / Math.max(2.2f, numero.length() * 0.62f), px * (8.5f / 32f));
+            tp.setTextSize(ts);
+            float y = cy - (tp.descent() + tp.ascent()) / 2f;
+            Canvas cv = new Canvas(bus);
+            tp.setStyle(Paint.Style.STROKE);
+            tp.setStrokeWidth(Math.max(1.2f, ts * 0.20f));
+            tp.setColor(0xFF10233A);
+            cv.drawText(numero, cx, y, tp);
+            tp.setStyle(Paint.Style.FILL);
+            tp.setColor(Color.WHITE);
+            cv.drawText(numero, cx, y, tp);
         }
+        bd = BitmapDescriptorFactory.fromBitmap(bus);
         buses.put(k, bd);
         return bd;
     }
