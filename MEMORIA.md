@@ -166,6 +166,11 @@ CA propia `/etc/nginx/certs/geomb-admin-ca.crt`); `/admin` **bloqueado (404) en 
 - **Filtro de fantasmas** (`RealtimeRepository.filtrarFantasmas`): descarta unidades cuyo `timestamp` está a >**240 s** de la unidad
   MÁS FRESCA del lote (referencia relativa, inmune a desfase de reloj). Sin timestamp → se conservan. Afecta mapa y llegadas.
 
+## Favoritos en la cuenta — `FavoritosNube.java`
+- Unidades guardadas (Room `economicos_favoritos`) y estaciones favoritas CITI (`EstiloCiti`, prefs) se guardan como campos del doc `usuarios/{uid}` (`favUnidades`, `favEstaciones`, `favTs`), el único que permiten las reglas de Firestore documentadas.
+- Al abrir (MainActivity/CitiActivity, 1 vez por proceso): 1ª vez en el teléfono = unión; otra cuenta = la nube reemplaza; después, gana el `favTs` más nuevo. Cada cambio local sube todo (`update`, para que viajen las bajas).
+- La alerta "avisarme cuando esté cerca" no se restaura activa en otro teléfono (solo el radio).
+
 ## Pendientes / ideas
 - **L2 Express:** capturar patrón de paradas para rutearlo como variante.
 - **TripUpdates GTFS-rt** de Metrobús para arribos "tipo pantalla" (unidades sin GPS) — registro portal + ingestión en backend.

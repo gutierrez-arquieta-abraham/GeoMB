@@ -59,7 +59,7 @@ public final class EstiloCiti {
     }
 
     private static final Map<String, BitmapDescriptor> CACHE = new HashMap<>();
-    private static BitmapDescriptor bus;
+    private static final java.util.Map<Float, BitmapDescriptor> buses = new java.util.HashMap<>();
 
     /** Color de la línea en estilo CITI; {@code porDefecto} si esa app no la tenía. */
     public static int color(int linea, int porDefecto) {
@@ -77,14 +77,17 @@ public final class EstiloCiti {
         return c.getResources().getDimension(R.dimen.citi_trazo);
     }
 
-    /** Ícono del autobús (icon_bus a map_bus_width = 32dp). */
-    public static BitmapDescriptor iconoBus(Context c) {
-        if (bus == null) {
-            int px = (int) c.getResources().getDimension(R.dimen.citi_bus);
+    /** Ícono del autobús (icon_bus a map_bus_width = 32dp) a {@code escala} de su tamaño, para encogerlo al alejar el mapa
+     *  (MapFragment.escalaPorZoom). Un bitmap cacheado por escala. */
+    public static BitmapDescriptor iconoBus(Context c, float escala) {
+        BitmapDescriptor bd = buses.get(escala);
+        if (bd == null) {
+            int px = Math.max(8, Math.round(c.getResources().getDimension(R.dimen.citi_bus) * escala));
             Bitmap b = BitmapFactory.decodeResource(c.getResources(), R.drawable.citi_bus);
-            bus = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(b, px, px, false));
+            bd = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(b, px, px, true));
+            buses.put(escala, bd);
         }
-        return bus;
+        return bd;
     }
 
     /** Rumbos (grados, 0 = norte) del recorrido al pasar por {@code pos}, uno por sentido: el de
@@ -202,6 +205,7 @@ public final class EstiloCiti {
         s.add(claveFavorita(linea, nombre, pos));
         c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
                 .edit().putStringSet(K_FAVORITAS, s).apply();
+        FavoritosNube.cambioLocal(c);   // también en la cuenta
     }
 
     public static void quitarFavorita(Context c, int linea, String nombre, LatLng pos) {
@@ -209,6 +213,18 @@ public final class EstiloCiti {
         s.remove(claveFavorita(linea, nombre, pos));
         c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
                 .edit().putStringSet(K_FAVORITAS, s).apply();
+        FavoritosNube.cambioLocal(c);
+    }
+
+    /** Las claves de las favoritas tal cual (para guardarlas en la cuenta, FavoritosNube). */
+    static java.util.Set<String> clavesFavoritas(Context c) {
+        return new java.util.HashSet<>(favoritas(c));
+    }
+
+    /** Reemplaza las favoritas con las que llegaron de la cuenta (FavoritosNube); no vuelve a subir. */
+    static void reemplazarFavoritas(Context c, java.util.Set<String> claves) {
+        c.getApplicationContext().getSharedPreferences(PREFS_FAV, Context.MODE_PRIVATE)
+                .edit().putStringSet(K_FAVORITAS, new java.util.HashSet<>(claves)).apply();
     }
 
     private static java.util.Set<String> favoritas(Context c) {

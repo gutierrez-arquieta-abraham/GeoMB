@@ -90,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
         // Interruptor remoto de "Servicio en pausa": primero el último estado guardado (para que
         // lo de abajo ya no arranque el sondeo si el servidor está apagado) y luego la consulta real.
         EstadoServicio.cargar(this);
+        FavoritosNube.sincronizar(this);   // unidades y estaciones favoritas de la cuenta
         // Con el estilo CITI activo esta actividad cede la pantalla enseguida: el aviso lo da CitiActivity.
         if (EstadoServicio.enPausa() && !Modos.estiloCiti(this)) mostrarAvisoPausa();
         boolean citiActivo = Modos.estiloCiti(this);

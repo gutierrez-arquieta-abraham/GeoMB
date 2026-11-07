@@ -121,6 +121,31 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  icono cuando no hace falta (solo se recalcula si no está en caché: una unidad nueva, o su
      *  color/siguiendo cambió). Se purga por económico cuando su marcador se quita del mapa. */
     private final Map<String, BitmapDescriptor> cacheIconoUnidad = new HashMap<>();
+    // Tamaño de los iconos de unidad según el zoom (ver escalaPorZoom): al alejar el mapa —p. ej. al
+    // ver una ruta completa— los buses se encogen para no tapar el trazo ni encimarse.
+    private float escalaUnidades = 1f;
+
+    /** Escala del icono de unidad para un nivel de zoom, en pasos fijos (cada paso es un bitmap
+     *  cacheado distinto, así que no se regenera en cada movimiento de cámara). */
+    static float escalaPorZoom(float zoom) {
+        if (zoom >= 16f) return 1f;
+        if (zoom >= 15f) return 0.85f;
+        if (zoom >= 14f) return 0.72f;
+        if (zoom >= 13f) return 0.6f;
+        return 0.5f;
+    }
+
+    /** Si el zoom cambió de paso de escala, repinta los iconos de todas las unidades visibles. */
+    private void ajustarEscalaUnidades() {
+        if (mapa == null) return;
+        float e = escalaPorZoom(mapa.getCameraPosition().zoom);
+        if (e == escalaUnidades) return;
+        escalaUnidades = e;
+        for (Map.Entry<String, Marker> en : marcadoresUnidad.entrySet()) {
+            UnidadReal u = RealtimeRepository.get().buscar(en.getKey());
+            if (u != null) en.getValue().setIcon(iconoParaUnidad(u));
+        }
+    }
     /** Anillo animado (Circle, no bitmap) alrededor de cada unidad SIGUIENDO: pulsación continua y
      *  suave sin recrear icono ni bitmap -- solo cambia radio/alfa de un overlay vectorial. */
     private final Map<String, com.google.android.gms.maps.model.Circle> pulsosSeguimiento = new HashMap<>();
@@ -531,8 +556,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                     l.estaciones.get(rg[0]).posicion, l.estaciones.get(Math.min(rg[1], l.estaciones.size() - 1)).posicion);
             if (mapa != null && pts.size() > 1) {
                 trazoServicioCiti.add(mapa.addPolyline(new PolylineOptions().addAll(pts)
-                        .color(EstiloCiti.color(ln, l.color)).width(EstiloCiti.anchoTrazo(requireContext()))
-                        .geodesic(false).zIndex(3f)));
+                        .color(EstiloCiti.color(ln, l.color)).width(EstiloCiti.anchoTrazo(requireContext()) * FACTOR_TRAZO_RESALTADO)
+                        .geodesic(false).zIndex(4f)));
                 for (LatLng p : pts) { caja.include(p); hay = true; }
             }
         }
@@ -815,7 +840,44 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     @Override
     public void onFiltrosCambiados() {
         if (mapa != null) actualizarUnidades(RealtimeRepository.get().getUltimo());
+        resaltarTrazoRuta();
         actualizarChip();
+    }
+
+    // Ancho y zIndex originales de cada trazo de la red (para volver a ellos al quitar el resaltado).
+    private final java.util.Map<Polyline, float[]> baseTrazo = new java.util.HashMap<>();
+    private static final float FACTOR_TRAZO_RESALTADO = 2f;
+
+    /** Línea cuyo recorrido va resaltado: la ruta elegida en estilo CITI, o en GeoMB la del filtro
+     *  de línea (o la de las unidades del filtro de ruta). 0 = ninguna. */
+    private int lineaResaltada() {
+        if (citi) return lineaCiti;
+        Filtro f = RealtimeRepository.filtro;
+        if (f.linea != null) return f.linea;
+        if (f.ruta != null) {
+            List<UnidadReal> us = RealtimeRepository.get().getUltimo();
+            if (us != null) for (UnidadReal u : us) if (f.ruta.equals(u.ruta) && u.linea != null) return u.linea;
+        }
+        return 0;
+    }
+
+    /** Engrosa (FACTOR_TRAZO_RESALTADO) el trazo de la ruta elegida y lo pone encima; el resto vuelve
+     *  a su ancho normal. Con un servicio elegido en CITI, su tramo (trazoServicioCiti) va grueso. */
+    private void resaltarTrazoRuta() {
+        if (mapa == null) return;
+        int ln = lineaResaltada();
+        List<Polyline> todas = new ArrayList<>(lineasRed);
+        todas.addAll(mexibusLineas);
+        for (Polyline p : todas) {
+            Object t = p.getTag();
+            if (!(t instanceof Integer)) continue;
+            float[] base = baseTrazo.get(p);
+            if (base == null) { base = new float[]{p.getWidth(), p.getZIndex()}; baseTrazo.put(p, base); }
+            boolean si = ln != 0 && (Integer) t == ln;
+            float w = si ? base[0] * FACTOR_TRAZO_RESALTADO : base[0], z = si ? 4f : base[1];
+            if (p.getWidth() != w) p.setWidth(w);
+            if (p.getZIndex() != z) p.setZIndex(z);
+        }
     }
 
     private void actualizarChip() {
@@ -979,6 +1041,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // Se dispara en cada movimiento de cámara (muy frecuente); igual que el listener de
             // marcadores, no debe poder tumbar la app.
             try {
+                ajustarEscalaUnidades();                   // iconos de unidad conforme al zoom
+                resaltarTrazoRuta();                       // trazos creados después de elegir la ruta
                 crearEstacionesVisibles();                 // carga estaciones al explorar
                 aplicarVisibilidadEstaciones();
                 crearMexibusVisibles();                    // crea marcadores Mexibús por demanda (no todos al inicio)
@@ -2249,7 +2313,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  combinación de (número, color[es], siguiendo); las llamadas repetidas (p. ej. al volver a
      *  evaluar en cada poll si hace falta repintar) reusan el BitmapDescriptor ya construido. */
     private BitmapDescriptor iconoParaUnidad(UnidadReal u) {
-        if (citi) return EstiloCiti.iconoBus(requireContext());
+        if (citi) return EstiloCiti.iconoBus(requireContext(), escalaUnidades);
         boolean siguiendo = SeguimientoService.sigue(u.numero);
         RutasMixtas.Tramo t = RutasMixtas.tramo(u.origen, u.destino);
         if (t != null) {
@@ -2264,11 +2328,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  debajo del bus (ver dibujarBadgeEconomico). La pulsación es un overlay aparte (Circle, ver
      *  iniciarPulso) -- este bitmap es siempre estático, nunca se anima ni se regenera por eso. */
     private BitmapDescriptor iconoUnidad(int color, String numero, boolean siguiendo) {
-        String clave = numero + "|" + siguiendo + "|" + color;
+        String clave = numero + "|" + siguiendo + "|" + color + "|" + escalaUnidades;
         BitmapDescriptor cacheado = cacheIconoUnidad.get(clave);
         if (cacheado != null) return cacheado;
 
-        int d = (int) ((siguiendo ? TAMANO_UNIDAD_SEGUIDA_DP : TAMANO_UNIDAD_DP) * getResources().getDisplayMetrics().density);
+        int d = (int) ((siguiendo ? TAMANO_UNIDAD_SEGUIDA_DP : TAMANO_UNIDAD_DP) * escalaUnidades * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Drawable bus = ContextCompat.getDrawable(requireContext(), R.drawable.ic_bus);
@@ -2292,11 +2356,11 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      * tamaño/halo/cápsula/caché que {@link #iconoUnidad} cuando {@code siguiendo}.
      */
     private BitmapDescriptor iconoUnidadMixta(int colorArriba, int colorAbajo, String numero, boolean siguiendo) {
-        String clave = numero + "|" + siguiendo + "|" + colorArriba + "," + colorAbajo;
+        String clave = numero + "|" + siguiendo + "|" + colorArriba + "," + colorAbajo + "|" + escalaUnidades;
         BitmapDescriptor cacheado = cacheIconoUnidad.get(clave);
         if (cacheado != null) return cacheado;
 
-        int d = (int) ((siguiendo ? TAMANO_UNIDAD_SEGUIDA_DP : TAMANO_UNIDAD_DP) * getResources().getDisplayMetrics().density);
+        int d = (int) ((siguiendo ? TAMANO_UNIDAD_SEGUIDA_DP : TAMANO_UNIDAD_DP) * escalaUnidades * getResources().getDisplayMetrics().density);
         Bitmap bmp = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Drawable bus = ContextCompat.getDrawable(requireContext(), R.drawable.ic_bus);
@@ -3612,6 +3676,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // En el estilo CITI el fragment vuelve del back stack con la MISMA instancia: sin esto se
         // acumulaban polylines/marcadores del GoogleMap ya destruido.
         lineasRed.clear();
+        baseTrazo.clear();
         trazoRuta.clear();
         marcadoresRuta.clear();
         centroCarga = null;

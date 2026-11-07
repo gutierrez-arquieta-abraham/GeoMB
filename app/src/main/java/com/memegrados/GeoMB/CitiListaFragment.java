@@ -258,29 +258,55 @@ public class CitiListaFragment extends CitiPantalla {
 
     // --- Favoritos (item_favorito.xml; "Editar" muestra el botón de borrar) ---
 
+    /** Estaciones favoritas y, debajo, las unidades guardadas (las de "Mis unidades": viajan con la
+     *  cuenta, ver FavoritosNube). Tocar una unidad abre sus opciones con "Ver en mapa". */
     private void mostrarFavoritos() {
         if (lista == null) return;
-        final List<CitiDatos.Est> favs = CitiDatos.favoritas(requireContext());
-        if (favs.isEmpty() && !editando) citi().aviso(getString(R.string.citi_sin_favoritos));
-        lista.setAdapter(new BaseAdapter() {
-            @Override public int getCount() { return favs.size(); }
-            @Override public Object getItem(int i) { return favs.get(i); }
-            @Override public long getItemId(int i) { return i; }
-            @Override public View getView(int i, View v, ViewGroup parent) {
-                if (v == null) v = getLayoutInflater().inflate(R.layout.item_favorito_citi, parent, false);
-                CitiDatos.Est e = favs.get(i);
-                iconoEstacion(v.findViewById(R.id.citi_fav_icono), e, 28);
-                ((TextView) v.findViewById(R.id.citi_fav_nombre)).setText(e.nombre);
-                ((TextView) v.findViewById(R.id.citi_fav_dato)).setText(sistemaDe(e.linea));
-                ImageView borrar = v.findViewById(R.id.citi_fav_borrar);
-                borrar.setVisibility(editando ? View.VISIBLE : View.GONE);
-                borrar.setOnClickListener(x -> {
-                    EstiloCiti.quitarFavorita(requireContext(), e.linea, e.nombre, e.pos);
-                    mostrarFavoritos();
-                });
-                return v;
-            }
+        Telemetria.listaFavoritos(requireContext(), unidades -> {
+            if (lista == null || !isAdded()) return;
+            final List<Object> filas = new ArrayList<>(CitiDatos.favoritas(requireContext()));
+            filas.addAll(unidades);
+            if (filas.isEmpty() && !editando) citi().aviso(getString(R.string.citi_sin_favoritos));
+            lista.setAdapter(new BaseAdapter() {
+                @Override public int getCount() { return filas.size(); }
+                @Override public Object getItem(int i) { return filas.get(i); }
+                @Override public long getItemId(int i) { return i; }
+                @Override public View getView(int i, View v, ViewGroup parent) {
+                    if (v == null) v = getLayoutInflater().inflate(R.layout.item_favorito_citi, parent, false);
+                    Object o = filas.get(i);
+                    ImageView icono = v.findViewById(R.id.citi_fav_icono);
+                    TextView nombre = v.findViewById(R.id.citi_fav_nombre), dato = v.findViewById(R.id.citi_fav_dato);
+                    ImageView borrar = v.findViewById(R.id.citi_fav_borrar);
+                    borrar.setVisibility(editando ? View.VISIBLE : View.GONE);
+                    if (o instanceof CitiDatos.Est) {
+                        CitiDatos.Est e = (CitiDatos.Est) o;
+                        iconoEstacion(icono, e, 28);
+                        nombre.setText(e.nombre);
+                        dato.setText(sistemaDe(e.linea));
+                        borrar.setOnClickListener(x -> {
+                            EstiloCiti.quitarFavorita(requireContext(), e.linea, e.nombre, e.pos);
+                            mostrarFavoritos();
+                        });
+                    } else {
+                        EconomicoFavoritoEntity f = (EconomicoFavoritoEntity) o;
+                        icono.setImageResource(R.drawable.citi_bus);
+                        nombre.setText(getString(R.string.citi_fav_unidad, f.economico));
+                        dato.setText(f.linea > 0 ? sistemaDe(f.linea) : getString(R.string.citi_fav_unidad_guardada));
+                        borrar.setOnClickListener(x -> {
+                            Telemetria.quitarFavorito(requireContext(), f.economico);
+                            filas.remove(f);
+                            notifyDataSetChanged();
+                        });
+                    }
+                    return v;
+                }
+            });
+            lista.setOnItemClickListener((p, v, i, id) -> {
+                if (editando) return;
+                Object o = filas.get(i);
+                if (o instanceof CitiDatos.Est) citi().menuEstacionLista((CitiDatos.Est) o);
+                else citi().menuUnidadGuardada(((EconomicoFavoritoEntity) o).economico);
+            });
         });
-        lista.setOnItemClickListener((p, v, i, id) -> { if (!editando) citi().menuEstacionLista(favs.get(i)); });
     }
 }

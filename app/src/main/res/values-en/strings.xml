@@ -57,7 +57,10 @@
     <string name="citi_seleccionar_estacion">Type the station name</string>
     <string name="citi_a_metros">%.0f meters away</string>
     <string name="citi_editar">Edit</string>
-    <string name="citi_sin_favoritos">You have no favorite stations</string>
+    <string name="citi_sin_favoritos">You have no favorite stations or buses</string>
+    <string name="citi_fav_unidad">Bus %1$s</string>
+    <string name="citi_fav_unidad_guardada">Saved bus</string>
+    <string name="citi_fav_opciones">Bus options</string>
     <string name="citi_sin_ubicacion">Could not get your location</string>
     <string name="citi_recarga_aviso">You can top up your card at the machines in any Metrobús station.</string>
     <string name="citi_info_texto">GeoMB · CITI style\nA tribute to the Metrobús Android app (Indra, 2017–2018)</string>
@@ -65,6 +68,7 @@
     <string name="citi_politica">Privacy policy</string>
     <string name="citi_volver_geomb">Back to GeoMB</string>
     <string name="citi_aviso">Notice</string>
+    <string name="citi_aviso_activado">We\'ll send you a notification each time a %1$s bus approaches this station.</string>
     <string name="citi_origen">From</string>
     <string name="citi_destino">To</string>
     <string name="citi_mi_ubicacion">My location</string>

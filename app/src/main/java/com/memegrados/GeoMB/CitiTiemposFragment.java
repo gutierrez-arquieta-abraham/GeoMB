@@ -1,6 +1,12 @@
 package com.memegrados.GeoMB;
 
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +17,9 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +43,22 @@ public class CitiTiemposFragment extends CitiPantalla {
     private boolean avisoMostrado;   // el original daba el "Aviso" solo la primera vez
     private View resultado;
     private ListView lista;
+    private TextView btnAvisar;
+    private int lineaAviso;   // línea elegida para "Avisarme" mientras se pide el permiso
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    // Como LlegadasFragment: mientras la pantalla está abierta los tiempos se actualizan solos.
+    private final Runnable poll = new Runnable() {
+        @Override public void run() {
+            if (!isAdded()) return;
+            RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
+                @Override public void onData(List<UnidadReal> u) { if (isAdded()) llenar(u, false); }
+                @Override public void onError(String m) { }
+            });
+            handler.postDelayed(this, Red.intervalo(getContext(), Config.LLEGADA_POLL_MS));
+        }
+    };
+    private final ActivityResultLauncher<String> permisoNotif =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), ok -> arrancarAviso(lineaAviso));
 
     public static CitiTiemposFragment de(CitiDatos.Est e) {
         Bundle b = new Bundle();
@@ -62,15 +87,93 @@ public class CitiTiemposFragment extends CitiPantalla {
         resultado = v.findViewById(R.id.citi_tiempos_resultado);
         lista = v.findViewById(R.id.citi_tiempos_lista);
         v.findViewById(R.id.citi_tiempos_refrescar).setOnClickListener(x -> descargar());
+        btnAvisar = v.findViewById(R.id.citi_tiempos_avisar);
+        btnAvisar.setOnClickListener(x -> alternarAviso());
+        actualizarBotonAviso();
         descargar();   // muestraTiempos() del original siempre descargaba al abrir
         return v;
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        actualizarBotonAviso();
+        handler.removeCallbacks(poll);
+        handler.postDelayed(poll, Red.intervalo(getContext(), Config.LLEGADA_POLL_MS));
+    }
+
+    @Override
+    public void onPause() {
+        handler.removeCallbacks(poll);
+        super.onPause();
+    }
+
+    // ---- "Avisarme": notificación cuando una unidad se acerque a esta estación (LlegadaService) ----
+
+    private boolean avisandoAqui() {
+        return est.nombre.equals(LlegadaService.paradaSeguida);
+    }
+
+    private void actualizarBotonAviso() {
+        if (btnAvisar != null) btnAvisar.setText(avisandoAqui() ? R.string.llegada_dejar : R.string.llegada_avisar);
+    }
+
+    /** Con varias rutas en la estación pregunta de cuál avisar (cada una con su andén). */
+    private void alternarAviso() {
+        if (avisandoAqui()) {
+            requireContext().startService(new Intent(requireContext(), LlegadaService.class)
+                    .setAction(LlegadaService.ACCION_DETENER));
+            LlegadaService.paradaSeguida = null;
+            actualizarBotonAviso();
+            return;
+        }
+        java.util.TreeMap<Integer, CitiDatos.Est> lineas = CitiDatos.lineasDe(requireContext(), est);
+        if (lineas.size() <= 1) { pedirAviso(est.linea); return; }
+        List<CitiActivity.Opcion> op = new ArrayList<>();
+        for (Integer ln : lineas.keySet())
+            op.add(new CitiActivity.Opcion(CitiDatos.etiquetaSistema(ln), () -> { citi().cerrarMenu(); pedirAviso(ln); }));
+        citi().abrirMenu(op, true);
+    }
+
+    private void pedirAviso(int linea) {
+        lineaAviso = linea;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            permisoNotif.launch(Manifest.permission.POST_NOTIFICATIONS);
+            return;
+        }
+        arrancarAviso(linea);
+    }
+
+    private void arrancarAviso(int linea) {
+        if (!isAdded()) return;
+        CitiDatos.Est anden = CitiDatos.lineasDe(requireContext(), est).get(linea);
+        if (anden == null) anden = est;
+        Intent i = new Intent(requireContext(), LlegadaService.class)
+                .putExtra(LlegadaService.EXTRA_LINEA, linea)
+                .putExtra(LlegadaService.EXTRA_ESTACION, est.nombre)
+                .putExtra(LlegadaService.EXTRA_LAT, anden.pos.latitude)
+                .putExtra(LlegadaService.EXTRA_LON, anden.pos.longitude)
+                .putExtra(LlegadaService.EXTRA_AMBOS, true);   // como la lista: ambos sentidos
+        try {
+            ContextCompat.startForegroundService(requireContext(), i);
+        } catch (IllegalStateException | SecurityException ex) {
+            Telemetria.registrarError(requireContext(), Telemetria.ERR_EXCEPCION, "CitiTiempos.arrancarAviso", String.valueOf(ex));
+            return;
+        }
+        LlegadaService.paradaSeguida = est.nombre;
+        actualizarBotonAviso();
+        citi().aviso(getString(R.string.citi_aviso_activado, CitiDatos.etiquetaSistema(linea)));
+    }
+
+    @Override
     public void onDestroyView() {
         if (getActivity() instanceof CitiActivity) ((CitiActivity) getActivity()).mostrarDescargando(false);
+        handler.removeCallbacks(poll);
         resultado = null;
         lista = null;
+        btnAvisar = null;
         super.onDestroyView();
     }
 
@@ -80,7 +183,7 @@ public class CitiTiemposFragment extends CitiPantalla {
             @Override public void onData(List<UnidadReal> unidades) {
                 if (!isAdded()) return;
                 citi().mostrarDescargando(false);
-                llenar(unidades);
+                llenar(unidades, true);
             }
             @Override public void onError(String mensaje) {
                 if (!isAdded()) return;
@@ -91,8 +194,11 @@ public class CitiTiemposFragment extends CitiPantalla {
         });
     }
 
-    private void llenar(List<UnidadReal> unidades) {
+    /** {@code avisar}: si no hay estimaciones, decirlo con el diálogo (solo al descargar a mano o al
+     *  abrir; el refresco automático no debe abrir diálogos cada pocos segundos). */
+    private void llenar(List<UnidadReal> unidades, boolean avisar) {
         if (lista == null) return;
+        int primera = lista.getFirstVisiblePosition();
         // {linea, "Origen-Destino", minutos, etaSeg, económico}
         final List<Object[]> filas = new ArrayList<>();
         for (Map.Entry<Integer, CitiDatos.Est> e : CitiDatos.lineasDe(requireContext(), est).entrySet()) {
@@ -127,10 +233,11 @@ public class CitiTiemposFragment extends CitiPantalla {
         });
         if (filas.isEmpty()) {
             resultado.setVisibility(View.INVISIBLE);
-            citi().aviso(getString(R.string.citi_sin_estimaciones));
+            if (avisar) citi().aviso(getString(R.string.citi_sin_estimaciones));
         } else {
             resultado.setVisibility(View.VISIBLE);
-            lista.setSelectionAfterHeaderView();
+            if (avisar) lista.setSelectionAfterHeaderView();
+            else lista.setSelection(Math.min(primera, filas.size() - 1));   // el refresco no te mueve la lista
             mostrarAvisos();
         }
     }

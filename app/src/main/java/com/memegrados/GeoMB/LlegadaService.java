@@ -50,6 +50,8 @@ public class LlegadaService extends Service {
     public static final String EXTRA_LAT = "lat";
     public static final String EXTRA_LON = "lon";
     public static final String EXTRA_SENTIDO = "sentido";
+    /** true = avisar de las unidades que se acercan por CUALQUIER sentido (estilo CITI, "Próximo autobús"). */
+    public static final String EXTRA_AMBOS = "ambos";
     public static final String ACCION_DETENER = "detener";
 
     private static final String CH_ONGOING = "llegadas_ongoing";
@@ -64,6 +66,7 @@ public class LlegadaService extends Service {
     private int linea;
     private String estacion;
     private String sentido;
+    private boolean ambos;
     private LatLng pos;
     private boolean ciclando = false;
     private volatile boolean detenido = false;
@@ -88,6 +91,7 @@ public class LlegadaService extends Service {
         linea = intent.getIntExtra(EXTRA_LINEA, 1);
         estacion = intent.getStringExtra(EXTRA_ESTACION);
         sentido = intent.getStringExtra(EXTRA_SENTIDO);
+        ambos = intent.getBooleanExtra(EXTRA_AMBOS, false);
         pos = new LatLng(intent.getDoubleExtra(EXTRA_LAT, 0), intent.getDoubleExtra(EXTRA_LON, 0));
         if (estacion == null) { stopSelf(); return START_NOT_STICKY; }
         android.util.Log.d("LlegadaService", "onStartCommand: arrancando vigilancia de " + estacion);
@@ -122,7 +126,7 @@ public class LlegadaService extends Service {
     // Una unidad con datos inesperados en el feed en vivo (fuente externa) no debe tumbar este
     // servicio en primer plano; el llamador (ciclo()) ya la protege con try/finally -> reprogramar().
     private void evaluar(List<UnidadReal> unidades) {
-        List<Llegadas.Prox> prox = Llegadas.proximas(this, linea, pos, sentido, unidades);
+        List<Llegadas.Prox> prox = Llegadas.proximas(this, linea, pos, sentido, unidades, ambos);
 
         Set<String> cercanos = new HashSet<>();
         for (Llegadas.Prox p : prox) {
@@ -241,6 +245,7 @@ public class LlegadaService extends Service {
                 .putString("sentido", sentidoP)
                 .putFloat("lat", (float) posP.latitude)
                 .putFloat("lon", (float) posP.longitude)
+                .putBoolean("ambos", ambos)
                 .apply();
     }
 
@@ -268,7 +273,8 @@ public class LlegadaService extends Service {
                 .putExtra(EXTRA_ESTACION, estacion)
                 .putExtra(EXTRA_SENTIDO, p.getString("sentido", null))
                 .putExtra(EXTRA_LAT, (double) p.getFloat("lat", 0f))
-                .putExtra(EXTRA_LON, (double) p.getFloat("lon", 0f));
+                .putExtra(EXTRA_LON, (double) p.getFloat("lon", 0f))
+                .putExtra(EXTRA_AMBOS, p.getBoolean("ambos", false));
         android.util.Log.d("LlegadaService", "reanudarSiHay: reanudando alerta persistida de " + estacion);
         androidx.core.content.ContextCompat.startForegroundService(c, i);
         android.util.Log.d("LlegadaService", "reanudarSiHay: startForegroundService() invocado.");

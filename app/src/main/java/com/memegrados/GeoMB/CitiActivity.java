@@ -105,6 +105,7 @@ public class CitiActivity extends AppCompatActivity {
         ActualizacionObligatoria.refrescar(this, this::bloqueoActualizacion);
         Backend.alRequerirActualizacion = () -> runOnUiThread(this::bloqueoActualizacion);
         AvisoDonativo.mostrarSiToca(this);
+        FavoritosNube.sincronizar(this);   // unidades y estaciones favoritas de la cuenta
         EstadoServicio.refrescar(this, () -> {
             if (EstadoServicio.enPausa() && !isFinishing()) {
                 aviso(EstadoServicio.mensaje(this));
@@ -320,6 +321,14 @@ public class CitiActivity extends AppCompatActivity {
             }));
             abrirMenu(op, false);
         }));
+    }
+
+    /** Unidad guardada desde Favoritos: "Ver en mapa" (si está en servicio) o sus opciones de siempre. */
+    public void menuUnidadGuardada(String eco) {
+        List<Opcion> op = new ArrayList<>();
+        op.add(new Opcion(getString(R.string.citi_ver_en_mapa), () -> { cerrarMenuSinAnimar(); buscarBus(eco); }));
+        op.add(new Opcion(getString(R.string.citi_fav_opciones), () -> { cerrarMenuSinAnimar(); menuUnidadMapa(eco); }));
+        abrirMenu(op, true);
     }
 
     /** Pide la ubicación (precisa o aproximada) si falta y luego corre {@code accion}. */

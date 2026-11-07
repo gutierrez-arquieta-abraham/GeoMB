@@ -55,9 +55,20 @@
     </LinearLayout>
 
     <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/citi_tiempos_avisar"
+        style="@style/CitiBotonMenu"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginTop="10dp"
+        android:text="@string/llegada_avisar" />
+
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/citi_tiempos_refrescar"
         style="@style/CitiBotonMenu"
         android:layout_gravity="center_horizontal"
-        android:layout_margin="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginBottom="10dp"
         android:text="@string/citi_refrescar" />
 </LinearLayout>

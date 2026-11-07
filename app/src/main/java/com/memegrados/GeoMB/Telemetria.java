@@ -206,6 +206,7 @@ public final class Telemetria {
             f.linea = linea;
             db(app).economicoFavoritoDao().insertar(f);
             TelemetriaSync.sincronizar(app);
+            FavoritosNube.cambioLocal(app);   // la lista viaja con la cuenta
         });
     }
 
@@ -219,6 +220,7 @@ public final class Telemetria {
             // fila huérfana si la unidad tenía alerta activa -- no-op silencioso en el backend si
             // no la tenía o si ya no existía ahí.
             AlertasBackend.eliminarAlerta(app, economico);
+            FavoritosNube.cambioLocal(app);
             // Si esta era la última unidad con alerta activa, AlertasUnidadesService ya no tiene
             // nada que hacer -- ver evaluarServicioAlertas().
             evaluarServicioAlertas(app, dao);
@@ -297,6 +299,7 @@ public final class Telemetria {
                 radioM = existente.radioAlertaM;   // conserva el radio que ya tenía configurado
             }
             TelemetriaSync.sincronizar(app);
+            if (existente == null) FavoritosNube.cambioLocal(app);   // se guardó al activar la alerta
             // Sincroniza con metrobus_app (ver AlertasBackend): Room ya quedó actualizado arriba,
             // así que un fallo de red aquí nunca revierte ni bloquea la preferencia local.
             AlertasBackend.actualizarAlerta(app, economico, activa, radioM);
@@ -315,6 +318,7 @@ public final class Telemetria {
         ioSeguro(() -> {
             EconomicoFavoritoDao dao = db(app).economicoFavoritoDao();
             dao.actualizarRadioAlerta(economico, radioM);
+            FavoritosNube.cambioLocal(app);
             // Relee la fila para mandar al backend el alertaActiva REAL (este método solo toca
             // el radio; nunca se debe mandar un alertaActiva=false por defecto solo porque este
             // método no lo conoce de entrada -- ver AlertasBackend.actualizarAlerta).
