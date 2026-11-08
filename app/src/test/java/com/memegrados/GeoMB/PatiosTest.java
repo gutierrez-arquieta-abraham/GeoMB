@@ -94,6 +94,58 @@ public class PatiosTest {
         assertTrue(Patios.enPatio(desplazado(19.50, -99.15, 80, 0)));
     }
 
+    private static UnidadReal unidadRuta(String eco, LatLng p, float velMs, String ruta) {
+        return new UnidadReal(eco, 3, null, null, ruta, "", "", "", "",
+                p.latitude, p.longitude, 0f, velMs, 0L);
+    }
+
+    @Test
+    public void corredor_detenidaMasDe5Min_seCuentaGuardada() {
+        Patios.reiniciarPermanencia();
+        LatLng carril = desplazado(19.50, -99.15, 10, 0);   // zona excluida del patio "exc"
+        long t0 = 1_000_000L;
+        assertFalse(Patios.guardada(unidadRuta("1001", carril, 0f, "R3"), t0));
+        assertFalse(Patios.guardada(unidadRuta("1001", carril, 0f, "R3"), t0 + 4 * 60_000L));
+        assertTrue(Patios.guardada(unidadRuta("1001", carril, 0f, "R3"), t0 + 5 * 60_000L));
+    }
+
+    @Test
+    public void corredor_sinRouteIdQuietaEnElLugar_tambienCuenta() {
+        Patios.reiniciarPermanencia();
+        LatLng carril = desplazado(19.50, -99.15, 10, 0);
+        long t0 = 2_000_000L;
+        Patios.guardada(unidadRuta("1002", carril, 2f, null), t0);              // velocidad de ruido, sin ruta
+        assertTrue(Patios.guardada(unidadRuta("1002", desplazado(19.50, -99.15, 15, 5), 2f, ""), t0 + 6 * 60_000L));
+    }
+
+    @Test
+    public void corredor_operandoConRuta_reiniciaElConteo() {
+        Patios.reiniciarPermanencia();
+        LatLng carril = desplazado(19.50, -99.15, 10, 0);
+        long t0 = 3_000_000L;
+        Patios.guardada(unidadRuta("1003", carril, 0f, "R3"), t0);
+        Patios.guardada(unidadRuta("1003", carril, 5f, "R3"), t0 + 3 * 60_000L);   // arrancó con ruta: reinicia
+        assertFalse(Patios.guardada(unidadRuta("1003", carril, 0f, "R3"), t0 + 6 * 60_000L));
+    }
+
+    @Test
+    public void corredor_seMueveDeLugar_reiniciaElConteo() {
+        Patios.reiniciarPermanencia();
+        long t0 = 4_000_000L;
+        Patios.guardada(unidadRuta("1004", desplazado(19.50, -99.15, -30, 0), 0f, "R3"), t0);
+        // 55 m más allá (sigue en la zona de 40 m de radio? no: se usa otro punto dentro) -> nuevo conteo
+        assertFalse(Patios.guardada(unidadRuta("1004", desplazado(19.50, -99.15, 30, 0), 0f, "R3"), t0 + 6 * 60_000L));
+    }
+
+    @Test
+    public void corredorSoloAplicaEnPatiosConZonasExcluidas() {
+        Patios.reiniciarPermanencia();
+        // Fuera de todo patio: nunca cuenta, aunque esté quieta mucho tiempo.
+        LatLng fuera = new LatLng(19.43, -99.13);
+        Patios.guardada(unidadRuta("1005", fuera, 0f, null), 0L);
+        assertFalse(Patios.guardada(unidadRuta("1005", fuera, 0f, null), 60 * 60_000L));
+    }
+
     @Test
     public void nuloNoEstaEnPatio() {
         assertFalse(Patios.enPatio(null));

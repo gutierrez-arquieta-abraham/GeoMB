@@ -171,6 +171,8 @@ CA propia `/etc/nginx/certs/geomb-admin-ca.crt`); `/admin` **bloqueado (404) en 
   grupos de ≥5 unidades detenidas a ≤150 m. Cada patio: `lat/lon/radio_m` (círculo envolvente) + `poligono` (envolvente convexa
   + 25 m) + `excluir` (círculos donde NUNCA es patio: andenes de terminal pegados, 50 m, y el carril del trazo que lo cruza, 15 m).
 - **Guardada** = dentro de patio Y `velMs < 0.6` (`Patios.guardada`); si se mueve dentro del patio ya cuenta como en servicio.
+- **Excepción de corredor** (patios con `excluir`: Constitución de Apatzingán, Júpiter, El Coyol): en esas zonas también cuenta como
+  guardada si lleva ≥5 min ahí (sin alejarse >40 m) detenida o sin `route_id` (`Patios.estancadaEnCorredor`); se reinicia si arranca con ruta o se va.
 - Usuarios normales solo ven unidades en servicio: `Patios.ocultar(ctx,u)` en `MapFragment.actualizarUnidades` (antes de `total++`
   → el contador cuadra; aplica igual en estilo CITI) y `RealtimeRepository.visibleParaUsuario` en `filtradas/deLinea/cuentaLinea`
   y en `RutasFragment.contarPorRuta`. `Llegadas.proximas` omite las guardadas para TODOS (no vienen a ninguna estación).

@@ -45,7 +45,9 @@ import java.util.List;
 // MÉTODOS CLAVE:
 //   - enPatio(LatLng)        : ¿el punto cae dentro de algún patio?
 //   - patioEn(LatLng)        : el patio que lo contiene (o null).
-//   - guardada(UnidadReal)   : en patio Y detenida (velocidad ≈ 0).
+//   - guardada(UnidadReal)   : en patio Y detenida (velocidad ≈ 0); o, en la
+//                              zona de corredor de un patio ("excluir"), más de
+//                              5 min ahí sin moverse o sin route_id.
 //   - ocultar(ctx, u)        : guardada(u) y el usuario NO tiene la función.
 //   - cargarDesdeJson(json)  : carga pura (sin Context) -- la usan las pruebas.
 //
@@ -86,12 +88,22 @@ public final class Patios {
         }
 
         public boolean contiene(LatLng p) {
+            return dentroDelArea(p) && !enExcluida(p);
+        }
+
+        /** Dentro del círculo y del polígono, sin contar las zonas excluidas. */
+        boolean dentroDelArea(LatLng p) {
             if (p == null) return false;
             if (distanciaM(lat, lon, p.latitude, p.longitude) > radioM) return false;
-            if (poligono != null && !dentroDePoligono(poligono, p.latitude, p.longitude)) return false;
+            return poligono == null || dentroDePoligono(poligono, p.latitude, p.longitude);
+        }
+
+        /** ¿Cae en una zona excluida (andén / carril del corredor que cruza el patio)? */
+        boolean enExcluida(LatLng p) {
+            if (p == null) return false;
             for (double[] e : excluir)
-                if (distanciaM(e[0], e[1], p.latitude, p.longitude) <= e[2]) return false;
-            return true;
+                if (distanciaM(e[0], e[1], p.latitude, p.longitude) <= e[2]) return true;
+            return false;
         }
     }
 
@@ -176,9 +188,61 @@ public final class Patios {
     }
 
     /** ¿La unidad está GUARDADA? = dentro de un patio y detenida. Una que se mueve dentro del patio
-     *  (saliendo a su primer viaje o entrando al terminar) se considera ya en servicio. */
+     *  (saliendo a su primer viaje o entrando al terminar) se considera ya en servicio. Excepción en
+     *  los patios pegados al corredor (Constitución de Apatzingán, Júpiter, El Coyol: los que tienen
+     *  zonas "excluir"): en esas zonas también cuenta como guardada si lleva más de
+     *  {@link #PERMANENCIA_CORREDOR_MS} ahí sin moverse o sin route_id (ver estancadaEnCorredor). */
     public static boolean guardada(UnidadReal u) {
-        return u != null && Math.abs(u.velMs) < VEL_DETENIDA_MS && enPatio(u.posicion);
+        return guardada(u, System.currentTimeMillis());
+    }
+
+    static boolean guardada(UnidadReal u, long ahoraMs) {
+        if (u == null || u.posicion == null) return false;
+        if (Math.abs(u.velMs) < VEL_DETENIDA_MS && enPatio(u.posicion)) return true;
+        return estancadaEnCorredor(u, ahoraMs);
+    }
+
+    // ---- excepción del corredor (zonas "excluir" dentro de un patio) ----
+
+    /** Tiempo que una unidad debe quedarse en la zona de corredor de un patio, sin moverse o sin
+     *  route_id, para contarse como guardada (una que opera solo se detiene ahí unos segundos). */
+    static final long PERMANENCIA_CORREDOR_MS = 5 * 60_000L;
+    /** "Se queda ahí": no se aleja más de esto del punto donde empezó a contar. */
+    static final double RADIO_PERMANENCIA_M = 40.0;
+    private static final long OLVIDAR_MS = 30 * 60_000L;
+
+    /** Desde cuándo y dónde está cada unidad estancada en una zona de corredor: {desdeMs, lat, lon, vistoMs}. */
+    private static final java.util.Map<String, double[]> ESTANCADAS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** ¿Lleva {@link #PERMANENCIA_CORREDOR_MS} o más en la zona de corredor de un patio, detenida o sin
+     *  route_id, sin alejarse de donde empezó? El conteo se reinicia si avanza con ruta o sale de la zona. */
+    static boolean estancadaEnCorredor(UnidadReal u, long ahoraMs) {
+        if (u.numero == null) return false;
+        boolean enCorredor = false;
+        for (Patio pa : todos())
+            if (pa.excluir.length > 0 && pa.dentroDelArea(u.posicion) && pa.enExcluida(u.posicion)) { enCorredor = true; break; }
+        boolean sinServicio = Math.abs(u.velMs) < VEL_DETENIDA_MS || u.ruta == null || u.ruta.trim().isEmpty();
+        if (!enCorredor || !sinServicio) {
+            ESTANCADAS.remove(u.numero);
+            return false;
+        }
+        double[] e = ESTANCADAS.get(u.numero);
+        if (e == null || distanciaM(e[1], e[2], u.posicion.latitude, u.posicion.longitude) > RADIO_PERMANENCIA_M) {
+            if (ESTANCADAS.size() > 2000) olvidarViejas(ahoraMs);
+            ESTANCADAS.put(u.numero, new double[]{ahoraMs, u.posicion.latitude, u.posicion.longitude, ahoraMs});
+            return false;
+        }
+        e[3] = ahoraMs;
+        return ahoraMs - (long) e[0] >= PERMANENCIA_CORREDOR_MS;
+    }
+
+    private static void olvidarViejas(long ahoraMs) {
+        ESTANCADAS.values().removeIf(e -> ahoraMs - (long) e[3] > OLVIDAR_MS);
+    }
+
+    /** Solo pruebas: borra el conteo de permanencia. */
+    static void reiniciarPermanencia() {
+        ESTANCADAS.clear();
     }
 
     /** ¿Se oculta esta unidad a ESTE usuario? Solo si está guardada y no tiene la función
