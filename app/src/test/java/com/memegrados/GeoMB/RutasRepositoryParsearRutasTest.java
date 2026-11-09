@@ -11,8 +11,8 @@ import static org.junit.Assert.*;
 
 /**
  * Prueba de {@link RutasRepository#parsearRutas(String)} -- la pieza pura compartida entre el
- * camino normal (Backend.descargar, EC2/Railway) y el respaldo nuevo (assets/routes.json,
- * empaquetado en la app para cuando ninguno de los 2 responda). Cubre el parseo básico y, con el
+ * camino normal (Backend.descargar, EC2) y el respaldo nuevo (assets/routes.json, empaquetado en
+ * la app para cuando el backend no responda). Cubre el parseo básico y, con el
  * archivo REAL ya empaquetado, confirma que sigue siendo válido y que L1/L6 (casos ya conocidos
  * de esta sesión) resuelven bien.
  */

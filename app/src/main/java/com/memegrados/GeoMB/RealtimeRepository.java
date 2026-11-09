@@ -13,7 +13,7 @@ import java.util.concurrent.Executors;
 
 /**
  * Descarga las posiciones de las unidades en tiempo real desde el backend
- * (Railway) y las entrega ya parseadas en el hilo principal.
+ * y las entrega ya parseadas en el hilo principal.
  *
  * También guarda la selección actual (unidad o línea a mostrar en el mapa)
  * para comunicar entre pantallas.

@@ -29,7 +29,7 @@ import java.util.Set;
  *    (difundidos por tema a todos los suscritos), este SIEMPRE llega dirigido a ESTE
  *    dispositivo en particular, por su token (ver AlertasBackend/onNewToken).
  * Con esto los avisos llegan como en WhatsApp (sin servicio en primer plano) cuando el
- * backend envíe el push; el envío lo hace el servidor (Railway/EC2), no el teléfono.
+ * backend envíe el push; el envío lo hace el servidor (EC2), no el teléfono.
  */
 // ============================================================
 // CLASE    : MensajesService   (extends FirebaseMessagingService)

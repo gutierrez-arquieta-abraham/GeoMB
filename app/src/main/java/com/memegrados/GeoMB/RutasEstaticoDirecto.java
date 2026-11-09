@@ -27,7 +27,7 @@ import java.util.zip.ZipInputStream;
  * así que esto sí es un catálogo vivo, no una foto fija de cuando se compiló la app.
  *
  * Mismo criterio de últimísimo recurso que {@link UnidadRtDirecto}: solo se intenta cuando
- * {@link RutasRepository#descargar()} ya agotó el backend (EC2/Railway). No comparte código con
+ * {@link RutasRepository#descargar()} ya agotó el backend (EC2). No comparte código con
  * UnidadRtDirecto a propósito (mismo patrón que UnidadRtEdge/UnidadRtDirecto: cada nivel de
  * respaldo es independiente) para no arriesgar el feed en vivo, que ya funciona en producción,
  * con un refactor innecesario.

@@ -12,25 +12,9 @@ package com.memegrados.GeoMB;
 // de unidades en tiempo real o el catálogo de rutas) y devolver
 // el texto que responde el servidor.
 //
-// ------------------------------------------------------------
-// ¿QUÉ ES FAILOVER (RESPALDO)?
-// ------------------------------------------------------------
-//
-// Existen DOS servidores: uno PRINCIPAL y uno de RESPALDO.
-// "Failover" significa que, si el principal no contesta, la app
-// cambia SOLA al de respaldo, sin que el usuario note nada.
-//
-// Es como tener dos llaves de agua: si una no da agua, abres la
-// otra automáticamente.
-//
-// ------------------------------------------------------------
-// IDEA CLAVE
-// ------------------------------------------------------------
-//
-// La clase RECUERDA cuál servidor funcionó la última vez (campo
-// 'activo'), para no volver a intentar el caído en cada petición.
-// Pero cada 30 segundos vuelve a probar el PRINCIPAL, para no
-// quedarse pegada al respaldo indefinidamente.
+// Un solo servidor (Config.BASE_URL, AWS/México) -- el respaldo en
+// Railway que existía antes se dio de baja (ya no se paga, ni corre
+// su propia copia del backend).
 //
 // ------------------------------------------------------------
 // NOTA: 'final' + constructor privado = clase de UTILIDAD
@@ -47,31 +31,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Acceso al backend con FAILOVER automático: primero el principal (AWS/México) y, si no
- * responde, el de respaldo (Railway). Recuerda cuál funcionó para no reintentar el caído en
- * cada petición; pero reintenta el PRINCIPAL cada {@link #REINTENTO_PRIMARIO_MS} aunque siga
- * "activo" el respaldo, para no quedarse pegado a él indefinidamente si el respaldo funciona
- * (no lanza excepción) pero sirve datos incompletos (p. ej. menos unidades en tiempo real) -
- * antes, una sola falla transitoria del principal dejaba la app en el respaldo para siempre.
- */
+/** Acceso al backend (Config.BASE_URL, único servidor desde que se dio de baja el respaldo de
+ *  Railway). */
 public final class Backend {
 
-    private static volatile String activo = Config.BASE_URL;
-    private static volatile long ultimoIntentoPrimario = 0L;
-    private static final long REINTENTO_PRIMARIO_MS = 30_000L;   // vuelve a probar el principal cada 30 s
-
-    /** Cuarentena del PRINCIPAL cuando falla por timeout/conexión real (no un HTTP de error, que
-     *  ya es rápido) -- sin esto, con el principal de plano caído (apagado, no solo sin ese
-     *  endpoint), CADA llamada a descargar() perdía el timeout completo de conexión (10 s) antes
-     *  de caer al respaldo, en cada ciclo de refresco. Durante la cuarentena, el principal no se
-     *  intenta ni como primero ni como segundo; al expirar, se vuelve a probar normalmente (para
-     *  detectar que ya volvió). */
-    private static volatile long principalCuarentenaHasta = 0L;
-    private static final long PRINCIPAL_CUARENTENA_MS = 5 * 60_000L;   // 5 min
-
     // Metadatos de la última petición HTTP real (cualquier endpoint), para el diagnóstico técnico
-    // de ReporteApp/DiagnosticoReporte -- no afectan el failover, solo se leen para reportes.
+    // de ReporteApp/DiagnosticoReporte -- solo se leen para reportes.
     public static volatile String ultimoEndpoint;
     public static volatile int ultimoHttpStatus;
     public static volatile long ultimaLatenciaMs = -1;
@@ -84,80 +49,11 @@ public final class Backend {
 
     private Backend() {}
 
-    /** HTTP 426 "Upgrade Required": el backend rechazó la petición porque BuildConfig.VERSION_CODE
-     *  quedó por debajo del mínimo vigente (ver ActualizacionObligatoria). Nunca tiene sentido
-     *  reintentar con el OTRO servidor -- el problema es la versión del cliente, no cuál backend
-     *  responda -- así que descargar() la deja pasar sin failover. */
-    static final class ActualizacionRequeridaException extends java.io.IOException {
-        ActualizacionRequeridaException() { super("HTTP 426"); }
-    }
-
-    // ========================================================
-    // MÉTODO: descargar(path)   [público]
-    // ========================================================
-    //
-    // Es el método que usa el RESTO de la app para pedir datos.
-    //
-    // Recibe un "path" (la ruta del recurso), por ejemplo:
-    //
-    //     "/data/vehicles.json"
-    //
-    // y devuelve el texto (JSON) que respondió el servidor.
-    //
-    // PASOS:
-    //
-    //   1. Decide con cuál servidor intentar PRIMERO: si ya toca
-    //      reintentar el principal (pasaron 30 s) usa el principal;
-    //      si no, sigue con el que estaba 'activo'.
-    //   2. Intenta descargar del primero → si funciona, lo guarda
-    //      como 'activo' y devuelve el resultado.
-    //   3. Si falla, intenta con el OTRO servidor y recuerda cuál sirvió.
-    //
-    // ========================================================
-    /** GET de un path (p. ej. "/data/vehicles.json") con failover entre los dos backends. */
+    /** GET de un path (p. ej. "/data/vehicles.json") contra el único backend (Config.BASE_URL). */
     public static String descargar(String path) throws java.io.IOException {
-        // Servidor apagado a propósito: ni lo intenta (evita esperar 2 timeouts por petición).
+        // Servidor apagado a propósito: ni lo intenta.
         if (EstadoServicio.enPausa()) throw new java.io.IOException("servicio en pausa");
-        boolean tocaReintentarPrimario = !activo.equals(Config.BASE_URL)
-                && (System.currentTimeMillis() - ultimoIntentoPrimario) > REINTENTO_PRIMARIO_MS;
-        String primero = tocaReintentarPrimario ? Config.BASE_URL : activo;
-        String otro = primero.equals(Config.BASE_URL) ? Config.FALLBACK_URL : Config.BASE_URL;
-        if (primero.equals(Config.BASE_URL)) ultimoIntentoPrimario = System.currentTimeMillis();
-
-        // El principal en cuarentena NUNCA va primero -- si le tocaba serlo, se intercambia el
-        // orden para no perder su timeout completo antes de llegar al respaldo.
-        boolean enCuarentena = System.currentTimeMillis() < principalCuarentenaHasta;
-        if (primero.equals(Config.BASE_URL) && enCuarentena) {
-            String t = primero; primero = otro; otro = t;
-        }
-
-        try {
-            String r = get(primero + path);
-            activo = primero;
-            if (primero.equals(Config.BASE_URL)) principalCuarentenaHasta = 0L;   // respondió: ya no está caído
-            return r;
-        } catch (ActualizacionRequeridaException e) {
-            throw e;   // el cliente está desactualizado: cambiar de servidor no sirve de nada
-        } catch (Exception e1) {
-            if (primero.equals(Config.BASE_URL) && ultimoHttpStatus == 0) {
-                principalCuarentenaHasta = System.currentTimeMillis() + PRINCIPAL_CUARENTENA_MS;
-            }
-            // El principal en cuarentena tampoco se intenta como segundo -- ya se sabe caído.
-            if (otro.equals(Config.BASE_URL) && System.currentTimeMillis() < principalCuarentenaHasta) {
-                throw e1;
-            }
-            try {
-                String r = get(otro + path);   // el activo falló: usa el otro y recuérdalo
-                activo = otro;
-                if (otro.equals(Config.BASE_URL)) principalCuarentenaHasta = 0L;
-                return r;
-            } catch (Exception e2) {
-                if (otro.equals(Config.BASE_URL) && ultimoHttpStatus == 0) {
-                    principalCuarentenaHasta = System.currentTimeMillis() + PRINCIPAL_CUARENTENA_MS;
-                }
-                throw e2;
-            }
-        }
+        return get(Config.BASE_URL + path);
     }
 
     // ========================================================
@@ -172,7 +68,7 @@ public final class Backend {
     //   - setConnectTimeout / setReadTimeout: cuánto esperar antes
     //     de rendirse (10 s para conectar, 15 s para leer).
     //   - Si el código de respuesta NO es 2xx (éxito), lanza una
-    //     excepción para que 'descargar' pruebe el otro servidor.
+    //     excepción.
     //   - Lee la respuesta línea por línea y la junta en un
     //     StringBuilder.
     //   - El bloque 'finally' cierra la conexión SIEMPRE, haya o
@@ -195,7 +91,7 @@ public final class Backend {
             ultimaLatenciaMs = System.currentTimeMillis() - inicio;
             if (status == 426) {
                 avisarActualizacionRequerida(conn);
-                throw new ActualizacionRequeridaException();
+                throw new java.io.IOException("HTTP 426");
             }
             if (status / 100 != 2) throw new java.io.IOException("HTTP " + status);
             StringBuilder sb = new StringBuilder();
@@ -216,7 +112,7 @@ public final class Backend {
 
     /** El backend respondió 426: lee el 'minima' del cuerpo (best-effort) y avisa a
      *  ActualizacionObligatoria + alRequerirActualizacion SIN bloquear ni lanzar -- cualquier
-     *  falla aquí se ignora, el que SÍ importa es el ActualizacionRequeridaException de get(). */
+     *  falla aquí se ignora, el que SÍ importa es la excepción que lanza get() después. */
     private static void avisarActualizacionRequerida(HttpURLConnection conn) {
         try {
             StringBuilder sb = new StringBuilder();
@@ -234,8 +130,8 @@ public final class Backend {
     }
 
     /** GET binario a una URL ABSOLUTA de un tercero (p. ej. la URL firmada de S3 que entrega
-     *  {@link Config#PATH_SYNC}) -- sin el prefijo de {@link Config#BASE_URL} ni failover: ese
-     *  concepto no aplica aquí, el destino YA viene resuelto completo y es de otro proveedor. */
+     *  {@link Config#PATH_SYNC}) -- sin el prefijo de {@link Config#BASE_URL}: el destino YA
+     *  viene resuelto completo y es de otro proveedor. */
     public static byte[] descargarBinario(String urlAbsoluta) throws java.io.IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlAbsoluta).openConnection();
         try {

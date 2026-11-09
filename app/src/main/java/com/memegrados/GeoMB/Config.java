@@ -23,11 +23,9 @@ public final class Config {
 
     private Config() {}
 
-    /** Backend PRINCIPAL: servidor propio en México (AWS mx-central-1). */
+    /** Único backend: servidor propio en México (AWS mx-central-1). El respaldo en Railway que
+     *  existía antes se dio de baja (ver Backend). */
     public static final String BASE_URL = "https://geomb.duckdns.org";
-
-    /** Backend de RESPALDO: si el principal no responde, la app cae aquí (Railway) sola. */
-    public static final String FALLBACK_URL = "https://web-production-6a6c6.up.railway.app";
 
     /**
      * Panel admin de afectaciones (aviso manual): puerto y ruta dedicados, protegidos con
@@ -44,7 +42,7 @@ public final class Config {
     public static final String ESTADO_SERVICIO_URL =
             "https://raw.githubusercontent.com/gutierrez-arquieta-abraham/GeoMB/master/estado_servicio.json";
 
-    /** Rutas relativas que sirve el backend (se usan con failover, ver Backend). */
+    /** Rutas relativas que sirve el backend (ver Backend). */
     public static final String PATH_VEHICLES = "/data/vehicles.json";
     public static final String PATH_ROUTES = "/data/routes.json";
     /** Entrega la URL firmada (S3) del feed en vivo para que la app lo baje directo -- ver
@@ -69,10 +67,7 @@ public final class Config {
     /**
      * Alertas de proximidad de unidades guardadas: endpoints de {@code metrobus_app} (repo
      * aparte, mismo EC2 y dominio que {@link #BASE_URL}), NO del asistente Gemini. Device-only
-     * (identificados por X-Device-ID, ver DeviceUtils) — nunca uid de Firebase Auth. A propósito
-     * SIN failover a {@link #FALLBACK_URL}: estos endpoints ESCRIBEN en el SQLite que
-     * push_metrobus.py lee en el EC2; una escritura "exitosa" contra Railway no la vería nunca
-     * el detector de proximidad (ver AlertasBackend).
+     * (identificados por X-Device-ID, ver DeviceUtils) — nunca uid de Firebase Auth.
      */
     public static final String DEVICE_TOKEN_URL = BASE_URL + "/device/token";
     public static final String DEVICE_ALERTA_URL = BASE_URL + "/device/alerta";
@@ -81,9 +76,6 @@ public final class Config {
     /**
      * Política de privacidad pública y eliminación de cuenta (cumplimiento de Google Play) —
      * endpoints de {@code metrobus_app} (repo aparte), mismo EC2 y dominio que {@link #BASE_URL}.
-     * SIN failover a {@link #FALLBACK_URL} a propósito: el borrado toca Firebase Auth/Firestore
-     * y el SQLite de alertas del EC2 principal; una respuesta "exitosa" del respaldo no
-     * garantizaría que de verdad se borró nada ahí.
      */
     public static final String PRIVACY_URL = BASE_URL + "/privacy";
     public static final String DELETE_ACCOUNT_URL = BASE_URL + "/delete-account";

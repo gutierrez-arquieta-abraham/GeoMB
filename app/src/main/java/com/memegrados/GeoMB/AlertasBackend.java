@@ -19,13 +19,9 @@ import java.util.concurrent.Executors;
  * los endpoints nuevos de {@code app.py} en {@code metrobus_app} — ver
  * {@link Config#DEVICE_TOKEN_URL}/{@link Config#DEVICE_ALERTA_URL}). Mismo estilo que
  * {@link Asistente}: {@code HttpURLConnection}, un executor propio + nada de hilo principal
- * (estas llamadas no tienen resultado que la UI necesite esperar). A propósito SIN failover a
- * {@code Config.FALLBACK_URL} — a diferencia de {@link Backend} (que sí cae a Railway para el
- * feed de solo lectura), esto ESCRIBE en el SQLite que {@code push_metrobus.py} lee en el EC2;
- * si cayera a Railway, la escritura "tendría éxito" contra un almacén que el detector de
- * proximidad nunca ve — peor que simplemente fallar y reintentar más tarde. El dispositivo se
- * identifica SIEMPRE por {@code X-Device-ID} ({@link DeviceUtils}), nunca por uid de Firebase
- * Auth (un mismo usuario puede tener varios dispositivos).
+ * (estas llamadas no tienen resultado que la UI necesite esperar). El dispositivo se identifica
+ * SIEMPRE por {@code X-Device-ID} ({@link DeviceUtils}), nunca por uid de Firebase Auth (un
+ * mismo usuario puede tener varios dispositivos).
  *
  * Todas las llamadas son "fire and forget" desde la UI: Room ya quedó actualizado ANTES de
  * llamar aquí (ver {@link Telemetria}), así que un fallo de red nunca bloquea ni revierte la

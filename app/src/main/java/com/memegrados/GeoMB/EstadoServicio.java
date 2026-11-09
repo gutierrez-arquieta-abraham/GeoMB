@@ -121,7 +121,7 @@ public final class EstadoServicio {
         });
     }
 
-    // GET directo (sin Backend): este archivo NO vive en el EC2 ni en Railway, y Backend.descargar()
+    // GET directo (sin Backend): este archivo NO vive en el EC2, y Backend.descargar()
     // es justo lo que se corta cuando hay pausa.
     private static String descargar(String urlStr) throws java.io.IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();

@@ -107,12 +107,12 @@ public final class RutasRepository {
 
     private static List<Ruta> descargar() {
         try {
-            // Con failover (EC2 principal + Railway de respaldo, ver Backend) -- es la más barata
-            // en red si está arriba, así que se intenta primero.
+            // Backend (EC2, ver Backend) -- es la más barata en red si está arriba, así que se
+            // intenta primero.
             return parsearRutas(Backend.descargar(Config.PATH_ROUTES));
         } catch (Exception e) {
             try {
-                // Ni el EC2 ni Railway respondieron: el catálogo DE VERDAD en vivo, directo del
+                // El EC2 no respondió: el catálogo DE VERDAD en vivo, directo del
                 // GTFS estático de Sonda (ver RutasEstaticoDirecto) -- se regenera cada medianoche,
                 // así que a diferencia del respaldo de abajo sí refleja cambios de ruta del día.
                 return RutasEstaticoDirecto.obtener();
