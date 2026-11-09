@@ -2169,6 +2169,21 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         cartaArribaCiti();
     }
 
+    /** Fuera de CITI: la tarjeta flotante cuelga del resultado de viaje si está visible, si no de
+     *  panel_mapa (como siempre). Idempotente: solo toca el layout si el ancla cambió. */
+    private final android.view.ViewTreeObserver.OnGlobalLayoutListener oyenteAnclaCarta = this::anclarCarta;
+
+    private void anclarCarta() {
+        if (citi || cartaContainer == null || panelResultado == null || !(cartaContainer.getLayoutParams()
+                instanceof androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)) return;
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lp =
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) cartaContainer.getLayoutParams();
+        int ancla = panelResultado.getVisibility() == View.VISIBLE ? R.id.panel_resultado : R.id.panel_mapa;
+        if (lp.bottomToTop == ancla) return;
+        lp.bottomToTop = ancla;
+        cartaContainer.setLayoutParams(lp);
+    }
+
     /** En CITI la tarjeta va ARRIBA, justo bajo la barra (abajo sube el menú de la app original). */
     private void cartaArribaCiti() {
         if (cartaContainer == null || !(cartaContainer.getLayoutParams()
@@ -2731,6 +2746,9 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         });
 
         panelResultado = view.findViewById(R.id.panel_resultado);
+        // La tarjeta de unidad/estación va ENCIMA del resultado de viaje cuando este se ve (antes ambas
+        // colgaban de panel_mapa y se solapaban); se reacomoda sola si el resultado aparece o se va.
+        if (!citi) view.getViewTreeObserver().addOnGlobalLayoutListener(oyenteAnclaCarta);
         panelResultadoDetalle = view.findViewById(R.id.panel_resultado_detalle);
         filaResultadoResumen = view.findViewById(R.id.fila_resultado_resumen);
         icContraerResultado = view.findViewById(R.id.ic_contraer_resultado);
@@ -3764,6 +3782,8 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
     @Override
     public void onDestroyView() {
+        View raizVista = getView();
+        if (raizVista != null) raizVista.getViewTreeObserver().removeOnGlobalLayoutListener(oyenteAnclaCarta);
         if (citi && lineaCiti != 0) RealtimeRepository.filtro.linea = null;
         lineaCiti = 0;
         busCiti = null;
