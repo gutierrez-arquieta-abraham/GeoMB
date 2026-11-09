@@ -1387,13 +1387,10 @@ public class RecorridoService extends Service {
         java.io.File base = getExternalFilesDir(null);
         if (base == null) base = getFilesDir();
         String voz = Modos.vozActual(this, linea);
-        String sub = frag.tipo == Fragmento.ESTACION ? "_estaciones"
-                : frag.tipo == Fragmento.COMUN ? "_comunes"
-                : Sistemas.carpeta(Sistemas.sistemaDe(linea)) + "/L" + Sistemas.numeroDeLinea(linea)
-                        + "/" + Locuciones.carpetaEstacion(frag.estacion);
-        java.io.File dir = new java.io.File(base, "voz/" + voz + "/" + sub);
-        if (!dir.exists()) dir.mkdirs();
-        return new java.io.File(dir, Integer.toHexString(frag.texto.hashCode()) + ".mp3");
+        java.io.File f = new java.io.File(base, "voz/" + voz + "/" + frag.rutaRelativa(linea));
+        java.io.File dir = f.getParentFile();
+        if (dir != null && !dir.exists()) dir.mkdirs();
+        return f;
     }
 
     private java.io.File descargarVoz(Fragmento frag, int linea) {

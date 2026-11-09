@@ -48,4 +48,44 @@ public class FragmentoTest {
         assertNotEquals(Fragmento.ESTACION, Fragmento.COMUN);
         assertNotEquals(Fragmento.LEGACY, Fragmento.COMUN);
     }
+
+    // --- rutaRelativa(): Sistemas.carpeta()/numeroDeLinea() y Locuciones.carpetaEstacion() son
+    // puros (sin Context, ya probados aparte en SistemasTest), así que esto SÍ es verificable aquí.
+
+    @Test
+    public void rutaRelativa_legacy_vaPorSistemaLineaYEstacion() {
+        Fragmento f = Fragmento.legacy("Llegando a estación: Hidalgo", 1, "Hidalgo");
+        String esperado = "Metrobus/L1/" + Locuciones.carpetaEstacion("Hidalgo")
+                + "/" + Integer.toHexString(f.texto.hashCode()) + ".mp3";
+        assertEquals(esperado, f.rutaRelativa(1));
+    }
+
+    @Test
+    public void rutaRelativa_legacy_distintaLinea_distintaCarpeta() {
+        Fragmento f = Fragmento.legacy("Llegando a estación: Hidalgo", 1, "Hidalgo");
+        assertNotEquals(f.rutaRelativa(1), f.rutaRelativa(101));   // Metrobús L1 vs Mexibús L1
+    }
+
+    @Test
+    public void rutaRelativa_estacion_esGlobal_ignoraLinea() {
+        Fragmento f = Fragmento.estacion("Indios Verdes");
+        String nombreArchivo = Integer.toHexString(f.texto.hashCode()) + ".mp3";
+        assertEquals("_estaciones/" + nombreArchivo, f.rutaRelativa(1));
+        assertEquals(f.rutaRelativa(1), f.rutaRelativa(101));   // misma ruta sin importar la línea
+    }
+
+    @Test
+    public void rutaRelativa_comun_esGlobal_ignoraLinea() {
+        Fragmento f = Fragmento.comun("5 estaciones");
+        String nombreArchivo = Integer.toHexString(f.texto.hashCode()) + ".mp3";
+        assertEquals("_comunes/" + nombreArchivo, f.rutaRelativa(1));
+        assertEquals(f.rutaRelativa(1), f.rutaRelativa(202));
+    }
+
+    @Test
+    public void rutaRelativa_estacionYComun_textosDistintos_archivosDistintos() {
+        Fragmento a = Fragmento.estacion("Hidalgo");
+        Fragmento b = Fragmento.estacion("Indios Verdes");
+        assertNotEquals(a.rutaRelativa(1), b.rutaRelativa(1));
+    }
 }

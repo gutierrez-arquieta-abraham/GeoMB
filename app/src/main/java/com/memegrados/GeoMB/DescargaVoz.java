@@ -70,6 +70,23 @@ public final class DescargaVoz {
      *  aplica a Mexibús -- ver textosLinea()), para predescargar TODAS las variantes posibles. */
     private static final int[] TIPS_BASE = {R.string.voz_tip_espacios, R.string.voz_tip_objetos, R.string.voz_tip_correr};
 
+    /** Conectores FIJOS (sin ningún %s) que usan los avisos ya migrados a Fragmento (ver
+     *  RecorridoService.avisoAbordajeFragmentos()/vozProxima()/vozLlegada()) -- reproducirlos aquí
+     *  con ctx.getString(id) a secas es IDÉNTICO byte a byte a lo que arma RecorridoService en vivo
+     *  (mismo recurso, cero parámetros), así que no hay riesgo de que el hash no coincida. */
+    private static final int[] CONECTORES_FIJOS = {
+            R.string.voz_proxima_prefijo, R.string.voz_proxima_ximena_prefijo,
+            R.string.voz_llegando_est_prefijo, R.string.voz_llegando_est_ximena_prefijo,
+            R.string.voz_aborda_prefijo, R.string.voz_aborda_cabina_prefijo,
+            R.string.voz_tip_espacios, R.string.voz_tip_objetos, R.string.voz_tip_correr, R.string.voz_tip_rosa,
+            R.string.voz_ultima_est, R.string.voz_ultima_est_cabina,
+    };
+
+    /** Tope de "N estaciones" a predescargar (catálogo COMUN, ver Fragmento) -- la línea más larga
+     *  hoy tiene 51 paradas; se deja margen. Un viaje real que necesitara más caería al TTS en vivo
+     *  la primera vez -- no rompe nada, solo no queda predescargado. */
+    private static final int MAX_N_ESTACIONES = 60;
+
     private DescargaVoz() {}
 
     public static void cancelar() { cancelar = true; }
@@ -169,6 +186,56 @@ public final class DescargaVoz {
         if (vistos.add(estacion + "\u0000" + texto)) t.add(new TextoEstacion(texto, estacion));
     }
 
+    /** Fragmentos GLOBALES que no dependen de la línea: conectores fijos, las 3 variantes de
+     *  preparación de transferencia (transbordo/correspondencia/conexión -- también deterministas,
+     *  mismo criterio que CONECTORES_FIJOS) y el catálogo de "N estaciones". Se piden UNA sola vez
+     *  por voz real distinta en el lote (ver descargarVarias()), sin importar cuántas líneas se
+     *  estén bajando -- ver Fragmento/RecorridoService.archivoVoz() para el porqué de la carpeta
+     *  global voz/<voz>/_comunes/.
+     *
+     *  OJO: queda fuera a propósito el fragmento "resto" (servicio+rosa) de
+     *  RecorridoService.avisoAbordajeFragmentos() -- depende de servicioNombre()/esRosa(), lógica de
+     *  viaje real que no vive aquí; reproducirla a mano arriesgaría que el texto no coincida byte a
+     *  byte con lo que arma RecorridoService en vivo, dejando ese fragmento predescargado inútil. Cae
+     *  al TTS en vivo la primera vez, igual que hoy. */
+    private static List<Fragmento> fragmentosComunes(Context ctx) {
+        List<Fragmento> f = new ArrayList<>();
+        for (int id : CONECTORES_FIJOS) f.add(Fragmento.comun(ctx.getString(id)));
+        for (int pal : new int[]{R.string.voz_palabra_transbordo, R.string.voz_palabra_correspondencia, R.string.voz_palabra_conexion})
+            f.add(Fragmento.comun(ctx.getString(R.string.voz_prep_transferencia, ctx.getString(pal))));
+        for (int n = 1; n <= MAX_N_ESTACIONES; n++) f.add(Fragmento.comun(ctx.getString(R.string.voz_n_estaciones, n)));
+        return f;
+    }
+
+    /** Nombre (ya "habla-ready", ver nomDe()) de cada estación de la línea, como Fragmento ESTACION
+     *  -- carpeta GLOBAL voz/<voz>/_estaciones/, reusable aunque la misma estación ya se haya bajado
+     *  para otra línea (ver descargarVarias()). Dedup dentro de ESTA línea (en la práctica los
+     *  nombres ya son únicos dentro de una línea, igual que en textosLinea()). */
+    private static List<Fragmento> fragmentosEstacionLinea(Context ctx, int linea) {
+        List<Fragmento> f = new ArrayList<>();
+        Linea l = GtfsRepository.porNumero(ctx, linea);
+        if (l == null) return f;
+        LinkedHashSet<String> vistos = new LinkedHashSet<>();
+        for (Estacion e : l.estaciones) {
+            if (e.soloMapa) continue;
+            String nom = nomDe(e.nombre);
+            if (nom != null && !nom.isEmpty() && vistos.add(nom)) f.add(Fragmento.estacion(nom));
+        }
+        return f;
+    }
+
+    /** Archivo destino de un Fragmento GLOBAL (ESTACION/COMUN) para la voz dada -- mismo esquema que
+     *  archivoVoz() (LEGACY) de más abajo, pero vía Fragmento.rutaRelativa() (el 0 no importa:
+     *  ESTACION/COMUN lo ignoran). */
+    private static File archivoFragmento(Context ctx, Fragmento frag, String voz) {
+        File base = ctx.getExternalFilesDir(null);
+        if (base == null) base = ctx.getFilesDir();
+        File f = new File(base, "voz/" + voz + "/" + frag.rutaRelativa(0));
+        File dir = f.getParentFile();
+        if (dir != null && !dir.exists()) dir.mkdirs();
+        return f;
+    }
+
     /** Descarga los audios de UNA línea, con la voz "Mia" (ver {@link #descargarLinea(Context, int,
      *  String, Progreso)} para elegir otra). */
     public static void descargarLinea(Context ctx, int linea, Progreso cb) {
@@ -187,10 +254,15 @@ public final class DescargaVoz {
         descargarVarias(ctx, lineas, "Mia", cb);
     }
 
-    /** Descarga los audios de VARIAS líneas con la voz indicada, en segundo plano. Por cada línea en
-     *  SU PROPIA carpeta (voz/<voz>/<sistema>/L<línea>/): si el mismo texto se repite entre 2 líneas
-     *  (p. ej. mismo nombre de estación), se descarga una vez por cada una -- la carpeta de cada
-     *  línea queda completa por sí sola, en vez de depender de qué otras líneas ya bajaste. */
+    /** Descarga los audios de VARIAS líneas con la voz indicada, en segundo plano. Los textos LEGACY
+     *  (ver textosLinea()) van en SU PROPIA carpeta (voz/<voz>/<sistema>/L<línea>/): si el mismo
+     *  texto se repite entre 2 líneas, se descarga una vez por cada una -- la carpeta de cada línea
+     *  queda completa por sí sola. Los fragmentos nuevos (ver Fragmento/fragmentosComunes()/
+     *  fragmentosEstacionLinea()) son distintos A PROPÓSITO: viven en carpetas GLOBALES
+     *  (voz/<voz>/_estaciones/, voz/<voz>/_comunes/) y se piden UNA sola vez por voz real distinta
+     *  en el lote, sin importar cuántas líneas se estén bajando -- son justo los que
+     *  RecorridoService reusa entre avisos/líneas, así que descargarlos por línea sería desperdiciar
+     *  ancho de banda repitiendo lo mismo. */
     public static void descargarVarias(Context ctx, List<Integer> lineas, String voz, Progreso cb) {
         final Context app = ctx.getApplicationContext();
         cancelar = false;
@@ -205,13 +277,35 @@ public final class DescargaVoz {
             // están en el teléfono cuentan como hechas desde el principio.
             List<Item> faltan = new ArrayList<>();
             int total = 0, ok = 0;
-            for (int ln : lineas) for (TextoEstacion te : textosLinea(app, ln)) {
-                total++;
+            // Dedup DENTRO de este lote: si 2 líneas comparten una estación, o si 2+ líneas resuelven
+            // la MISMA voz real, los fragmentos globales correspondientes solo se piden una vez (ya
+            // en disco, lo evita el chequeo de archivo existente igual que siempre).
+            Set<String> vistoEstacionVoz = new LinkedHashSet<>();
+            Set<String> comunesHechosPara = new LinkedHashSet<>();
+            for (int ln : lineas) {
                 String v = vozReal(app, voz, ln);
-                File out = archivoVoz(app, te.texto, ln, v, te.estacion);
-                if (out == null) continue;
-                if (out.exists() && out.length() > 0) { ok++; continue; }
-                faltan.add(new Item(te.texto, v, out));
+                for (TextoEstacion te : textosLinea(app, ln)) {
+                    total++;
+                    File out = archivoVoz(app, te.texto, ln, v, te.estacion);
+                    if (out == null) continue;
+                    if (out.exists() && out.length() > 0) { ok++; continue; }
+                    faltan.add(new Item(te.texto, v, out));
+                }
+                for (Fragmento frag : fragmentosEstacionLinea(app, ln)) {
+                    if (!vistoEstacionVoz.add(v + "\u0000" + frag.texto)) continue;
+                    total++;
+                    File out = archivoFragmento(app, frag, v);
+                    if (out.exists() && out.length() > 0) { ok++; continue; }
+                    faltan.add(new Item(frag.texto, v, out));
+                }
+                if (comunesHechosPara.add(v)) {
+                    for (Fragmento frag : fragmentosComunes(app)) {
+                        total++;
+                        File out = archivoFragmento(app, frag, v);
+                        if (out.exists() && out.length() > 0) { ok++; continue; }
+                        faltan.add(new Item(frag.texto, v, out));
+                    }
+                }
             }
             final int totalF = total;
             final int[] hechos = {ok};
@@ -273,9 +367,25 @@ public final class DescargaVoz {
                 }
             }
             ok = 0;
-            for (int ln : lineas) for (TextoEstacion te : textosLinea(app, ln)) {
-                File f = archivoVoz(app, te.texto, ln, vozReal(app, voz, ln), te.estacion);
-                if (f != null && f.exists() && f.length() > 0) ok++;
+            Set<String> vistoEstacionVoz2 = new LinkedHashSet<>();
+            Set<String> comunesHechosPara2 = new LinkedHashSet<>();
+            for (int ln : lineas) {
+                String v = vozReal(app, voz, ln);
+                for (TextoEstacion te : textosLinea(app, ln)) {
+                    File f = archivoVoz(app, te.texto, ln, v, te.estacion);
+                    if (f != null && f.exists() && f.length() > 0) ok++;
+                }
+                for (Fragmento frag : fragmentosEstacionLinea(app, ln)) {
+                    if (!vistoEstacionVoz2.add(v + "\u0000" + frag.texto)) continue;
+                    File f = archivoFragmento(app, frag, v);
+                    if (f.exists() && f.length() > 0) ok++;
+                }
+                if (comunesHechosPara2.add(v)) {
+                    for (Fragmento frag : fragmentosComunes(app)) {
+                        File f = archivoFragmento(app, frag, v);
+                        if (f.exists() && f.length() > 0) ok++;
+                    }
+                }
             }
             final int okF = ok, totF = totalF;
             MAIN.post(() -> { if (cb != null) cb.fin(okF, totF); });
@@ -391,7 +501,11 @@ public final class DescargaVoz {
      *  misma línea pudo haberse descargado primero en una y después en la otra. */
     private static final String[] VOCES_CONOCIDAS = {"Mia", "Ximena"};
 
-    /** Borra los audios (Fase 1) de una línea, en CUALQUIERA de las voces que se hayan descargado. */
+    /** Borra los audios (Fase 1) de una línea, en CUALQUIERA de las voces que se hayan descargado.
+     *  A PROPÓSITO no toca los fragmentos globales (ESTACION/COMUN, ver Fragmento): son compartidos
+     *  entre líneas -- si "borrar línea 1" borrara el nombre "Indios Verdes" y la línea 2 (que
+     *  también lo necesita) ya estaba descargada, le rompería la línea 2 sin que se note. Solo
+     *  borrarTodo() los limpia (recorre toda la carpeta voz/, globales incluidos). */
     public static int borrarLinea(Context ctx, int linea) {
         int n = 0;
         for (TextoEstacion te : textosLinea(ctx, linea)) {
@@ -423,13 +537,28 @@ public final class DescargaVoz {
     }
 
     /** ¿Cuántos audios de la línea ya están descargados, en CUALQUIERA de las voces? (para mostrar
-     *  estado). Si se descargó en las 2 voces, cuenta ambas (coherente con borrarLinea()). */
+     *  estado). Si se descargó en las 2 voces, cuenta ambas (coherente con borrarLinea()). Incluye
+     *  los fragmentos globales que esta línea necesita (nombres de estación + comunes): si no
+     *  están, el aviso fragmentado de esta línea igual cae al TTS en vivo la primera vez, así que
+     *  "completa" debe depender de ellos también -- coherente con lo que ya cuenta descargarVarias(). */
     public static int cuantosDescargados(Context ctx, int linea) {
         int n = 0;
         for (TextoEstacion te : textosLinea(ctx, linea)) {
             for (String voz : VOCES_CONOCIDAS) {
                 File f = archivoVoz(ctx, te.texto, linea, voz, te.estacion);
                 if (f != null && f.exists() && f.length() > 0) n++;
+            }
+        }
+        for (Fragmento frag : fragmentosEstacionLinea(ctx, linea)) {
+            for (String voz : VOCES_CONOCIDAS) {
+                File f = archivoFragmento(ctx, frag, voz);
+                if (f.exists() && f.length() > 0) n++;
+            }
+        }
+        for (Fragmento frag : fragmentosComunes(ctx)) {
+            for (String voz : VOCES_CONOCIDAS) {
+                File f = archivoFragmento(ctx, frag, voz);
+                if (f.exists() && f.length() > 0) n++;
             }
         }
         return n;

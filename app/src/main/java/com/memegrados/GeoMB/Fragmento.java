@@ -50,4 +50,17 @@ final class Fragmento {
     static Fragmento comun(String texto) {
         return new Fragmento(COMUN, texto, 0, null);
     }
+
+    /** Subruta bajo voz/<voz>/ (sin ese prefijo): para ESTACION/COMUN es una carpeta GLOBAL que
+     *  NO depende de 'linea' (se ignora); para LEGACY es la carpeta de siempre por sistema+línea+
+     *  estación. Única fuente de verdad para la ruta -- RecorridoService (en vivo) y DescargaVoz
+     *  (predescarga masiva) deben calcular EXACTAMENTE lo mismo para el mismo Fragmento, o lo
+     *  predescargado nunca se encuentra en el teléfono. */
+    String rutaRelativa(int linea) {
+        String sub = tipo == ESTACION ? "_estaciones"
+                : tipo == COMUN ? "_comunes"
+                : Sistemas.carpeta(Sistemas.sistemaDe(linea)) + "/L" + Sistemas.numeroDeLinea(linea)
+                        + "/" + Locuciones.carpetaEstacion(estacion);
+        return sub + "/" + Integer.toHexString(texto.hashCode()) + ".mp3";
+    }
 }
