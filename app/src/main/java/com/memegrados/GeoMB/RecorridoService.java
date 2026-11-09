@@ -401,8 +401,22 @@ public class RecorridoService extends Service {
     // Cola de avisos pendientes (tururu+voz), en vez de cancelar el que sigue sonando: dos eventos
     // seguidos (p. ej. "llegando con transbordo" y, segundos después, "próxima estación" del nuevo
     // tramo) antes SE PERDÍAN si el segundo llegaba mientras el primero aún esperaba la voz (descarga
-    // Mia hasta 4 s). Cada elemento es {texto, línea}.
-    private final java.util.ArrayDeque<Object[]> colaVoz = new java.util.ArrayDeque<>();
+    // Mia hasta 4 s). Cada aviso es una SECUENCIA de Fragmento (ver decirFragmentos()): lo normal es
+    // un solo fragmento LEGACY con el texto completo de siempre, cero cambio de comportamiento; los
+    // avisos ya migrados al esquema fino (ver avisoAbordajeFragmentos()) traen 2+ fragmentos que se
+    // reproducen uno tras otro antes de pasar al siguiente aviso de la cola.
+    private final java.util.ArrayDeque<Aviso> colaVoz = new java.util.ArrayDeque<>();
+    /** Un aviso encolado: su secuencia de fragmentos + la línea (decide el tururu y la voz Mia/Ximena). */
+    private static final class Aviso {
+        final java.util.List<Fragmento> fragmentos;
+        final int linea;
+        Aviso(java.util.List<Fragmento> fragmentos, int linea) { this.fragmentos = fragmentos; this.linea = linea; }
+    }
+    // A qué llamar cuando el motor TTS de Android (respaldo offline/sin Mia) termina de hablar -- el
+    // listener de abajo (onCreate) es GLOBAL y antes llamaba a vozTerminada() directo; ahora llama a
+    // esto, que decirConVoz() apunta al siguiente FRAGMENTO del aviso en curso (o a vozTerminada() si
+    // ya era el último). Por defecto vozTerminada(), igual que el comportamiento de siempre.
+    private Runnable alTerminarVoz = this::vozTerminada;
     private boolean vozOcupada = false;            // hay un aviso sonando/hablando ahora mismo
     private volatile boolean destruido = false;    // el servicio ya se detuvo: no reproducir nada más
     // El usuario pidió salir del recorrido (ACCION_DETENER) mientras sonaba/había en cola un aviso: no se
@@ -498,8 +512,8 @@ public class RecorridoService extends Service {
                     tts.setPitch(1.05f);          // timbre ligeramente más agudo (femenino)
                     tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
                         @Override public void onStart(String id) {}
-                        @Override public void onDone(String id) { handler.post(() -> { try { vozTerminada(); } catch (Exception ignore) {} }); }
-                        @Override public void onError(String id) { handler.post(() -> { try { vozTerminada(); } catch (Exception ignore) {} }); }
+                        @Override public void onDone(String id) { handler.post(() -> { try { alTerminarVoz.run(); } catch (Exception ignore) {} }); }
+                        @Override public void onError(String id) { handler.post(() -> { try { alTerminarVoz.run(); } catch (Exception ignore) {} }); }
                     });
                     ttsListo = true;
                 }
@@ -966,7 +980,7 @@ public class RecorridoService extends Service {
                     if (!yaAvisado) {
                         // Sin "favor de irte preparando" si ya llegaste al andén anterior: ese aviso ya
                         // dijo qué hacer y aquí vas caminando el cruce (sonaba fuera de lugar).
-                        sonarYHablar(vozProxima(seq, i, ultLlegando < best), seq.get(best).linea, nom(seq.get(i)));
+                        sonarYHablarFragmentos(vozProxima(seq, i, ultLlegando < best), seq.get(best).linea);
                     }
                     ultProxima = i;
                     // Caso real confirmado (Indios Verdes, Mexibús→Metrobús): cuando es el camino de
@@ -989,7 +1003,7 @@ public class RecorridoService extends Service {
                         // alcanzaba a oír era el aviso normal de Metrobús (más abajo), nunca el tono/voz de
                         // Mexibús. Se revierte esa condición: el aviso de llegada de Mexibús SIEMPRE suena
                         // aquí, sin importar qué tan cerca ya estés del andén nuevo.
-                        sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea, nom(seq.get(best)));
+                        hablarLlegadaConSufijo(seq, best);
                     }
                     bd = d; best = i;
                     corresPendienteIdx = -1;   // correspondencia resuelta: limpiar candidato pendiente
@@ -1030,7 +1044,7 @@ public class RecorridoService extends Service {
         // estaciones del viaje; y el servicio elegido (Ordinario/Express, unidad Rosa) si aplica.
         if (!servicioAnunciado) {
             servicioAnunciado = true;
-            sonarYHablar(avisoAbordaje(seq, best), seq.get(best).linea);
+            sonarYHablarFragmentos(avisoAbordajeFragmentos(seq, best), seq.get(best).linea);
         }
 
         // Mide el acercamiento a la estación más cercana: cuando ya te alejaste más de
@@ -1099,7 +1113,7 @@ public class RecorridoService extends Service {
                 Telemetria.finalizarRecorrido(this);
                 alFinVoz = this::stopSelf;   // finaliza cuando acabe la voz del aviso final
                 // Mismo aviso combinado de llegada (incluye "última estación de tu recorrido").
-                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea, nom(seq.get(best)));
+                sonarYHablarFragmentos(vozLlegada(seq, best), seq.get(best).linea);
                 handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
             }
             return;   // no se anuncian más estaciones tras el final
@@ -1112,7 +1126,7 @@ public class RecorridoService extends Service {
             // El jingle usa la línea que VAS VIAJANDO (la actual), no la de la próxima parada: así en
             // correspondencias co-ubicadas (p. ej. Indios Verdes) no suena el tururu de Metrobús mientras
             // sigues en Mexibús.
-            sonarYHablar(vozProxima(seq, proxIdx, prepararse), seq.get(best).linea, nom(seq.get(proxIdx)));   // "Próxima estación X" (+ correspondencia / prep)
+            sonarYHablarFragmentos(vozProxima(seq, proxIdx, prepararse), seq.get(best).linea);   // "Próxima estación X" (+ correspondencia / prep)
         // REVERTIDO: llegandoPorSalidaDeZona() (respaldo "entró a la zona ancha y ya se aleja del
         // mínimo") se quitó -- confirmado con video real que seguía disparando PREMATURO en el mismo
         // punto de siempre (el mínimo local se alcanza mucho antes de llegar al andén real), y ese
@@ -1137,11 +1151,11 @@ public class RecorridoService extends Service {
                 detenerUbicacion();
                 Telemetria.finalizarRecorrido(this);
                 alFinVoz = this::stopSelf;
-                sonarYHablar(vozLlegada(seq, best), seq.get(best).linea, nom(seq.get(best)));
+                sonarYHablarFragmentos(vozLlegada(seq, best), seq.get(best).linea);
                 handler.postDelayed(this::stopSelf, 15000);   // respaldo si el callback no llega
                 return;
             }
-            sonarYHablar(vozLlegada(seq, best) + sufijoCambio(seq, best), seq.get(best).linea, nom(seq.get(best)));   // "Llegando a X" (+ cambio de dirección/unidad/ruta)
+            hablarLlegadaConSufijo(seq, best);   // "Llegando a X" (+ cambio de dirección/unidad/ruta)
         }
         // voz de afectación (una vez, si aparece durante el recorrido), con voz Mia.
         if (Manifestaciones.hay() && !afectacionAvisada) {
@@ -1152,10 +1166,14 @@ public class RecorridoService extends Service {
         }
     }
 
-    private void hablar(String t) {
-        // Se llama desde el hilo PRINCIPAL en varios puntos del recorrido (aviso normal, respaldo
-        // por timeout de la voz Mia, etc.); una falla del motor TTS (algunos fabricantes fallan al
-        // recibir un Bundle o un idioma no instalado) no debe tumbar el recorrido activo.
+    /** 'alTerminarVoz' (campo) es a quién llama el listener GLOBAL de tts (ver onCreate) cuando el
+     *  motor de Android termina de hablar -- se apunta aquí, antes de pedirle hablar, a la acción de
+     *  este fragmento (normalmente el siguiente fragmento del aviso, o vozTerminada() si era el
+     *  último). Se llama desde el hilo PRINCIPAL en varios puntos del recorrido (aviso normal,
+     *  respaldo por timeout de la voz Mia, etc.); una falla del motor TTS (algunos fabricantes fallan
+     *  al recibir un Bundle o un idioma no instalado) no debe tumbar el recorrido activo. */
+    private void hablar(String t, Runnable alTerminar) {
+        alTerminarVoz = alTerminar;
         try {
             if (ttsListo && tts != null && t != null) {
                 android.os.Bundle p = new android.os.Bundle();
@@ -1185,29 +1203,42 @@ public class RecorridoService extends Service {
     /** Jingle según el sistema de la estación (Mexibús/Mexicable = tururu_mxb; Metrobús = tururu_mb) + voz.
      *  'estacion' es el nombre de LA estación a la que pertenece este aviso (ver Locuciones.nom()/
      *  carpetaEstacion()) -- organiza el caché de voz en voz/<voz>/<sistema>/L<línea>/<estación>/, o
-     *  null para avisos que no son de una estación específica. */
+     *  null para avisos que no son de una estación específica. Esquema de SIEMPRE: un solo fragmento
+     *  LEGACY con el texto completo (ver {@link #sonarYHablarFragmentos} para el esquema fino). */
     private void sonarYHablar(String texto, int linea, String estacion) {
+        encolarAviso(new Aviso(java.util.Collections.singletonList(Fragmento.legacy(texto, linea, estacion)), linea));
+    }
+
+    /** Igual que sonarYHablar(), pero el aviso es una SECUENCIA de fragmentos reusables (nombre de
+     *  estación, conector, número) en vez de un solo texto completo -- para avisos cuyo contenido
+     *  tiene partes que se repiten mucho entre avisos/líneas, o que varían sin tope real por viaje
+     *  (ver avisoAbordajeFragmentos()). Se reproducen en orden, uno tras otro, antes de pasar al
+     *  siguiente aviso de la cola -- misma garantía de "no se pierden/no se traslapan" de siempre. */
+    private void sonarYHablarFragmentos(java.util.List<Fragmento> fragmentos, int linea) {
+        encolarAviso(new Aviso(fragmentos, linea));
+    }
+
+    private void encolarAviso(Aviso aviso) {
         if (destruido) return;
-        colaVoz.add(new Object[]{texto, linea, estacion});
+        colaVoz.add(aviso);
         if (!vozOcupada) {
             pedirFocoAudio();   // "duckea" lo que esté sonando (música, podcast) mientras avisamos
             procesarSiguienteVoz();
         }
     }
 
-    /** Toma el siguiente aviso de la cola y lo reproduce (tururu, luego voz). Al terminar (ver
-     *  {@link #vozTerminada()}), se vuelve a llamar para seguir con el que sigue. */
+    /** Toma el siguiente AVISO de la cola y reproduce su primer fragmento (tururu, luego voz). Al
+     *  terminar TODOS sus fragmentos (ver {@link #decirFragmentos}/{@link #vozTerminada()}), se vuelve
+     *  a llamar para seguir con el aviso que sigue. */
     private void procesarSiguienteVoz() {
-        Object[] item = colaVoz.poll();
-        if (item == null || destruido) {
+        Aviso aviso = colaVoz.poll();
+        if (aviso == null || destruido) {
             vozOcupada = false;
             soltarFocoAudio();   // ya no hay más avisos: que lo demás recupere su volumen normal
             return;
         }
         vozOcupada = true;
-        String texto = (String) item[0];
-        int linea = (Integer) item[1];
-        String estacion = (String) item[2];
+        int linea = aviso.linea;
         soltarActual();                       // corta cualquier audio en curso (evita el "agudo" por traslape)
         String raw = linea >= 100 ? "tururu_mxb" : "tururu_mb";
         int id = getResources().getIdentifier(raw, "raw", getPackageName());
@@ -1222,12 +1253,12 @@ public class RecorridoService extends Service {
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
-                        handler.postDelayed(() -> decirConVoz(texto, linea, estacion), 250);   // deja respirar antes de la voz
+                        handler.postDelayed(() -> decirFragmentos(aviso, 0), 250);   // deja respirar antes de la voz
                     });
                     mp.setOnErrorListener((m, a, b) -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
-                        decirConVoz(texto, linea, estacion);
+                        decirFragmentos(aviso, 0);
                         return true;
                     });
                     mp.start();
@@ -1235,7 +1266,17 @@ public class RecorridoService extends Service {
                 }
             } catch (Exception ignore) {}
         }
-        decirConVoz(texto, linea, estacion);
+        decirFragmentos(aviso, 0);
+    }
+
+    /** Reproduce el fragmento `idx` del aviso y, al terminar, sigue con el {@code idx+1} -- misma
+     *  cadena de MediaPlayer.setOnCompletionListener de siempre, solo que ahora un aviso puede tener
+     *  más de un audio. Cuando ya no quedan fragmentos, {@link #vozTerminada()} pasa al siguiente
+     *  AVISO de la cola (exactamente el mismo punto donde antes terminaba un aviso de un solo texto). */
+    private void decirFragmentos(Aviso aviso, int idx) {
+        if (destruido) { vozOcupada = false; return; }
+        if (idx >= aviso.fragmentos.size()) { vozTerminada(); return; }
+        decirConVoz(aviso.fragmentos.get(idx), aviso.linea, () -> decirFragmentos(aviso, idx + 1));
     }
 
     /** Detiene y libera el reproductor en curso (tururu o voz) para que no se encimen. */
@@ -1292,12 +1333,15 @@ public class RecorridoService extends Service {
 
     // ---- voz Mia (AWS Polly) con caché local; respaldo al TTS de Android ----
 
-    /** Reproduce la frase con la voz del backend (Mia o Ximena, según el sistema de `linea` -- ver
-     *  Modos.vozActual()), cacheada. Si falla/offline, usa TTS. */
-    private void decirConVoz(String texto, int linea, String estacion) {
+    /** Reproduce el FRAGMENTO con la voz del backend (Mia o Ximena, según el sistema de `linea` -- ver
+     *  Modos.vozActual()), cacheado. Si falla/offline, usa TTS. Llama a {@code alTerminar} (no a
+     *  vozTerminada() directo) para poder encadenar el siguiente fragmento del mismo aviso -- ver
+     *  {@link #decirFragmentos}. */
+    private void decirConVoz(Fragmento frag, int linea, Runnable alTerminar) {
         if (destruido) { vozOcupada = false; return; }
-        java.io.File cache = archivoVoz(texto, linea, estacion);
-        if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache); return; }   // ya en caché: no gasta datos
+        String texto = frag.texto;
+        java.io.File cache = archivoVoz(frag, linea);
+        if (cache != null && cache.exists() && cache.length() > 0) { reproducir(cache, alTerminar); return; }   // ya en caché: no gasta datos
         // Modo ahorro de datos (activo por defecto en datos móviles, desactivable en "Acerca de"):
         // si esta frase no está ya cacheada, no se descarga la voz del backend -se habla directo con
         // la voz local del teléfono (TTS, sin conexión, cero datos).
@@ -1306,7 +1350,7 @@ public class RecorridoService extends Service {
         // así que sin este chequeo se intentaba la descarga sobre una red que nunca va a responder
         // -tardando mucho más en fallar (o colgándose) que "sin red" de plano, y dejando el aviso
         // varado sin avanzar a los siguientes de la cola.
-        if (Red.ahorrarAhora(this) || !Red.hayInternetReal(this)) { hablar(texto); return; }
+        if (Red.ahorrarAhora(this) || !Red.hayInternetReal(this)) { hablar(texto, alTerminar); return; }
         // Descarga la voz del backend PERO con un límite (VOZ_TIMEOUT_MS): si no llega a tiempo, se
         // habla ya con el TTS de Google para no dejar esperando; la descarga sigue y queda cacheada
         // para la próxima. Este aviso YA está "en curso" (vozOcupada=true): el siguiente de la cola espera.
@@ -1314,15 +1358,15 @@ public class RecorridoService extends Service {
         handler.postDelayed(() -> {
             if (destruido || resuelto[0]) return;
             resuelto[0] = true;
-            hablar(texto);   // se pasó del timeout: TTS inmediato
+            hablar(texto, alTerminar);   // se pasó del timeout: TTS inmediato
         }, VOZ_TIMEOUT_MS);
         new Thread(() -> {
-            java.io.File out = descargarVoz(texto, linea, estacion);
+            java.io.File out = descargarVoz(frag, linea);
             handler.post(() -> {
                 if (destruido || resuelto[0]) return;   // ya habló el TTS por timeout
                 resuelto[0] = true;
-                if (out != null && out.exists() && out.length() > 0) reproducir(out);
-                else hablar(texto);   // respaldo: TTS de Android (offline o error)
+                if (out != null && out.exists() && out.length() > 0) reproducir(out, alTerminar);
+                else hablar(texto, alTerminar);   // respaldo: TTS de Android (offline o error)
             });
         }, "voz-mia").start();
     }
@@ -1334,28 +1378,31 @@ public class RecorridoService extends Service {
     // "de datos de la app" no necesita permiso de almacenamiento en ninguna versión de Android.
     // Si por lo que sea no hay almacenamiento externo disponible (SD extraíble desmontada, etc.),
     // cae al interno para no perder la función.
-    // Subcarpetas voz/<voz>/<sistema>/L<línea>/<estación>/: para poder navegar/filtrar a mano con un
-    // explorador de archivos (p. ej. ver solo lo de Mexibús, solo lo de Ximena, o solo una estación
-    // dentro de una línea larga). El nombre del archivo ya no necesita llevar la voz ni la estación
-    // (viven en la carpeta), solo el hash del texto. 'estacion' va sin sanitizar: carpetaEstacion()
-    // se encarga (null/vacío -> "_general", ver su comentario).
-    private java.io.File archivoVoz(String texto, int linea, String estacion) {
+    // LEGACY: subcarpetas voz/<voz>/<sistema>/L<línea>/<estación>/ (igual que siempre). ESTACION/
+    // COMUN: carpeta GLOBAL voz/<voz>/_estaciones/ o voz/<voz>/_comunes/ -- el mismo nombre de
+    // estación o el mismo conector/número vale para CUALQUIER línea/sistema donde vuelva a aparecer,
+    // así no se vuelve a sintetizar/descargar por cada línea o tipo de aviso (ver Fragmento). El
+    // nombre del archivo es el hash del texto; no necesita llevar la voz/estación (viven en la carpeta).
+    private java.io.File archivoVoz(Fragmento frag, int linea) {
         java.io.File base = getExternalFilesDir(null);
         if (base == null) base = getFilesDir();
         String voz = Modos.vozActual(this, linea);
-        java.io.File dir = new java.io.File(base, "voz/" + voz + "/" + Sistemas.carpeta(Sistemas.sistemaDe(linea))
-                + "/L" + Sistemas.numeroDeLinea(linea) + "/" + Locuciones.carpetaEstacion(estacion));
+        String sub = frag.tipo == Fragmento.ESTACION ? "_estaciones"
+                : frag.tipo == Fragmento.COMUN ? "_comunes"
+                : Sistemas.carpeta(Sistemas.sistemaDe(linea)) + "/L" + Sistemas.numeroDeLinea(linea)
+                        + "/" + Locuciones.carpetaEstacion(frag.estacion);
+        java.io.File dir = new java.io.File(base, "voz/" + voz + "/" + sub);
         if (!dir.exists()) dir.mkdirs();
-        return new java.io.File(dir, Integer.toHexString(texto.hashCode()) + ".mp3");
+        return new java.io.File(dir, Integer.toHexString(frag.texto.hashCode()) + ".mp3");
     }
 
-    private java.io.File descargarVoz(String texto, int linea, String estacion) {
-        java.io.File out = archivoVoz(texto, linea, estacion);
+    private java.io.File descargarVoz(Fragmento frag, int linea) {
+        java.io.File out = archivoVoz(frag, linea);
         if (out == null) return null;
         java.net.HttpURLConnection c = null;
         try {
             String u = "https://geomb.duckdns.org/api/tts?voz=" + Modos.vozActual(this, linea)
-                    + "&texto=" + android.net.Uri.encode(texto);
+                    + "&texto=" + android.net.Uri.encode(frag.texto);
             c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
             c.setConnectTimeout(3000);
             c.setReadTimeout(8000);
@@ -1373,7 +1420,7 @@ public class RecorridoService extends Service {
         }
     }
 
-    private void reproducir(java.io.File f) {
+    private void reproducir(java.io.File f, Runnable alTerminar) {
         try {
             soltarActual();   // no encimar con audio previo
             android.media.MediaPlayer mp = new android.media.MediaPlayer();
@@ -1387,12 +1434,12 @@ public class RecorridoService extends Service {
             mp.setOnCompletionListener(m -> {
                 try { m.release(); } catch (IllegalStateException ignore) {}
                 if (mpActual == m) mpActual = null;
-                vozTerminada();   // terminó la voz: acción pendiente de fin + siguiente aviso en cola
+                alTerminar.run();   // siguiente fragmento del aviso, o vozTerminada() si era el último
             });
             mp.prepare();
             mp.start();
         } catch (Exception e) {
-            vozTerminada();   // si el mp3 falla, no dejar colgada la acción de fin ni la cola
+            alTerminar.run();   // si el mp3 falla, no dejar colgada la acción de fin ni la cola
         }
     }
 
@@ -1441,22 +1488,53 @@ public class RecorridoService extends Service {
 
     /** Aviso de PRÓXIMA estación. Si tiene correspondencia (líneas cercanas) la nombra; y si el usuario
      *  transbordará ahí, añade la preparación ("atención… favor de irte preparando"). */
-    private String vozProxima(List<Planificador.Parada> seq, int idx, boolean prepararse) {
+    /** Encola "Llegando a X" + el sufijo de cambio de dirección/unidad/ruta (si aplica) como UN solo
+     *  aviso -- antes se concatenaban con "+ " en un solo texto; ahora el sufijo (si no viene vacío)
+     *  se agrega como un fragmento más a la lista de vozLlegada(), sin el ". " inicial que traía (ya
+     *  no hace falta: cada fragmento es su propio audio, la pausa entre ellos cumple ese papel). */
+    private void hablarLlegadaConSufijo(List<Planificador.Parada> seq, int best) {
+        java.util.List<Fragmento> frags = new java.util.ArrayList<>(vozLlegada(seq, best));
+        String sufijo = sufijoCambio(seq, best);
+        if (!sufijo.isEmpty()) frags.add(Fragmento.comun(sufijo.substring(2)));
+        sonarYHablarFragmentos(frags, seq.get(best).linea);
+    }
+
+    /** Envuelve un texto completo (armado como SIEMPRE) en un aviso de un solo fragmento LEGACY --
+     *  mismo comportamiento/caché de antes de fragmentar nada. Lo usan las ramas de vozProxima()/
+     *  vozLlegada() que todavía no se migraron al esquema fino (terminal, correspondencia): fragmentar
+     *  esas queda para una siguiente pasada (quedó documentado en el informe final). */
+    private static java.util.List<Fragmento> legacyUnico(String texto, int linea, String estacion) {
+        return java.util.Collections.singletonList(Fragmento.legacy(texto, linea, estacion));
+    }
+
+    /** Aviso de PRÓXIMA estación. Si tiene correspondencia (líneas cercanas) la nombra; y si el usuario
+     *  transbordará ahí, añade la preparación ("atención… favor de irte preparando"). MISMAS palabras
+     *  de siempre; el caso SIMPLE (sin terminal/correspondencia) sale fragmentado (conector + nombre de
+     *  estación) para que el nombre se reuse sin importar en qué otro aviso/línea vuelva a aparecer. */
+    private java.util.List<Fragmento> vozProxima(List<Planificador.Parada> seq, int idx, boolean prepararse) {
         Planificador.Parada prox = seq.get(idx);
         if (esTerminal(prox) && !esAbordaje(seq, idx)) {   // terminal de línea (al llegar)
             // Antes se devolvía solo el aviso de terminal y se perdía la preparación (p. ej. Metrobús L1
             // al norte llegando a Indios Verdes para la conexión con Mexibús L4).
             String vt = vozTerminal(prox, false);
-            return prepararse ? vt + ". " + prepTransferencia(seq, idx) : vt;
+            String texto = prepararse ? vt + ". " + prepTransferencia(seq, idx) : vt;
+            return legacyUnico(texto, prox.linea, nom(prox));
         }
         String tf = transferenciaTexto(prox.linea, basesCorresp(prox));
-        StringBuilder v = tf.isEmpty()
-                ? new StringBuilder(getString(vozTxt(R.string.voz_proxima, R.string.voz_proxima_ximena, prox.linea), nom(prox)))
-                : new StringBuilder(getString(vozTxt(R.string.voz_prox_base, R.string.voz_prox_base_ximena, prox.linea), nom(prox))).append(tf);
-        // "Favor de irte preparando" cuando te ACERCAS a la estación donde bajarás a hacer la
-        // correspondencia (no cuando ya llegaste al andén de la otra línea).
-        if (prepararse) v.append(". ").append(prepTransferencia(seq, idx));
-        return v.toString();
+        if (!tf.isEmpty()) {
+            StringBuilder v = new StringBuilder(getString(vozTxt(R.string.voz_prox_base, R.string.voz_prox_base_ximena, prox.linea), nom(prox))).append(tf);
+            // "Favor de irte preparando" cuando te ACERCAS a la estación donde bajarás a hacer la
+            // correspondencia (no cuando ya llegaste al andén de la otra línea).
+            if (prepararse) v.append(". ").append(prepTransferencia(seq, idx));
+            return legacyUnico(v.toString(), prox.linea, nom(prox));
+        }
+        // Caso simple: conector fijo + nombre de estación como fragmentos aparte (en vez de un texto
+        // completo "Próxima estación: X" cacheado por cada estación distinta donde salga).
+        java.util.List<Fragmento> frags = new java.util.ArrayList<>();
+        frags.add(Fragmento.comun(getString(vozTxt(R.string.voz_proxima_prefijo, R.string.voz_proxima_ximena_prefijo, prox.linea))));
+        frags.add(Fragmento.estacion(nom(prox)));
+        if (prepararse) frags.add(Fragmento.comun(prepTransferencia(seq, idx)));
+        return frags;
     }
 
     /** "Atención: estás llegando a la estación donde vas a realizar tu {transbordo|correspondencia|
@@ -1485,7 +1563,12 @@ public class RecorridoService extends Service {
 
     /** Aviso de LLEGADA a la estación best. Terminal → mensaje de terminal; con correspondencia → nombra
      *  las líneas con su palabra (transbordo/correspondencia/conexión); si no, aviso simple + consejo. */
-    private String vozLlegada(List<Planificador.Parada> seq, int best) {
+    /** Aviso de LLEGADA a la estación best. Terminal → mensaje de terminal; con correspondencia → nombra
+     *  las líneas con su palabra (transbordo/correspondencia/conexión); si no, aviso simple + consejo.
+     *  MISMAS palabras de siempre; el caso SIMPLE (sin terminal/correspondencia/bajada) sale
+     *  fragmentado (conector + nombre de estación [+ tip o última estación]) por la misma razón que
+     *  vozProxima(). */
+    private java.util.List<Fragmento> vozLlegada(List<Planificador.Parada> seq, int best) {
         Planificador.Parada p = seq.get(best);
         boolean esFinal = best == seq.size() - 1;   // última estación del recorrido
         // ¿Bajas aquí a cambiar? La parada siguiente arranca otro tramo (línea/conexión, unidad o ruta).
@@ -1498,19 +1581,23 @@ public class RecorridoService extends Service {
             boolean bajaAqui = tcSig != 0 || (best + 1 < seq.size() && seq.get(best + 1).transbordo);
             if (bajaAqui) vt += ". " + instruccionBajada(seq, best, tcSig != 0 ? tcSig : 1);
             if (esFinal) vt += ". " + getString(ultimaEst(p.linea));
-            return vt;
+            return legacyUnico(vt, p.linea, nom(p));
         }
         boolean bajas = tcSig != 0 || (best + 1 < seq.size() && seq.get(best + 1).transbordo);
         String tf = transferenciaTexto(p.linea, basesCorresp(p));
         if (tf.isEmpty() && !bajas) {
-            StringBuilder v = new StringBuilder(getString(vozTxt(R.string.voz_llegando_est, R.string.voz_llegando_est_ximena, p.linea), nom(p)));
+            // Caso simple: conector fijo + nombre de estación, + tip/última estación (YA fijos, sin
+            // parámetros -- se cachean solos igual que antes, nomás como fragmento aparte).
+            java.util.List<Fragmento> frags = new java.util.ArrayList<>();
+            frags.add(Fragmento.comun(getString(vozTxt(R.string.voz_llegando_est_prefijo, R.string.voz_llegando_est_ximena_prefijo, p.linea))));
+            frags.add(Fragmento.estacion(nom(p)));
             if (esFinal) {
-                v.append(". ").append(getString(ultimaEst(p.linea)));   // "última estación de tu recorrido"
+                frags.add(Fragmento.comun(getString(ultimaEst(p.linea))));   // "última estación de tu recorrido"
             } else {
                 String tip = tipAleatorio(p.linea);
-                if (tip != null) v.append(". ").append(tip);
+                if (tip != null) frags.add(Fragmento.comun(tip));
             }
-            return v.toString();
+            return frags;
         }
         StringBuilder v = new StringBuilder(getString(vozTxt(R.string.voz_lleg_base, R.string.voz_lleg_base_ximena, p.linea), nom(p))).append(tf);
         if (bajas) {
@@ -1519,7 +1606,7 @@ public class RecorridoService extends Service {
             v.append(". ").append(instruccionBajada(seq, best, tcSig != 0 ? tcSig : 1));
         }
         if (esFinal) v.append(". ").append(getString(ultimaEst(p.linea)));
-        return v.toString();
+        return legacyUnico(v.toString(), p.linea, nom(p));
     }
 
     /** Total de estaciones del viaje: saltos reales entre paradas físicas DISTINTAS (los transbordos
@@ -1576,15 +1663,25 @@ public class RecorridoService extends Service {
     }
 
     /** Aviso inicial de abordaje: "Aborda una unidad/cabina con destino a {terminal}[, servicio {X}]
-     *  [, en unidad rosa…]. {N} estaciones." */
-    private String avisoAbordaje(List<Planificador.Parada> seq, int i) {
-        int str = seq.get(i).linea >= 200 ? R.string.voz_aborda_cabina : R.string.voz_aborda;   // Mexicable: cabina
-        StringBuilder v = new StringBuilder(getString(str, direccionTerminal(seq, i)));
+     *  [, en unidad rosa…]. {N} estaciones." -- MISMAS palabras de siempre, pero armado como
+     *  SECUENCIA de fragmentos (conector, nombre de terminal, resto, número) en vez de un solo texto:
+     *  antes, cada combinación de (terminal × servicio × rosa × N estaciones) generaba una entrada de
+     *  caché NUEVA, sin tope real por lo variable que es N (cambia en cada viaje). Fragmentado, el
+     *  nombre de la terminal se cachea una sola vez (se reusa con cualquier otro aviso que nombre esa
+     *  misma estación) y "N estaciones" sale de un catálogo acotado (1 hasta el máximo de paradas de
+     *  cualquier línea, ~51 hoy) en vez de sintetizarse de nuevo en cada viaje. */
+    private java.util.List<Fragmento> avisoAbordajeFragmentos(List<Planificador.Parada> seq, int i) {
+        boolean cabina = seq.get(i).linea >= 200;   // Mexicable: cabina, no unidad
+        java.util.List<Fragmento> frags = new java.util.ArrayList<>();
+        frags.add(Fragmento.comun(getString(cabina ? R.string.voz_aborda_cabina_prefijo : R.string.voz_aborda_prefijo)));
+        frags.add(Fragmento.estacion(direccionTerminal(seq, i)));
+        StringBuilder resto = new StringBuilder();
         String svc = servicioNombre(seq, i, esRosa());
-        if (!svc.isEmpty()) v.append(getString(R.string.voz_aborda_servicio, svc));
-        if (esRosa()) v.append(getString(R.string.voz_unidad_rosa));
-        v.append(". ").append(getString(R.string.voz_n_estaciones, contarEstaciones(seq)));
-        return v.toString();
+        if (!svc.isEmpty()) resto.append(getString(R.string.voz_aborda_servicio, svc));
+        if (esRosa()) resto.append(getString(R.string.voz_unidad_rosa));
+        if (resto.length() > 0) frags.add(Fragmento.comun(resto.toString()));
+        frags.add(Fragmento.comun(getString(R.string.voz_n_estaciones, contarEstaciones(seq))));
+        return frags;
     }
 
     /** ¿El viaje va en unidad Rosa? (se decidió al elegir el servicio; el texto lo incluye). */

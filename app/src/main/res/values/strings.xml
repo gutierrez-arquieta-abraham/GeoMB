@@ -265,6 +265,11 @@
          redacción y pausas largas calcadas de la transcripción real. Mia/TTS del sistema siguen
          usando los strings de arriba sin tocar. Ver RecorridoService.vozTxt(). -->
     <string name="voz_proxima_ximena">Próxima estación… %1$s</string>
+    <!-- Mismo texto que voz_proxima/voz_proxima_ximena pero SIN el %s final: para el caso SIMPLE
+         (sin terminal ni correspondencia) de vozProxima(), hablado como conector + nombre de estación
+         por separado, así el nombre se cachea una sola vez sin importar en qué aviso vuelva a salir. -->
+    <string name="voz_proxima_prefijo">Próxima estación:</string>
+    <string name="voz_proxima_ximena_prefijo">Próxima estación…</string>
     <string name="voz_transborda">Estás llegando a %1$s. Baja y haz tu correspondencia a la Línea %2$s.</string>
     <string name="voz_llegaste">Llegaste a %1$s, última estación de tu recorrido.</string>
     <string name="voz_afectacion">Atención: hay afectaciones en el servicio. Verifica tu ruta.</string>
@@ -273,6 +278,10 @@
     <string name="voz_llegando_est">Llegando a estación: %1$s</string>
     <string name="voz_llegando_terminal">Llegando a terminal: %1$s</string>
     <string name="voz_llegando_est_ximena">Llegando a… %1$s</string>
+    <!-- Mismo texto que voz_llegando_est/voz_llegando_est_ximena pero SIN el %s final: para el caso
+         SIMPLE (sin terminal ni correspondencia/bajada) de vozLlegada(), igual que voz_proxima_prefijo. -->
+    <string name="voz_llegando_est_prefijo">Llegando a estación:</string>
+    <string name="voz_llegando_est_ximena_prefijo">Llegando a…</string>
     <string name="voz_llegando_terminal_ximena">Llegando a… terminal %1$s</string>
     <string name="voz_transbordo_linea">. Correspondencia con Línea %1$d</string>
     <string name="voz_transbordo_varias">. Correspondencia con Líneas %1$s</string>
@@ -310,6 +319,11 @@
     <!-- Aviso de abordaje inicial: destino (terminal del sentido) + servicio + rosa + total de estaciones. -->
     <string name="voz_aborda">Aborda una unidad con destino a %1$s</string>
     <string name="voz_aborda_cabina">Aborda una cabina con destino a %1$s</string>
+    <!-- Mismo texto que voz_aborda/voz_aborda_cabina pero SIN el %s final: para hablarlo como
+         fragmento aparte seguido del nombre de la terminal (ver avisoAbordajeFragmentos()), que así
+         se cachea una sola vez sin importar cuántas veces/terminales distintas se usen. -->
+    <string name="voz_aborda_prefijo">Aborda una unidad con destino a</string>
+    <string name="voz_aborda_cabina_prefijo">Aborda una cabina con destino a</string>
     <string name="voz_aborda_servicio">, servicio %1$s</string>
     <string name="voz_unidad_rosa">, en unidad rosa exclusiva para mujeres, niñas y niños</string>
     <string name="voz_n_estaciones">%1$d estaciones</string>
