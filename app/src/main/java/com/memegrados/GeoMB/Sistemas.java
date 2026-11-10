@@ -28,11 +28,15 @@ public final class Sistemas {
 
     private Sistemas() {}
 
-    /** Sistema al que pertenece una línea por su numeración interna (1-7 / 100-199 / 200+). */
+    /** Sistema al que pertenece una línea por su numeración interna (1-7 / 100-199 / 200+).
+     *  Delega en {@link LineaId#desde(int)} (misma clasificación, verificado idéntico en
+     *  LineaIdTest) para no repetir la aritmética en dos lugares. */
     public static int sistemaDe(int numeroLinea) {
-        if (numeroLinea >= 200) return MEXICABLE;
-        if (numeroLinea >= 100) return MEXIBUS;
-        return METROBUS;
+        switch (LineaId.desde(numeroLinea).sistema) {
+            case MEXICABLE: return MEXICABLE;
+            case MEXIBUS:   return MEXIBUS;
+            default:        return METROBUS;
+        }
     }
 
     /** Nombre de carpeta del sistema (sin acentos/espacios), para organizar archivos por sistema
@@ -49,6 +53,6 @@ public final class Sistemas {
      *  colapsan al mismo número por su último dígito: 101/111/121 -> 1, 104/124 -> 4, 201/202 -> 1/2).
      *  Para la carpeta de voz ("L" + este número) y cualquier otro agrupado por línea física. */
     public static int numeroDeLinea(int numeroLinea) {
-        return numeroLinea >= 100 ? numeroLinea % 10 : numeroLinea;
+        return LineaId.desde(numeroLinea).numero;
     }
 }

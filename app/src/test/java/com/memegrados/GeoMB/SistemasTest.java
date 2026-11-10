@@ -28,6 +28,14 @@ public class SistemasTest {
     }
 
     @Test
+    public void sistemaDe_todos_los_rangos() {
+        for (int n = 1; n <= 7; n++) assertEquals("sistemaDe(" + n + ")", Sistemas.METROBUS, Sistemas.sistemaDe(n));
+        for (int n : new int[]{101, 102, 103, 104, 111, 112, 113, 121, 122, 123, 124})
+            assertEquals("sistemaDe(" + n + ")", Sistemas.MEXIBUS, Sistemas.sistemaDe(n));
+        for (int n : new int[]{201, 202}) assertEquals("sistemaDe(" + n + ")", Sistemas.MEXICABLE, Sistemas.sistemaDe(n));
+    }
+
+    @Test
     public void numeroDeLinea_metrobus_directo() {
         for (int n = 1; n <= 7; n++) assertEquals(n, Sistemas.numeroDeLinea(n));
     }

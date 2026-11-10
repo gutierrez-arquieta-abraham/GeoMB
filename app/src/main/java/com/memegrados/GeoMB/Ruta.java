@@ -42,6 +42,10 @@ public class Ruta {
         this.colorHex = colorHex;
     }
 
+    /** {@link #linea} como {@link LineaId} (siempre Sistema.METROBUS para esta clase -- {@link #linea}
+     *  se queda igual, esto es solo una lectura adicional del mismo dato). */
+    public LineaId lineaId() { return LineaId.desde(linea); }
+
     /** "Origen → Destino". */
     public String recorrido() {
         return origen + " → " + destino;

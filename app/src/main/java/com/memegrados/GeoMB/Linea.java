@@ -46,6 +46,10 @@ public class Linea {
     public final List<Estacion> estaciones;
     public final List<LatLng> ruta;
 
+    /** {@link #numero} como {@link LineaId} (sistema+número+variante) en vez del entero crudo.
+     *  {@link #numero} se queda igual -- esto es solo una lectura adicional del mismo dato. */
+    public LineaId lineaId() { return LineaId.desde(numero); }
+
     /**
      * Trazado oficial dividido en tramos (ida/vuelta y ramales), tomado del
      * mapa oficial de Metrobús. Si está presente se dibuja en vez de {@link #ruta}
