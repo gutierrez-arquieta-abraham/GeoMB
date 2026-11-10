@@ -70,6 +70,22 @@ public class LineaIdTest {
     }
 
     @Test
+    public void base_colapsa_ordinario_ramal_expres_igual_que_Planificador_baseLinea() {
+        // Valores calculados a mano con la fórmula real de Planificador.baseLinea(int)
+        // (privado, no se puede llamar desde aquí): n>=200 -> 200+n%10; n>=100 -> 100+n%10; si no, n.
+        int[][] casos = {
+                {1, 1}, {2, 2}, {7, 7},
+                {101, 101}, {102, 102}, {103, 103}, {104, 104},
+                {111, 101}, {112, 102}, {113, 103},
+                {121, 101}, {122, 102}, {123, 103}, {124, 104},
+                {201, 201}, {202, 202},
+        };
+        for (int[] c : casos) {
+            assertEquals("base(" + c[0] + ")", c[1], LineaId.desde(c[0]).base().codigo());
+        }
+    }
+
+    @Test
     public void de_construye_el_mismo_resultado_que_desde() {
         assertEquals(LineaId.desde(104), LineaId.de(LineaId.Sistema.MEXIBUS, 4));
         assertEquals(LineaId.desde(111), LineaId.de(LineaId.Sistema.MEXIBUS, 1, LineaId.Variante.RAMAL));

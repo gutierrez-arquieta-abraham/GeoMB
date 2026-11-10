@@ -79,12 +79,13 @@ public final class Planificador {
      * (0 extra); las troncales del Mexibús algo menos, y los RAMALES (1A/2A/3A) bastante menos
      * seguido, así que abordarlos "tarda más en mandar una unidad" (p. ej. L2A > L4).
      */
-    private static double esperaExtra(int linea) {
-        if (linea >= 200) return 60.0;                    // Mexicable (cablebús): pasa muy seguido
-        if (linea >= 121 && linea <= 129) return 240.0;   // exprés Mexibús (menos frecuente, pero salta paradas)
-        if (linea >= 111) return 1800.0;  // ramales Mexibús 1A/2A/3A: paso de unidades ~30 min (muy baja frecuencia)
-        if (linea >= 100) return 120.0;   // troncales Mexibús: +2 min aprox
-        return 0.0;                        // Metrobús: sin penalización
+    static double esperaExtra(int linea) {
+        LineaId li = LineaId.desde(linea);
+        if (li.sistema == LineaId.Sistema.MEXICABLE) return 60.0;        // cablebús: pasa muy seguido
+        if (li.variante == LineaId.Variante.EXPRES) return 240.0;        // exprés Mexibús (menos frecuente, pero salta paradas)
+        if (li.variante == LineaId.Variante.RAMAL) return 1800.0;        // ramales 1A/2A/3A: paso ~30 min (muy baja frecuencia)
+        if (li.sistema == LineaId.Sistema.MEXIBUS) return 120.0;         // troncales Mexibús: +2 min aprox
+        return 0.0;                                                      // Metrobús: sin penalización
     }
     private static final double RADIO_CORRESP = 800.0;   // transbordo por CERCANÍA: hasta 800 m se camina
     // Tolerancia para el ancla de origen (ver buscarYConstruir, posOrigenRef): margen sobre la distancia
@@ -119,10 +120,10 @@ public final class Planificador {
     // Nombres (normalizados, sin MXB) que existen en MÁS DE UNA línea → se muestran con su número.
     private static java.util.Set<String> nombresAmbiguos;
     private static boolean ambiguosMxb;
-    /** Línea "base" (familia): agrupa ordinario/ramal/exprés (101/111/121→101); Mexicable 201/202 aparte. */
+    /** Línea "base" (familia): agrupa ordinario/ramal/exprés (101/111/121→101); Mexicable 201/202 aparte.
+     *  Delega en {@link LineaId#base()} (misma clasificación, verificado idéntico en LineaIdTest). */
     private static int baseLinea(int n) {
-        if (n >= 200) return 200 + (n % 10);
-        return n >= 100 ? 100 + (n % 10) : n;
+        return LineaId.desde(n).base().codigo();
     }
 
     private static synchronized java.util.Set<String> ambiguos(Context ctx) {
@@ -892,7 +893,8 @@ public final class Planificador {
     /** Clave de terminales de una línea Mexibús: la exprés (12X) usa la de su troncal; ramales (11X) y
      *  troncales (10X) usan su propio número (¡NO {@code Servicios.base}, que mapea 111→101!). */
     static int claveTerminal(int linea) {
-        return (linea >= 121 && linea <= 129) ? (100 + linea % 10) : linea;
+        LineaId li = LineaId.desde(linea);
+        return li.variante == LineaId.Variante.EXPRES ? LineaId.de(li.sistema, li.numero).codigo() : linea;
     }
 
     /** Par de terminales "A – B" de una línea Mexibús (para la tabla de estado); null si no aplica. */
@@ -1210,13 +1212,14 @@ public final class Planificador {
     }
 
     /** ¿La línea es una troncal Mexibús cuyo servicio NO coincide con el preferido para su base? */
-    private static boolean noPreferido(int linea, java.util.Map<Integer, Boolean> pref) {
+    static boolean noPreferido(int linea, java.util.Map<Integer, Boolean> pref) {
         if (pref == null || pref.isEmpty()) return false;
-        if (linea < 100 || linea >= 200) return false;   // solo Mexibús
-        if (linea >= 111 && linea <= 119) return false;   // ramales 1A/2A/3A: sin exprés
-        Boolean wantExp = pref.get(100 + linea % 10);
+        LineaId li = LineaId.desde(linea);
+        if (li.sistema != LineaId.Sistema.MEXIBUS) return false;
+        if (li.variante == LineaId.Variante.RAMAL) return false;   // ramales 1A/2A/3A: sin exprés
+        Boolean wantExp = pref.get(LineaId.de(LineaId.Sistema.MEXIBUS, li.numero).codigo());
         if (wantExp == null) return false;
-        boolean isExp = linea >= 121 && linea <= 124;
+        boolean isExp = li.variante == LineaId.Variante.EXPRES;
         return wantExp != isExp;
     }
 

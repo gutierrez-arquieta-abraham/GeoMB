@@ -9,8 +9,11 @@ package com.memegrados.GeoMB;
  * sitio que necesita razonar sobre sistema/variante en vez de solo comparar el número crudo.
  *
  * <p>Es un AGREGADO sobre el esquema legacy, no un reemplazo: {@link Sistemas}, {@link Linea#numero}
- * y {@link Ruta#linea} siguen existiendo y funcionando igual -- Planificador.java (el motor de
- * rutas) sigue leyendo el entero directo y NO se tocó para este cambio.</p>
+ * y {@link Ruta#linea} siguen existiendo y funcionando igual. En Planificador.java (el motor de
+ * rutas) solo se reemplazó la ARITMÉTICA que clasifica sistema/variante (baseLinea, esperaExtra,
+ * claveTerminal, noPreferido) -- cada reemplazo se verificó contra la implementación anterior con
+ * una prueba dedicada antes y después del cambio. El resto de Planificador (incl. el propio A*)
+ * no se tocó.</p>
  *
  * <p>Espejo del {@code LineaId} agregado hoy en el backend ({@code mexibus_afectaciones.py}):
  * misma convención sistema+número+variante, mismo cálculo de {@link #codigo()}.</p>
@@ -76,6 +79,11 @@ public final class LineaId {
         String sufijo = variante == Variante.RAMAL ? "A" : "";
         return "L" + numero + sufijo;
     }
+
+    /** Misma línea física, ignorando la variante (ordinario/ramal/exprés siempre colapsan a
+     *  ORDINARIO) -- agrupa "familias" (p. ej. para preferencias de servicio: 101/111/121 son
+     *  la misma base). Reproduce exacto lo que ya hace {@code Planificador.baseLinea(int)}. */
+    public LineaId base() { return new LineaId(sistema, numero, Variante.ORDINARIO); }
 
     @Override
     public boolean equals(Object o) {
