@@ -23,8 +23,8 @@ android {
         applicationId = "com.memegrados.GeoMB"
         minSdk = 24
         targetSdk = 36
-        versionCode = 29
-        versionName = "1.6.5"
+        versionCode = 30
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
