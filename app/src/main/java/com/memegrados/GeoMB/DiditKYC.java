@@ -67,29 +67,33 @@ public final class DiditKYC {
         // devuelve el resultado al hilo de UI con main.post(...) para tocar la vista.
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
-            boolean[] verif = {false};
-            String[] nom = {""};
-            HttpURLConnection c = null;
             try {
-                URL u = new URL(STATUS_ENDPOINT + "?uid=" + Uri.encode(uid));
-                c = (HttpURLConnection) u.openConnection();
-                c.setConnectTimeout(12000);
-                c.setReadTimeout(12000);
-                if (c.getResponseCode() / 100 == 2) {
-                    StringBuilder sb = new StringBuilder();
-                    try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
-                        String line;
-                        while ((line = r.readLine()) != null) sb.append(line);
+                boolean[] verif = {false};
+                String[] nom = {""};
+                HttpURLConnection c = null;
+                try {
+                    URL u = new URL(STATUS_ENDPOINT + "?uid=" + Uri.encode(uid));
+                    c = (HttpURLConnection) u.openConnection();
+                    c.setConnectTimeout(12000);
+                    c.setReadTimeout(12000);
+                    if (c.getResponseCode() / 100 == 2) {
+                        StringBuilder sb = new StringBuilder();
+                        try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
+                            String line;
+                            while ((line = r.readLine()) != null) sb.append(line);
+                        }
+                        JSONObject o = new JSONObject(sb.toString());
+                        verif[0] = o.optBoolean("verificado", false);
+                        nom[0] = o.optString("nombre", "");
                     }
-                    JSONObject o = new JSONObject(sb.toString());
-                    verif[0] = o.optBoolean("verificado", false);
-                    nom[0] = o.optString("nombre", "");
+                } catch (Exception ignore) {
+                } finally {
+                    if (c != null) c.disconnect();
                 }
-            } catch (Exception ignore) {
-            } finally {
-                if (c != null) c.disconnect();
+                main.post(() -> { try { cb.onEstado(verif[0], nom[0]); } catch (Exception ignore) {} });
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "DiditKYC: fallo en segundo plano", t);
             }
-            main.post(() -> { try { cb.onEstado(verif[0], nom[0]); } catch (Exception ignore) {} });
         }, "didit-status").start();
     }
 
@@ -101,19 +105,23 @@ public final class DiditKYC {
         if (!configurado()) return;
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
-            String url = pedirUrlSesion(uidUsuario);
-            main.post(() -> {
-                if (url == null) {
-                    Toast.makeText(ctx, R.string.verif_error, Toast.LENGTH_LONG).show();
-                    return;
-                }
-                try {
-                    ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                } catch (Exception ignore) {
-                    Toast.makeText(ctx, R.string.verif_error, Toast.LENGTH_LONG).show();
-                }
-            });
+            try {
+                String url = pedirUrlSesion(uidUsuario);
+                main.post(() -> {
+                    if (url == null) {
+                        Toast.makeText(ctx, R.string.verif_error, Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    try {
+                        ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception ignore) {
+                        Toast.makeText(ctx, R.string.verif_error, Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "DiditKYC: fallo en segundo plano", t);
+            }
         }, "didit-session").start();
     }
 

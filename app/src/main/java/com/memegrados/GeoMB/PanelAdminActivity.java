@@ -224,30 +224,34 @@ public class PanelAdminActivity extends AppCompatActivity {
         prog.setVisibility(View.VISIBLE);
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
-            KeyStore ks = null;
-            try (InputStream in = getContentResolver().openInputStream(certUri)) {
-                ks = KeyStore.getInstance("PKCS12");
-                ks.load(in, pass.toCharArray());
-                if (!ks.aliases().hasMoreElements()) ks = null;   // .p12 vacío: no sirve
-            } catch (Exception ignore) {
-                ks = null;   // contraseña incorrecta, archivo inválido o permiso perdido
-            }
-            final KeyStore ksf = ks;
-            main.post(() -> {
-                // Si el admin cierra la pantalla mientras carga el .p12, esta Activity ya no existe.
-                if (isFinishing() || isDestroyed()) return;
-                prog.setVisibility(View.GONE);
-                if (ksf == null) {
-                    Toast.makeText(this, R.string.panel_admin_cert_error, Toast.LENGTH_LONG).show();
-                    txtVacio.setVisibility(View.VISIBLE);
-                    scrollForm.setVisibility(View.GONE);
-                    return;
+            try {
+                KeyStore ks = null;
+                try (InputStream in = getContentResolver().openInputStream(certUri)) {
+                    ks = KeyStore.getInstance("PKCS12");
+                    ks.load(in, pass.toCharArray());
+                    if (!ks.aliases().hasMoreElements()) ks = null;   // .p12 vacío: no sirve
+                } catch (Exception ignore) {
+                    ks = null;   // contraseña incorrecta, archivo inválido o permiso perdido
                 }
-                keyStore = ksf;
-                password = pass.toCharArray();
-                txtVacio.setVisibility(View.GONE);
-                scrollForm.setVisibility(View.VISIBLE);
-            });
+                final KeyStore ksf = ks;
+                main.post(() -> {
+                    // Si el admin cierra la pantalla mientras carga el .p12, esta Activity ya no existe.
+                    if (isFinishing() || isDestroyed()) return;
+                    prog.setVisibility(View.GONE);
+                    if (ksf == null) {
+                        Toast.makeText(this, R.string.panel_admin_cert_error, Toast.LENGTH_LONG).show();
+                        txtVacio.setVisibility(View.VISIBLE);
+                        scrollForm.setVisibility(View.GONE);
+                        return;
+                    }
+                    keyStore = ksf;
+                    password = pass.toCharArray();
+                    txtVacio.setVisibility(View.GONE);
+                    scrollForm.setVisibility(View.VISIBLE);
+                });
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "PanelAdminActivity: fallo en segundo plano", t);
+            }
         }, "panel-admin-cert").start();
     }
 
@@ -283,47 +287,51 @@ public class PanelAdminActivity extends AppCompatActivity {
         prog.setVisibility(View.VISIBLE);
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
-            boolean ok; String cuerpo;
-            HttpsURLConnection conn = null;
             try {
-                KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                kmf.init(keyStore, password);
-                SSLContext ctx = SSLContext.getInstance("TLS");
-                ctx.init(kmf.getKeyManagers(), null, null);   // trustManagers=null -> confía en el sistema
+                boolean ok; String cuerpo;
+                HttpsURLConnection conn = null;
+                try {
+                    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    kmf.init(keyStore, password);
+                    SSLContext ctx = SSLContext.getInstance("TLS");
+                    ctx.init(kmf.getKeyManagers(), null, null);   // trustManagers=null -> confía en el sistema
 
-                StringBuilder body = new StringBuilder();
-                agregarParam(body, "linea", codigoLinea);
-                agregarParam(body, "estado", estado);
-                agregarParam(body, "lugar", lugar);
-                agregarParam(body, "info", info);
-                agregarParam(body, "circuito", circuito);
-                agregarParam(body, "duracion_h", duracion);
-                byte[] datos = body.toString().getBytes("UTF-8");
+                    StringBuilder body = new StringBuilder();
+                    agregarParam(body, "linea", codigoLinea);
+                    agregarParam(body, "estado", estado);
+                    agregarParam(body, "lugar", lugar);
+                    agregarParam(body, "info", info);
+                    agregarParam(body, "circuito", circuito);
+                    agregarParam(body, "duracion_h", duracion);
+                    byte[] datos = body.toString().getBytes("UTF-8");
 
-                conn = (HttpsURLConnection) new URL(Config.PANEL_ADMIN_URL).openConnection();
-                conn.setSSLSocketFactory(ctx.getSocketFactory());
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(15000);
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-                try (OutputStream os = conn.getOutputStream()) { os.write(datos); }
+                    conn = (HttpsURLConnection) new URL(Config.PANEL_ADMIN_URL).openConnection();
+                    conn.setSSLSocketFactory(ctx.getSocketFactory());
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(15000);
+                    conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
+                    try (OutputStream os = conn.getOutputStream()) { os.write(datos); }
 
-                int code = conn.getResponseCode();
-                ok = code >= 200 && code < 300;
-                cuerpo = leer(ok ? conn.getInputStream() : conn.getErrorStream());
-            } catch (Exception e) {
-                ok = false;
-                cuerpo = String.valueOf(e.getMessage());
-            } finally {
-                if (conn != null) conn.disconnect();
+                    int code = conn.getResponseCode();
+                    ok = code >= 200 && code < 300;
+                    cuerpo = leer(ok ? conn.getInputStream() : conn.getErrorStream());
+                } catch (Exception e) {
+                    ok = false;
+                    cuerpo = String.valueOf(e.getMessage());
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+                final String cuerpof = cuerpo;
+                main.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    prog.setVisibility(View.GONE);
+                    mostrarResultado(cuerpof);
+                });
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "PanelAdminActivity: fallo en segundo plano", t);
             }
-            final String cuerpof = cuerpo;
-            main.post(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                prog.setVisibility(View.GONE);
-                mostrarResultado(cuerpof);
-            });
         }, "panel-admin-post").start();
     }
 

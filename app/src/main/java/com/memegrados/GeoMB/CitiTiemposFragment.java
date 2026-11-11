@@ -121,8 +121,10 @@ public class CitiTiemposFragment extends CitiPantalla {
     /** Con varias rutas en la estación pregunta de cuál avisar (cada una con su andén). */
     private void alternarAviso() {
         if (avisandoAqui()) {
-            requireContext().startService(new Intent(requireContext(), LlegadaService.class)
-                    .setAction(LlegadaService.ACCION_DETENER));
+            try {
+                requireContext().startService(new Intent(requireContext(), LlegadaService.class)
+                        .setAction(LlegadaService.ACCION_DETENER));
+            } catch (IllegalStateException | SecurityException ignore) {}   // el SO puede negarlo
             LlegadaService.paradaSeguida = null;
             actualizarBotonAviso();
             return;
@@ -131,7 +133,7 @@ public class CitiTiemposFragment extends CitiPantalla {
         if (lineas.size() <= 1) { pedirAviso(est.linea); return; }
         List<CitiActivity.Opcion> op = new ArrayList<>();
         for (Integer ln : lineas.keySet())
-            op.add(new CitiActivity.Opcion(CitiDatos.etiquetaSistema(ln), () -> { citi().cerrarMenu(); pedirAviso(ln); }));
+            op.add(new CitiActivity.Opcion(CitiDatos.etiquetaSistema(ln), () -> { if (!isAdded()) return; citi().cerrarMenu(); pedirAviso(ln); }));
         citi().abrirMenu(op, true);
     }
 

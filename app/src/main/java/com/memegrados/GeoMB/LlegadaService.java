@@ -276,8 +276,14 @@ public class LlegadaService extends Service {
                 .putExtra(EXTRA_LON, (double) p.getFloat("lon", 0f))
                 .putExtra(EXTRA_AMBOS, p.getBoolean("ambos", false));
         android.util.Log.d("LlegadaService", "reanudarSiHay: reanudando alerta persistida de " + estacion);
-        androidx.core.content.ContextCompat.startForegroundService(c, i);
-        android.util.Log.d("LlegadaService", "reanudarSiHay: startForegroundService() invocado.");
+        // Corre desde la alarma de ArranqueReceiver, fuera de cualquier try: en Android 12+ el SO puede
+        // negar el servicio en primer plano (ForegroundServiceStartNotAllowedException) y eso cerraba la app.
+        try {
+            androidx.core.content.ContextCompat.startForegroundService(c, i);
+            android.util.Log.d("LlegadaService", "reanudarSiHay: startForegroundService() invocado.");
+        } catch (Exception e) {
+            android.util.Log.w("LlegadaService", "reanudarSiHay: el sistema negó el servicio", e);
+        }
     }
 
     /** Android 14+: límite de tiempo del FGS dataSync. Detener limpio para no crashear. */

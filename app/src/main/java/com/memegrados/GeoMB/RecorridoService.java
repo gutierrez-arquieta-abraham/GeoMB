@@ -1361,13 +1361,17 @@ public class RecorridoService extends Service {
             hablar(texto, alTerminar);   // se pasó del timeout: TTS inmediato
         }, VOZ_TIMEOUT_MS);
         new Thread(() -> {
-            java.io.File out = descargarVoz(frag, linea);
-            handler.post(() -> {
-                if (destruido || resuelto[0]) return;   // ya habló el TTS por timeout
-                resuelto[0] = true;
-                if (out != null && out.exists() && out.length() > 0) reproducir(out, alTerminar);
-                else hablar(texto, alTerminar);   // respaldo: TTS de Android (offline o error)
-            });
+            try {
+                java.io.File out = descargarVoz(frag, linea);
+                handler.post(() -> {
+                    if (destruido || resuelto[0]) return;   // ya habló el TTS por timeout
+                    resuelto[0] = true;
+                    if (out != null && out.exists() && out.length() > 0) reproducir(out, alTerminar);
+                    else hablar(texto, alTerminar);   // respaldo: TTS de Android (offline o error)
+                });
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "RecorridoService: fallo en segundo plano", t);
+            }
         }, "voz-mia").start();
     }
 

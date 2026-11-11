@@ -84,12 +84,16 @@ public final class FavoritosNube {
         Context app = c.getApplicationContext();
         String uid = u.getUid();
         IO.execute(() -> {
-            // Aún sin fusionar con la nube en este teléfono/cuenta: no pisar lo de la nube; la fusión
-            // pendiente (sincronizar) ya incluirá este cambio.
-            if (!uid.equals(app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(K_UID, null))) return;
-            try { subir(app, FirebaseFirestore.getInstance().collection("usuarios").document(uid), System.currentTimeMillis()); }
-            catch (RuntimeException e) {
-                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "FavoritosNube.subir", String.valueOf(e));
+            try {
+                // Aún sin fusionar con la nube en este teléfono/cuenta: no pisar lo de la nube; la fusión
+                // pendiente (sincronizar) ya incluirá este cambio.
+                if (!uid.equals(app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(K_UID, null))) return;
+                try { subir(app, FirebaseFirestore.getInstance().collection("usuarios").document(uid), System.currentTimeMillis()); }
+                catch (RuntimeException e) {
+                    Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "FavoritosNube.subir", String.valueOf(e));
+                }
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "FavoritosNube: fallo en segundo plano", t);
             }
         });
     }

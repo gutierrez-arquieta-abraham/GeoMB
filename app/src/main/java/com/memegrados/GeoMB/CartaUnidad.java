@@ -187,15 +187,19 @@ public final class CartaUnidad {
         v.txtCredito.setVisibility(View.VISIBLE);
 
         new Thread(() -> {
-            Bitmap bmp = descargarBitmap(url);
-            if (bmp == null) return;
-            v.imgUnidad.post(() -> {
-                try {
-                    if (ecoVigente != null && !eco.equals(ecoVigente.get())) return;   // resultado viejo
-                    v.imgUnidad.setImageBitmap(bmp);
-                    v.imgUnidad.setVisibility(View.VISIBLE);
-                } catch (Exception ignore) {}
-            });
+            try {
+                Bitmap bmp = descargarBitmap(url);
+                if (bmp == null) return;
+                v.imgUnidad.post(() -> {
+                    try {
+                        if (ecoVigente != null && !eco.equals(ecoVigente.get())) return;   // resultado viejo
+                        v.imgUnidad.setImageBitmap(bmp);
+                        v.imgUnidad.setVisibility(View.VISIBLE);
+                    } catch (Exception ignore) {}
+                });
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "CartaUnidad: fallo en segundo plano", t);
+            }
         }, "img-unidad").start();
     }
 

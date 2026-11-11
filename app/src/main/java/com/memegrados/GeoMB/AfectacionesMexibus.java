@@ -54,40 +54,44 @@ public final class AfectacionesMexibus {
     public static void refrescar(Context ctx, Runnable alTerminar) {
         final Context app = ctx.getApplicationContext();
         EXEC.execute(() -> {
-            List<Manifestaciones.Afectacion> lista = new ArrayList<>();
-            Set<String> bloq = new HashSet<>();   // estaciones a bloquear (líneas suspendidas)
             try {
-                String json = Backend.descargar(Config.PATH_AFECT_MXB);   // con failover
-                JSONObject o = new JSONObject(json);
-                JSONArray arr = o.optJSONArray("afectaciones");
-                if (arr != null) {
-                    for (int i = 0; i < arr.length(); i++) {
-                        JSONObject a = arr.getJSONObject(i);
-                        int linea = a.optInt("linea", 0);
-                        if (linea <= 0) continue;
-                        String estado = a.isNull("estado") ? "" : a.optString("estado", "");
-                        String lugar  = a.isNull("lugar")  ? "" : a.optString("lugar", "");
-                        String info   = a.isNull("info")   ? "" : a.optString("info", "");
-                        // categoría ESTADO → aparece en la tabla de estado por línea (no en el panel de elevadores).
-                        lista.add(new Manifestaciones.Afectacion("", linea, lugar, estado, "", info,
-                                false, Manifestaciones.C_ESTADO));
-                        // Bloqueo de ruteo según el caso (suspensión total / circuito / paso de largo).
-                        Linea l = GtfsRepository.porNumero(app, linea);
-                        if (l != null) bloqueoLinea(l, estado, a.optJSONArray("circuito"), lugar, bloq);
+                List<Manifestaciones.Afectacion> lista = new ArrayList<>();
+                Set<String> bloq = new HashSet<>();   // estaciones a bloquear (líneas suspendidas)
+                try {
+                    String json = Backend.descargar(Config.PATH_AFECT_MXB);   // con failover
+                    JSONObject o = new JSONObject(json);
+                    JSONArray arr = o.optJSONArray("afectaciones");
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject a = arr.getJSONObject(i);
+                            int linea = a.optInt("linea", 0);
+                            if (linea <= 0) continue;
+                            String estado = a.isNull("estado") ? "" : a.optString("estado", "");
+                            String lugar  = a.isNull("lugar")  ? "" : a.optString("lugar", "");
+                            String info   = a.isNull("info")   ? "" : a.optString("info", "");
+                            // categoría ESTADO → aparece en la tabla de estado por línea (no en el panel de elevadores).
+                            lista.add(new Manifestaciones.Afectacion("", linea, lugar, estado, "", info,
+                                    false, Manifestaciones.C_ESTADO));
+                            // Bloqueo de ruteo según el caso (suspensión total / circuito / paso de largo).
+                            Linea l = GtfsRepository.porNumero(app, linea);
+                            if (l != null) bloqueoLinea(l, estado, a.optJSONArray("circuito"), lugar, bloq);
+                        }
                     }
+                } catch (Exception e) {
+                    // Sin conexión o sin archivo aún: no es error fatal, solo no hay datos Mexibús.
+                    return;
                 }
-            } catch (Exception e) {
-                // Sin conexión o sin archivo aún: no es error fatal, solo no hay datos Mexibús.
-                return;
-            }
-            boolean cambio = Manifestaciones.setMexibus(lista);
-            Manifestaciones.setMexibusBloqueadas(bloq);
-            if (cambio && alTerminar != null) {
-                MAIN.post(() -> {
-                    try { alTerminar.run(); } catch (Exception e) {
-                        Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "AfectacionesMexibus.refrescar", String.valueOf(e.getMessage()));
-                    }
-                });
+                boolean cambio = Manifestaciones.setMexibus(lista);
+                Manifestaciones.setMexibusBloqueadas(bloq);
+                if (cambio && alTerminar != null) {
+                    MAIN.post(() -> {
+                        try { alTerminar.run(); } catch (Exception e) {
+                            Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "AfectacionesMexibus.refrescar", String.valueOf(e.getMessage()));
+                        }
+                    });
+                }
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "AfectacionesMexibus: fallo en segundo plano", t);
             }
         });
     }

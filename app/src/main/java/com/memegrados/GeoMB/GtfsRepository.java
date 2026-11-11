@@ -73,11 +73,15 @@ public final class GtfsRepository {
     private static final Object lock = new Object();
     private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(() -> {
-            // Prioridad BACKGROUND: la precarga al arrancar la app (ver precargar()) no debe competir
-            // por CPU con el arranque de la UI (mapa, splash); mejor que tarde un poco más a que se
-            // sienta la app lenta justo al abrir.
-            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
-            r.run();
+            try {
+                // Prioridad BACKGROUND: la precarga al arrancar la app (ver precargar()) no debe competir
+                // por CPU con el arranque de la UI (mapa, splash); mejor que tarde un poco más a que se
+                // sienta la app lenta justo al abrir.
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+                r.run();
+            } catch (Throwable error) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "GtfsRepository: fallo en segundo plano", error);
+            }
         }, "gtfs-io");
         t.setDaemon(true);
         return t;

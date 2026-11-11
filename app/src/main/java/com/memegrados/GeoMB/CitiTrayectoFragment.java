@@ -219,11 +219,13 @@ public class CitiTrayectoFragment extends CitiPantalla {
         String linea = CitiDatos.etiquetaSistema(base);
         List<CitiActivity.Opcion> op = new ArrayList<>();
         op.add(new CitiActivity.Opcion(linea + " " + getString(R.string.servicio_ordinario), () -> {
+            if (!isAdded()) return;
             citi().cerrarMenu();
             pref.put(base, false);
             preguntarServicio(o, d, bases, pref, idx + 1);
         }));
         op.add(new CitiActivity.Opcion(linea + " " + getString(R.string.servicio_express), () -> {
+            if (!isAdded()) return;
             citi().cerrarMenu();
             pref.put(base, true);
             preguntarServicio(o, d, bases, pref, idx + 1);

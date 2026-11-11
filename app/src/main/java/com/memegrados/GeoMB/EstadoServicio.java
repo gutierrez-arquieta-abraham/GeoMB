@@ -91,32 +91,36 @@ public final class EstadoServicio {
         final Context app = ctx.getApplicationContext();
         cargar(app);
         EXEC.execute(() -> {
-            boolean nuevaPausa;
-            String nuevoTitulo, nuevoMensaje;
             try {
-                JSONObject o = new JSONObject(descargar(Config.ESTADO_SERVICIO_URL));
-                nuevaPausa = o.optBoolean("pausa", false);
-                nuevoTitulo = o.isNull("titulo") ? "" : o.optString("titulo", "");
-                nuevoMensaje = o.isNull("mensaje") ? "" : o.optString("mensaje", "");
-            } catch (Exception e) {
-                // Sin internet o GitHub caído: se queda el último estado conocido.
-                return;
-            }
-            boolean cambio = nuevaPausa != pausa;
-            pausa = nuevaPausa;
-            titulo = nuevoTitulo;
-            mensaje = nuevoMensaje;
-            app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                    .putBoolean(K_PAUSA, nuevaPausa)
-                    .putString(K_TITULO, nuevoTitulo)
-                    .putString(K_MENSAJE, nuevoMensaje)
-                    .apply();
-            if (cambio && alCambiar != null) {
-                MAIN.post(() -> {
-                    try { alCambiar.run(); } catch (Exception e) {
-                        Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "EstadoServicio.refrescar", String.valueOf(e.getMessage()));
-                    }
-                });
+                boolean nuevaPausa;
+                String nuevoTitulo, nuevoMensaje;
+                try {
+                    JSONObject o = new JSONObject(descargar(Config.ESTADO_SERVICIO_URL));
+                    nuevaPausa = o.optBoolean("pausa", false);
+                    nuevoTitulo = o.isNull("titulo") ? "" : o.optString("titulo", "");
+                    nuevoMensaje = o.isNull("mensaje") ? "" : o.optString("mensaje", "");
+                } catch (Exception e) {
+                    // Sin internet o GitHub caído: se queda el último estado conocido.
+                    return;
+                }
+                boolean cambio = nuevaPausa != pausa;
+                pausa = nuevaPausa;
+                titulo = nuevoTitulo;
+                mensaje = nuevoMensaje;
+                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                        .putBoolean(K_PAUSA, nuevaPausa)
+                        .putString(K_TITULO, nuevoTitulo)
+                        .putString(K_MENSAJE, nuevoMensaje)
+                        .apply();
+                if (cambio && alCambiar != null) {
+                    MAIN.post(() -> {
+                        try { alCambiar.run(); } catch (Exception e) {
+                            Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "EstadoServicio.refrescar", String.valueOf(e.getMessage()));
+                        }
+                    });
+                }
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "EstadoServicio: fallo en segundo plano", t);
             }
         });
     }

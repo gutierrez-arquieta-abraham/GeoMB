@@ -77,15 +77,19 @@ public final class ActualizacionObligatoria {
         final Context app = ctx.getApplicationContext();
         cargar(app);
         EXEC.execute(() -> {
-            int nueva;
             try {
-                JSONObject o = new JSONObject(Backend.descargar(Config.PATH_VERSION));
-                nueva = o.optInt("minima", 0);
-            } catch (Exception e) {
-                // Sin internet o backend caído: se queda el último estado conocido.
-                return;
+                int nueva;
+                try {
+                    JSONObject o = new JSONObject(Backend.descargar(Config.PATH_VERSION));
+                    nueva = o.optInt("minima", 0);
+                } catch (Exception e) {
+                    // Sin internet o backend caído: se queda el último estado conocido.
+                    return;
+                }
+                aplicar(app, nueva, alCambiar);
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "ActualizacionObligatoria: fallo en segundo plano", t);
             }
-            aplicar(app, nueva, alCambiar);
         });
     }
 

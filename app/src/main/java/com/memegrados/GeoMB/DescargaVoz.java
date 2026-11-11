@@ -267,128 +267,133 @@ public final class DescargaVoz {
         final Context app = ctx.getApplicationContext();
         cancelar = false;
         EXEC.execute(() -> {
-            // Falla RÁPIDO si la red activa no tiene internet real (Wi-Fi sin servicio, portal
-            // cautivo, avión, etc.), en vez de intentar las centenas de audios uno por uno.
-            if (!Red.hayInternetReal(app)) {
-                MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
-                return;
-            }
-            // Cada frase con su archivo destino (la voz REAL por línea, ver vozReal()); las que ya
-            // están en el teléfono cuentan como hechas desde el principio.
-            List<Item> faltan = new ArrayList<>();
-            int total = 0, ok = 0;
-            // Dedup DENTRO de este lote: si 2 líneas comparten una estación, o si 2+ líneas resuelven
-            // la MISMA voz real, los fragmentos globales correspondientes solo se piden una vez (ya
-            // en disco, lo evita el chequeo de archivo existente igual que siempre).
-            Set<String> vistoEstacionVoz = new LinkedHashSet<>();
-            Set<String> comunesHechosPara = new LinkedHashSet<>();
-            for (int ln : lineas) {
-                String v = vozReal(app, voz, ln);
-                for (TextoEstacion te : textosLinea(app, ln)) {
-                    total++;
-                    File out = archivoVoz(app, te.texto, ln, v, te.estacion);
-                    if (out == null) continue;
-                    if (out.exists() && out.length() > 0) { ok++; continue; }
-                    faltan.add(new Item(te.texto, v, out));
+            try {
+                // Falla RÁPIDO si la red activa no tiene internet real (Wi-Fi sin servicio, portal
+                // cautivo, avión, etc.), en vez de intentar las centenas de audios uno por uno.
+                if (!Red.hayInternetReal(app)) {
+                    MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
+                    return;
                 }
-                for (Fragmento frag : fragmentosEstacionLinea(app, ln)) {
-                    if (!vistoEstacionVoz.add(v + "\u0000" + frag.texto)) continue;
-                    total++;
-                    File out = archivoFragmento(app, frag, v);
-                    if (out.exists() && out.length() > 0) { ok++; continue; }
-                    faltan.add(new Item(frag.texto, v, out));
-                }
-                if (comunesHechosPara.add(v)) {
-                    for (Fragmento frag : fragmentosComunes(app)) {
+                // Cada frase con su archivo destino (la voz REAL por línea, ver vozReal()); las que ya
+                // están en el teléfono cuentan como hechas desde el principio.
+                List<Item> faltan = new ArrayList<>();
+                int total = 0, ok = 0;
+                // Dedup DENTRO de este lote: si 2 líneas comparten una estación, o si 2+ líneas resuelven
+                // la MISMA voz real, los fragmentos globales correspondientes solo se piden una vez (ya
+                // en disco, lo evita el chequeo de archivo existente igual que siempre).
+                Set<String> vistoEstacionVoz = new LinkedHashSet<>();
+                Set<String> comunesHechosPara = new LinkedHashSet<>();
+                for (int ln : lineas) {
+                    String v = vozReal(app, voz, ln);
+                    for (TextoEstacion te : textosLinea(app, ln)) {
+                        total++;
+                        File out = archivoVoz(app, te.texto, ln, v, te.estacion);
+                        if (out == null) continue;
+                        if (out.exists() && out.length() > 0) { ok++; continue; }
+                        faltan.add(new Item(te.texto, v, out));
+                    }
+                    for (Fragmento frag : fragmentosEstacionLinea(app, ln)) {
+                        if (!vistoEstacionVoz.add(v + "\u0000" + frag.texto)) continue;
                         total++;
                         File out = archivoFragmento(app, frag, v);
                         if (out.exists() && out.length() > 0) { ok++; continue; }
                         faltan.add(new Item(frag.texto, v, out));
                     }
+                    if (comunesHechosPara.add(v)) {
+                        for (Fragmento frag : fragmentosComunes(app)) {
+                            total++;
+                            File out = archivoFragmento(app, frag, v);
+                            if (out.exists() && out.length() > 0) { ok++; continue; }
+                            faltan.add(new Item(frag.texto, v, out));
+                        }
+                    }
                 }
-            }
-            final int totalF = total;
-            final int[] hechos = {ok};
-            MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
+                final int totalF = total;
+                final int[] hechos = {ok};
+                MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
 
-            // 1) Paquetes .zip del EC2 (POST /api/tts/paquete): pocas peticiones en vez de una por
-            //    frase. Si el servidor aún no tiene ese endpoint, cae al modo de una por una (abajo).
-            boolean sinPaquete = false;
-            java.util.Map<String, List<Item>> porVoz = new java.util.LinkedHashMap<>();
-            for (Item it : faltan) {
-                List<Item> l = porVoz.get(it.voz);
-                if (l == null) { l = new ArrayList<>(); porVoz.put(it.voz, l); }
-                l.add(it);
-            }
-            List<Item> resto = new ArrayList<>();
-            for (java.util.Map.Entry<String, List<Item>> e : porVoz.entrySet()) {
-                List<Item> cola = new ArrayList<>(e.getValue());
-                while (!cola.isEmpty() && !cancelar && !sinPaquete) {
-                    List<Item> lote = new ArrayList<>(cola.subList(0, Math.min(LOTE_PAQUETE, cola.size())));
-                    List<Item> pendientes;
-                    try {
-                        pendientes = descargarPaquete(e.getKey(), lote, n -> {
-                            hechos[0] += n;
-                            MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
-                        });
-                    } catch (PaqueteNoDisponible x) {
-                        sinPaquete = true;
-                        break;
-                    } catch (Exception x) {
+                // 1) Paquetes .zip del EC2 (POST /api/tts/paquete): pocas peticiones en vez de una por
+                //    frase. Si el servidor aún no tiene ese endpoint, cae al modo de una por una (abajo).
+                boolean sinPaquete = false;
+                java.util.Map<String, List<Item>> porVoz = new java.util.LinkedHashMap<>();
+                for (Item it : faltan) {
+                    List<Item> l = porVoz.get(it.voz);
+                    if (l == null) { l = new ArrayList<>(); porVoz.put(it.voz, l); }
+                    l.add(it);
+                }
+                List<Item> resto = new ArrayList<>();
+                for (java.util.Map.Entry<String, List<Item>> e : porVoz.entrySet()) {
+                    List<Item> cola = new ArrayList<>(e.getValue());
+                    while (!cola.isEmpty() && !cancelar && !sinPaquete) {
+                        List<Item> lote = new ArrayList<>(cola.subList(0, Math.min(LOTE_PAQUETE, cola.size())));
+                        List<Item> pendientes;
+                        try {
+                            pendientes = descargarPaquete(e.getKey(), lote, n -> {
+                                hechos[0] += n;
+                                MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
+                            });
+                        } catch (PaqueteNoDisponible x) {
+                            sinPaquete = true;
+                            break;
+                        } catch (Exception x) {
+                            MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
+                            return;
+                        }
+                        cola.subList(0, lote.size()).clear();
+                        // Las que el servidor no alcanzó a sintetizar vuelven a la cola; si ninguna del lote
+                        // avanzó (todas fallaron), se dejan para el modo de una por una.
+                        if (pendientes.size() == lote.size()) { resto.addAll(pendientes); continue; }
+                        cola.addAll(0, pendientes);
+                    }
+                    if (sinPaquete) resto.addAll(cola);
+                }
+                if (sinPaquete) {   // servidor sin /api/tts/paquete: todo lo que falte, de a una frase
+                    resto.clear();
+                    for (Item it : faltan) if (!(it.out.exists() && it.out.length() > 0)) resto.add(it);
+                }
+
+                // 2) De a una (respaldo): lo que el paquete no pudo dar.
+                int fallosSeguidos = 0;
+                for (Item it : resto) {
+                    if (cancelar) break;
+                    boolean bien = false;
+                    try { bien = descargarUno(it); } catch (Exception ignore) {}
+                    if (bien) {
+                        fallosSeguidos = 0;
+                        hechos[0]++;
+                        MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
+                    } else if (++fallosSeguidos >= FALLOS_SEGUIDOS_ABORTAR) {
                         MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
                         return;
                     }
-                    cola.subList(0, lote.size()).clear();
-                    // Las que el servidor no alcanzó a sintetizar vuelven a la cola; si ninguna del lote
-                    // avanzó (todas fallaron), se dejan para el modo de una por una.
-                    if (pendientes.size() == lote.size()) { resto.addAll(pendientes); continue; }
-                    cola.addAll(0, pendientes);
                 }
-                if (sinPaquete) resto.addAll(cola);
-            }
-            if (sinPaquete) {   // servidor sin /api/tts/paquete: todo lo que falte, de a una frase
-                resto.clear();
-                for (Item it : faltan) if (!(it.out.exists() && it.out.length() > 0)) resto.add(it);
-            }
-
-            // 2) De a una (respaldo): lo que el paquete no pudo dar.
-            int fallosSeguidos = 0;
-            for (Item it : resto) {
-                if (cancelar) break;
-                boolean bien = false;
-                try { bien = descargarUno(it); } catch (Exception ignore) {}
-                if (bien) {
-                    fallosSeguidos = 0;
-                    hechos[0]++;
-                    MAIN.post(() -> { if (cb != null) cb.avance(hechos[0], totalF); });
-                } else if (++fallosSeguidos >= FALLOS_SEGUIDOS_ABORTAR) {
-                    MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
-                    return;
-                }
-            }
-            ok = 0;
-            Set<String> vistoEstacionVoz2 = new LinkedHashSet<>();
-            Set<String> comunesHechosPara2 = new LinkedHashSet<>();
-            for (int ln : lineas) {
-                String v = vozReal(app, voz, ln);
-                for (TextoEstacion te : textosLinea(app, ln)) {
-                    File f = archivoVoz(app, te.texto, ln, v, te.estacion);
-                    if (f != null && f.exists() && f.length() > 0) ok++;
-                }
-                for (Fragmento frag : fragmentosEstacionLinea(app, ln)) {
-                    if (!vistoEstacionVoz2.add(v + "\u0000" + frag.texto)) continue;
-                    File f = archivoFragmento(app, frag, v);
-                    if (f.exists() && f.length() > 0) ok++;
-                }
-                if (comunesHechosPara2.add(v)) {
-                    for (Fragmento frag : fragmentosComunes(app)) {
+                ok = 0;
+                Set<String> vistoEstacionVoz2 = new LinkedHashSet<>();
+                Set<String> comunesHechosPara2 = new LinkedHashSet<>();
+                for (int ln : lineas) {
+                    String v = vozReal(app, voz, ln);
+                    for (TextoEstacion te : textosLinea(app, ln)) {
+                        File f = archivoVoz(app, te.texto, ln, v, te.estacion);
+                        if (f != null && f.exists() && f.length() > 0) ok++;
+                    }
+                    for (Fragmento frag : fragmentosEstacionLinea(app, ln)) {
+                        if (!vistoEstacionVoz2.add(v + "\u0000" + frag.texto)) continue;
                         File f = archivoFragmento(app, frag, v);
                         if (f.exists() && f.length() > 0) ok++;
                     }
+                    if (comunesHechosPara2.add(v)) {
+                        for (Fragmento frag : fragmentosComunes(app)) {
+                            File f = archivoFragmento(app, frag, v);
+                            if (f.exists() && f.length() > 0) ok++;
+                        }
+                    }
                 }
+                final int okF = ok, totF = totalF;
+                MAIN.post(() -> { if (cb != null) cb.fin(okF, totF); });
+            } catch (Throwable t) {   // un error aquí (hilo de fondo) cerraría la app: se avisa como falla
+                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "DescargaVoz.descargarVarias", String.valueOf(t));
+                MAIN.post(() -> { if (cb != null) cb.error(app.getString(R.string.audios_sin_red)); });
             }
-            final int okF = ok, totF = totalF;
-            MAIN.post(() -> { if (cb != null) cb.fin(okF, totF); });
         });
     }
 

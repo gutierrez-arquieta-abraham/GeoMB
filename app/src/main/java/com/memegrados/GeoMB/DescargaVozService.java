@@ -96,7 +96,8 @@ public class DescargaVozService extends Service {
     /** Cancela la descarga en curso (botón "Cancelar" del diálogo o de la notificación). */
     public static void cancelar(Context c) {
         DescargaVoz.cancelar();
-        c.startService(new Intent(c, DescargaVozService.class).setAction(ACCION_CANCELAR));
+        try { c.startService(new Intent(c, DescargaVozService.class).setAction(ACCION_CANCELAR)); }
+        catch (IllegalStateException | SecurityException ignore) {}   // servicio ya detenido / app en 2º plano
     }
 
     @Override

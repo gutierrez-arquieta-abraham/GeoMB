@@ -140,6 +140,17 @@ public class CitiActivity extends AppCompatActivity {
         if (ActualizacionObligatoria.requerida()) bloqueoActualizacion();   // por si se perdió al volver de la tienda
     }
 
+    // Navegación pedida mientras la actividad ya guardó su estado (p. ej. tocar la notificación de
+    // "unidad cerca" con la app en segundo plano: onNewIntent llega ANTES de onResume). popBackStack()
+    // ahí lanza IllegalStateException y cerraba la app; se hace al volver (onPostResume).
+    private boolean mapaPendiente = false;
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        if (mapaPendiente) { mapaPendiente = false; abrirMapa(); }
+    }
+
     /** EXTRA_ECONOMICO_FOCO (notificación de unidad cerca): el mapa siguiendo esa unidad. */
     private void focoDeUnidad(Intent intent) {
         String eco = intent != null ? intent.getStringExtra(MainActivity.EXTRA_ECONOMICO_FOCO) : null;
@@ -200,6 +211,7 @@ public class CitiActivity extends AppCompatActivity {
     /** "Menú": vuelve al inicio (muestraMenu() del original, que vaciaba la pila). */
     public void irInicio() {
         cerrarMenuSinAnimar();
+        if (getSupportFragmentManager().isStateSaved()) return;   // ver mapaPendiente
         getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
     }
 
@@ -215,6 +227,7 @@ public class CitiActivity extends AppCompatActivity {
         FragmentManager fm = getSupportFragmentManager();
         Fragment actual = fm.findFragmentById(R.id.citi_pantallas);
         if (actual instanceof MapFragment) { ((MapFragment) actual).aplicarPendientesCiti(); return; }
+        if (fm.isStateSaved()) { mapaPendiente = true; return; }   // se abre en onPostResume
         irInicio();
         fm.executePendingTransactions();
         abrir(new MapFragment());

@@ -282,7 +282,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
                 GeoMBApplication app = GeoMBApplication.get();
                 if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "MapFragment.tickRecorrido", String.valueOf(e.getMessage()));
             } finally {
-                if (isAdded()) handler.postDelayed(this, TICK_RECORRIDO_MS);
+                if (isAdded() && getView() != null) handler.postDelayed(this, TICK_RECORRIDO_MS);
             }
         }
     };
@@ -294,6 +294,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             RealtimeRepository.get().fetch(new RealtimeRepository.Callback() {
                 @Override
                 public void onData(List<UnidadReal> unidades) {
+                    if (!isAdded() || getView() == null) return;   // la respuesta llegó con el mapa ya cerrado
                     avisoError = false;   // servidor OK de nuevo: permite reactivar el respaldo si vuelve a fallar
                     if (bannerServidor != null) {
                         // El feed sí llegó, pero por un camino que decodifica el .proto EN EL
@@ -315,7 +316,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
                 @Override
                 public void onError(String mensaje) {
-                    if (!isAdded()) return;
+                    if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
                     // En pausa no es un error: MainActivity ya mostró el aviso de "Servicio en
                     // pausa", y el banner/Toast de "sin conexión" de aquí abajo confundiría (daría
                     // a entender una falla técnica en vez de una pausa intencional).
@@ -947,7 +948,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         // getMapAsync() es asíncrono (el SDK de Maps puede tardar en inicializar): si el usuario
         // sale de esta pestaña antes de que responda, el fragment ya no está adjunto y
         // requireContext()/getViewLifecycleOwner() más abajo lanzarían IllegalStateException.
-        if (!isAdded()) return;
+        if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
         mapa = googleMap;
         mapa.getUiSettings().setZoomControlsEnabled(false);   // usamos botones propios
         mapa.getUiSettings().setCompassEnabled(false);        // reemplazada por btn_norte (brújula propia)
@@ -1840,7 +1841,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             // Mismo helper que usa "⭐ Guardar" en el menú ⋮ (ver toggleGuardarUnidad): cachea
             // línea si hay datos en vivo, mismo toast, nunca toca SeguimientoService.
             Telemetria.esFavorito(requireContext(), favEco, esFav -> {
-                if (!isAdded()) return;
+                if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
                 toggleGuardarUnidad(favEco, esFav);
             });
             return true;
@@ -1983,7 +1984,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     /** ⭐ Guardar / ★ Guardada (quitar) -- jamás toca SeguimientoService. Al guardar, cachea la
      *  línea actual si la unidad está en vivo en este momento (0/desconocida si no). */
     private void toggleGuardarUnidad(String eco, boolean yaGuardada) {
-        if (!isAdded()) return;
+        if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
         if (yaGuardada) {
             Telemetria.quitarFavorito(requireContext(), eco);
             Toast.makeText(requireContext(), getString(R.string.favorito_quitado, eco), Toast.LENGTH_SHORT).show();
@@ -1999,7 +2000,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  guarda la unidad si todavía no lo estaba (no hay dónde persistir la preferencia si no);
      *  desactivarla nunca quita la unidad de guardadas. */
     private void toggleAlertaUnidad(String eco, boolean activaAhora, int radioActual) {
-        if (!isAdded()) return;
+        if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
         boolean nuevaActiva = !activaAhora;
         // Pide el permiso (si falta) para que AlertasUnidadesService pueda arrancar de verdad --
         // independiente de guardar la preferencia abajo: se pide y se guarda siempre juntos, sin
@@ -2012,7 +2013,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         UnidadReal u = RealtimeRepository.get().buscar(eco);
         int linea = (u != null && u.linea != null) ? u.linea : 0;
         Telemetria.actualizarAlertaUnidad(requireContext(), eco, linea, nuevaActiva, () -> {
-            if (!isAdded()) return;
+            if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
             if (nuevaActiva) {
                 Toast.makeText(requireContext(),
                         getString(R.string.alerta_activada_toast, eco, etiquetaRadio(radioActual)),
@@ -2032,7 +2033,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
             int id = item.getItemId();
             int radioM = id == R.id.radio_250 ? 250 : id == R.id.radio_1000 ? 1000 : 500;
             Telemetria.actualizarRadioAlerta(requireContext(), eco, radioM, () -> {
-                if (!isAdded()) return;
+                if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
                 Toast.makeText(requireContext(),
                         getString(R.string.radio_actualizado_toast, eco, etiquetaRadio(radioM)),
                         Toast.LENGTH_SHORT).show();
@@ -2806,7 +2807,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         inOrigen.setText(Planificador.sinMxb(e.nombre));
         origenCanon = null; origenLinea = 0; origenSeleccionPos = null;   // fuerza a NO tomar el atajo "sin cambios"
         desambiguarRuta(inOrigen, origenCanon, origenLinea, origenSeleccionPos, (om, or, lo, posO) -> {
-            if (!isAdded()) return;
+            if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
             origenCanon = or; origenLinea = lo; origenSeleccionPos = posO;
             if (om != null) inOrigen.setText(Planificador.sinMxb(om));
             if (alTerminar != null) alTerminar.run();
@@ -2830,17 +2831,17 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (progressTrazando != null) progressTrazando.setVisibility(View.VISIBLE);
         calcExec.execute(() -> {
             Planificador.Ruta r;
-            try { r = tarea.call(); } catch (Exception e) {
+            try { r = tarea.call(); } catch (Throwable e) {   // Throwable: un Error (p. ej. StackOverflow) en este hilo cerraría la app
                 r = null;
                 GeoMBApplication app = GeoMBApplication.get();
                 if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "MapFragment.calcularRutaAsync.tarea", String.valueOf(e.getMessage()));
             }
             final Planificador.Ruta res = r;
-            if (!isAdded()) return;
+            if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
             handler.post(() -> {
                 if (progressTrazando != null) progressTrazando.setVisibility(View.GONE);
                 try {
-                    if (isAdded()) alTerminar.accept(res);
+                    if (isAdded() && getView() != null) alTerminar.accept(res);
                 } catch (Exception e) {
                     GeoMBApplication app = GeoMBApplication.get();
                     if (app != null) Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "MapFragment.calcularRutaAsync", String.valueOf(e.getMessage()));
@@ -3277,7 +3278,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         View root = getView();
         if (root == null) return;
         root.post(() -> {
-            if (!isAdded()) return;
+            if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
             if (recorrido) centrarRecorrido(RecorridoService.ultimaPos, true);
             else encuadrarRutaActiva();
         });
@@ -3709,7 +3710,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
 
             @Override
             public void onError(String mensaje) {
-                if (!isAdded()) return;
+                if (!isAdded() || getView() == null) return;   // en CITI sigue agregado sin vista
                 mostrarCartaUnidad(eco, null);   // sin conexión: ficha del catálogo (offline)
             }
         });
@@ -3790,8 +3791,10 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         servicioCiti = null;
         estServicioCiti = null;
         trazoServicioCiti.clear();
-        handler.removeCallbacks(poll);
-        handler.removeCallbacks(tickRecorrido);
+        // TODO lo pendiente del handler depende de la vista (poll, recorrido, destellos, encuadres,
+        // resultados del planificador): en CITI este fragment sigue "agregado" en la pila sin vista,
+        // así que isAdded() ya no basta para frenarlos. onViewCreated vuelve a programar poll/recorrido.
+        handler.removeCallbacksAndMessages(null);
         marcadoresEstacion.clear();
         marcadoresUnidad.clear();
         halosSeguimiento.clear();

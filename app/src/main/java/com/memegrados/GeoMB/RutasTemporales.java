@@ -57,24 +57,28 @@ public final class RutasTemporales {
     public static void refrescar(Context ctx, Runnable alTerminar) {
         final Context app = ctx.getApplicationContext();
         EXEC.execute(() -> {
-            Map<Integer, Linea> parches = new HashMap<>();
             try {
-                String json = Backend.descargar(Config.PATH_RUTAS_TEMP);   // con failover
-                JSONObject o = new JSONObject(json);
-                JSONArray arr = o.optJSONArray("rutas");
-                if (arr != null) {
-                    for (int i = 0; i < arr.length(); i++) {
-                        JSONObject p = arr.getJSONObject(i);
-                        Linea l = parsearParche(p, colorParche(app, p.optInt("numero", 0)));
-                        if (l != null) parches.put(l.numero, l);
+                Map<Integer, Linea> parches = new HashMap<>();
+                try {
+                    String json = Backend.descargar(Config.PATH_RUTAS_TEMP);   // con failover
+                    JSONObject o = new JSONObject(json);
+                    JSONArray arr = o.optJSONArray("rutas");
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject p = arr.getJSONObject(i);
+                            Linea l = parsearParche(p, colorParche(app, p.optInt("numero", 0)));
+                            if (l != null) parches.put(l.numero, l);
+                        }
                     }
+                } catch (Exception e) {
+                    // Sin conexión o sin archivo aún: no es error fatal, solo no hay parches que aplicar.
+                    return;
                 }
-            } catch (Exception e) {
-                // Sin conexión o sin archivo aún: no es error fatal, solo no hay parches que aplicar.
-                return;
+                GtfsRepository.aplicarParches(parches);
+                if (alTerminar != null) main().post(alTerminar);
+            } catch (Throwable t) {   // un error en este hilo cerraría la app
+                android.util.Log.w("GeoMB", "RutasTemporales: fallo en segundo plano", t);
             }
-            GtfsRepository.aplicarParches(parches);
-            if (alTerminar != null) main().post(alTerminar);
         });
     }
 

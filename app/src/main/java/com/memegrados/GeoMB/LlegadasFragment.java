@@ -532,7 +532,8 @@ public class LlegadasFragment extends Fragment {
     private void detenerAviso() {
         Intent i = new Intent(requireContext(), LlegadaService.class)
                 .setAction(LlegadaService.ACCION_DETENER);
-        requireContext().startService(i);
+        try { requireContext().startService(i); }
+        catch (IllegalStateException | SecurityException ignore) {}   // el SO puede negarlo
         LlegadaService.paradaSeguida = null;
         actualizarBoton();
     }

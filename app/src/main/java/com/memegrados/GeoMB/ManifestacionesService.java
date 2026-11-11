@@ -259,7 +259,7 @@ public class ManifestacionesService extends Service {
         try {
             androidx.core.content.ContextCompat.startForegroundService(
                     c, new Intent(c, ManifestacionesService.class));
-        } catch (IllegalStateException e) {   // Android puede negar el arranque del foreground service
+        } catch (IllegalStateException | SecurityException e) {   // Android puede negar el arranque del foreground service
             Telemetria.registrarError(c, Telemetria.ERR_EXCEPCION, "ManifestacionesService.iniciar", String.valueOf(e));
         }
     }
