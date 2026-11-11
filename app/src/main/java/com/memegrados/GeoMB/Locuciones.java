@@ -61,6 +61,7 @@ public final class Locuciones {
                 .replace("New's Divine", "Niuz Diváin")
                 .replace("1ro de Mayo", "Primero de Mayo")   // "uno Ro" leído literal -- L1/L1 Exprés
                 .replace("1° de Mayo", "Primero de Mayo")    // mismo caso, L2
+                .replace("1a de Villa", "Primera de Villa")  // "una de Villa" leído literal (voz Ximena) -- Mexibús
                 .replace(" - ", ", ");   // "Bandera - Tultitlán", "Héroes - Canosas", "Lindavista - Vallejo"
     }
 

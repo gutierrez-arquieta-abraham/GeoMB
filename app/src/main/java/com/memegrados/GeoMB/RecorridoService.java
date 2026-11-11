@@ -1468,6 +1468,7 @@ public class RecorridoService extends Service {
                 // confirmado en "1ro de Mayo" (Mexibús L1/L1 Exprés); "1° de Mayo" (L2) es el mismo caso.
                 .replace("1ro de Mayo", "Primero de Mayo")
                 .replace("1° de Mayo", "Primero de Mayo")
+                .replace("1a de Villa", "Primera de Villa")  // "una de Villa" leído literal (voz Ximena) -- Mexibús
                 // Nombres de 2 localidades unidas por guión (p. ej. "Bandera - Tultitlán", "Héroes -
                 // Canosas", "Lindavista - Vallejo"): el TTS leía el guión como una pausa/separación
                 // rara ("guion largo"). Coma: pausa natural de enumeración, sin el símbolo.

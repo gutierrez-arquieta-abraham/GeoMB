@@ -6,9 +6,10 @@ import static org.junit.Assert.*;
 
 /**
  * Defecto real confirmado: el TTS leía "1ro de Mayo" (Mexibús L1/L1 Exprés) y "1° de Mayo" (L2) de
- * forma literal ("uno Ro de Mayo") en vez de "Primero de Mayo". {@link Locuciones#nom} es la réplica
- * pública de {@code respellVoz()} (debe mantenerse en sincronía con RecorridoService/DescargaVoz, ver
- * sus propios comentarios), así que se prueba contra la función real.
+ * forma literal ("uno Ro de Mayo") en vez de "Primero de Mayo"; con la voz Ximena, "1a de Villa"
+ * (Mexibús) se leía "una de Villa" en vez de "Primera de Villa". {@link Locuciones#nom} es la
+ * réplica pública de {@code respellVoz()} (debe mantenerse en sincronía con RecorridoService/
+ * DescargaVoz, ver sus propios comentarios), así que se prueba contra la función real.
  */
 public class LocucionesTest {
 
@@ -20,6 +21,11 @@ public class LocucionesTest {
     @Test
     public void nom_1gradoDeMayo_seDiceComoPrimeroDeMayo() {
         assertEquals("Primero de Mayo", Locuciones.nom("MXB 1° de Mayo"));
+    }
+
+    @Test
+    public void nom_1aDeVilla_seDiceComoPrimeraDeVilla() {
+        assertEquals("Primera de Villa", Locuciones.nom("MXB 1a de Villa"));
     }
 
     @Test
