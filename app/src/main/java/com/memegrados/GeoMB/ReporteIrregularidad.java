@@ -243,8 +243,10 @@ public final class ReporteIrregularidad {
             if (de <= d && de > dA) { dA = de; antes = e; }
             if (de >= d && de < dD) { dD = de; despues = e; }
         }
-        String a = antes != null ? Planificador.nombreMostrar(c, antes.nombre, linea) : null;
-        String b = despues != null ? Planificador.nombreMostrar(c, despues.nombre, linea) : null;
+        // nomNombre (sin "MXB" ni paréntesis), no nombreMostrar: este agrega el número de línea para
+        // desambiguar en el mapa ("La Viga 4"), y en el reporte la línea ya va en su propio renglón.
+        String a = antes != null ? Horarios.nomNombre(antes.nombre) : null;
+        String b = despues != null ? Horarios.nomNombre(despues.nombre) : null;
         if (a != null && b != null && !a.equals(b)) return "Entre " + a + " y " + b;
         String una = a != null ? a : b;
         return una != null ? "Cerca de " + una : null;

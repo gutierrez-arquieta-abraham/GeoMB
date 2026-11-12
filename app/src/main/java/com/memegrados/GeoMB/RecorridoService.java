@@ -1955,22 +1955,28 @@ public class RecorridoService extends Service {
         return nom(p) + " " + etiquetaLinea(baseLinea(p.linea), p.nombre);
     }
 
-    /** Terminal de DIRECCIÓN del tramo que inicia en i. Metrobús: terminal de la RUTA (horarios) más
-     *  cercana en tu sentido (mixtas adelante); respaldo y demás sistemas: terminal de la línea. */
+    /** Terminal de DIRECCIÓN del tramo que inicia en i: la terminal de la LÍNEA hacia donde vas (no la
+     *  de la ruta/servicio que tomes). Pedido del usuario: "manda la dirección de línea, no del
+     *  recorrido" -- antes, en L1/L3/L5/L6 se anunciaba la terminal de la vuelta corta del horario
+     *  (p. ej. "dirección Buenavista" o "Insurgentes"). L2/L4/L7 (couplets) usan la terminal canónica
+     *  que ya calculó el planificador; Mexibús/Mexicable, la terminal oficial del sentido. */
     private String direccionTerminal(List<Planificador.Parada> seq, int i) {
         Planificador.Parada p = seq.get(i);
         int base = baseLinea(p.linea);
         int fin = i;
         while (fin + 1 < seq.size() && baseLinea(seq.get(fin + 1).linea) == base) fin++;
         String t = null;
-        // Metrobús de ORDEN LINEAL (1,3,5,6): terminal(es) por horarios, permitiendo la lista "A o B".
+        // Metrobús de ORDEN LINEAL (1,3,5,6): el extremo de la línea en tu sentido, por el orden del
+        // catálogo (no por Planificador.terminales(), cuyo orden en Metrobús es solo cosmético: en L3 y
+        // L5 está al revés del catálogo).
         boolean lineal = base == 1 || base == 3 || base == 5 || base == 6;
-        if (lineal && Horarios.tieneLinea(this, base)) {
+        if (lineal) {
             Linea l = GtfsRepository.porNumero(this, base);
             if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
                 int ia = Horarios.idxEnLinea(l, seq.get(i).nombre);
                 int ib = Horarios.idxEnLinea(l, seq.get(fin).nombre);
-                if (ia >= 0 && ib >= 0 && ia != ib) t = Horarios.terminalHorario(this, base, l, ia, ib);
+                if (ia >= 0 && ib >= 0 && ia != ib)
+                    t = Horarios.nomNombre(l.estaciones.get(ib > ia ? l.ultimaReal() : 0).nombre);
             }
         }
         // Couplets de Metrobús (L2/L4/L7): su línea base no es lineal, así que se usa la terminal que ya
@@ -2460,12 +2466,24 @@ public class RecorridoService extends Service {
         nm.notify(ID_VELOCIDAD, n);
     }
 
+    /** Sentido para el reporte de velocidad: la terminal de la LÍNEA en la que vas, hacia donde vas
+     *  (antes iba el destino final del viaje: "Hacia Instituto Politécnico Nacional" viajando en
+     *  Mexibús L4 hacia La Raza). */
+    private String direccionDeLineaActual() {
+        List<Planificador.Parada> seq = paradas;
+        if (seq == null || seq.isEmpty()) return null;
+        int idx = Math.max(0, Math.min(actualIdx, seq.size() - 1));
+        int base = baseLinea(seq.get(idx).linea), ini = idx;
+        while (ini > 0 && baseLinea(seq.get(ini - 1).linea) == base) ini--;
+        try { return direccionTerminal(seq, ini); } catch (Exception e) { return null; }
+    }
+
     private PendingIntent piReportarVelocidad(int linea, com.google.android.gms.maps.model.LatLng pos, float kmh) {
         Intent i = new Intent(this, MainActivity.class)
                 .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(MainActivity.EXTRA_REPORTAR_VELOCIDAD, true)
                 .putExtra(MainActivity.EXTRA_VEL_LINEA, linea)
-                .putExtra(MainActivity.EXTRA_VEL_TERMINAL, terminal)
+                .putExtra(MainActivity.EXTRA_VEL_TERMINAL, direccionDeLineaActual())
                 .putExtra(MainActivity.EXTRA_VEL_KMH, kmh)
                 .putExtra(MainActivity.EXTRA_VEL_MOMENTO, System.currentTimeMillis());   // hora del hecho, no del envío
         if (pos != null) {

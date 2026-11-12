@@ -1744,18 +1744,12 @@ public final class Planificador {
             if (tc != null) {
                 terminal = tc;
             } else if (a.linea == b.linea && esLinealSinCouplet(a.linea)) {
-                // Metrobús de troncal lineal SIN couplet (L1/L3/L5): el destino real de la unidad puede
-                // ser una vuelta corta documentada en horarios.json (p. ej. L3 Tenayuca↔La Raza) en vez
-                // del extremo absoluto de toda la línea (Pueblo Sta. Cruz Atoyac) -- mismo criterio que
-                // ya usa la voz del recorrido (RecorridoService.direccionTerminal → Horarios.terminalHorario).
+                // Metrobús de troncal lineal SIN couplet (L1/L3/L5): la dirección es el extremo de la
+                // LÍNEA en tu sentido, no la vuelta corta de horarios.json (pedido del usuario: "manda la
+                // dirección de línea, no del recorrido"), igual que la voz (RecorridoService.direccionTerminal).
                 // Se consulta por la LÍNEA FÍSICA REAL de la parada (a.linea/b.linea), NO por r.linea: las
-                // rutas sintéticas de RutasMixtas (p. ej. L3-TB-ida/vuelta, L3-Raza) no cargan un objeto
-                // Linea propio (r.linea == null), así que antes SIEMPRE se quedaban con finStop -- el
-                // extremo de TODA la ruta sintética -- aunque el viaje solo recorriera una parte de ella
-                // (p. ej. Montevideo→La Raza mostraba "Buenavista II", el final de L3-TB-ida, en vez de
-                // consultar el horario real para ese tramo). a.linea == b.linea (int, comparación por
-                // valor) evita aplicar el horario de una sola línea cuando el tramo de una Route mixta en
-                // realidad cruza DOS líneas físicas distintas (p. ej. A31 mezcla L1 y L3 en una Route).
+                // rutas sintéticas de RutasMixtas (p. ej. L3-TB-ida/vuelta) no cargan un objeto Linea
+                // propio, así que se quedaban con el final de TODA la ruta sintética ("Buenavista II").
                 Linea lineaReal = GtfsRepository.porNumero(ctx, a.linea);
                 if (lineaReal != null) {
                     int ia = Horarios.idxEnLinea(lineaReal, a.nombre);
@@ -1763,9 +1757,9 @@ public final class Planificador {
                     if (ia >= 0 && ib >= 0 && ia != ib) {
                         // Momento en que de verdad abordarías este tramo (no "ahora" a secas): así, si ya es
                         // tarde y la vuelta corta cerró, esto cae en la ruta completa que siga circulando.
-                        String th = Horarios.terminalHorario(ctx, a.linea, lineaReal, ia, ib,
-                                proyectar(ahoraBase, dist[camino.get(i)]));
-                        if (th != null) terminal = th;
+                        // Dirección = extremo de la LÍNEA en tu sentido (no la vuelta corta del horario),
+                        // igual que la voz del recorrido (RecorridoService.direccionTerminal).
+                        terminal = Horarios.nomNombre(lineaReal.estaciones.get(ib > ia ? lineaReal.ultimaReal() : 0).nombre);
                     }
                 }
             }

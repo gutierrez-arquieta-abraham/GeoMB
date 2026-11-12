@@ -330,9 +330,8 @@ public final class Horarios {
         return par >= 0 ? s.substring(0, par).trim() : s;
     }
 
-    /** ¿La ruta de horarios sigue circulando (en ida o vuelta) en el momento dado? Filtra los
-     *  patrones ya cerrados (p. ej. una vuelta corta que dejó de circular) de {@link #terminalHorario},
-     *  para que este devuelva la RUTA COMPLETA (o el que siga siendo) en vez de uno ya fuera de horario. */
+    /** ¿La ruta de horarios sigue circulando (en ida o vuelta) en el momento dado? (una vuelta corta
+     *  que ya dejó de circular por hoy no cuenta). */
     private static boolean rutaAbierta(Ruta r, Calendar momento) {
         Ventana[] v = ventanasHoy(r, momento);
         if (v == null) return false;
@@ -341,7 +340,7 @@ public final class Horarios {
     }
 
     /** Rango [lo,hi] (índices en {@code l}) que cubre la ruta {@code r}, o null si ninguno de sus
-     *  extremos casa con una estación de esta línea (compartido por terminalHorario/estacionAbierta). */
+     *  extremos casa con una estación de esta línea (lo usa estacionAbierta). */
     private static int[] rangoDe(Linea l, Ruta r, int last) {
         int oi = idxEnLinea(l, r.origen), di = idxEnLinea(l, r.destino);
         if (oi < 0 && di < 0) return null;
@@ -374,74 +373,5 @@ public final class Horarios {
             if (rutaAbierta(r, momento)) return true;
         }
         return !algunaCubre;   // ningún patrón documentado cubre esta estación: permisivo
-    }
-
-    /** Como {@link #terminalHorario(Context, int, Linea, int, int, Calendar)}, evaluando "ahora". */
-    public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib) {
-        return terminalHorario(ctx, base, l, ia, ib, Calendar.getInstance());
-    }
-
-    /**
-     * Terminal(es) de dirección para tu parada, según las rutas de horarios. Recolecta las rutas que
-     * CUBREN tu parada (ia), LLEGAN al menos hasta donde bajas (ib) Y siguen circulando en {@code momento} (una vuelta corta ya cerrada por hoy
-     * no cuenta, así de noche esto cae en la RUTA COMPLETA que siga abierta), y toma, de cada una, su
-     * extremo en tu sentido de viaje (por índice; no se asume que {@code destino} sea el extremo mayor).
-     * Devuelve las terminales DISTINTAS de la más cercana a la más lejana, unidas con " o " (p. ej.
-     * "Instituto Politécnico Nacional o El Rosario"). Si MÁS DE 3 rutas cubren la parada, devuelve solo
-     * la más cercana. null si ninguna aplica (incluye: todas las que cubren la parada ya cerraron).
-     *
-     * Así una vuelta corta documentada (p. ej. L3 Tenayuca↔La Raza) sale como el destino real de la
-     * unidad en vez del extremo absoluto de la troncal (Pueblo Sta. Cruz Atoyac), tanto en la voz del
-     * recorrido (RecorridoService, con {@code momento} = ahora) como en el chip "Aborda · Dirección" del
-     * Planificador (con {@code momento} = la hora estimada en que de verdad abordarías ese tramo).
-     */
-    public static String terminalHorario(Context ctx, int base, Linea l, int ia, int ib, Calendar momento) {
-        boolean forward = ib > ia;               // hacia el extremo de índice MAYOR de la línea
-        // Último índice REAL de la línea: el catálogo agrega al final andenes "soloMapa" (L1: Indios
-        // Verdes, Insurgentes…), que no son el extremo de la troncal. Con size()-1 una ruta mixta salía
-        // con dirección "Insurgentes" (el andén extra) en vez de su extremo real.
-        int last = l.estaciones.size() - 1;
-        while (last > 0 && l.estaciones.get(last).soloMapa) last--;
-        List<Integer> idxs = new ArrayList<>();
-        List<String> nombres = new ArrayList<>();
-        int rutasCubren = 0;
-        for (Ruta r : deLinea(ctx, base)) {
-            int oi = idxEnLinea(l, r.origen), di = idxEnLinea(l, r.destino);
-            if (oi < 0 && di < 0) continue;
-            if (oi < 0) oi = (di <= last - di) ? last : 0;   // extremo mixto (fuera de la línea): al extremo opuesto
-            if (di < 0) di = (oi <= last - oi) ? last : 0;
-            int lo = Math.min(oi, di), hi = Math.max(oi, di);
-            if (ia < lo || ia > hi) continue;                // esta ruta no cubre tu parada
-            int termIdx = forward ? hi : lo;                 // extremo de la ruta en tu sentido
-            // Si el extremo EN TU SENTIDO es tu propia parada (ia), esta ruta no te sirve de nada para
-            // saber hacia dónde ir: es un patrón corto cuyo límite coincide con donde ya estás (p. ej.
-            // "Buenavista → El Caminero" cubre [8,45] y tú abordas justo en el 8 yendo HACIA ABAJO, fuera
-            // de ese rango) -- mostrar tu propia estación como "dirección" no tiene sentido. Se descarta.
-            if (termIdx == ia) continue;
-            // Una vuelta corta que termina ANTES de donde bajas no te lleva: no es tu dirección.
-            // Defecto real (reporte del usuario): de sur a norte hasta Indios Verdes decía "dirección
-            // Buenavista" (la vuelta El Caminero→Buenavista era la más cercana de las que te cubren).
-            if (forward ? termIdx < ib : termIdx > ib) continue;
-            if (!rutaAbierta(r, momento)) continue;          // este patrón ya cerró por hoy: no lo propongas
-            rutasCubren++;
-            // Nombre REAL de la estación (l.estaciones), nunca el crudo de horarios.json: origen/destino
-            // ahí puede venir abreviado (p. ej. "Dep. 18 de marzo", "IPN") porque solo sirve para
-            // IDENTIFICAR el extremo por alias (idxEnLinea) -- una vez resuelto el índice, se muestra
-            // siempre el nombre completo tal como lo tiene la línea (p. ej. "Deportivo 18 de Marzo").
-            String nombre = nomNombre(l.estaciones.get(termIdx).nombre);
-            if (!idxs.contains(termIdx)) { idxs.add(termIdx); nombres.add(nombre); }
-        }
-        if (idxs.isEmpty()) return null;
-        // ordena por cercanía a tu parada (ia)
-        for (int a = 0; a < idxs.size(); a++)
-            for (int b = a + 1; b < idxs.size(); b++)
-                if (Math.abs(idxs.get(b) - ia) < Math.abs(idxs.get(a) - ia)) {
-                    int ti = idxs.get(a); idxs.set(a, idxs.get(b)); idxs.set(b, ti);
-                    String tn = nombres.get(a); nombres.set(a, nombres.get(b)); nombres.set(b, tn);
-                }
-        if (rutasCubren > 3) return nombres.get(0);          // demasiadas rutas: solo la más cercana
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < nombres.size(); i++) sb.append(i > 0 ? " o " : "").append(nombres.get(i));
-        return sb.toString();
     }
 }
