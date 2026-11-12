@@ -49,10 +49,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Barra de búsqueda flotante + acceso al asistente (Gemini): antes eran dos barras
-         completas apiladas (52dp cada una); el ícono de chat al final de ESTA MISMA barra abre
-         ChatAsistenteActivity (igual que antes, misma Activity/lógica) sin ocupar una segunda
-         fila permanente: recupera ~60dp de alto fijo sobre el mapa. -->
+    <!-- Barra de búsqueda flotante. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/search_bar"
         android:layout_width="0dp"
@@ -110,16 +107,6 @@
                 android:src="@drawable/ic_route"
                 app:tint="?attr/colorPrimary" />
 
-            <ImageButton
-                android:id="@+id/btn_chat_mapa"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="4dp"
-                android:padding="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/asistente_titulo"
-                android:src="@drawable/ic_chat"
-                app:tint="?attr/colorPrimary" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

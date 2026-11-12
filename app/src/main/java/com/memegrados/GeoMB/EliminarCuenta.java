@@ -127,7 +127,7 @@ public final class EliminarCuenta {
             }
             int codigo = conn.getResponseCode();
             // Se consume el cuerpo de la respuesta (aunque no se use) para liberar la conexión
-            // limpiamente -- mismo criterio que AlertasBackend.enviar/Asistente.post.
+            // limpiamente -- mismo criterio que AlertasBackend.enviar.
             InputStream is = codigo / 100 == 2 ? conn.getInputStream() : conn.getErrorStream();
             if (is != null) {
                 try (BufferedReader r = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {

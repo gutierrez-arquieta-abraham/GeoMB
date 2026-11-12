@@ -93,13 +93,6 @@
                 android:text="@string/citi_mis_unidades" />
 
             <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/citi_info_asistente"
-                style="@style/CitiBoton"
-                android:layout_marginTop="8dp"
-                android:minWidth="150dp"
-                android:text="@string/citi_asistente" />
-
-            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/citi_info_config"
                 style="@style/CitiBoton"
                 android:layout_marginTop="8dp"

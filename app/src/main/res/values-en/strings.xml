@@ -565,24 +565,6 @@
     <!-- Button to reopen the ad consent form (GDPR/UK), only shown when UMP requires it -->
     <string name="config_privacidad">Privacy options</string>
 
-    <!-- Conversational assistant (Gemini + Function Calling), see integrations/gemini/ -->
-    <string name="config_asistente_titulo">GeoMB Assistant (Beta)</string>
-    <string name="config_asistente_desc">Ask in plain language about routes, stations, vehicles and service alerts. There is a daily message limit.</string>
-    <string name="config_asistente_boton">Open assistant</string>
-    <string name="asistente_titulo">GeoMB Assistant</string>
-    <string name="asistente_hint">Type your question…</string>
-    <string name="asistente_enviar">Send</string>
-    <string name="asistente_error_red">Could not reach the assistant. Check your connection and try again.</string>
-    <string name="asistente_cuota_agotada">You already used your daily message limit for the assistant. Come back tomorrow.</string>
-    <string name="asistente_saludo">Hi! Ask me about routes, stations, vehicles or service alerts for Metrobús, Mexibús or Mexicable.</string>
-    <string name="asistente_accion_titulo">Confirm action</string>
-    <string name="asistente_accion_confirmar">Confirm</string>
-    <string name="asistente_accion_cancelar">Cancel</string>
-    <string name="asistente_accion_expirada">That request expired, tell me again what you want to do.</string>
-    <string name="asistente_recorrido_detenido">Trip stopped.</string>
-    <string name="asistente_seguimiento_detenido_uno">You stopped following unit %1$s.</string>
-    <string name="asistente_seguimiento_detenido_todas">You stopped following all units.</string>
-
     <!-- Voluntary donation (server/EC2 costs): external link to PayPal.me, see Config.DONACION_URL -->
     <string name="config_donar">Support the project (donate)</string>
 
@@ -647,7 +629,7 @@
     <string name="idioma_en">English</string>
     <string name="idioma_nah">Náhuatl</string>
     <string name="pausa_titulo">Service paused</string>
-    <string name="pausa_mensaje">The GeoMB server is paused. In the meantime there are no real-time buses, Mia voice, assistant or bus alerts.\n\nThe map, stations, trip planner and Metrobús service alerts still work.</string>
+    <string name="pausa_mensaje">The GeoMB server is paused. In the meantime there are no real-time buses, Mia voice or bus alerts.\n\nThe map, stations, trip planner and Metrobús service alerts still work.</string>
     <string name="pausa_entendido">Got it</string>
     <string name="actualizacion_oblig_titulo">Update required</string>
     <string name="actualizacion_oblig_mensaje">There is a new version of GeoMB with important changes. Update to keep using the app.</string>
@@ -667,7 +649,6 @@
     <string name="citi_estado_servicio">Service status</string>
     <string name="citi_reportar">Report an incident</string>
     <string name="citi_mis_unidades">My buses</string>
-    <string name="citi_asistente">Assistant</string>
     <string name="citi_configuracion">Settings</string>
     <string name="voz_prep_transferencia">Attention: you are arriving at the station where you will make your %1$s. Please get ready.</string>
 

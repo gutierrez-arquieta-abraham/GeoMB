@@ -58,16 +58,9 @@ public final class Config {
     public static final String PATH_VERSION = "/data/version.json";
 
     /**
-     * Asistente conversacional (Gemini + Function Calling): backend Python aparte
-     * ({@code integrations/gemini/} en este mismo repo), detrás de Nginx en el mismo EC2 y
-     * dominio que {@link #BASE_URL} — ver integrations/gemini/README.md §Despliegue.
-     */
-    public static final String ASISTENTE_CHAT_URL = BASE_URL + "/gemini/chat";
-
-    /**
      * Alertas de proximidad de unidades guardadas: endpoints de {@code metrobus_app} (repo
-     * aparte, mismo EC2 y dominio que {@link #BASE_URL}), NO del asistente Gemini. Device-only
-     * (identificados por X-Device-ID, ver DeviceUtils) — nunca uid de Firebase Auth.
+     * aparte, mismo EC2 y dominio que {@link #BASE_URL}). Device-only (identificados por
+     * X-Device-ID, ver DeviceUtils) — nunca uid de Firebase Auth.
      */
     public static final String DEVICE_TOKEN_URL = BASE_URL + "/device/token";
     public static final String DEVICE_ALERTA_URL = BASE_URL + "/device/alerta";

@@ -628,23 +628,6 @@
     <!-- Botón para reabrir el formulario de consentimiento de anuncios (GDPR/UK), solo visible si UMP lo requiere -->
     <string name="config_privacidad">Opciones de privacidad</string>
 
-    <!-- Asistente conversacional (Gemini + Function Calling), ver integrations/gemini/ -->
-    <string name="config_asistente_titulo">Asistente GeoMB (Beta)</string>
-    <string name="config_asistente_desc">Pregúntale en lenguaje natural sobre rutas, estaciones, unidades y afectaciones. Tiene un límite de mensajes por día.</string>
-    <string name="config_asistente_boton">Abrir asistente</string>
-    <string name="asistente_titulo">Asistente GeoMB</string>
-    <string name="asistente_hint">Escribe tu pregunta…</string>
-    <string name="asistente_enviar">Enviar</string>
-    <string name="asistente_error_red">No se pudo conectar con el asistente. Revisa tu conexión e intenta de nuevo.</string>
-    <string name="asistente_cuota_agotada">Ya usaste tu límite de mensajes del asistente por hoy. Vuelve mañana.</string>
-    <string name="asistente_saludo">¡Hola! Pregúntame sobre rutas, estaciones, unidades o afectaciones de Metrobús, Mexibús o Mexicable.</string>
-    <string name="asistente_accion_titulo">Confirmar acción</string>
-    <string name="asistente_accion_confirmar">Confirmar</string>
-    <string name="asistente_accion_cancelar">Cancelar</string>
-    <string name="asistente_accion_expirada">Esa solicitud ya expiró, dime de nuevo qué quieres hacer.</string>
-    <string name="asistente_recorrido_detenido">Recorrido detenido.</string>
-    <string name="asistente_seguimiento_detenido_uno">Dejaste de seguir la unidad %1$s.</string>
-    <string name="asistente_seguimiento_detenido_todas">Dejaste de seguir todas las unidades.</string>
 
     <!-- Donativo voluntario (servidor/EC2): enlace externo a PayPal.me, ver Config.DONACION_URL -->
     <string name="config_donar">Apoyar el proyecto (donativo)</string>
@@ -704,7 +687,7 @@
     <string name="aviso_error_generico">Ha ocurrido un error, pero la app sigue funcionando</string>
     <!-- Servicio en pausa (EstadoServicio): textos por defecto si estado_servicio.json no trae los suyos. -->
     <string name="pausa_titulo">Servicio en pausa</string>
-    <string name="pausa_mensaje">El servidor de GeoMB está en pausa. Mientras tanto no hay unidades en tiempo real, voz Mia, asistente ni alertas de unidades.\n\nEl mapa, las estaciones, el planificador y las afectaciones de Metrobús siguen funcionando.</string>
+    <string name="pausa_mensaje">El servidor de GeoMB está en pausa. Mientras tanto no hay unidades en tiempo real, voz Mia ni alertas de unidades.\n\nEl mapa, las estaciones, el planificador y las afectaciones de Metrobús siguen funcionando.</string>
     <string name="pausa_entendido">Entendido</string>
     <!-- Actualización obligatoria (ActualizacionObligatoria): pantalla fija, sin botón de cerrar. -->
     <string name="actualizacion_oblig_titulo">Actualización necesaria</string>
@@ -725,7 +708,6 @@
     <string name="citi_estado_servicio">Estado del servicio</string>
     <string name="citi_reportar">Reportar irregularidad</string>
     <string name="citi_mis_unidades">Mis unidades</string>
-    <string name="citi_asistente">Asistente</string>
     <string name="citi_configuracion">Configuración</string>
     <string name="voz_prep_transferencia">Atención: estás llegando a la estación donde vas a realizar tu %1$s. Favor de irte preparando.</string>
 

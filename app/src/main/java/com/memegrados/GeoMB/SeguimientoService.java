@@ -67,8 +67,8 @@ public class SeguimientoService extends Service {
 
     /**
      * Arranca (o añade a) el seguimiento de {@code eco}. El llamador debe haber comprobado YA el
-     * permiso ACCESS_FINE_LOCATION (ver MapFragment.intentarSeguirCarta() / ChatAsistenteActivity):
-     * este método es puramente mecánico y NUNCA comprueba permisos por sí mismo, igual criterio
+     * permiso ACCESS_FINE_LOCATION (ver MapFragment.intentarSeguirCarta()): este método es
+     * puramente mecánico y NUNCA comprueba permisos por sí mismo, igual criterio
      * que {@link RecorridoService#iniciar}. Sin ese permiso, el servicio arranca pero
      * {@code procesarTodas()} se queda avisando "sin permiso" en vez de negarse a arrancar.
      */

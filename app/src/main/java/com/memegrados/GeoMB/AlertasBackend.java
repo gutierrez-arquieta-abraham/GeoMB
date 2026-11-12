@@ -17,9 +17,9 @@ import java.util.concurrent.Executors;
 /**
  * Cliente HTTP de las alertas de proximidad de unidades guardadas ({@code device_alertas.py} +
  * los endpoints nuevos de {@code app.py} en {@code metrobus_app} — ver
- * {@link Config#DEVICE_TOKEN_URL}/{@link Config#DEVICE_ALERTA_URL}). Mismo estilo que
- * {@link Asistente}: {@code HttpURLConnection}, un executor propio + nada de hilo principal
- * (estas llamadas no tienen resultado que la UI necesite esperar). El dispositivo se identifica
+ * {@link Config#DEVICE_TOKEN_URL}/{@link Config#DEVICE_ALERTA_URL}). {@code HttpURLConnection}
+ * directo, un executor propio + nada de hilo principal (estas llamadas no tienen resultado que
+ * la UI necesite esperar). El dispositivo se identifica
  * SIEMPRE por {@code X-Device-ID} ({@link DeviceUtils}), nunca por uid de Firebase Auth (un
  * mismo usuario puede tener varios dispositivos).
  *
@@ -159,7 +159,7 @@ public final class AlertasBackend {
             }
             int codigo = conn.getResponseCode();
             // Se consume el cuerpo de la respuesta (aunque no se use) para liberar la conexión
-            // limpiamente -- mismo criterio que Asistente.post().
+            // limpiamente.
             InputStream is = codigo / 100 == 2 ? conn.getInputStream() : conn.getErrorStream();
             if (is != null) {
                 try (BufferedReader r = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {

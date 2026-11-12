@@ -14,9 +14,9 @@ import java.util.UUID;
 //
 // Genera y persiste un identificador único por INSTALACIÓN de la app (no por hardware:
 // no usamos IMEI/ANDROID_ID para no requerir permisos ni exponer un dato ligado al
-// dispositivo físico). Se usa como header X-Device-ID contra el asistente Gemini
-// (integrations/gemini/) para repartir la cuota diaria y aislar la sesión de conversación
-// de cada usuario — ver integrations/gemini/README.md.
+// dispositivo físico). Se usa como header X-Device-ID contra los endpoints de alertas de
+// proximidad de unidades (ver AlertasBackend/Config#DEVICE_TOKEN_URL), y como entropía para
+// generarReportId (ver DiagnosticoReporte) — nunca como identidad de cuenta.
 //
 // Se regenera si el usuario borra datos de la app o la reinstala: es el comportamiento
 // esperado (es "otra instalación" para efectos de cuota).

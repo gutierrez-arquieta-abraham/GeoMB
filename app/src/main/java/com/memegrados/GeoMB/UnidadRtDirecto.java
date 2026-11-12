@@ -28,7 +28,7 @@ import java.util.List;
  * <p>CREDENCIALES: {@code BuildConfig.SONDA_USUARIO}/{@code SONDA_SENHA}, generados desde un
  * archivo LOCAL fuera del repo ({@code sonda.properties}, en la raíz del proyecto, junto a
  * {@code settings.gradle.kts} -- mismo patrón que {@code key.properties} para la firma de la
- * app). El archivo NUNCA pasa por el asistente ni por git (ver .gitignore). Formato esperado
+ * app). El archivo NUNCA pasa por git (ver .gitignore). Formato esperado
  * (2 líneas, sin comillas):
  * <pre>
  *   sonda.usuario=TU_USUARIO

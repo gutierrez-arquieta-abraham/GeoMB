@@ -23,8 +23,6 @@ public class CitiInfoFragment extends CitiPantalla {
         v.findViewById(R.id.citi_info_reportar).setOnClickListener(x -> citi().abrirGeoMB(CitiContenedorFragment.REPORTE));
         v.findViewById(R.id.citi_info_unidades).setOnClickListener(x -> citi().abrirGeoMB(CitiContenedorFragment.MIS_UNIDADES));
         v.findViewById(R.id.citi_info_config).setOnClickListener(x -> citi().abrirGeoMB(CitiContenedorFragment.CONFIGURACION));
-        v.findViewById(R.id.citi_info_asistente).setOnClickListener(x ->
-                startActivity(new Intent(requireContext(), ChatAsistenteActivity.class)));
         v.findViewById(R.id.citi_info_privacidad).setOnClickListener(x -> {
             try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(Config.PRIVACY_URL))); }
             catch (Exception ignore) {}

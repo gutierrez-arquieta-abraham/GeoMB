@@ -467,16 +467,6 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         view.findViewById(R.id.search_icon).setOnClickListener(v ->
                 buscarEnMapa(inputMapa.getText().toString()));
 
-        // Acceso al asistente conversacional (Gemini): antes una segunda barra completa debajo
-        // del buscador; ahora un ícono al final de la MISMA barra de búsqueda (recupera espacio
-        // vertical del mapa). Ahora abre AsistenteOverlayFragment (ventana flotante sobre el
-        // mapa, ver su javadoc) en vez de ChatAsistenteActivity de pantalla completa -- mismo
-        // backend/flujo de Function Calling y confirmación de acciones, solo cambia la
-        // presentación. ChatAsistenteActivity sigue existiendo sin cambios (se abre desde
-        // Configuración).
-        view.findViewById(R.id.btn_chat_mapa).setOnClickListener(v ->
-                new AsistenteOverlayFragment().show(getChildFragmentManager(), "asistente"));
-
         configurarPanelPlanificador(view);
 
         chipFiltros = view.findViewById(R.id.chip_filtros);
