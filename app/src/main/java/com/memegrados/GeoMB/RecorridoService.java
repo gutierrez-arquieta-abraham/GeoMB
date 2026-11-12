@@ -844,6 +844,14 @@ public class RecorridoService extends Service {
     /** Velocidad que demuestra que vas a bordo (no caminando) entre una estación y otra. */
     static final float DET_VEL_A_BORDO_MS = 6f;
     static final int DET_ESTACIONES = 2;
+    // Segunda señal (líneas con pocas estaciones que el exprés se salta): TIEMPO contra DISTANCIA a
+    // bordo. Con el modelo del planificador (6 m/s + lo que cuesta cada parada), cada estación que
+    // el exprés se salta le ahorra ~DET_SEG_POR_PARADA. Si el tiempo real queda más cerca del modelo
+    // del OTRO servicio, basta UNA estación (en vez de dos) para avisar. Por sí sola no decide: el
+    // tráfico mueve el tiempo más que eso.
+    static final double DET_VEL_MODELO_MS = 6.0;
+    static final double DET_SEG_POR_PARADA = 35.0;   // frenar + abrir/cerrar + arrancar
+    static final double DET_DIST_MIN_M = 1500.0;
 
     /** La ruta que el recorrido recalculó por ir en el servicio equivocado (null = la planeada). La
      *  lee el mapa para redibujarse; se limpia al iniciar un recorrido nuevo. */
@@ -856,10 +864,38 @@ public class RecorridoService extends Service {
     private int detConteo = 0;
     private int detTramoInicio = -1;            // tramo al que pertenece el conteo
     private boolean detRecalculando = false;
+    private long detAbordoMs = 0;               // primer momento visto a bordo en este tramo
+    private double detAbordoDist = -1;          // posición sobre el trazo del ordinario en ese momento
 
     private void reiniciarDetector() {
         detEstacion = null; detDesdeMs = 0; detParadoMs = 0; detUltimoMs = 0;
         detVelMin = Float.MAX_VALUE; detVelMaxEntre = 0f; detConteo = 0; detTramoInicio = -1;
+        detAbordoMs = 0; detAbordoDist = -1;
+    }
+
+    /** ¿El tiempo a bordo desde que empezó el tramo se parece más al del OTRO servicio que al del
+     *  planeado? Compara contra el modelo del planificador: (distancia / 6 m/s) + 35 s por cada
+     *  estación donde para el servicio. null si aún no hay recorrido suficiente para opinar. */
+    private Boolean tiempoPareceDelOtro(Linea lOrd, java.util.Set<String> delExpres, boolean planOrdinario,
+                                        double distAhora, long ahora) {
+        if (detAbordoMs <= 0 || detAbordoDist < 0) return null;
+        double d = Math.abs(distAhora - detAbordoDist);
+        if (d < DET_DIST_MIN_M) return null;
+        double lo = Math.min(detAbordoDist, distAhora), hi = Math.max(detAbordoDist, distAhora);
+        int todas = 0, soloOrd = 0;
+        for (Estacion e : lOrd.estaciones) {
+            if (e.soloMapa) continue;
+            double de = lOrd.distanciaEn(e.posicion);
+            if (de <= lo || de >= hi) continue;
+            todas++;
+            if (!delExpres.contains(Planificador.norm(Planificador.sinMxb(e.nombre)))) soloOrd++;
+        }
+        if (soloOrd == 0) return null;   // en ese tramo ambos servicios paran igual: no distingue
+        double base = d / DET_VEL_MODELO_MS;
+        double tOrd = base + DET_SEG_POR_PARADA * todas, tExp = base + DET_SEG_POR_PARADA * (todas - soloOrd);
+        double t = (ahora - detAbordoMs) / 1000.0;
+        boolean pareceExpres = Math.abs(t - tExp) < Math.abs(t - tOrd);
+        return planOrdinario == pareceExpres;
     }
 
     private void detectarServicioEquivocado(android.location.Location l) {
@@ -882,6 +918,8 @@ public class RecorridoService extends Service {
         long ahora = l.getTime() > 0 ? l.getTime() : System.currentTimeMillis();
         if (vel > detVelMaxEntre) detVelMaxEntre = vel;
         com.google.android.gms.maps.model.LatLng yo = new com.google.android.gms.maps.model.LatLng(l.getLatitude(), l.getLongitude());
+        double distAhora = lOrd.distanciaEn(yo);
+        if (detAbordoMs <= 0 && vel >= DET_VEL_A_BORDO_MS) { detAbordoMs = ahora; detAbordoDist = distAhora; }
 
         // Estaciones del ordinario que el exprés NO atiende, entre el inicio y el fin del tramo.
         int ia = Horarios.idxEnLinea(lOrd, seq.get(ini).nombre), ib = Horarios.idxEnLinea(lOrd, seq.get(fin).nombre);
@@ -916,7 +954,10 @@ public class RecorridoService extends Service {
             else if (correcto) detConteo = 0;
             detEstacion = null;
             detVelMaxEntre = 0f;
-            if (detConteo >= DET_ESTACIONES) {
+            // Una sola estación basta si además el tiempo a bordo apunta al otro servicio.
+            boolean confirmaTiempo = equivocado && detConteo == 1
+                    && Boolean.TRUE.equals(tiempoPareceDelOtro(lOrd, delExpres, planOrdinario, distAhora, ahora));
+            if (detConteo >= DET_ESTACIONES || confirmaTiempo) {
                 detConteo = 0;
                 recalcularPorServicio(planOrdinario ? exp : ord, seq, fin, yo);
                 return;

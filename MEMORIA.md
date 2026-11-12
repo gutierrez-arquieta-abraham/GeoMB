@@ -108,7 +108,11 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
   debe verse ≥6 m/s (a bordo, no caminando).
 - Al detectarlo: voz `voz_servicio_equivocado` y se recalcula con el Planificador desde la siguiente estación del servicio real
   hasta el destino (`aplicarRutaRecalculada`, sin detener el servicio). El mapa la redibuja vía `RecorridoService.rutaRecalculada`.
-- Verificado con simulación Bosques del Valle → Ecatepec (4 casos: ambos sentidos detectan, los dos correctos no).
+- Segunda señal (líneas con pocas estaciones saltadas): tiempo a bordo vs distancia contra el modelo del planificador
+  (6 m/s + 35 s por estación donde para cada servicio), desde 1.5 km a bordo. Si apunta al otro servicio, basta UNA estación
+  en vez de dos. Sola no decide (el tráfico pesa más).
+- Verificado con simulación Bosques del Valle / Coacalco Tultepec → Ecatepec (8 casos: ambos sentidos detectan, los correctos no;
+  en el tramo corto la señal de tiempo adelanta el aviso a la primera estación saltada).
 
 ## Afectaciones + notificaciones (evitar duplicados)
 - **EC2 push** → `MensajesService.notificarAfectacion` (topic `afectaciones`), autoritativo cuando el EC2 vive.
