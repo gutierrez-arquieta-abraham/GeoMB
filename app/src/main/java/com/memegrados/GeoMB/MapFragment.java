@@ -277,6 +277,13 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
     private final Runnable tickRecorrido = new Runnable() {
         @Override public void run() {
             try {
+                // El recorrido se recalculó por ir en el servicio equivocado (ordinario/exprés):
+                // se dibuja la ruta nueva sin detener el recorrido (dibujarRuta lo reengancha).
+                Planificador.Ruta rr = RecorridoService.rutaRecalculada;
+                if (recorrido && rr != null && rr != rutaActiva && mapa != null) {
+                    recorrido = false;
+                    dibujarRuta(rr);
+                }
                 if (recorrido) refrescarRecorridoUI();
             } catch (Exception e) {
                 GeoMBApplication app = GeoMBApplication.get();

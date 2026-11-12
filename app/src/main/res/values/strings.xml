@@ -329,6 +329,7 @@
     <string name="voz_n_estaciones">%1$d estaciones</string>
     <!-- Cambios de tramo: bajada (instrucción) y abordaje (dirección). -->
     <string name="voz_baja_servicio">Baja y toma el servicio %1$s con dirección a %2$s</string>
+    <string name="voz_servicio_equivocado">Atención: parece que vas en una unidad de servicio %1$s. Ajustando tu recorrido.</string>
     <string name="voz_baja_unidad_dir">Baja y toma la unidad con dirección a %1$s</string>
     <string name="voz_baja_cabina_dir">Baja y toma la cabina con dirección a %1$s</string>
     <string name="voz_camina_conexion">Camina hasta llegar a la conexión con %1$s</string>

@@ -424,6 +424,7 @@ public class RecorridoService extends Service {
     private boolean detenerPendiente = false;
 
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
+        rutaRecalculada = null;   // recorrido nuevo: vuelve a mandar la ruta que trazó el usuario
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
         avisoVelocidad = false; ultimaVelocidadKmh = -1f;
         persistir(c);   // guarda la ruta: si el SO mata el proceso, el servicio (START_STICKY) la restaura
@@ -553,6 +554,7 @@ public class RecorridoService extends Service {
         corresPendienteCiclos = 0;
         reanclajeCandidatoPendiente = -1;
         permanenciaIdx = -1; permanenciaRota = false; visitada = null;
+        reiniciarDetector();
         Notification n = construir(getString(R.string.recorrido_ubicando), "", null, "", null, "", null, "", "", 0, 0, 0, 0);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -812,6 +814,182 @@ public class RecorridoService extends Service {
         } catch (Throwable t) {
             Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "RecorridoService.procesar", String.valueOf(t));
         }
+        try {
+            detectarServicioEquivocado(l);
+        } catch (Throwable t) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "RecorridoService.detectarServicio", String.valueOf(t));
+        }
+    }
+
+    // ============================================================
+    // UNIDAD EQUIVOCADA (ordinario <-> exprés de Mexibús)
+    // ============================================================
+    // Si el tramo actual es ordinario (101-104) y la unidad pasa DE LARGO dos estaciones seguidas
+    // que el exprés no atiende, vas en un exprés; si el tramo es exprés (121-124) y la unidad SE
+    // DETIENE en dos estaciones seguidas que el exprés no atiende, vas en un ordinario. En ese caso
+    // se avisa por voz y se recalcula el recorrido con el servicio en el que de verdad vas, desde la
+    // siguiente estación de ese servicio hasta tu destino (el planificador decide si luego hay que
+    // cambiar de servicio). Solo cuentan las estaciones del tramo actual y solo si entre una y otra
+    // la unidad de verdad avanzó (para no confundir caminar en un andén con ir a bordo).
+
+    /** Radio (m) para considerar que la unidad está pasando por una estación. */
+    static final float DET_RADIO_M = 60f;
+    /** Al alejarse más de esto de la estación se clasifica el paso (paró / pasó de largo). */
+    static final float DET_SALIDA_M = 100f;
+    /** "Paró": al menos este tiempo dentro del radio a menos de DET_VEL_PARADA_MS. */
+    static final long DET_PARADA_MS = 8000L;
+    static final float DET_VEL_PARADA_MS = 1.5f;
+    /** "Pasó de largo": nunca bajó de esta velocidad dentro del radio. */
+    static final float DET_VEL_PASO_MS = 3f;
+    /** Velocidad que demuestra que vas a bordo (no caminando) entre una estación y otra. */
+    static final float DET_VEL_A_BORDO_MS = 6f;
+    static final int DET_ESTACIONES = 2;
+
+    /** La ruta que el recorrido recalculó por ir en el servicio equivocado (null = la planeada). La
+     *  lee el mapa para redibujarse; se limpia al iniciar un recorrido nuevo. */
+    public static volatile Planificador.Ruta rutaRecalculada = null;
+
+    private String detEstacion = null;          // estación por la que va pasando la unidad
+    private long detDesdeMs = 0, detParadoMs = 0, detUltimoMs = 0;
+    private float detVelMin = Float.MAX_VALUE;
+    private float detVelMaxEntre = 0f;          // velocidad máx. desde la última estación clasificada
+    private int detConteo = 0;
+    private int detTramoInicio = -1;            // tramo al que pertenece el conteo
+    private boolean detRecalculando = false;
+
+    private void reiniciarDetector() {
+        detEstacion = null; detDesdeMs = 0; detParadoMs = 0; detUltimoMs = 0;
+        detVelMin = Float.MAX_VALUE; detVelMaxEntre = 0f; detConteo = 0; detTramoInicio = -1;
+    }
+
+    private void detectarServicioEquivocado(android.location.Location l) {
+        List<Planificador.Parada> seq = paradas;
+        if (l == null || seq == null || seq.isEmpty() || detRecalculando || finalizado) return;
+        int best = Math.max(0, Math.min(actualIdx, seq.size() - 1));
+        int ln = seq.get(best).linea;
+        boolean planOrdinario = ln >= 101 && ln <= 104, planExpres = ln >= 121 && ln <= 124;
+        if (!planOrdinario && !planExpres) { reiniciarDetector(); return; }
+        // Tramo actual: paradas consecutivas con el mismo servicio.
+        int ini = best, fin = best;
+        while (ini > 0 && seq.get(ini - 1).linea == ln) ini--;
+        while (fin + 1 < seq.size() && seq.get(fin + 1).linea == ln) fin++;
+        if (ini != detTramoInicio) { reiniciarDetector(); detTramoInicio = ini; }
+        int ord = planOrdinario ? ln : ln - 20, exp = ord + 20;
+        Linea lOrd = GtfsRepository.porNumero(this, ord), lExp = GtfsRepository.porNumero(this, exp);
+        if (lOrd == null || lExp == null || lOrd.estaciones.isEmpty() || lExp.estaciones.isEmpty()) return;
+
+        float vel = l.hasSpeed() ? l.getSpeed() : -1f;
+        long ahora = l.getTime() > 0 ? l.getTime() : System.currentTimeMillis();
+        if (vel > detVelMaxEntre) detVelMaxEntre = vel;
+        com.google.android.gms.maps.model.LatLng yo = new com.google.android.gms.maps.model.LatLng(l.getLatitude(), l.getLongitude());
+
+        // Estaciones del ordinario que el exprés NO atiende, entre el inicio y el fin del tramo.
+        int ia = Horarios.idxEnLinea(lOrd, seq.get(ini).nombre), ib = Horarios.idxEnLinea(lOrd, seq.get(fin).nombre);
+        if (ia < 0 || ib < 0) return;
+        java.util.Set<String> delExpres = new java.util.HashSet<>();
+        for (Estacion e : lExp.estaciones) delExpres.add(Planificador.norm(Planificador.sinMxb(e.nombre)));
+        Estacion cerca = null;
+        double dCerca = Double.MAX_VALUE;
+        for (int k = Math.min(ia, ib) + 1; k < Math.max(ia, ib); k++) {
+            Estacion e = lOrd.estaciones.get(k);
+            if (e.soloMapa || delExpres.contains(Planificador.norm(Planificador.sinMxb(e.nombre)))) continue;
+            double d = Linea.distancia(e.posicion, yo);
+            if (d < dCerca) { dCerca = d; cerca = e; }
+        }
+
+        if (detEstacion != null) {
+            Estacion actual = null;
+            for (Estacion e : lOrd.estaciones) if (e.nombre.equals(detEstacion)) { actual = e; break; }
+            double dAct = actual != null ? Linea.distancia(actual.posicion, yo) : Double.MAX_VALUE;
+            if (dAct <= DET_SALIDA_M) {   // sigue pasando por la misma estación
+                if (vel >= 0 && vel < detVelMin) detVelMin = vel;
+                if (vel >= 0 && vel < DET_VEL_PARADA_MS && detUltimoMs > 0) detParadoMs += ahora - detUltimoMs;
+                detUltimoMs = ahora;
+                return;
+            }
+            // Salió: clasificar el paso.
+            boolean paro = detParadoMs >= DET_PARADA_MS;
+            boolean deLargo = !paro && detVelMin != Float.MAX_VALUE && detVelMin >= DET_VEL_PASO_MS;
+            boolean equivocado = planOrdinario ? deLargo : paro;
+            boolean correcto = planOrdinario ? paro : deLargo;
+            if (equivocado) detConteo++;
+            else if (correcto) detConteo = 0;
+            detEstacion = null;
+            detVelMaxEntre = 0f;
+            if (detConteo >= DET_ESTACIONES) {
+                detConteo = 0;
+                recalcularPorServicio(planOrdinario ? exp : ord, seq, fin, yo);
+                return;
+            }
+        }
+        if (cerca != null && dCerca <= DET_RADIO_M) {
+            // Entra a una estación: solo cuenta si desde la anterior se vio la unidad en marcha (a bordo).
+            if (detConteo > 0 && detVelMaxEntre < DET_VEL_A_BORDO_MS) detConteo = 0;
+            detEstacion = cerca.nombre;
+            detDesdeMs = ahora; detUltimoMs = ahora; detParadoMs = 0;
+            detVelMin = vel >= 0 ? vel : Float.MAX_VALUE;
+        }
+    }
+
+    /** Avisa y recalcula el recorrido con el servicio {@code real} (ordinario o exprés) desde la
+     *  siguiente estación de ese servicio, en la dirección del tramo, hasta el destino final. */
+    private void recalcularPorServicio(int real, List<Planificador.Parada> seq, int finTramo,
+                                       com.google.android.gms.maps.model.LatLng yo) {
+        boolean expres = real >= 121;
+        String tipo = getString(expres ? R.string.servicio_express : R.string.servicio_ordinario);
+        sonarYHablar(getString(R.string.voz_servicio_equivocado, tipo), real);
+        Linea l = GtfsRepository.porNumero(this, real);
+        Planificador.Parada destino = seq.get(seq.size() - 1);
+        if (l == null || l.estaciones.isEmpty()) return;
+        // Dirección del tramo sobre el trazo del servicio real y la siguiente estación de ese servicio.
+        double dYo = l.distanciaEn(yo), dFin = l.distanciaEn(seq.get(finTramo).pos);
+        boolean adelante = dFin >= dYo;
+        Estacion origen = null;
+        double mejor = Double.MAX_VALUE;
+        for (Estacion e : l.estaciones) {
+            if (e.soloMapa) continue;
+            double de = l.distanciaEn(e.posicion), gap = adelante ? de - dYo : dYo - de;
+            if (gap > 20 && gap < mejor) { mejor = gap; origen = e; }
+        }
+        if (origen == null) return;
+        final String origenNombre = origen.nombre;
+        final android.content.Context app = getApplicationContext();
+        final java.util.Map<Integer, Boolean> pref = new java.util.HashMap<>();
+        pref.put(expres ? real - 20 : real, expres);
+        detRecalculando = true;
+        new Thread(() -> {
+            Planificador.Ruta r = null;
+            try {
+                r = Planificador.calcular(app, origenNombre, destino.nombre, real, destino.linea, pref);
+            } catch (Throwable t) {
+                Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "RecorridoService.recalcularPorServicio", String.valueOf(t));
+            }
+            final Planificador.Ruta ruta = r;
+            handler.post(() -> {
+                detRecalculando = false;
+                if (ruta == null || ruta.secuencia.isEmpty() || !activo || finalizado) return;
+                aplicarRutaRecalculada(ruta);
+            });
+        }, "recalcular-servicio").start();
+    }
+
+    /** Cambia el recorrido en curso a {@code r} sin detener el servicio (mismo reinicio de estado que
+     *  un recorrido nuevo, pero sin volver a anunciar el abordaje). */
+    private void aplicarRutaRecalculada(Planificador.Ruta r) {
+        java.util.List<String> terms = new java.util.ArrayList<>();
+        if (r.instrucciones != null) for (Planificador.Instruccion ins : r.instrucciones) terms.add(ins.terminal);
+        terminalesTramo = terms;
+        paradas = r.secuencia;
+        terminal = r.secuencia.get(r.secuencia.size() - 1).nombre;
+        actualIdx = -1; avanceMin = 0; servicioAnunciado = true;
+        ultVoz = -99; ultLlegando = -99; ultProxima = -99;
+        estSeguida = -99; distMin = Float.MAX_VALUE;
+        corresPendienteIdx = -1; corresPendienteCiclos = 0; reanclajeCandidatoPendiente = -1;
+        permanenciaIdx = -1; permanenciaRota = false; visitada = null;
+        reiniciarDetector();
+        persistir(this);
+        rutaRecalculada = r;
+        CitiActivity.trayecto = r;   // el mapa del estilo CITI dibuja este trayecto
     }
 
     private void procesarInterno(android.location.Location l) {

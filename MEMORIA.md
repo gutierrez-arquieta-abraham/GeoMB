@@ -102,6 +102,14 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
   `lineasEnEstacion()`/`transferenciaTexto()` en vez de la tabla compartida (pasó 2 veces esta sesión: `claveTerminal()` vs
   `baseLinea()`, y `basesCorresp()` sin su llamada a `corrManualLineas()`). Al tocar cualquiera de los 5, revisar su par.
 
+### Unidad equivocada (ordinario ↔ exprés de Mexibús) — `RecorridoService.detectarServicioEquivocado`
+- Tramo ordinario (101–104) y la unidad pasa DE LARGO (siempre ≥3 m/s) dos estaciones seguidas que el exprés no atiende → va en exprés.
+  Tramo exprés (121–124) y la unidad SE DETIENE (≥8 s a <1.5 m/s) en dos de esas estaciones → va en ordinario. Entre una y otra
+  debe verse ≥6 m/s (a bordo, no caminando).
+- Al detectarlo: voz `voz_servicio_equivocado` y se recalcula con el Planificador desde la siguiente estación del servicio real
+  hasta el destino (`aplicarRutaRecalculada`, sin detener el servicio). El mapa la redibuja vía `RecorridoService.rutaRecalculada`.
+- Verificado con simulación Bosques del Valle → Ecatepec (4 casos: ambos sentidos detectan, los dos correctos no).
+
 ## Afectaciones + notificaciones (evitar duplicados)
 - **EC2 push** → `MensajesService.notificarAfectacion` (topic `afectaciones`), autoritativo cuando el EC2 vive.
 - **Local Metrobús** → `ManifestacionesService` (WebView scraping incidentesmovilidad.cdmx). **Local Mexibús** → `AfectMexibusFeed`
