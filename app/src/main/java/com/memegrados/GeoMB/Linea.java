@@ -95,6 +95,14 @@ public class Linea {
         }
     }
 
+    /** Índice de la última estación REAL de la línea: el catálogo agrega al final andenes
+     *  "soloMapa" (L1: Indios Verdes, Insurgentes…) que no son su extremo. -1 si no hay estaciones. */
+    public int ultimaReal() {
+        int i = estaciones.size() - 1;
+        while (i > 0 && estaciones.get(i).soloMapa) i--;
+        return i;
+    }
+
     public double largoTotal() {
         return acumulado[acumulado.length - 1];
     }

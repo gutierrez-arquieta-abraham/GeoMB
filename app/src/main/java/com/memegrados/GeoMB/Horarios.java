@@ -207,7 +207,7 @@ public final class Horarios {
                 return new int[]{Math.min(dentro, cruce), Math.max(dentro, cruce)};
             }
         }
-        return rangoDe(l, r, l.estaciones.size() - 1);
+        return rangoDe(l, r, l.ultimaReal());
     }
 
     /** Índice de la estación de {@code l} más cercana a alguna estación de las OTRAS líneas que
@@ -365,7 +365,7 @@ public final class Horarios {
         if (l == null) return lineaCircula(ctx, linea, momento);
         int idx = idxEnLinea(l, nombreEstacion);
         if (idx < 0) return lineaCircula(ctx, linea, momento);
-        int last = l.estaciones.size() - 1;
+        int last = l.ultimaReal();
         boolean algunaCubre = false;
         for (Ruta r : deLinea(ctx, linea)) {
             int[] rango = rangoDe(l, r, last);

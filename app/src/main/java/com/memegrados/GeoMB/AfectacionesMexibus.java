@@ -142,8 +142,8 @@ public final class AfectacionesMexibus {
                 if (ia < 0 || ib < 0) return;   // si ALGÚN tramo no mapea, no bloquear nada (solo info)
                 for (int k = Math.min(ia, ib); k <= Math.max(ia, ib); k++) hab[k] = true;
             }
-            for (int i = 0; i < est.size(); i++)
-                if (!hab[i]) bloq.add(pref + Planificador.norm(est.get(i).nombre));
+            for (int i = 0; i < est.size(); i++)   // los andenes "soloMapa" del final no son tramo de la línea
+                if (!hab[i] && !est.get(i).soloMapa) bloq.add(pref + Planificador.norm(est.get(i).nombre));
         } else if (e.contains("sin servicio")) {
             for (Estacion x : est) bloq.add(pref + Planificador.norm(x.nombre));   // toda la línea
         } else if (e.contains("paso de largo") || e.contains("estación cerrada") || e.contains("estacion cerrada")) {

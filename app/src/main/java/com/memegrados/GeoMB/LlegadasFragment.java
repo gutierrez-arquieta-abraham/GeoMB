@@ -221,7 +221,7 @@ public class LlegadasFragment extends Fragment {
         }
         if (dst.isEmpty() && l != null && !l.estaciones.isEmpty()) {
             dst.add(l.estaciones.get(0).nombre);
-            dst.add(l.estaciones.get(l.estaciones.size() - 1).nombre);
+            dst.add(l.estaciones.get(l.ultimaReal()).nombre);
         }
         sentidos.clear();
         sentidos.addAll(dst);

@@ -626,7 +626,7 @@ public class ConfiguracionFragment extends Fragment {
                 spE.setAdapter(adaptador(est));
                 spE2.setAdapter(adaptador(new ArrayList<>(est)));
                 String t1 = l.estaciones.isEmpty() ? "" : l.estaciones.get(0).nombre;
-                String t2 = l.estaciones.isEmpty() ? "" : l.estaciones.get(l.estaciones.size() - 1).nombre;
+                String t2 = l.estaciones.isEmpty() ? "" : l.estaciones.get(l.ultimaReal()).nombre;
                 spS.setAdapter(adaptador(Arrays.asList("Ambos sentidos", "Hacia " + t1, "Hacia " + t2)));
             }
             @Override public void onNothingSelected(AdapterView<?> p) {}
@@ -640,7 +640,7 @@ public class ConfiguracionFragment extends Fragment {
             String term = null;
             if (!l.estaciones.isEmpty()) {
                 if (sentido == 1) term = Planificador.norm(l.estaciones.get(0).nombre);
-                else if (sentido == 2) term = Planificador.norm(l.estaciones.get(l.estaciones.size() - 1).nombre);
+                else if (sentido == 2) term = Planificador.norm(l.estaciones.get(l.ultimaReal()).nombre);
             }
             Manifestaciones.simular(l.numero, Planificador.norm(es.toString()), term);
             String direccion = term == null ? "Ambos sentidos" : spS.getSelectedItem().toString();

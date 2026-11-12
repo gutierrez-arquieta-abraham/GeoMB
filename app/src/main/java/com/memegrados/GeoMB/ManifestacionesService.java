@@ -391,7 +391,9 @@ public class ManifestacionesService extends Service {
         if (l != null && !l.estaciones.isEmpty()) {
             String nd = Planificador.norm(direccion);
             String t1 = Planificador.norm(l.estaciones.get(0).nombre);
-            String t2 = Planificador.norm(l.estaciones.get(l.estaciones.size() - 1).nombre);
+            int ult = l.estaciones.size() - 1;
+            while (ult > 0 && l.estaciones.get(ult).soloMapa) ult--;   // no un andén "soloMapa" del final
+            String t2 = Planificador.norm(l.estaciones.get(ult).nombre);
             if (t1.length() >= 4 && nd.contains(t1)) return t1;
             if (t2.length() >= 4 && nd.contains(t2)) return t2;
         }
@@ -1133,6 +1135,12 @@ public class ManifestacionesService extends Service {
             if (!resueltosPorLinea.getOrDefault(l.numero, 0).equals(totalTramos)) continue;
             List<Integer> fuera = new ArrayList<>();
             for (int k = 0; k < l.estaciones.size(); k++) {
+                // Los andenes "soloMapa" que el catálogo agrega al FINAL de la lista (L1: Indios Verdes,
+                // Deportivo 18 de Marzo, Euzkaro, Potrero, Insurgentes) no son parte de la troncal por
+                // índice: caían "fuera" de cualquier rango y se bloqueaban por nombre. Caso real:
+                // "Servicio de Indios Verdes a La Joya" dejaba cerradas en el mapa de Indios Verdes a
+                // Potrero (e Insurgentes), que sí tenían servicio.
+                if (l.estaciones.get(k).soloMapa) continue;
                 boolean corre = false;
                 for (int[] r : rangos) if (k >= r[0] && k <= r[1]) { corre = true; break; }
                 if (!corre) fuera.add(k);

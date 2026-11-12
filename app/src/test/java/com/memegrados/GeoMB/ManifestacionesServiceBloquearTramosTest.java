@@ -368,4 +368,18 @@ public class ManifestacionesServiceBloquearTramosTest {
         // Control: el nombre corto real sigue resolviendo a sí mismo, no al compuesto.
         assertEquals(14, ManifestacionesService.idxEstacion(L1, Planificador.norm("Insurgentes")));
     }
+
+    /** Caso real: "Servicio de Indios Verdes a La Joya" con el catálogo REAL de L1, que agrega al final
+     *  5 andenes "soloMapa" (Indios Verdes, Deportivo 18 de Marzo, Euzkaro, Potrero, Insurgentes). Solo
+     *  El Caminero queda sin servicio; antes esos 5 andenes también salían "fuera" y se cerraban. */
+    @Test
+    public void soloMapaDelFinal_noSeBloquean() {
+        List<Estacion> conDuplicados = new ArrayList<>(L1);
+        for (String n : new String[]{"Indios Verdes", "Deportivo 18 de Marzo", "Euzkaro", "Potrero", "Insurgentes"})
+            conDuplicados.add(new Estacion(n, 0, 0, null, true));
+        String seg = ManifestacionesService.segmentoParcial(Planificador.norm("Servicio de Indios Verdes a La Joya"));
+        java.util.Map<Integer, List<Integer>> fuera = ManifestacionesService.indicesFueraDeRangoPorLinea(seg,
+                java.util.Collections.singletonList(new ManifestacionesService.CandidatoLinea(1, conDuplicados)));
+        assertEquals(java.util.Collections.singletonList(45), fuera.get(1));   // solo El Caminero
+    }
 }

@@ -2016,7 +2016,7 @@ public class RecorridoService extends Service {
                 String[] canon = Planificador.terminales(p.linea);
                 if (canon != null) return Horarios.nomNombre(ib > ia ? canon[1] : canon[0]);
                 if (l != null && l.estaciones != null && !l.estaciones.isEmpty()) {
-                    Estacion term = ib > ia ? l.estaciones.get(l.estaciones.size() - 1) : l.estaciones.get(0);
+                    Estacion term = ib > ia ? l.estaciones.get(l.ultimaReal()) : l.estaciones.get(0);
                     return Horarios.nomNombre(term.nombre);
                 }
             }
