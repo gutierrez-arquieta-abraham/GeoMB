@@ -149,9 +149,17 @@ public class RecorridoService extends Service {
     /** Volumen ACTUAL del stream de medios (0..1), para escalar la voz/tururu nosotros mismos: el
      *  parámetro KEY_PARAM_VOLUME de TextToSpeech (motor de respaldo, sin Mia) no sigue de forma
      *  confiable el volumen de medios que el usuario ya tiene puesto en varios motores/fabricantes
-     *  (se queda en un nivel fijo alto sin importar el volumen del sistema); MediaPlayer.setVolume()
-     *  sí es proporcional al volumen del stream, pero se aplica igual aquí por consistencia. Incluye la
+     *  (se queda en un nivel fijo alto sin importar el volumen del sistema). SOLO para ese motor de
+     *  respaldo: MediaPlayer ya sigue el volumen de medios (ver {@link #factorSalida()}). Incluye la
      *  atenuación extra del altavoz interno (ver {@link #salidaEsAltavoz()}). */
+    /** Factor para MediaPlayer (voz Mia/Ximena y jingle): SOLO la atenuación del altavoz interno.
+     *  Android ya aplica el volumen de medios del usuario a todo lo que suena por MediaPlayer;
+     *  multiplicarlo otra vez (volumenSistema) lo contaba DOS veces -- a medio volumen la voz salía a
+     *  un cuarto, y en volúmenes bajos casi no se oía. */
+    private float factorSalida() {
+        try { return salidaEsAltavoz() ? ALTAVOZ_ATENUACION : 1f; } catch (Exception ignore) { return 1f; }
+    }
+
     private float volumenSistema() {
         if (audioManager == null) return 1f;
         try {
@@ -1475,7 +1483,7 @@ public class RecorridoService extends Service {
                 android.media.MediaPlayer mp = android.media.MediaPlayer.create(this, id);
                 if (mp != null) {
                     mpActual = mp;
-                    float vs = volumenSistema();
+                    float vs = factorSalida();
                     mp.setVolume(TURURU_VOL * vs, TURURU_VOL * vs);   // ~70% para que no reviente los oídos
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
@@ -1661,7 +1669,7 @@ public class RecorridoService extends Service {
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build());
             mp.setDataSource(f.getAbsolutePath());
-            float vs = volumenSistema();
+            float vs = factorSalida();
             boolean mia = f.getPath().contains("/voz/Mia/");   // Polly llega ~10 dB más baja que Ximena
             float g = mia ? 1f : VOZ_VOL;
             mp.setVolume(g * vs, g * vs);   // respeta el volumen de medios puesto por el usuario
