@@ -102,7 +102,10 @@ public class RecorridoService extends Service {
     // segundos: de sobra para volver a cadencia rápida antes de necesitar precisión real.
     private static final float CADENCIA_LEJOS_M = 500f;
     private static final long INTERVALO_LEJOS_MS = 3000L;
-    private static final float TURURU_VOL = 0.7f;     // volumen del "tururu" (70% del real)
+    // Volumen del "tururu": a nivel completo. Sus archivos ya vienen nivelados a −15 LUFS (antes
+    // venían a −2 LUFS y por eso se reproducían al 70%); con 0.7 quedaba ~3 dB debajo de la voz y el
+    // usuario lo notaba bajo frente a Mia/Ximena.
+    private static final float TURURU_VOL = 1f;
     /** Volumen relativo de la VOZ (Mia/TTS) dentro del volumen de medios del dispositivo. Antes se
      *  forzaba a 1.0 (máximo) sin importar el volumen que el usuario tuviera puesto: como el audio
      *  de Mia y la voz del sistema vienen "masterizados" más fuerte que música/podcasts normales,
@@ -114,14 +117,14 @@ public class RecorridoService extends Service {
      *  ~−13 LUFS y Mia (Polly) a ~−23 LUFS, 10 dB más baja; los jingles se normalizaron a −15 LUFS
      *  (antes el de Metrobús estaba a −2 LUFS: ~21 dB por encima de Mia). Con VOZ_VOL (−3 dB) Ximena
      *  queda en ~−16; a Mia se le quita esa atenuación y se le suben MIA_REALCE_MB (+7 dB, con el
-     *  limitador de LoudnessEnhancer, sin recortar) para quedar igual. El jingle (TURURU_VOL) queda
-     *  ~2 dB por debajo de la voz. */
+     *  limitador de LoudnessEnhancer, sin recortar) para quedar igual. El jingle (TURURU_VOL = 1)
+     *  queda a ~−15.4, al mismo nivel que la voz. */
     private static final int MIA_REALCE_MB = 700;
     private android.media.audiofx.LoudnessEnhancer realceActual;
 
     /** Atenuación extra cuando el audio sale por el ALTAVOZ interno (sin audífonos/bluetooth): a un
      *  mismo índice de volumen de medios, el altavoz suena bastante más fuerte que unos audífonos, así
-     *  que el 0.7 de VOZ_VOL/TURURU_VOL (pensado para audífonos) no basta ahí y el aviso sale exagerado
+     *  que el nivel pensado para audífonos (VOZ_VOL/TURURU_VOL) no basta ahí y el aviso sale exagerado
      *  -- el usuario reportó tener que bajarle manualmente al volumen justo al iniciar el recorrido sin
      *  nada conectado. Se atenúa un poco más solo en ese caso. */
     private static final float ALTAVOZ_ATENUACION = 0.55f;
@@ -1484,7 +1487,7 @@ public class RecorridoService extends Service {
                 if (mp != null) {
                     mpActual = mp;
                     float vs = factorSalida();
-                    mp.setVolume(TURURU_VOL * vs, TURURU_VOL * vs);   // ~70% para que no reviente los oídos
+                    mp.setVolume(TURURU_VOL * vs, TURURU_VOL * vs);   // nivelado con la voz (ver TURURU_VOL)
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
