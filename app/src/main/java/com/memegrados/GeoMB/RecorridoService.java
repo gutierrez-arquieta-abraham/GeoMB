@@ -102,74 +102,25 @@ public class RecorridoService extends Service {
     // segundos: de sobra para volver a cadencia rápida antes de necesitar precisión real.
     private static final float CADENCIA_LEJOS_M = 500f;
     private static final long INTERVALO_LEJOS_MS = 3000L;
-    // Volumen del "tururu": a nivel completo. Sus archivos ya vienen nivelados a −15 LUFS (antes
-    // venían a −2 LUFS y por eso se reproducían al 70%); con 0.7 quedaba ~3 dB debajo de la voz y el
-    // usuario lo notaba bajo frente a Mia/Ximena.
-    private static final float TURURU_VOL = 1f;
-    /** Volumen relativo de la VOZ (Mia/TTS) dentro del volumen de medios del dispositivo. Antes se
-     *  forzaba a 1.0 (máximo) sin importar el volumen que el usuario tuviera puesto: como el audio
-     *  de Mia y la voz del sistema vienen "masterizados" más fuerte que música/podcasts normales,
-     *  a un mismo nivel del volumen de medios (p. ej. 20%) sonaban como si el dispositivo estuviera
-     *  mucho más arriba (p. ej. 80%), obligando a bajarle manualmente durante el aviso. Se atenúa
-     *  igual que el "tururu" para que respete proporcionalmente el volumen ya puesto por el usuario. */
-    private static final float VOZ_VOL = 0.7f;
-    /** Nivelación de VOLUMEN entre audios (medido con EBU R128, en LUFS): Ximena llega del servidor a
-     *  ~−13 LUFS y Mia (Polly) a ~−23 LUFS, 10 dB más baja; los jingles se normalizaron a −15 LUFS
-     *  (antes el de Metrobús estaba a −2 LUFS: ~21 dB por encima de Mia). Con VOZ_VOL (−3 dB) Ximena
-     *  queda en ~−16; a Mia se le quita esa atenuación y se le suben MIA_REALCE_MB (+7 dB, con el
-     *  limitador de LoudnessEnhancer, sin recortar) para quedar igual. El jingle (TURURU_VOL = 1)
-     *  queda a ~−15.4, al mismo nivel que la voz. */
-    private static final int MIA_REALCE_MB = 700;
+    /** VOLUMEN: los avisos suenan al volumen de MEDIOS del sistema, sin atenuación propia de la app
+     *  (pedido del usuario); mientras suenan, Android baja lo demás con el foco de audio
+     *  AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK (ver pedirFocoAudio()). Solo se NIVELAN los audios entre sí
+     *  (EBU R128): Ximena llega del servidor a ~−13 LUFS, Mia (Polly) a ~−23 LUFS y los jingles
+     *  (res/raw/tururu*.mp3) se normalizaron a −13 LUFS. A Mia se le suben MIA_REALCE_MB (+10 dB) con
+     *  LoudnessEnhancer, cuyo limitador evita que recorte; así los tres quedan al mismo nivel. */
+    private static final int MIA_REALCE_MB = 1000;
     private android.media.audiofx.LoudnessEnhancer realceActual;
 
-    /** Atenuación extra cuando el audio sale por el ALTAVOZ interno (sin audífonos/bluetooth): a un
-     *  mismo índice de volumen de medios, el altavoz suena bastante más fuerte que unos audífonos, así
-     *  que el nivel pensado para audífonos (VOZ_VOL/TURURU_VOL) no basta ahí y el aviso sale exagerado
-     *  -- el usuario reportó tener que bajarle manualmente al volumen justo al iniciar el recorrido sin
-     *  nada conectado. Se atenúa un poco más solo en ese caso. */
-    private static final float ALTAVOZ_ATENUACION = 0.55f;
-
-    /** ¿La salida de audio ahora mismo es el altavoz interno (o el auricular de llamada), SIN audífonos
-     *  ni bluetooth conectado? Sin esa info (o ante cualquier duda) se asume que sí -- el altavoz es el
-     *  caso más ruidoso, y atenuar de más es preferible a dejar un aviso exagerado. */
-    private boolean salidaEsAltavoz() {
-        if (audioManager == null) return true;
-        try {
-            for (android.media.AudioDeviceInfo d : audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
-                switch (d.getType()) {
-                    case android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET:
-                    case android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
-                    case android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:
-                    case android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
-                    case android.media.AudioDeviceInfo.TYPE_USB_HEADSET:
-                        return false;   // hay un dispositivo externo real conectado
-                }
-            }
-        } catch (Throwable ignore) {}
-        return true;
-    }
-
-    /** Volumen ACTUAL del stream de medios (0..1), para escalar la voz/tururu nosotros mismos: el
-     *  parámetro KEY_PARAM_VOLUME de TextToSpeech (motor de respaldo, sin Mia) no sigue de forma
-     *  confiable el volumen de medios que el usuario ya tiene puesto en varios motores/fabricantes
-     *  (se queda en un nivel fijo alto sin importar el volumen del sistema). SOLO para ese motor de
-     *  respaldo: MediaPlayer ya sigue el volumen de medios (ver {@link #factorSalida()}). Incluye la
-     *  atenuación extra del altavoz interno (ver {@link #salidaEsAltavoz()}). */
-    /** Factor para MediaPlayer (voz Mia/Ximena y jingle): SOLO la atenuación del altavoz interno.
-     *  Android ya aplica el volumen de medios del usuario a todo lo que suena por MediaPlayer;
-     *  multiplicarlo otra vez (volumenSistema) lo contaba DOS veces -- a medio volumen la voz salía a
-     *  un cuarto, y en volúmenes bajos casi no se oía. */
-    private float factorSalida() {
-        try { return salidaEsAltavoz() ? ALTAVOZ_ATENUACION : 1f; } catch (Exception ignore) { return 1f; }
-    }
-
-    private float volumenSistema() {
+    /** Volumen ACTUAL del stream de medios (0..1). SOLO para el TTS de respaldo de Android: su
+     *  KEY_PARAM_VOLUME no sigue de forma confiable el volumen de medios en varios motores/fabricantes
+     *  (se queda en un nivel fijo alto), así que se le pasa el del sistema. MediaPlayer (Mia, Ximena,
+     *  tururu) ya lo aplica solo. */
+    private float volumenMedios() {
         if (audioManager == null) return 1f;
         try {
             int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
             int cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-            float v = max > 0 ? (float) cur / max : 1f;
-            return salidaEsAltavoz() ? v * ALTAVOZ_ATENUACION : v;
+            return max > 0 ? (float) cur / max : 1f;
         } catch (Exception ignore) { return 1f; }
     }
     // Subido de 4000 -> 7000: con el radio de "próxima estación" más angosto (COBERTURA_EXTRA_M=20,
@@ -1415,7 +1366,7 @@ public class RecorridoService extends Service {
         try {
             if (ttsListo && tts != null && t != null) {
                 android.os.Bundle p = new android.os.Bundle();
-                p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VOZ_VOL * volumenSistema());   // respeta el volumen de medios puesto por el usuario
+                p.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volumenMedios());   // el volumen de medios del sistema
                 tts.speak(t, TextToSpeech.QUEUE_FLUSH, p, "geomb");
             }
         } catch (Throwable ex) {
@@ -1486,8 +1437,6 @@ public class RecorridoService extends Service {
                 android.media.MediaPlayer mp = android.media.MediaPlayer.create(this, id);
                 if (mp != null) {
                     mpActual = mp;
-                    float vs = factorSalida();
-                    mp.setVolume(TURURU_VOL * vs, TURURU_VOL * vs);   // nivelado con la voz (ver TURURU_VOL)
                     mp.setOnCompletionListener(m -> {
                         try { m.release(); } catch (IllegalStateException ignore) {}
                         if (mpActual == m) mpActual = null;
@@ -1672,10 +1621,7 @@ public class RecorridoService extends Service {
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build());
             mp.setDataSource(f.getAbsolutePath());
-            float vs = factorSalida();
-            boolean mia = f.getPath().contains("/voz/Mia/");   // Polly llega ~10 dB más baja que Ximena
-            float g = mia ? 1f : VOZ_VOL;
-            mp.setVolume(g * vs, g * vs);   // respeta el volumen de medios puesto por el usuario
+            boolean mia = f.getPath().contains("/voz/Mia/");   // Polly llega ~10 dB más baja (ver MIA_REALCE_MB)
             if (mia) {
                 try {
                     realceActual = new android.media.audiofx.LoudnessEnhancer(mp.getAudioSessionId());

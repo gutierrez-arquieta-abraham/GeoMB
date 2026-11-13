@@ -114,6 +114,12 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
 - Verificado con simulación Bosques del Valle / Coacalco Tultepec → Ecatepec (8 casos: ambos sentidos detectan, los correctos no;
   en el tramo corto la señal de tiempo adelanta el aviso a la primera estación saltada).
 
+### Volumen de los avisos — `RecorridoService`
+- Suenan al volumen de MEDIOS del sistema, sin atenuación propia (ni por altavoz); Android baja lo demás con
+  `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` (`pedirFocoAudio`). Solo se nivelan entre sí (EBU R128): jingles `res/raw/tururu*.mp3`
+  a −13 LUFS, Ximena llega a ~−13 y Mia (Polly, ~−23) se sube +10 dB con `LoudnessEnhancer` (`MIA_REALCE_MB`).
+- El TTS de respaldo recibe `KEY_PARAM_VOLUME` = volumen de medios (varios motores lo ignoran si no).
+
 ## Afectaciones + notificaciones (evitar duplicados)
 - **EC2 push** → `MensajesService.notificarAfectacion` (topic `afectaciones`), autoritativo cuando el EC2 vive.
 - **Local Metrobús** → `ManifestacionesService` (WebView scraping incidentesmovilidad.cdmx). **Local Mexibús** → `AfectMexibusFeed`
