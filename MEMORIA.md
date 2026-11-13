@@ -102,6 +102,14 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
   `lineasEnEstacion()`/`transferenciaTexto()` en vez de la tabla compartida (pasó 2 veces esta sesión: `claveTerminal()` vs
   `baseLinea()`, y `basesCorresp()` sin su llamada a `corrManualLineas()`). Al tocar cualquiera de los 5, revisar su par.
 
+### Progreso y bitácora persistentes — `RecorridoService`
+- Mientras dura el viaje se guarda en disco (prefs `recorrido_estado`): `ruta` (secuencia), `base` (Ruta completa vía
+  `Planificador.rutaAJson`, para redibujar el mapa), `prog` (avanceMin, actualIdx, ultLlegando/ultProxima = avisos ya dados,
+  terminalesTramo y la BITÁCORA: tramos con servicio real, estación inicial y final). Se borra al llegar o al detener.
+- Si el SO mata la app, el servicio (START_STICKY) lo restaura y NO reinicia los avisos: sigue donde iba sin repetir
+  correspondencias/conexiones/transbordos ya hechos. El mapa redibuja `rutaBase` (MapFragment.retrazarSiRecorridoRuta).
+- Verificado con simulación Bosques del Valle → IPN cortada al 55 % (Cerro Gordo, ya pasado Puente de Fierro).
+
 ### Unidad equivocada (ordinario ↔ exprés de Mexibús) — `RecorridoService.detectarServicioEquivocado`
 - Tramo ordinario (101–104) y la unidad pasa DE LARGO (siempre ≥3 m/s) dos estaciones seguidas que el exprés no atiende → va en exprés.
   Tramo exprés (121–124) y la unidad SE DETIENE (≥8 s a <1.5 m/s) en dos de esas estaciones → va en ordinario. Entre una y otra

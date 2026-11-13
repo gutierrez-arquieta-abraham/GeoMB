@@ -548,6 +548,73 @@ public final class Planificador {
         return new Ruta(pasos, ins, paradas, transbordos, minutos, trazo, seq);
     }
 
+    /** Ruta completa a JSON (para guardar el recorrido en curso y retomarlo si el SO mata la app). */
+    static org.json.JSONObject rutaAJson(Ruta r) throws org.json.JSONException {
+        org.json.JSONObject o = new org.json.JSONObject();
+        o.put("paradas", r.paradas); o.put("transbordos", r.transbordos); o.put("minutos", r.minutos);
+        org.json.JSONArray ps = new org.json.JSONArray();
+        for (Paso p : r.pasos) {
+            org.json.JSONObject j = new org.json.JSONObject();
+            j.put("l", p.linea); j.put("c", p.color); j.put("o", p.origen); j.put("d", p.destino);
+            j.put("n", p.paradas); j.put("m", p.mixta); j.put("x", p.pasajeExtra);
+            org.json.JSONArray pts = new org.json.JSONArray();
+            for (LatLng q : p.puntos) { pts.put(q.latitude); pts.put(q.longitude); }
+            j.put("p", pts);
+            ps.put(j);
+        }
+        o.put("pasos", ps);
+        org.json.JSONArray is = new org.json.JSONArray();
+        for (Instruccion i : r.instrucciones) {
+            org.json.JSONObject j = new org.json.JSONObject();
+            j.put("t", i.terminal == null ? org.json.JSONObject.NULL : i.terminal);
+            j.put("r", i.ruta == null ? org.json.JSONObject.NULL : i.ruta);
+            j.put("l", i.linea); j.put("c", i.color); j.put("n", i.paradas); j.put("a", i.transbordoAntes);
+            is.put(j);
+        }
+        o.put("instrucciones", is);
+        org.json.JSONArray sq = new org.json.JSONArray();
+        for (Parada p : r.secuencia) {
+            org.json.JSONObject j = new org.json.JSONObject();
+            j.put("n", p.nombre); j.put("l", p.linea); j.put("c", p.color); j.put("t", p.transbordo);
+            j.put("cs", p.cambioServicio); j.put("la", p.pos.latitude); j.put("lo", p.pos.longitude);
+            j.put("i", p.icono == null ? org.json.JSONObject.NULL : p.icono);
+            sq.put(j);
+        }
+        o.put("secuencia", sq);
+        return o;
+    }
+
+    /** Inverso de {@link #rutaAJson}. */
+    static Ruta rutaDeJson(org.json.JSONObject o) throws org.json.JSONException {
+        List<Paso> pasos = new ArrayList<>();
+        List<LatLng> trazo = new ArrayList<>();
+        org.json.JSONArray ps = o.getJSONArray("pasos");
+        for (int k = 0; k < ps.length(); k++) {
+            org.json.JSONObject j = ps.getJSONObject(k);
+            org.json.JSONArray a = j.getJSONArray("p");
+            List<LatLng> pts = new ArrayList<>();
+            for (int q = 0; q + 1 < a.length(); q += 2) pts.add(new LatLng(a.getDouble(q), a.getDouble(q + 1)));
+            trazo.addAll(pts);
+            pasos.add(new Paso(j.getInt("l"), j.getInt("c"), j.getString("o"), j.getString("d"), j.getInt("n"),
+                    pts, j.optBoolean("m"), j.optBoolean("x")));
+        }
+        List<Instruccion> ins = new ArrayList<>();
+        org.json.JSONArray is = o.getJSONArray("instrucciones");
+        for (int k = 0; k < is.length(); k++) {
+            org.json.JSONObject j = is.getJSONObject(k);
+            ins.add(new Instruccion(j.isNull("t") ? null : j.getString("t"), j.isNull("r") ? null : j.getString("r"),
+                    j.getInt("l"), j.getInt("c"), j.getInt("n"), j.optBoolean("a")));
+        }
+        List<Parada> seq = new ArrayList<>();
+        org.json.JSONArray sq = o.getJSONArray("secuencia");
+        for (int k = 0; k < sq.length(); k++) {
+            org.json.JSONObject j = sq.getJSONObject(k);
+            seq.add(new Parada(j.getString("n"), j.getInt("l"), j.getInt("c"), j.getBoolean("t"), j.optBoolean("cs"),
+                    new LatLng(j.getDouble("la"), j.getDouble("lo")), j.isNull("i") ? null : j.getString("i")));
+        }
+        return new Ruta(pasos, ins, o.optInt("paradas"), o.optInt("transbordos"), o.optInt("minutos"), trazo, seq);
+    }
+
     // ---- red interna ----
 
     private static final class Stop {

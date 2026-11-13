@@ -2869,7 +2869,14 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
      *  dibujarRuta() ya se encarga de retomar recorrido/seguirCamara al ver RecorridoService.activo. */
     private void retrazarSiRecorridoRuta() {
         if (citi) return;   // la app original no tenía planificador: no se dibuja la ruta del recorrido
-        if (mapa == null || rutaActiva != null || ultDestinoRuta == null || !RecorridoService.activo) return;
+        if (mapa == null || rutaActiva != null || !RecorridoService.activo) return;
+        // El SO mató la app a media ruta y el servicio la retomó del disco: se dibuja esa ruta
+        // completa (con lo ya recorrido) en vez de volver a planear.
+        if (ultDestinoRuta == null) {
+            Planificador.Ruta guardada = RecorridoService.rutaBase;
+            if (guardada != null && guardada.secuencia == RecorridoService.paradas) dibujarRuta(guardada);
+            return;
+        }
         final String o = ultOrigenRuta, d = ultDestinoRuta;
         final int lo = ultLineaORuta, ld = ultLineaDRuta;
         final LatLng pos = ultOrigenPosRuta;

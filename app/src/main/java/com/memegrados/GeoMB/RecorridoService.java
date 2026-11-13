@@ -396,6 +396,9 @@ public class RecorridoService extends Service {
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
         rutaRecalculada = null;   // recorrido nuevo: vuelve a mandar la ruta que trazó el usuario
         if (rutaBase != null && rutaBase.secuencia != seq) rutaBase = null;   // no es la de este recorrido
+        bitacora.clear(); bitUltIdx = -1;
+        c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().remove("prog").apply();
+        guardarBase(c);
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
         avisoVelocidad = false; ultimaVelocidadKmh = -1f;
         persistir(c);   // guarda la ruta: si el SO mata el proceso, el servicio (START_STICKY) la restaura
@@ -427,6 +430,7 @@ public class RecorridoService extends Service {
                 org.json.JSONObject j = new org.json.JSONObject();
                 j.put("n", p.nombre); j.put("l", p.linea); j.put("c", p.color);
                 j.put("t", p.transbordo); j.put("la", p.pos.latitude); j.put("lo", p.pos.longitude);
+                j.put("cs", p.cambioServicio);
                 j.put("i", p.icono == null ? org.json.JSONObject.NULL : p.icono);
                 arr.put(j);
             }
@@ -449,20 +453,131 @@ public class RecorridoService extends Service {
             for (int k = 0; k < arr.length(); k++) {
                 org.json.JSONObject j = arr.getJSONObject(k);
                 seq.add(new Planificador.Parada(j.getString("n"), j.getInt("l"), j.getInt("c"),
-                        j.getBoolean("t"),
+                        j.getBoolean("t"), j.optBoolean("cs"),
                         new com.google.android.gms.maps.model.LatLng(j.getDouble("la"), j.getDouble("lo")),
                         j.isNull("i") ? null : j.getString("i")));
             }
             if (seq.isEmpty()) return false;
             paradas = seq; actualIdx = -1; servicioAnunciado = false; avanceMin = 0; visitada = null;
+            // La ruta completa (para el mapa y la bitácora): si se guardó y es la misma, se usa SU
+            // secuencia, para que rutaBase.secuencia == paradas (lo exige el recálculo).
+            String b = getSharedPreferences(PREFS, MODE_PRIVATE).getString("base", null);
+            if (b != null) {
+                try {
+                    Planificador.Ruta r = Planificador.rutaDeJson(new org.json.JSONObject(b));
+                    if (r.secuencia.size() == seq.size()) {
+                        rutaBase = r; paradas = r.secuencia;
+                        rutaRecalculada = r; CitiActivity.trayecto = r;
+                    }
+                } catch (Exception ignore) {}
+            }
+            restaurarProgreso();
             return true;
         } catch (org.json.JSONException e) { return false; }
+    }
+
+    /** Guarda en disco la ruta completa que se sigue (para redibujarla si el SO mata la app). */
+    private static void guardarBase(android.content.Context c) {
+        Planificador.Ruta r = rutaBase;
+        android.content.SharedPreferences.Editor e = c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit();
+        try {
+            if (r != null) e.putString("base", Planificador.rutaAJson(r).toString()); else e.remove("base");
+        } catch (org.json.JSONException ex) { e.remove("base"); }
+        e.apply();
+    }
+
+    // Último progreso guardado (para no escribir en disco en cada fix de GPS si nada cambió).
+    private String progGuardado = null;
+
+    /** Guarda el PROGRESO del viaje: en qué estación va, qué avisos ya sonaron (llegadas, próximas,
+     *  así las correspondencias/conexiones/transbordos ya hechos no se repiten) y la bitácora. Hasta que
+     *  el viaje termine o el usuario lo detenga (limpiarPersistencia). */
+    private void guardarProgreso() {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("av", avanceMin); o.put("ai", actualIdx); o.put("ul", ultLlegando); o.put("up", ultProxima);
+            o.put("sa", servicioAnunciado); o.put("bu", bitUltIdx);
+            org.json.JSONArray tt = new org.json.JSONArray();
+            java.util.List<String> ts = terminalesTramo;
+            if (ts != null) for (String t : ts) tt.put(t == null ? org.json.JSONObject.NULL : t);
+            o.put("tt", tt);
+            org.json.JSONArray bt = new org.json.JSONArray();
+            for (TramoBitacora t : bitacora) {
+                org.json.JSONObject j = new org.json.JSONObject();
+                j.put("l", t.linea); j.put("d", t.desde); j.put("h", t.hasta == null ? org.json.JSONObject.NULL : t.hasta);
+                j.put("i", t.inicioMs); j.put("f", t.finMs);
+                bt.put(j);
+            }
+            o.put("bit", bt);
+            String txt = o.toString();
+            if (txt.equals(progGuardado)) return;
+            progGuardado = txt;
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("prog", txt).apply();
+        } catch (Exception ignore) {}
+    }
+
+    /** Inverso de {@link #guardarProgreso()} (al revivir el proceso). */
+    private void restaurarProgreso() {
+        String s = getSharedPreferences(PREFS, MODE_PRIVATE).getString("prog", null);
+        if (s == null) return;
+        try {
+            org.json.JSONObject o = new org.json.JSONObject(s);
+            int n = paradas.size();
+            avanceMin = Math.max(0, Math.min(o.optInt("av", 0), n - 1));
+            actualIdx = Math.min(o.optInt("ai", -1), n - 1);
+            ultLlegandoRestaurado = Math.min(o.optInt("ul", -99), n - 1);
+            ultProximaRestaurado = Math.min(o.optInt("up", -99), n - 1);
+            servicioAnunciado = o.optBoolean("sa", false);
+            bitUltIdx = Math.min(o.optInt("bu", -1), n - 1);
+            org.json.JSONArray tt = o.optJSONArray("tt");
+            if (tt != null) {
+                java.util.List<String> ts = new java.util.ArrayList<>();
+                for (int k = 0; k < tt.length(); k++) ts.add(tt.isNull(k) ? null : tt.getString(k));
+                terminalesTramo = ts;
+            }
+            bitacora.clear();
+            org.json.JSONArray bt = o.optJSONArray("bit");
+            if (bt != null) for (int k = 0; k < bt.length(); k++) {
+                org.json.JSONObject j = bt.getJSONObject(k);
+                bitacora.add(new TramoBitacora(j.getInt("l"), j.getString("d"), j.isNull("h") ? null : j.getString("h"),
+                        j.optLong("i"), j.optLong("f")));
+            }
+            progRestaurado = true;
+            progGuardado = s;
+        } catch (Exception ignore) {}
+    }
+
+    // Lo restaurado de los avisos ya dados (se aplica en onStartCommand en vez de reiniciarlos).
+    private boolean progRestaurado = false;
+    private int ultLlegandoRestaurado = -99, ultProximaRestaurado = -99;
+
+    /** Registra en la bitácora el avance a 'best': si cambió el servicio (otra línea u ordinario ↔
+     *  exprés), cierra el tramo anterior en su última estación y abre uno nuevo. */
+    private void actualizarBitacora(List<Planificador.Parada> seq, int best) {
+        if (best < 0 || best >= seq.size()) return;
+        long ahora = System.currentTimeMillis();
+        Planificador.Parada p = seq.get(best);
+        if (bitacora.isEmpty()) {
+            bitacora.add(new TramoBitacora(p.linea, p.nombre, null, ahora, 0));
+            bitUltIdx = best;
+            return;
+        }
+        if (best <= bitUltIdx) return;
+        TramoBitacora t = bitacora.get(bitacora.size() - 1);
+        if (p.linea != t.linea) {
+            String fin = null;
+            for (int k = best - 1; k >= 0; k--) if (seq.get(k).linea == t.linea) { fin = seq.get(k).nombre; break; }
+            t.hasta = fin != null ? fin : seq.get(best - 1).nombre;
+            t.finMs = ahora;
+            bitacora.add(new TramoBitacora(p.linea, p.nombre, null, ahora, 0));
+        }
+        bitUltIdx = best;
     }
 
     private void limpiarPersistencia() { limpiarPersistencia(this); }
     private static void limpiarPersistencia(android.content.Context c) {
         c.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-                .edit().remove("ruta").apply();
+                .edit().remove("ruta").remove("prog").remove("base").apply();
     }
 
     @Override public void onCreate() {
@@ -517,9 +632,20 @@ public class RecorridoService extends Service {
             return START_NOT_STICKY;
         }
         // Proceso revivido por el SO (intent null) sin la ruta en memoria: recárgala del disco.
-        if (paradas == null && !restaurar()) { limpiarPersistencia(); stopSelf(); return START_NOT_STICKY; }
+        boolean revivido = false;
+        if (paradas == null) {
+            if (!restaurar()) { limpiarPersistencia(); stopSelf(); return START_NOT_STICKY; }
+            revivido = true;
+        }
         activo = true;
         ultVoz = -99; ultLlegando = -99; ultProxima = -99; afectacionAvisada = false;
+        if (revivido && progRestaurado) {
+            // El SO mató la app a media ruta: se retoma donde iba, sin repetir los avisos (llegadas,
+            // correspondencias, conexiones y transbordos) que ya habían sonado.
+            ultLlegando = ultLlegandoRestaurado; ultProxima = ultProximaRestaurado;
+        } else {
+            progGuardado = null;
+        }
         estSeguida = -99; distMin = Float.MAX_VALUE; finalizado = false;
         corresPendienteIdx = -1;   // nuevo recorrido (o reinicio tras revivir): sin candidato pendiente
         corresPendienteCiclos = 0;
@@ -790,6 +916,15 @@ public class RecorridoService extends Service {
         } catch (Throwable t) {
             Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "RecorridoService.detectarServicio", String.valueOf(t));
         }
+        try {
+            List<Planificador.Parada> seq = paradas;
+            if (seq != null && !finalizado) {
+                actualizarBitacora(seq, actualIdx);
+                guardarProgreso();   // solo escribe si cambió algo (estación, avisos dados, bitácora)
+            }
+        } catch (Throwable t) {
+            Telemetria.registrarError(this, Telemetria.ERR_EXCEPCION, "RecorridoService.guardarProgreso", String.valueOf(t));
+        }
     }
 
     // ============================================================
@@ -831,6 +966,23 @@ public class RecorridoService extends Service {
      *  pone quien inicia el recorrido. Sirve para que el recálculo conserve de inicio a fin lo ya
      *  recorrido y con qué servicio (ver Planificador.unirConRecorrido). */
     public static volatile Planificador.Ruta rutaBase = null;
+
+    /** Un tramo de la BITÁCORA del viaje: con qué servicio (línea interna: 102 = Mexibús L2 ordinario,
+     *  122 = su exprés, 1..7 Metrobús…) se fue de qué estación a cuál. {@code hasta} es null mientras
+     *  es el tramo en curso. Se guarda en disco hasta que el viaje termina o el usuario lo detiene. */
+    public static final class TramoBitacora {
+        public volatile int linea;
+        public final String desde;
+        public volatile String hasta;
+        public final long inicioMs;
+        public volatile long finMs;
+        TramoBitacora(int linea, String desde, String hasta, long inicioMs, long finMs) {
+            this.linea = linea; this.desde = desde; this.hasta = hasta; this.inicioMs = inicioMs; this.finMs = finMs;
+        }
+    }
+    /** Bitácora del viaje en curso (servicios tomados, estación inicial y final de cada uno). */
+    public static final java.util.List<TramoBitacora> bitacora = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static volatile int bitUltIdx = -1;   // último índice de la secuencia ya registrado en la bitácora
 
     private String detEstacion = null;          // estación por la que va pasando la unidad
     private long detDesdeMs = 0, detParadoMs = 0, detUltimoMs = 0;
@@ -1015,10 +1167,19 @@ public class RecorridoService extends Service {
         corresPendienteIdx = -1; corresPendienteCiclos = 0; reanclajeCandidatoPendiente = -1;
         permanenciaIdx = -1; permanenciaRota = false; visitada = null;
         reiniciarDetector();
+        // Bitácora: el tramo en curso se hizo en realidad en el servicio detectado.
+        if (!bitacora.isEmpty() && r.secuencia.size() > avanceMin) {
+            TramoBitacora t = bitacora.get(bitacora.size() - 1);
+            if (t.hasta == null) t.linea = r.secuencia.get(avanceMin).linea;
+        }
+        bitUltIdx = avanceMin;
         persistir(this);
         rutaRecalculada = r;
         rutaBase = r;
-        CitiActivity.trayecto = r;   // el mapa del estilo CITI dibuja este trayecto
+        CitiActivity.trayecto = r;
+        guardarBase(this);
+        progGuardado = null;
+        guardarProgreso();   // el mapa del estilo CITI dibuja este trayecto
     }
 
     private void procesarInterno(android.location.Location l) {
