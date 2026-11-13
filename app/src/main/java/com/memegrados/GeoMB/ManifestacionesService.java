@@ -484,6 +484,42 @@ public class ManifestacionesService extends Service {
      * catálogo de ESTA línea, devuelve {@code null} -- no se inventa un rango sin ambos nombres
      * confirmados; el llamador cae de vuelta a {@link #itemsEstaciones} (comportamiento de siempre).
      */
+    /**
+     * Rango "A - B" de la columna "Estaciones afectadas" para L4/L7, que NO siguen el orden de su
+     * catálogo (l.estaciones): las estaciones entre A y B (inclusive) según el ORDEN REAL de cada
+     * servicio de RutasMixtas que pase por ambas. De cada servicio se toma su tramo y se unen solo los
+     * más cortos (el mismo tramo en ida y en vuelta), para no colar la vuelta larga de un lazo. Caso
+     * real (L4): "Plaza de la República - Vocacional 5" por el catálogo cerraba también México
+     * Tenochtitlan, Delegación Cuauhtémoc, Buenavista y Museo San Carlos; por la Ruta Sur son solo
+     * Plaza de la República, Amajac, Defensoría Pública y Vocacional 5. Vacía si no se resuelve.
+     */
+    static java.util.Set<String> rangoPorServicios(int nlinea, String estacionesRaw) {
+        java.util.Set<String> res = new java.util.LinkedHashSet<>();
+        if (estacionesRaw == null) return res;
+        java.util.regex.Matcher m = P_RANGO_ESTACIONES.matcher(estacionesRaw);
+        if (!m.find()) return res;
+        String a = estacionesRaw.substring(0, m.start()).trim(), b = estacionesRaw.substring(m.end()).trim();
+        if (a.length() < 3 || b.length() < 3) return res;
+        int minSpan = Integer.MAX_VALUE;
+        List<int[]> spans = new ArrayList<>();
+        List<RutasMixtas.SeqMixta> secs = new ArrayList<>();
+        for (RutasMixtas.SeqMixta sm : RutasMixtas.SECUENCIAS) {
+            int ia = idxEnSecuencia(sm, nlinea, a), ib = idxEnSecuencia(sm, nlinea, b);
+            if (ia < 0 || ib < 0) continue;
+            int lo = Math.min(ia, ib), hi = Math.max(ia, ib);
+            spans.add(new int[]{lo, hi}); secs.add(sm);
+            minSpan = Math.min(minSpan, hi - lo);
+        }
+        for (int i = 0; i < spans.size(); i++) {
+            int[] sp = spans.get(i);
+            if (sp[1] - sp[0] != minSpan) continue;
+            RutasMixtas.SeqMixta sm = secs.get(i);
+            for (int k = sp[0]; k <= sp[1]; k++)
+                if (sm.lineas[k] == nlinea) res.add(Planificador.norm(sm.estaciones[k]));
+        }
+        return res;
+    }
+
     static int[] rangoEstacionesCerradas(String estacionesRaw, List<Estacion> catalogoLinea) {
         if (estacionesRaw == null) return null;
         java.util.regex.Matcher m = P_RANGO_ESTACIONES.matcher(estacionesRaw);
@@ -548,6 +584,8 @@ public class ManifestacionesService extends Service {
             System.arraycopy(term, 0, candidatos, 0, term.length);
             System.arraycopy(TERMINALES_EXTRA_L4, 0, candidatos, term.length, TERMINALES_EXTRA_L4.length);
         }
+        // "ambos sentidos" es justo lo contrario de un cierre de un solo sentido.
+        if (textoNorm.contains("ambos sentidos") || textoNorm.contains("ambas direcciones")) return null;
         boolean direccional = textoNorm.contains("direccion") || textoNorm.contains("sentido")
                 || textoNorm.contains("hacia");
         if (!direccional) return null;   // sin marca de sentido = ambos (cierre total, se parte la línea)
@@ -752,8 +790,16 @@ public class ManifestacionesService extends Service {
                                 // una lista ni un nombre compuesto -- ver rangoEstacionesCerradas(). Si
                                 // ambos extremos resuelven contra el catálogo de esta línea, se bloquea el
                                 // tramo completo (inclusive); si no, se cae al camino de siempre.
-                                int[] rango = rangoEstacionesCerradas(estaciones, l.estaciones);
-                                if (rango != null) {
+                                java.util.Set<String> rangoSrv = porServicios(nlinea)
+                                        ? rangoPorServicios(nlinea, estaciones) : java.util.Collections.emptySet();
+                                int[] rango = porServicios(nlinea) ? null : rangoEstacionesCerradas(estaciones, l.estaciones);
+                                if (!rangoSrv.isEmpty()) {
+                                    rangoYaLocalizado = true;
+                                    for (String nn : rangoSrv) {
+                                        bloquearNn(nlinea, nn, terminalSentido);
+                                        if (ambos && bloqueoFisico) cortarAlrededor(nlinea, nn);
+                                    }
+                                } else if (rango != null) {
                                     rangoYaLocalizado = true;
                                     for (int k = rango[0]; k <= rango[1]; k++) {
                                         String nn = Planificador.norm(l.estaciones.get(k).nombre);
