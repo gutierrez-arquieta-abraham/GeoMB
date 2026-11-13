@@ -70,7 +70,10 @@ public final class Locuciones {
         if (n >= 100) return 100 + (n % 10);
         return n;
     }
+    /** Número de línea para la voz en listas de correspondencia ("Mexibús Líneas 2 y 2A"). Ramales
+     *  Mexibús 111/112/113 = "1A/2A/3A" (antes salían "11/12/13": "correspondencia con Línea 12"). */
     static String numLinea(int base) {
+        if (base >= 111 && base <= 113) return (base - 110) + "A";
         return String.valueOf(base >= 200 ? base - 200 : (base >= 100 ? base - 100 : base));
     }
     static String cap(String s) { return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1); }
