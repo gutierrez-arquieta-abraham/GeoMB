@@ -110,6 +110,14 @@ public class RecorridoService extends Service {
      *  mucho más arriba (p. ej. 80%), obligando a bajarle manualmente durante el aviso. Se atenúa
      *  igual que el "tururu" para que respete proporcionalmente el volumen ya puesto por el usuario. */
     private static final float VOZ_VOL = 0.7f;
+    /** Nivelación de VOLUMEN entre audios (medido con EBU R128, en LUFS): Ximena llega del servidor a
+     *  ~−13 LUFS y Mia (Polly) a ~−23 LUFS, 10 dB más baja; los jingles se normalizaron a −15 LUFS
+     *  (antes el de Metrobús estaba a −2 LUFS: ~21 dB por encima de Mia). Con VOZ_VOL (−3 dB) Ximena
+     *  queda en ~−16; a Mia se le quita esa atenuación y se le suben MIA_REALCE_MB (+7 dB, con el
+     *  limitador de LoudnessEnhancer, sin recortar) para quedar igual. El jingle (TURURU_VOL) queda
+     *  ~2 dB por debajo de la voz. */
+    private static final int MIA_REALCE_MB = 700;
+    private android.media.audiofx.LoudnessEnhancer realceActual;
 
     /** Atenuación extra cuando el audio sale por el ALTAVOZ interno (sin audífonos/bluetooth): a un
      *  mismo índice de volumen de medios, el altavoz suena bastante más fuerte que unos audífonos, así
@@ -1500,6 +1508,10 @@ public class RecorridoService extends Service {
 
     /** Detiene y libera el reproductor en curso (tururu o voz) para que no se encimen. */
     private void soltarActual() {
+        if (realceActual != null) {
+            try { realceActual.release(); } catch (Throwable ignore) {}
+            realceActual = null;
+        }
         if (mpActual != null) {
             try { mpActual.stop(); } catch (IllegalStateException ignore) {}
             try { mpActual.release(); } catch (IllegalStateException ignore) {}
@@ -1650,10 +1662,20 @@ public class RecorridoService extends Service {
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build());
             mp.setDataSource(f.getAbsolutePath());
             float vs = volumenSistema();
-            mp.setVolume(VOZ_VOL * vs, VOZ_VOL * vs);   // respeta el volumen de medios puesto por el usuario
+            boolean mia = f.getPath().contains("/voz/Mia/");   // Polly llega ~10 dB más baja que Ximena
+            float g = mia ? 1f : VOZ_VOL;
+            mp.setVolume(g * vs, g * vs);   // respeta el volumen de medios puesto por el usuario
+            if (mia) {
+                try {
+                    realceActual = new android.media.audiofx.LoudnessEnhancer(mp.getAudioSessionId());
+                    realceActual.setTargetGain(MIA_REALCE_MB);
+                    realceActual.setEnabled(true);
+                } catch (Throwable ignore) { realceActual = null; }   // sin el efecto: suena como antes
+            }
             mp.setOnCompletionListener(m -> {
                 try { m.release(); } catch (IllegalStateException ignore) {}
                 if (mpActual == m) mpActual = null;
+                if (realceActual != null) { try { realceActual.release(); } catch (Throwable ignore) {} realceActual = null; }
                 alTerminar.run();   // siguiente fragmento del aviso, o vozTerminada() si era el último
             });
             mp.prepare();
