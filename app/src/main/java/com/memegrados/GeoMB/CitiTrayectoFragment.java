@@ -291,6 +291,7 @@ public class CitiTrayectoFragment extends CitiPantalla {
         List<String> terms = new ArrayList<>();
         if (r.instrucciones != null) for (Planificador.Instruccion ins : r.instrucciones) terms.add(ins.terminal);
         RecorridoService.terminalesTramo = terms;
+        RecorridoService.rutaBase = r;   // para que un recálculo conserve la bitácora completa
         RecorridoService.iniciar(requireContext(), r.secuencia, r.secuencia.get(r.secuencia.size() - 1).nombre);
         citi().verTrayectoEnMapa();
     }

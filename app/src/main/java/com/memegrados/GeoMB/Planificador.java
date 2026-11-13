@@ -485,6 +485,69 @@ public final class Planificador {
         }
     }
 
+    /**
+     * Bitácora del recorrido al detectar que vas en OTRO servicio de la misma línea (ordinario ↔
+     * exprés, ver RecorridoService.detectarServicioEquivocado): une, de INICIO a FIN,
+     *  1) los tramos ya hechos de {@code base} antes del tramo actual (tal como se planearon),
+     *  2) el tramo actual con el servicio que de verdad tomaste ({@code real}), desde donde lo abordaste
+     *     ({@code base.secuencia[ini]}) hasta el origen de {@code resto}, y
+     *  3) {@code resto}: lo recalculado desde la siguiente estación de ese servicio hasta el destino.
+     * El tramo 2 y el primero de {@code resto} van en el mismo servicio: se funden en un solo Paso e
+     * Instrucción (así los avisos de transbordo siguen alineados con los tramos). null si no se puede
+     * armar (el llamador usa {@code resto} a secas).
+     */
+    static Ruta unirConRecorrido(Context ctx, Ruta base, int ini, int real, Ruta resto) {
+        if (base == null || resto == null || resto.pasos.isEmpty() || resto.secuencia.isEmpty()
+                || ini < 0 || ini >= base.secuencia.size()) return null;
+        int tramo = 0;   // índice del tramo (Paso) que empieza en 'ini' = nº de transbordos antes
+        for (int k = 1; k <= ini; k++) if (base.secuencia.get(k).transbordo) tramo++;
+        if (tramo > base.pasos.size() || tramo > base.instrucciones.size()) return null;
+        Linea l = GtfsRepository.porNumero(ctx, real);
+        if (l == null) return null;
+        Parada abordo = base.secuencia.get(ini);
+        Parada origen = resto.secuencia.get(0);
+
+        // Estaciones del servicio real entre donde abordaste y el origen de lo recalculado (sin este).
+        double dA = l.distanciaEn(abordo.pos), dB = l.distanciaEn(origen.pos);
+        List<Estacion> entre = new ArrayList<>();
+        for (Estacion e : l.estaciones) {
+            if (e.soloMapa) continue;
+            double de = l.distanciaEn(e.posicion);
+            if (dB >= dA ? (de > dA + 15 && de < dB - 15) : (de < dA - 15 && de > dB + 15)) entre.add(e);
+        }
+        entre.sort((x, y) -> Double.compare(Math.abs(l.distanciaEn(x.posicion) - dA), Math.abs(l.distanciaEn(y.posicion) - dA)));
+
+        List<Parada> seq = new ArrayList<>(base.secuencia.subList(0, ini));
+        seq.add(new Parada(abordo.nombre, real, l.color, abordo.transbordo, abordo.pos, abordo.icono));
+        for (Estacion e : entre) seq.add(new Parada(e.nombre, real, l.color, false, e.posicion, e.icono));
+        seq.addAll(resto.secuencia);
+
+        List<LatLng> geo = geomSentido(ctx, real, abordo.pos, origen.pos);
+        List<LatLng> recorrido = geo != null && geo.size() >= 2 ? subRuta(geo, abordo.pos, origen.pos)
+                : new ArrayList<>(java.util.Arrays.asList(abordo.pos, origen.pos));
+        Paso p0 = resto.pasos.get(0);
+        List<LatLng> pts = new ArrayList<>(recorrido);
+        pts.addAll(p0.puntos);
+        int paradasExtra = entre.size() + 1;
+        List<Paso> pasos = new ArrayList<>(base.pasos.subList(0, tramo));
+        pasos.add(new Paso(real, p0.color, abordo.nombre, p0.destino, p0.paradas + paradasExtra, pts, p0.mixta, false));
+        pasos.addAll(resto.pasos.subList(1, resto.pasos.size()));
+
+        List<Instruccion> ins = new ArrayList<>(base.instrucciones.subList(0, tramo));
+        Instruccion i0 = resto.instrucciones.isEmpty() ? null : resto.instrucciones.get(0);
+        ins.add(new Instruccion(i0 != null ? i0.terminal : null, i0 != null ? i0.ruta : null, real,
+                p0.color, p0.paradas + paradasExtra, tramo > 0));
+        if (resto.instrucciones.size() > 1) ins.addAll(resto.instrucciones.subList(1, resto.instrucciones.size()));
+
+        List<LatLng> trazo = new ArrayList<>();
+        for (Paso p : pasos) trazo.addAll(p.puntos);
+        int paradas = 0;
+        for (Paso p : pasos) paradas += p.paradas;
+        int transbordos = Math.max(0, pasos.size() - 1);
+        int minutos = resto.minutos;   // lo que falta: lo ya recorrido no cuenta
+        return new Ruta(pasos, ins, paradas, transbordos, minutos, trazo, seq);
+    }
+
     // ---- red interna ----
 
     private static final class Stop {

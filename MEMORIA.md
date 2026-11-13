@@ -107,6 +107,9 @@ afectaciones del servicio, reportes y notificaciones push (FCM).
   Tramo exprés (121–124) y la unidad SE DETIENE (≥8 s a <1.5 m/s) en dos de esas estaciones → va en ordinario. Entre una y otra
   debe verse ≥6 m/s (a bordo, no caminando).
 - Al detectarlo: voz `voz_servicio_equivocado` y se recalcula con el Planificador desde la siguiente estación del servicio real
+  hasta el destino y se UNE de inicio a fin con lo ya recorrido (`Planificador.unirConRecorrido`): tramos previos tal cual, el
+  tramo actual con el servicio real desde donde se abordó, y lo recalculado. El mapa dibuja esa bitácora completa. Necesita
+  `RecorridoService.rutaBase` (lo ponen MapFragment y CitiTrayectoFragment al iniciar); sin ella queda solo lo recalculado.
   hasta el destino (`aplicarRutaRecalculada`, sin detener el servicio). El mapa la redibuja vía `RecorridoService.rutaRecalculada`.
 - Segunda señal (líneas con pocas estaciones saltadas): tiempo a bordo vs distancia contra el modelo del planificador
   (6 m/s + 35 s por estación donde para cada servicio), desde 1.5 km a bordo. Si apunta al otro servicio, basta UNA estación

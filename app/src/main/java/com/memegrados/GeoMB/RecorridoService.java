@@ -395,6 +395,7 @@ public class RecorridoService extends Service {
 
     public static void iniciar(android.content.Context c, List<Planificador.Parada> seq, String term) {
         rutaRecalculada = null;   // recorrido nuevo: vuelve a mandar la ruta que trazó el usuario
+        if (rutaBase != null && rutaBase.secuencia != seq) rutaBase = null;   // no es la de este recorrido
         paradas = seq; terminal = term; actualIdx = -1; servicioAnunciado = false; avanceMin = 0;
         avisoVelocidad = false; ultimaVelocidadKmh = -1f;
         persistir(c);   // guarda la ruta: si el SO mata el proceso, el servicio (START_STICKY) la restaura
@@ -826,6 +827,10 @@ public class RecorridoService extends Service {
     /** La ruta que el recorrido recalculó por ir en el servicio equivocado (null = la planeada). La
      *  lee el mapa para redibujarse; se limpia al iniciar un recorrido nuevo. */
     public static volatile Planificador.Ruta rutaRecalculada = null;
+    /** La ruta COMPLETA que se está siguiendo (la que trazó el usuario o la última bitácora unida): la
+     *  pone quien inicia el recorrido. Sirve para que el recálculo conserve de inicio a fin lo ya
+     *  recorrido y con qué servicio (ver Planificador.unirConRecorrido). */
+    public static volatile Planificador.Ruta rutaBase = null;
 
     private String detEstacion = null;          // estación por la que va pasando la unidad
     private long detDesdeMs = 0, detParadoMs = 0, detUltimoMs = 0;
@@ -929,7 +934,7 @@ public class RecorridoService extends Service {
                     && Boolean.TRUE.equals(tiempoPareceDelOtro(lOrd, delExpres, planOrdinario, distAhora, ahora));
             if (detConteo >= DET_ESTACIONES || confirmaTiempo) {
                 detConteo = 0;
-                recalcularPorServicio(planOrdinario ? exp : ord, seq, fin, yo);
+                recalcularPorServicio(planOrdinario ? exp : ord, seq, ini, fin, yo);
                 return;
             }
         }
@@ -944,7 +949,7 @@ public class RecorridoService extends Service {
 
     /** Avisa y recalcula el recorrido con el servicio {@code real} (ordinario o exprés) desde la
      *  siguiente estación de ese servicio, en la dirección del tramo, hasta el destino final. */
-    private void recalcularPorServicio(int real, List<Planificador.Parada> seq, int finTramo,
+    private void recalcularPorServicio(int real, List<Planificador.Parada> seq, int iniTramo, int finTramo,
                                        com.google.android.gms.maps.model.LatLng yo) {
         boolean expres = real >= 121;
         String tipo = getString(expres ? R.string.servicio_express : R.string.servicio_ordinario);
@@ -975,24 +980,36 @@ public class RecorridoService extends Service {
             } catch (Throwable t) {
                 Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "RecorridoService.recalcularPorServicio", String.valueOf(t));
             }
-            final Planificador.Ruta ruta = r;
+            // Bitácora de inicio a fin: lo ya recorrido (con el servicio real) + lo recalculado.
+            Planificador.Ruta completa = null;
+            Planificador.Ruta base = rutaBase;
+            if (r != null && base != null && base.secuencia == seq) {
+                try { completa = Planificador.unirConRecorrido(app, base, iniTramo, real, r); }
+                catch (Throwable t) {
+                    Telemetria.registrarError(app, Telemetria.ERR_EXCEPCION, "RecorridoService.unirConRecorrido", String.valueOf(t));
+                }
+            }
+            final Planificador.Ruta ruta = completa != null ? completa : r;
+            final int desde = completa != null ? iniTramo : 0;
             handler.post(() -> {
                 detRecalculando = false;
                 if (ruta == null || ruta.secuencia.isEmpty() || !activo || finalizado) return;
-                aplicarRutaRecalculada(ruta);
+                aplicarRutaRecalculada(ruta, desde);
             });
         }, "recalcular-servicio").start();
     }
 
     /** Cambia el recorrido en curso a {@code r} sin detener el servicio (mismo reinicio de estado que
      *  un recorrido nuevo, pero sin volver a anunciar el abordaje). */
-    private void aplicarRutaRecalculada(Planificador.Ruta r) {
+    private void aplicarRutaRecalculada(Planificador.Ruta r, int desde) {
         java.util.List<String> terms = new java.util.ArrayList<>();
         if (r.instrucciones != null) for (Planificador.Instruccion ins : r.instrucciones) terms.add(ins.terminal);
         terminalesTramo = terms;
         paradas = r.secuencia;
         terminal = r.secuencia.get(r.secuencia.size() - 1).nombre;
-        actualIdx = -1; avanceMin = 0; servicioAnunciado = true;
+        // Con la bitácora completa, el avance arranca en el tramo actual (lo anterior ya se recorrió).
+        avanceMin = Math.max(0, Math.min(desde, r.secuencia.size() - 1));
+        actualIdx = avanceMin; servicioAnunciado = true;
         ultVoz = -99; ultLlegando = -99; ultProxima = -99;
         estSeguida = -99; distMin = Float.MAX_VALUE;
         corresPendienteIdx = -1; corresPendienteCiclos = 0; reanclajeCandidatoPendiente = -1;
@@ -1000,6 +1017,7 @@ public class RecorridoService extends Service {
         reiniciarDetector();
         persistir(this);
         rutaRecalculada = r;
+        rutaBase = r;
         CitiActivity.trayecto = r;   // el mapa del estilo CITI dibuja este trayecto
     }
 

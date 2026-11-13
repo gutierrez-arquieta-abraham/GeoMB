@@ -3360,6 +3360,7 @@ public class MapFragment extends Fragment implements FiltrosSheet.Host {
         if (rutaActiva.instrucciones != null)
             for (Planificador.Instruccion ins : rutaActiva.instrucciones) terms.add(ins.terminal);
         RecorridoService.terminalesTramo = terms;
+        RecorridoService.rutaBase = rutaActiva;   // para que un recálculo conserve la bitácora completa
         RecorridoService.iniciar(requireContext(), rutaActiva.secuencia, destinoFinal);
     }
 
